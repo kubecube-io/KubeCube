@@ -1,0 +1,7 @@
+apiVersion: quota.kubecube.io/v1
+kind: CubeResourceQuota
+metadata:
+  name: cuberesourcequota-sample
+spec:
+  # Add fields here
+  foo: bar

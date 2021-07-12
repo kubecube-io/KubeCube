@@ -1,0 +1,114 @@
+# tenant admin has limited privileges under of
+# tenant namespace used of RoleBinding.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: tenant-admin-cluster
+  annotations:
+    kubecube.io/sync: "true"
+rules:
+  # only has read authority of namespace cause
+  # subNamespace will replace it
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+      - namespaces/status
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - metrics.k8s.io
+    resources:
+      - pods
+      - nodes
+    verbs:
+      - get
+      - list
+      - watch
+  # tenant access to operate project
+  - apiGroups:
+      - tenant.kubecube.io
+    resources:
+      - projects
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - tenant.kubecube.io
+    resources:
+      - projects/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - tenant.kubecube.io
+    resources:
+      - projects/status
+    verbs:
+      - get
+      - patch
+      - update
+  # access to operate cuberesourcequota
+  - apiGroups:
+      - quota.kubecube.io
+    resources:
+      - cuberesourcequota
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - quota.kubecube.io
+    resources:
+      - cuberesourcequota/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - quota.kubecube.io
+    resources:
+      - cuberesourcequota/status
+    verbs:
+      - get
+      - patch
+      - update
+  # tenant has read authority of user
+  - apiGroups:
+      - user.kubecube.io
+    resources:
+      - users
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - user.kubecube.io
+    resources:
+      - users/status
+    verbs:
+      - get
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - storageclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - persistentvolumes
+    verbs:
+      - get
+      - list
+      - watch

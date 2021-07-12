@@ -1,0 +1,42 @@
+name: Go
+
+on:
+  push:
+    branches:
+      - main
+      - release-*
+    tags:
+      - v*
+  pull_request:
+    branches:
+      - main
+      - release-*
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.16
+
+      - name: go fmt check
+        run: |
+          gofiles=$(find . -name "*.go" -type f -not -path "./vendor/*");
+          diff=`gofmt -s -l ${gofiles}`;
+          if [ -n "${diff}" ]; then
+              echo "Please run 'make fmt' and commit the result:";
+              echo "${diff}";
+              exit 1;
+          fi;
+
+      - name: Build
+        run: make build
+
+      - name: Test all
+        run: go test -v $(go list ./... | grep -v /test/e2e)

@@ -1,0 +1,10 @@
+apiVersion: tenant.kubecube.io/v1
+kind: Project
+metadata:
+  name: project-sample
+  labels:
+    kubecube.io/tenant: tenant-smaple
+spec:
+  # Add fields here
+  displayName: my-project
+  description: my-project

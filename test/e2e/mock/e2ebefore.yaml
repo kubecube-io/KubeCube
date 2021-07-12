@@ -1,0 +1,138 @@
+---
+## tenant
+apiVersion: tenant.kubecube.io/v1
+kind: Tenant
+metadata:
+  name: e2e-tenant
+spec:
+  displayName: my-tenant
+  description: my-tenant
+---
+## project
+apiVersion: tenant.kubecube.io/v1
+kind: Project
+metadata:
+  name: e2e-project
+  labels:
+    kubecube.io/tenant: e2e-tenant
+spec:
+  displayName: my-project
+  description: my-project
+---
+## namespace -subnamespaceanchor
+apiVersion: hnc.x-k8s.io/v1alpha2
+kind: SubnamespaceAnchor
+metadata:
+  name: e2e-ns
+  namespace: kubecube-project-e2e-project
+---
+## user
+apiVersion: user.kubecube.io/v1
+kind: User
+metadata:
+  name: e2e-admin
+spec:
+  displayName: e2e-admin
+  language: en
+  loginType: normal
+  password: c43d070132cad83456760ada12bc43b1
+---
+apiVersion: user.kubecube.io/v1
+kind: User
+metadata:
+  name: e2e-tenant-admin
+spec:
+  displayName: e2e-tenant-admin
+  language: en
+  loginType: normal
+  password: b51a06c0adbc4848fabae3a152bc4aee
+---
+apiVersion: user.kubecube.io/v1
+kind: User
+metadata:
+  name: e2e-project-admin
+spec:
+  displayName: e2e-project-admin
+  language: en
+  loginType: normal
+  password: 94d99f974f6f0c65c7f547a07e9bfa4d
+---
+apiVersion: user.kubecube.io/v1
+kind: User
+metadata:
+  name: e2e-user
+spec:
+  displayName: e2e-user
+  language: en
+  loginType: normal
+  password: 1f7b1eb0505fcb254da01af793cf84ff
+---
+## rolebidng
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: e2e-admin-clusterrolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: platform-admin
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: User
+  name: e2e-admin
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    kubecube.io/rbac: "true"
+    kubecube.io/tenant: e2e-tenant
+  name: e2e-tenant-rolebinding
+  namespace: kubecube-tenant-e2e-tenant
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tenant-admin
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: User
+  name: e2e-tenant-admin
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    kubecube.io/project: e2e-project
+    kubecube.io/rbac: "true"
+    kubecube.io/tenant: e2e-tenant
+  name: e2e-project-rolebinding
+  namespace: kubecube-project-e2e-project
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: project-admin
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: User
+  name: e2e-project-admin
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    kubecube.io/project: e2e-project
+    kubecube.io/rbac: "true"
+    kubecube.io/tenant: e2e-tenant
+  name: e2e-reviewer-rolebinding
+  namespace: kubecube-project-e2e-project
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: reviewer
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: User
+  name: e2e-user
+
+
+

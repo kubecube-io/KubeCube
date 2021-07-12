@@ -1,0 +1,1777 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "description": "This is KubeCube api documentation.",
+    "title": "Swagger KubeCube API",
+    "contact": {},
+    "version": "1.0"
+  },
+  "paths": {
+    "/api/v1/cube/authorization/bindings": {
+      "post": {
+        "description": "create roleBinding and clusterRoleBinding",
+        "tags": [
+          "authorization"
+        ],
+        "summary": "Create roleBinding",
+        "parameters": [
+          {
+            "description": "roleBinding data",
+            "name": "roleBinding",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1.RoleBinding"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "success",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/errcode.ErrorInfo"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/errcode.ErrorInfo"
+            }
+          }
+        }
+      },
+      "delete": {
+        "description": "delete roleBinding and clusterRoleBinding",
+        "tags": [
+          "authorization"
+        ],
+        "summary": "Delete roleBinding",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "roleBinding name",
+            "name": "name",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "roleBinding namespace",
+            "name": "namespace",
+            "in": "query",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "success",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/errcode.ErrorInfo"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cube/authorization/clusterroles": {
+      "get": {
+        "description": "get clusterRoles by level",
+        "tags": [
+          "authorization"
+        ],
+        "summary": "Get roleBinding",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "hnc level",
+            "name": "level",
+            "in": "query",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/pkg_apiserver_cubeapi_authorization.result"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/errcode.ErrorInfo"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cube/authorization/identities": {
+      "get": {
+        "description": "show a user identity of platform, tenant or project",
+        "tags": [
+          "authorization"
+        ],
+        "summary": "Show identity",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "user name",
+            "name": "user",
+            "in": "query",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cube/authorization/projects": {
+      "get": {
+        "description": "get all visible project for user under tenant",
+        "tags": [
+          "authorization"
+        ],
+        "summary": "Get projects",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "user name",
+            "name": "user",
+            "in": "query",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "tenant name",
+            "name": "tenant",
+            "in": "query",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/pkg_apiserver_cubeapi_authorization.result"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/errcode.ErrorInfo"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cube/authorization/roles": {
+      "get": {
+        "description": "get roles if namespace specified role and clusterRole contained, otherwise just return clusterRole",
+        "tags": [
+          "authorization"
+        ],
+        "summary": "Get roles",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "user name",
+            "name": "user",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "namespace name",
+            "name": "namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "details true or false",
+            "name": "details",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/errcode.ErrorInfo"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cube/authorization/tenants": {
+      "get": {
+        "description": "get all visible tenant for user",
+        "tags": [
+          "authorization"
+        ],
+        "summary": "Get visible tenant",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "user name",
+            "name": "user",
+            "in": "query",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/pkg_apiserver_cubeapi_authorization.result"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/errcode.ErrorInfo"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cube/authorization/users": {
+      "get": {
+        "description": "get all of roles and cluster roles bind to user, with non empty namespace will match both Role and ClusterRole, otherwise only clusterRole",
+        "tags": [
+          "authorization"
+        ],
+        "summary": "Get users",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "role name",
+            "name": "role",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "namespace name",
+            "name": "namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "details true or false",
+            "name": "details",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/pkg_apiserver_cubeapi_authorization.result"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/errcode.ErrorInfo"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cube/clusters/addCluster": {
+      "post": {
+        "description": "add cluster to KubeCube",
+        "tags": [
+          "cluster"
+        ],
+        "summary": "Add cluster",
+        "parameters": [
+          {
+            "description": "new cluster raw data",
+            "name": "scriptData",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/pkg_apiserver_cubeapi_cluster.scriptData"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "base64 encode",
+            "schema": {
+              "type": "string"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/errcode.ErrorInfo"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/errcode.ErrorInfo"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cube/clusters/info": {
+      "get": {
+        "description": "get cluster info by cluster name, non cluster name means all clusters info",
+        "tags": [
+          "cluster"
+        ],
+        "summary": "Show cluster info",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "cluster info search by cluster",
+            "name": "cluster",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/pkg_apiserver_cubeapi_cluster.result"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/errcode.ErrorInfo"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cube/clusters/namespaces": {
+      "get": {
+        "description": "get cluster name where the namespace work in",
+        "tags": [
+          "cluster"
+        ],
+        "summary": "Show all clusters bind to namespace",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "clusters search by namespace",
+            "name": "namespace",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/errcode.ErrorInfo"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cube/clusters/resources": {
+      "get": {
+        "description": "get allocate resource of cluster",
+        "tags": [
+          "cluster"
+        ],
+        "summary": "Get allocate resource of cluster",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "allocate resource search by cluster",
+            "name": "cluster",
+            "in": "query",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/errcode.ErrorInfo"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cube/clusters/subnamespaces": {
+      "get": {
+        "description": "get sub namespaces by tenant",
+        "tags": [
+          "cluster"
+        ],
+        "summary": "Get sub namespace",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "list sub namespaces by tenant",
+            "name": "tenant",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/errcode.ErrorInfo"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cube/healthz": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "summary": "health check",
+        "responses": {
+          "200": {
+            "description": "{\"msg\": \"hello\"}",
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cube/key": {
+      "get": {
+        "description": "query key by token",
+        "tags": [
+          "key"
+        ],
+        "summary": "list key",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/v1.KeyList"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/errcode.ErrorInfo"
+            }
+          }
+        }
+      },
+      "delete": {
+        "description": "delete ak \u0026 sk keys",
+        "tags": [
+          "key"
+        ],
+        "summary": "delete key",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "access key",
+            "name": "accessKey",
+            "in": "query",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/response.SuccessInfo"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/errcode.ErrorInfo"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cube/key/create": {
+      "get": {
+        "description": "create ak \u0026 sk keys",
+        "tags": [
+          "key"
+        ],
+        "summary": "create key",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/errcode.ErrorInfo"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cube/key/token": {
+      "get": {
+        "description": "query key by ak\u0026sk",
+        "tags": [
+          "key"
+        ],
+        "summary": "get token by key",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "access key",
+            "name": "accessKey",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "secret key",
+            "name": "secretKey",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/errcode.ErrorInfo"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cube/login": {
+      "post": {
+        "description": "user login by password or ldap",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "user"
+        ],
+        "summary": "login",
+        "parameters": [
+          {
+            "description": "user login information",
+            "name": "loginInfo",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/pkg_apiserver_cubeapi_user.LoginInfo"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/response.SuccessInfo"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/errcode.ErrorInfo"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cube/user": {
+      "get": {
+        "description": "fuzzy query user by name or displayName",
+        "tags": [
+          "user"
+        ],
+        "summary": "list user",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "keyword for query",
+            "name": "query",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "description": "page size",
+            "name": "pageSize",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "description": "page num",
+            "name": "pageNum",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/github.com_kubecube-io_kubecube_pkg_apiserver_cubeapi_user.UserList"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/errcode.ErrorInfo"
+            }
+          }
+        }
+      },
+      "post": {
+        "description": "create user manually",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "user"
+        ],
+        "summary": "create user",
+        "parameters": [
+          {
+            "description": "user information",
+            "name": "user",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1.User"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/response.SuccessInfo"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/errcode.ErrorInfo"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cube/user/:username": {
+      "get": {
+        "description": "check username when update user password",
+        "tags": [
+          "user"
+        ],
+        "summary": "check username",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "user name",
+            "name": "username",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/github.com_kubecube-io_kubecube_pkg_apiserver_cubeapi_user.NameValid"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/errcode.ErrorInfo"
+            }
+          }
+        }
+      },
+      "put": {
+        "description": "update user information",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "user"
+        ],
+        "summary": "update user",
+        "parameters": [
+          {
+            "description": "user information",
+            "name": "user",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1.User"
+            }
+          },
+          {
+            "type": "string",
+            "description": "user name",
+            "name": "username",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/response.SuccessInfo"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/errcode.ErrorInfo"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cube/user/pwd": {
+      "put": {
+        "description": "update user password",
+        "tags": [
+          "user"
+        ],
+        "summary": "update password",
+        "parameters": [
+          {
+            "description": "user old and new password",
+            "name": "resetPwd",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/github.com_kubecube-io_kubecube_pkg_apiserver_cubeapi_user.ResetPwd"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/response.SuccessInfo"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/errcode.ErrorInfo"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cube/user/template": {
+      "get": {
+        "description": "get user information import template",
+        "tags": [
+          "user"
+        ],
+        "summary": "get import template",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cube/user/users": {
+      "post": {
+        "description": "import and create users from CSV file in batches",
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "user"
+        ],
+        "summary": "import user",
+        "parameters": [
+          {
+            "type": "file",
+            "description": "file",
+            "name": "userInfoFile",
+            "in": "formData",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/response.SuccessInfo"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/errcode.ErrorInfo"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "errcode.ErrorInfo": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "github.com_kubecube-io_kubecube_pkg_apiserver_cubeapi_authorization.result": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "object"
+        },
+        "total": {
+          "type": "integer"
+        }
+      }
+    },
+    "github.com_kubecube-io_kubecube_pkg_apiserver_cubeapi_cluster.clusterInfo": {
+      "type": "object",
+      "properties": {
+        "clusterDescription": {
+          "type": "string"
+        },
+        "clusterName": {
+          "type": "string"
+        },
+        "createTime": {
+          "type": "string"
+        },
+        "harborAddr": {
+          "type": "string"
+        },
+        "isMemberCluster": {
+          "type": "boolean"
+        },
+        "kubeApiServer": {
+          "type": "string"
+        },
+        "namespaceCount": {
+          "type": "integer"
+        },
+        "networkType": {
+          "type": "string"
+        },
+        "nodeCount": {
+          "type": "integer"
+        },
+        "status": {
+          "type": "string"
+        },
+        "totalCpu": {
+          "type": "integer"
+        },
+        "totalGpu": {
+          "type": "integer"
+        },
+        "totalMem": {
+          "type": "integer"
+        },
+        "totalStorage": {
+          "type": "integer"
+        },
+        "totalStorageEphemeral": {
+          "type": "integer"
+        },
+        "usedCpu": {
+          "type": "integer"
+        },
+        "usedGpu": {
+          "type": "integer"
+        },
+        "usedMem": {
+          "type": "integer"
+        },
+        "usedStorage": {
+          "type": "integer"
+        },
+        "usedStorageEphemeral": {
+          "type": "integer"
+        }
+      }
+    },
+    "github.com_kubecube-io_kubecube_pkg_apiserver_cubeapi_cluster.result": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com_kubecube-io_kubecube_pkg_apiserver_cubeapi_cluster.clusterInfo"
+          }
+        },
+        "total": {
+          "type": "integer"
+        }
+      }
+    },
+    "github.com_kubecube-io_kubecube_pkg_apiserver_cubeapi_cluster.scriptData": {
+      "type": "object",
+      "properties": {
+        "clusterName": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "k8sEndpoint": {
+          "type": "string"
+        },
+        "kubeConfig": {
+          "type": "string"
+        },
+        "kubeCubeHost": {
+          "type": "string"
+        },
+        "networkType": {
+          "type": "string"
+        }
+      }
+    },
+    "github.com_kubecube-io_kubecube_pkg_apiserver_cubeapi_user.LoginInfo": {
+      "type": "object",
+      "properties": {
+        "loginType": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        }
+      }
+    },
+    "github.com_kubecube-io_kubecube_pkg_apiserver_cubeapi_user.NameValid": {
+      "type": "object",
+      "properties": {
+        "isValid": {
+          "type": "boolean"
+        }
+      }
+    },
+    "github.com_kubecube-io_kubecube_pkg_apiserver_cubeapi_user.ResetPwd": {
+      "type": "object",
+      "properties": {
+        "newPassword": {
+          "type": "string"
+        },
+        "originPassword": {
+          "type": "string"
+        },
+        "userName": {
+          "type": "string"
+        }
+      }
+    },
+    "github.com_kubecube-io_kubecube_pkg_apiserver_cubeapi_user.UserItem": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "spec": {
+          "$ref": "#/definitions/v1.UserSpec"
+        },
+        "status": {
+          "$ref": "#/definitions/v1.UserStatus"
+        }
+      }
+    },
+    "github.com_kubecube-io_kubecube_pkg_apiserver_cubeapi_user.UserList": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/github.com_kubecube-io_kubecube_pkg_apiserver_cubeapi_user.UserItem"
+          }
+        },
+        "total": {
+          "type": "integer"
+        }
+      }
+    },
+    "pkg_apiserver_cubeapi_authorization.result": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "object"
+        },
+        "total": {
+          "type": "integer"
+        }
+      }
+    },
+    "pkg_apiserver_cubeapi_cluster.clusterInfo": {
+      "type": "object",
+      "properties": {
+        "clusterDescription": {
+          "type": "string"
+        },
+        "clusterName": {
+          "type": "string"
+        },
+        "createTime": {
+          "type": "string"
+        },
+        "harborAddr": {
+          "type": "string"
+        },
+        "isMemberCluster": {
+          "type": "boolean"
+        },
+        "kubeApiServer": {
+          "type": "string"
+        },
+        "namespaceCount": {
+          "type": "integer"
+        },
+        "networkType": {
+          "type": "string"
+        },
+        "nodeCount": {
+          "type": "integer"
+        },
+        "status": {
+          "type": "string"
+        },
+        "totalCpu": {
+          "type": "integer"
+        },
+        "totalGpu": {
+          "type": "integer"
+        },
+        "totalMem": {
+          "type": "integer"
+        },
+        "totalStorage": {
+          "type": "integer"
+        },
+        "totalStorageEphemeral": {
+          "type": "integer"
+        },
+        "usedCpu": {
+          "type": "integer"
+        },
+        "usedGpu": {
+          "type": "integer"
+        },
+        "usedMem": {
+          "type": "integer"
+        },
+        "usedStorage": {
+          "type": "integer"
+        },
+        "usedStorageEphemeral": {
+          "type": "integer"
+        }
+      }
+    },
+    "pkg_apiserver_cubeapi_cluster.result": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/pkg_apiserver_cubeapi_cluster.clusterInfo"
+          }
+        },
+        "total": {
+          "type": "integer"
+        }
+      }
+    },
+    "pkg_apiserver_cubeapi_cluster.scriptData": {
+      "type": "object",
+      "properties": {
+        "clusterName": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "k8sEndpoint": {
+          "type": "string"
+        },
+        "kubeConfig": {
+          "type": "string"
+        },
+        "kubeCubeHost": {
+          "type": "string"
+        },
+        "networkType": {
+          "type": "string"
+        }
+      }
+    },
+    "pkg_apiserver_cubeapi_user.LoginInfo": {
+      "type": "object",
+      "properties": {
+        "loginType": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        }
+      }
+    },
+    "pkg_apiserver_cubeapi_user.NameValid": {
+      "type": "object",
+      "properties": {
+        "isValid": {
+          "type": "boolean"
+        }
+      }
+    },
+    "pkg_apiserver_cubeapi_user.ResetPwd": {
+      "type": "object",
+      "properties": {
+        "newPassword": {
+          "type": "string"
+        },
+        "originPassword": {
+          "type": "string"
+        },
+        "userName": {
+          "type": "string"
+        }
+      }
+    },
+    "pkg_apiserver_cubeapi_user.UserItem": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "spec": {
+          "$ref": "#/definitions/v1.UserSpec"
+        },
+        "status": {
+          "$ref": "#/definitions/v1.UserStatus"
+        }
+      }
+    },
+    "pkg_apiserver_cubeapi_user.UserList": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/pkg_apiserver_cubeapi_user.UserItem"
+          }
+        },
+        "total": {
+          "type": "integer"
+        }
+      }
+    },
+    "response.SuccessInfo": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "v1.FieldsV1": {
+      "type": "object"
+    },
+    "v1.Key": {
+      "type": "object",
+      "properties": {
+        "apiVersion": {
+          "description": "APIVersion defines the versioned schema of this representation of an object.\nServers should convert recognized schemas to the latest internal value, and\nmay reject unrecognized values.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources\n+optional",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Kind is a string value representing the REST resource this object represents.\nServers may infer this from the endpoint the client submits requests to.\nCannot be updated.\nIn CamelCase.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds\n+optional",
+          "type": "string"
+        },
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "annotations": {
+              "description": "Annotations is an unstructured key value map stored with a resource that may be\nset by external tools to store and retrieve arbitrary metadata. They are not\nqueryable and should be preserved when modifying objects.\nMore info: http://kubernetes.io/docs/user-guide/annotations\n+optional",
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "clusterName": {
+              "description": "The name of the cluster which the object belongs to.\nThis is used to distinguish resources with same name and namespace in different clusters.\nThis field is not set anywhere right now and apiserver is going to ignore it if set in create or update request.\n+optional",
+              "type": "string"
+            },
+            "creationTimestamp": {
+              "description": "CreationTimestamp is a timestamp representing the server time when this object was\ncreated. It is not guaranteed to be set in happens-before order across separate operations.\nClients may not set this value. It is represented in RFC3339 form and is in UTC.\n\nPopulated by the system.\nRead-only.\nNull for lists.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata\n+optional",
+              "type": "string"
+            },
+            "deletionGracePeriodSeconds": {
+              "description": "Number of seconds allowed for this object to gracefully terminate before\nit will be removed from the system. Only set when deletionTimestamp is also set.\nMay only be shortened.\nRead-only.\n+optional",
+              "type": "integer"
+            },
+            "deletionTimestamp": {
+              "description": "DeletionTimestamp is RFC 3339 date and time at which this resource will be deleted. This\nfield is set by the server when a graceful deletion is requested by the user, and is not\ndirectly settable by a client. The resource is expected to be deleted (no longer visible\nfrom resource lists, and not reachable by name) after the time in this field, once the\nfinalizers list is empty. As long as the finalizers list contains items, deletion is blocked.\nOnce the deletionTimestamp is set, this value may not be unset or be set further into the\nfuture, although it may be shortened or the resource may be deleted prior to this time.\nFor example, a user may request that a pod is deleted in 30 seconds. The Kubelet will react\nby sending a graceful termination signal to the containers in the pod. After that 30 seconds,\nthe Kubelet will send a hard termination signal (SIGKILL) to the container and after cleanup,\nremove the pod from the API. In the presence of network partitions, this object may still\nexist after this timestamp, until an administrator or automated process can determine the\nresource is fully terminated.\nIf not set, graceful deletion of the object has not been requested.\n\nPopulated by the system when a graceful deletion is requested.\nRead-only.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata\n+optional",
+              "type": "string"
+            },
+            "finalizers": {
+              "description": "Must be empty before the object is deleted from the registry. Each entry\nis an identifier for the responsible component that will remove the entry\nfrom the list. If the deletionTimestamp of the object is non-nil, entries\nin this list can only be removed.\nFinalizers may be processed and removed in any order.  Order is NOT enforced\nbecause it introduces significant risk of stuck finalizers.\nfinalizers is a shared field, any actor with permission can reorder it.\nIf the finalizer list is processed in order, then this can lead to a situation\nin which the component responsible for the first finalizer in the list is\nwaiting for a signal (field value, external system, or other) produced by a\ncomponent responsible for a finalizer later in the list, resulting in a deadlock.\nWithout enforced ordering finalizers are free to order amongst themselves and\nare not vulnerable to ordering changes in the list.\n+optional\n+patchStrategy=merge",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "generateName": {
+              "description": "GenerateName is an optional prefix, used by the server, to generate a unique\nname ONLY IF the Name field has not been provided.\nIf this field is used, the name returned to the client will be different\nthan the name passed. This value will also be combined with a unique suffix.\nThe provided value has the same validation rules as the Name field,\nand may be truncated by the length of the suffix required to make the value\nunique on the server.\n\nIf this field is specified and the generated name exists, the server will\nNOT return a 409 - instead, it will either return 201 Created or 500 with Reason\nServerTimeout indicating a unique name could not be found in the time allotted, and the client\nshould retry (optionally after the time indicated in the Retry-After header).\n\nApplied only if Name is not specified.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#idempotency\n+optional",
+              "type": "string"
+            },
+            "generation": {
+              "description": "A sequence number representing a specific generation of the desired state.\nPopulated by the system. Read-only.\n+optional",
+              "type": "integer"
+            },
+            "labels": {
+              "description": "Map of string keys and values that can be used to organize and categorize\n(scope and select) objects. May match selectors of replication controllers\nand services.\nMore info: http://kubernetes.io/docs/user-guide/labels\n+optional",
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "managedFields": {
+              "description": "ManagedFields maps workflow-id and version to the set of fields\nthat are managed by that workflow. This is mostly for internal\nhousekeeping, and users typically shouldn't need to set or\nunderstand this field. A workflow can be the user's name, a\ncontroller's name, or the name of a specific apply path like\n\"ci-cd\". The set of fields is always in the version that the\nworkflow used when modifying the object.\n\n+optional",
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/v1.ManagedFieldsEntry"
+              }
+            },
+            "name": {
+              "description": "Name must be unique within a namespace. Is required when creating resources, although\nsome resources may allow a client to request the generation of an appropriate name\nautomatically. Name is primarily intended for creation idempotence and configuration\ndefinition.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#names\n+optional",
+              "type": "string"
+            },
+            "namespace": {
+              "description": "Namespace defines the space within which each name must be unique. An empty namespace is\nequivalent to the \"default\" namespace, but \"default\" is the canonical representation.\nNot all objects are required to be scoped to a namespace - the value of this field for\nthose objects will be empty.\n\nMust be a DNS_LABEL.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/namespaces\n+optional",
+              "type": "string"
+            },
+            "ownerReferences": {
+              "description": "List of objects depended by this object. If ALL objects in the list have\nbeen deleted, this object will be garbage collected. If this object is managed by a controller,\nthen an entry in this list will point to this controller, with the controller field set to true.\nThere cannot be more than one managing controller.\n+optional\n+patchMergeKey=uid\n+patchStrategy=merge",
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/v1.OwnerReference"
+              }
+            },
+            "resourceVersion": {
+              "description": "An opaque value that represents the internal version of this object that can\nbe used by clients to determine when objects have changed. May be used for optimistic\nconcurrency, change detection, and the watch operation on a resource or set of resources.\nClients must treat these values as opaque and passed unmodified back to the server.\nThey may only be valid for a particular resource or set of resources.\n\nPopulated by the system.\nRead-only.\nValue must be treated as opaque by clients and .\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency\n+optional",
+              "type": "string"
+            },
+            "selfLink": {
+              "description": "SelfLink is a URL representing this object.\nPopulated by the system.\nRead-only.\n\nDEPRECATED\nKubernetes will stop propagating this field in 1.20 release and the field is planned\nto be removed in 1.21 release.\n+optional",
+              "type": "string"
+            },
+            "uid": {
+              "description": "UID is the unique in time and space value for this object. It is typically generated by\nthe server on successful creation of a resource and is not allowed to change on PUT\noperations.\n\nPopulated by the system.\nRead-only.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#uids\n+optional",
+              "type": "string"
+            }
+          }
+        },
+        "spec": {
+          "$ref": "#/definitions/v1.KeySpec"
+        },
+        "status": {
+          "$ref": "#/definitions/v1.KeyStatus"
+        }
+      }
+    },
+    "v1.KeyList": {
+      "type": "object",
+      "properties": {
+        "apiVersion": {
+          "description": "APIVersion defines the versioned schema of this representation of an object.\nServers should convert recognized schemas to the latest internal value, and\nmay reject unrecognized values.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources\n+optional",
+          "type": "string"
+        },
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "continue": {
+              "description": "continue may be set if the user set a limit on the number of items returned, and indicates that\nthe server has more data available. The value is opaque and may be used to issue another request\nto the endpoint that served this list to retrieve the next set of available objects. Continuing a\nconsistent list may not be possible if the server configuration has changed or more than a few\nminutes have passed. The resourceVersion field returned when using this continue value will be\nidentical to the value in the first response, unless you have received this token from an error\nmessage.",
+              "type": "string"
+            },
+            "remainingItemCount": {
+              "description": "remainingItemCount is the number of subsequent items in the list which are not included in this\nlist response. If the list request contained label or field selectors, then the number of\nremaining items is unknown and the field will be left unset and omitted during serialization.\nIf the list is complete (either because it is not chunking or because this is the last chunk),\nthen there are no more remaining items and this field will be left unset and omitted during\nserialization.\nServers older than v1.15 do not set this field.\nThe intended use of the remainingItemCount is *estimating* the size of a collection. Clients\nshould not rely on the remainingItemCount to be set or to be exact.\n+optional",
+              "type": "integer"
+            },
+            "resourceVersion": {
+              "description": "String that identifies the server's internal version of this object that\ncan be used by clients to determine when objects have changed.\nValue must be treated as opaque by clients and passed unmodified back to the server.\nPopulated by the system.\nRead-only.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency\n+optional",
+              "type": "string"
+            },
+            "selfLink": {
+              "description": "selfLink is a URL representing this object.\nPopulated by the system.\nRead-only.\n\nDEPRECATED\nKubernetes will stop propagating this field in 1.20 release and the field is planned\nto be removed in 1.21 release.\n+optional",
+              "type": "string"
+            }
+          }
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1.Key"
+          }
+        },
+        "kind": {
+          "description": "Kind is a string value representing the REST resource this object represents.\nServers may infer this from the endpoint the client submits requests to.\nCannot be updated.\nIn CamelCase.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds\n+optional",
+          "type": "string"
+        }
+      }
+    },
+    "v1.KeySpec": {
+      "type": "object",
+      "properties": {
+        "secretKey": {
+          "type": "string"
+        },
+        "user": {
+          "type": "string"
+        }
+      }
+    },
+    "v1.KeyStatus": {
+      "type": "object"
+    },
+    "v1.ManagedFieldsEntry": {
+      "type": "object",
+      "properties": {
+        "apiVersion": {
+          "description": "APIVersion defines the version of this resource that this field set\napplies to. The format is \"group/version\" just like the top-level\nAPIVersion field. It is necessary to track the version of a field\nset because it cannot be automatically converted.",
+          "type": "string"
+        },
+        "fieldsType": {
+          "description": "FieldsType is the discriminator for the different fields format and version.\nThere is currently only one possible value: \"FieldsV1\"",
+          "type": "string"
+        },
+        "fieldsV1": {
+          "description": "FieldsV1 holds the first JSON version format as described in the \"FieldsV1\" type.\n+optional",
+          "$ref": "#/definitions/v1.FieldsV1"
+        },
+        "manager": {
+          "description": "Manager is an identifier of the workflow managing these fields.",
+          "type": "string"
+        },
+        "operation": {
+          "description": "Operation is the type of operation which lead to this ManagedFieldsEntry being created.\nThe only valid values for this field are 'Apply' and 'Update'.",
+          "type": "string"
+        },
+        "time": {
+          "description": "Time is timestamp of when these fields were set. It should always be empty if Operation is 'Apply'\n+optional",
+          "type": "string"
+        }
+      }
+    },
+    "v1.OwnerReference": {
+      "type": "object",
+      "properties": {
+        "apiVersion": {
+          "description": "API version of the referent.",
+          "type": "string"
+        },
+        "blockOwnerDeletion": {
+          "description": "If true, AND if the owner has the \"foregroundDeletion\" finalizer, then\nthe owner cannot be deleted from the key-value store until this\nreference is removed.\nDefaults to false.\nTo set this field, a user needs \"delete\" permission of the owner,\notherwise 422 (Unprocessable Entity) will be returned.\n+optional",
+          "type": "boolean"
+        },
+        "controller": {
+          "description": "If true, this reference points to the managing controller.\n+optional",
+          "type": "boolean"
+        },
+        "kind": {
+          "description": "Kind of the referent.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+          "type": "string"
+        },
+        "name": {
+          "description": "Name of the referent.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#names",
+          "type": "string"
+        },
+        "uid": {
+          "description": "UID of the referent.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#uids",
+          "type": "string"
+        }
+      }
+    },
+    "v1.RoleBinding": {
+      "type": "object",
+      "properties": {
+        "apiVersion": {
+          "description": "APIVersion defines the versioned schema of this representation of an object.\nServers should convert recognized schemas to the latest internal value, and\nmay reject unrecognized values.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources\n+optional",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Kind is a string value representing the REST resource this object represents.\nServers may infer this from the endpoint the client submits requests to.\nCannot be updated.\nIn CamelCase.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds\n+optional",
+          "type": "string"
+        },
+        "subjects": {
+          "description": "Subjects holds references to the objects the role applies to.\n+optional",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1.Subject"
+          }
+        },
+        "roleRef": {
+          "description": "RoleRef can reference a Role in the current namespace or a ClusterRole in the global namespace.\nIf the RoleRef cannot be resolved, the Authorizer must return an error.",
+          "$ref": "#/definitions/v1.RoleRef"
+        },
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "annotations": {
+              "description": "Annotations is an unstructured key value map stored with a resource that may be\nset by external tools to store and retrieve arbitrary metadata. They are not\nqueryable and should be preserved when modifying objects.\nMore info: http://kubernetes.io/docs/user-guide/annotations\n+optional",
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "clusterName": {
+              "description": "The name of the cluster which the object belongs to.\nThis is used to distinguish resources with same name and namespace in different clusters.\nThis field is not set anywhere right now and apiserver is going to ignore it if set in create or update request.\n+optional",
+              "type": "string"
+            },
+            "creationTimestamp": {
+              "description": "CreationTimestamp is a timestamp representing the server time when this object was\ncreated. It is not guaranteed to be set in happens-before order across separate operations.\nClients may not set this value. It is represented in RFC3339 form and is in UTC.\n\nPopulated by the system.\nRead-only.\nNull for lists.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata\n+optional",
+              "type": "string"
+            },
+            "deletionGracePeriodSeconds": {
+              "description": "Number of seconds allowed for this object to gracefully terminate before\nit will be removed from the system. Only set when deletionTimestamp is also set.\nMay only be shortened.\nRead-only.\n+optional",
+              "type": "integer"
+            },
+            "deletionTimestamp": {
+              "description": "DeletionTimestamp is RFC 3339 date and time at which this resource will be deleted. This\nfield is set by the server when a graceful deletion is requested by the user, and is not\ndirectly settable by a client. The resource is expected to be deleted (no longer visible\nfrom resource lists, and not reachable by name) after the time in this field, once the\nfinalizers list is empty. As long as the finalizers list contains items, deletion is blocked.\nOnce the deletionTimestamp is set, this value may not be unset or be set further into the\nfuture, although it may be shortened or the resource may be deleted prior to this time.\nFor example, a user may request that a pod is deleted in 30 seconds. The Kubelet will react\nby sending a graceful termination signal to the containers in the pod. After that 30 seconds,\nthe Kubelet will send a hard termination signal (SIGKILL) to the container and after cleanup,\nremove the pod from the API. In the presence of network partitions, this object may still\nexist after this timestamp, until an administrator or automated process can determine the\nresource is fully terminated.\nIf not set, graceful deletion of the object has not been requested.\n\nPopulated by the system when a graceful deletion is requested.\nRead-only.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata\n+optional",
+              "type": "string"
+            },
+            "finalizers": {
+              "description": "Must be empty before the object is deleted from the registry. Each entry\nis an identifier for the responsible component that will remove the entry\nfrom the list. If the deletionTimestamp of the object is non-nil, entries\nin this list can only be removed.\nFinalizers may be processed and removed in any order.  Order is NOT enforced\nbecause it introduces significant risk of stuck finalizers.\nfinalizers is a shared field, any actor with permission can reorder it.\nIf the finalizer list is processed in order, then this can lead to a situation\nin which the component responsible for the first finalizer in the list is\nwaiting for a signal (field value, external system, or other) produced by a\ncomponent responsible for a finalizer later in the list, resulting in a deadlock.\nWithout enforced ordering finalizers are free to order amongst themselves and\nare not vulnerable to ordering changes in the list.\n+optional\n+patchStrategy=merge",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "generateName": {
+              "description": "GenerateName is an optional prefix, used by the server, to generate a unique\nname ONLY IF the Name field has not been provided.\nIf this field is used, the name returned to the client will be different\nthan the name passed. This value will also be combined with a unique suffix.\nThe provided value has the same validation rules as the Name field,\nand may be truncated by the length of the suffix required to make the value\nunique on the server.\n\nIf this field is specified and the generated name exists, the server will\nNOT return a 409 - instead, it will either return 201 Created or 500 with Reason\nServerTimeout indicating a unique name could not be found in the time allotted, and the client\nshould retry (optionally after the time indicated in the Retry-After header).\n\nApplied only if Name is not specified.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#idempotency\n+optional",
+              "type": "string"
+            },
+            "generation": {
+              "description": "A sequence number representing a specific generation of the desired state.\nPopulated by the system. Read-only.\n+optional",
+              "type": "integer"
+            },
+            "labels": {
+              "description": "Map of string keys and values that can be used to organize and categorize\n(scope and select) objects. May match selectors of replication controllers\nand services.\nMore info: http://kubernetes.io/docs/user-guide/labels\n+optional",
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "managedFields": {
+              "description": "ManagedFields maps workflow-id and version to the set of fields\nthat are managed by that workflow. This is mostly for internal\nhousekeeping, and users typically shouldn't need to set or\nunderstand this field. A workflow can be the user's name, a\ncontroller's name, or the name of a specific apply path like\n\"ci-cd\". The set of fields is always in the version that the\nworkflow used when modifying the object.\n\n+optional",
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/v1.ManagedFieldsEntry"
+              }
+            },
+            "name": {
+              "description": "Name must be unique within a namespace. Is required when creating resources, although\nsome resources may allow a client to request the generation of an appropriate name\nautomatically. Name is primarily intended for creation idempotence and configuration\ndefinition.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#names\n+optional",
+              "type": "string"
+            },
+            "namespace": {
+              "description": "Namespace defines the space within which each name must be unique. An empty namespace is\nequivalent to the \"default\" namespace, but \"default\" is the canonical representation.\nNot all objects are required to be scoped to a namespace - the value of this field for\nthose objects will be empty.\n\nMust be a DNS_LABEL.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/namespaces\n+optional",
+              "type": "string"
+            },
+            "ownerReferences": {
+              "description": "List of objects depended by this object. If ALL objects in the list have\nbeen deleted, this object will be garbage collected. If this object is managed by a controller,\nthen an entry in this list will point to this controller, with the controller field set to true.\nThere cannot be more than one managing controller.\n+optional\n+patchMergeKey=uid\n+patchStrategy=merge",
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/v1.OwnerReference"
+              }
+            },
+            "resourceVersion": {
+              "description": "An opaque value that represents the internal version of this object that can\nbe used by clients to determine when objects have changed. May be used for optimistic\nconcurrency, change detection, and the watch operation on a resource or set of resources.\nClients must treat these values as opaque and passed unmodified back to the server.\nThey may only be valid for a particular resource or set of resources.\n\nPopulated by the system.\nRead-only.\nValue must be treated as opaque by clients and .\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency\n+optional",
+              "type": "string"
+            },
+            "selfLink": {
+              "description": "SelfLink is a URL representing this object.\nPopulated by the system.\nRead-only.\n\nDEPRECATED\nKubernetes will stop propagating this field in 1.20 release and the field is planned\nto be removed in 1.21 release.\n+optional",
+              "type": "string"
+            },
+            "uid": {
+              "description": "UID is the unique in time and space value for this object. It is typically generated by\nthe server on successful creation of a resource and is not allowed to change on PUT\noperations.\n\nPopulated by the system.\nRead-only.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#uids\n+optional",
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "v1.RoleRef": {
+      "type": "object",
+      "properties": {
+        "apiGroup": {
+          "description": "APIGroup is the group for the resource being referenced",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Kind is the type of resource being referenced",
+          "type": "string"
+        },
+        "name": {
+          "description": "Name is the name of resource being referenced",
+          "type": "string"
+        }
+      }
+    },
+    "v1.Subject": {
+      "type": "object",
+      "properties": {
+        "apiGroup": {
+          "description": "APIGroup holds the API group of the referenced subject.\nDefaults to \"\" for ServiceAccount subjects.\nDefaults to \"rbac.authorization.k8s.io\" for User and Group subjects.\n+optional",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Kind of object being referenced. Values defined by this API group are \"User\", \"Group\", and \"ServiceAccount\".\nIf the Authorizer does not recognized the kind value, the Authorizer should report an error.",
+          "type": "string"
+        },
+        "name": {
+          "description": "Name of the object being referenced.",
+          "type": "string"
+        },
+        "namespace": {
+          "description": "Namespace of the referenced object.  If the object kind is non-namespace, such as \"User\" or \"Group\", and this value is not empty\nthe Authorizer should report an error.\n+optional",
+          "type": "string"
+        }
+      }
+    },
+    "v1.User": {
+      "type": "object",
+      "properties": {
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "annotations": {
+              "description": "Annotations is an unstructured key value map stored with a resource that may be\nset by external tools to store and retrieve arbitrary metadata. They are not\nqueryable and should be preserved when modifying objects.\nMore info: http://kubernetes.io/docs/user-guide/annotations\n+optional",
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "clusterName": {
+              "description": "The name of the cluster which the object belongs to.\nThis is used to distinguish resources with same name and namespace in different clusters.\nThis field is not set anywhere right now and apiserver is going to ignore it if set in create or update request.\n+optional",
+              "type": "string"
+            },
+            "creationTimestamp": {
+              "description": "CreationTimestamp is a timestamp representing the server time when this object was\ncreated. It is not guaranteed to be set in happens-before order across separate operations.\nClients may not set this value. It is represented in RFC3339 form and is in UTC.\n\nPopulated by the system.\nRead-only.\nNull for lists.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata\n+optional",
+              "type": "string"
+            },
+            "deletionGracePeriodSeconds": {
+              "description": "Number of seconds allowed for this object to gracefully terminate before\nit will be removed from the system. Only set when deletionTimestamp is also set.\nMay only be shortened.\nRead-only.\n+optional",
+              "type": "integer"
+            },
+            "deletionTimestamp": {
+              "description": "DeletionTimestamp is RFC 3339 date and time at which this resource will be deleted. This\nfield is set by the server when a graceful deletion is requested by the user, and is not\ndirectly settable by a client. The resource is expected to be deleted (no longer visible\nfrom resource lists, and not reachable by name) after the time in this field, once the\nfinalizers list is empty. As long as the finalizers list contains items, deletion is blocked.\nOnce the deletionTimestamp is set, this value may not be unset or be set further into the\nfuture, although it may be shortened or the resource may be deleted prior to this time.\nFor example, a user may request that a pod is deleted in 30 seconds. The Kubelet will react\nby sending a graceful termination signal to the containers in the pod. After that 30 seconds,\nthe Kubelet will send a hard termination signal (SIGKILL) to the container and after cleanup,\nremove the pod from the API. In the presence of network partitions, this object may still\nexist after this timestamp, until an administrator or automated process can determine the\nresource is fully terminated.\nIf not set, graceful deletion of the object has not been requested.\n\nPopulated by the system when a graceful deletion is requested.\nRead-only.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata\n+optional",
+              "type": "string"
+            },
+            "finalizers": {
+              "description": "Must be empty before the object is deleted from the registry. Each entry\nis an identifier for the responsible component that will remove the entry\nfrom the list. If the deletionTimestamp of the object is non-nil, entries\nin this list can only be removed.\nFinalizers may be processed and removed in any order.  Order is NOT enforced\nbecause it introduces significant risk of stuck finalizers.\nfinalizers is a shared field, any actor with permission can reorder it.\nIf the finalizer list is processed in order, then this can lead to a situation\nin which the component responsible for the first finalizer in the list is\nwaiting for a signal (field value, external system, or other) produced by a\ncomponent responsible for a finalizer later in the list, resulting in a deadlock.\nWithout enforced ordering finalizers are free to order amongst themselves and\nare not vulnerable to ordering changes in the list.\n+optional\n+patchStrategy=merge",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "generateName": {
+              "description": "GenerateName is an optional prefix, used by the server, to generate a unique\nname ONLY IF the Name field has not been provided.\nIf this field is used, the name returned to the client will be different\nthan the name passed. This value will also be combined with a unique suffix.\nThe provided value has the same validation rules as the Name field,\nand may be truncated by the length of the suffix required to make the value\nunique on the server.\n\nIf this field is specified and the generated name exists, the server will\nNOT return a 409 - instead, it will either return 201 Created or 500 with Reason\nServerTimeout indicating a unique name could not be found in the time allotted, and the client\nshould retry (optionally after the time indicated in the Retry-After header).\n\nApplied only if Name is not specified.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#idempotency\n+optional",
+              "type": "string"
+            },
+            "generation": {
+              "description": "A sequence number representing a specific generation of the desired state.\nPopulated by the system. Read-only.\n+optional",
+              "type": "integer"
+            },
+            "labels": {
+              "description": "Map of string keys and values that can be used to organize and categorize\n(scope and select) objects. May match selectors of replication controllers\nand services.\nMore info: http://kubernetes.io/docs/user-guide/labels\n+optional",
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "managedFields": {
+              "description": "ManagedFields maps workflow-id and version to the set of fields\nthat are managed by that workflow. This is mostly for internal\nhousekeeping, and users typically shouldn't need to set or\nunderstand this field. A workflow can be the user's name, a\ncontroller's name, or the name of a specific apply path like\n\"ci-cd\". The set of fields is always in the version that the\nworkflow used when modifying the object.\n\n+optional",
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/v1.ManagedFieldsEntry"
+              }
+            },
+            "name": {
+              "description": "Name must be unique within a namespace. Is required when creating resources, although\nsome resources may allow a client to request the generation of an appropriate name\nautomatically. Name is primarily intended for creation idempotence and configuration\ndefinition.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#names\n+optional",
+              "type": "string"
+            },
+            "namespace": {
+              "description": "Namespace defines the space within which each name must be unique. An empty namespace is\nequivalent to the \"default\" namespace, but \"default\" is the canonical representation.\nNot all objects are required to be scoped to a namespace - the value of this field for\nthose objects will be empty.\n\nMust be a DNS_LABEL.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/namespaces\n+optional",
+              "type": "string"
+            },
+            "ownerReferences": {
+              "description": "List of objects depended by this object. If ALL objects in the list have\nbeen deleted, this object will be garbage collected. If this object is managed by a controller,\nthen an entry in this list will point to this controller, with the controller field set to true.\nThere cannot be more than one managing controller.\n+optional\n+patchMergeKey=uid\n+patchStrategy=merge",
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/v1.OwnerReference"
+              }
+            },
+            "resourceVersion": {
+              "description": "An opaque value that represents the internal version of this object that can\nbe used by clients to determine when objects have changed. May be used for optimistic\nconcurrency, change detection, and the watch operation on a resource or set of resources.\nClients must treat these values as opaque and passed unmodified back to the server.\nThey may only be valid for a particular resource or set of resources.\n\nPopulated by the system.\nRead-only.\nValue must be treated as opaque by clients and .\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency\n+optional",
+              "type": "string"
+            },
+            "selfLink": {
+              "description": "SelfLink is a URL representing this object.\nPopulated by the system.\nRead-only.\n\nDEPRECATED\nKubernetes will stop propagating this field in 1.20 release and the field is planned\nto be removed in 1.21 release.\n+optional",
+              "type": "string"
+            },
+            "uid": {
+              "description": "UID is the unique in time and space value for this object. It is typically generated by\nthe server on successful creation of a resource and is not allowed to change on PUT\noperations.\n\nPopulated by the system.\nRead-only.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#uids\n+optional",
+              "type": "string"
+            }
+          }
+        },
+        "spec": {
+          "$ref": "#/definitions/v1.UserSpec"
+        },
+        "status": {
+          "$ref": "#/definitions/v1.UserStatus"
+        },
+        "apiVersion": {
+          "description": "APIVersion defines the versioned schema of this representation of an object.\nServers should convert recognized schemas to the latest internal value, and\nmay reject unrecognized values.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources\n+optional",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Kind is a string value representing the REST resource this object represents.\nServers may infer this from the endpoint the client submits requests to.\nCannot be updated.\nIn CamelCase.\nMore info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds\n+optional",
+          "type": "string"
+        }
+      }
+    },
+    "v1.UserSpec": {
+      "type": "object",
+      "properties": {
+        "displayName": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "language": {
+          "description": "The preferred written or spoken language for the user: chinese/english",
+          "type": "string"
+        },
+        "loginType": {
+          "description": "Login method used, normal/openId/ldap",
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        },
+        "phone": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        }
+      }
+    },
+    "v1.UserStatus": {
+      "type": "object",
+      "properties": {
+        "lastLoginIP": {
+          "type": "string"
+        },
+        "lastLoginTime": {
+          "description": "The user status, normal/forbidden",
+          "type": "string"
+        }
+      }
+    }
+  }
+}

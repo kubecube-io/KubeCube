@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubecube
+  namespace: kubecube-system
+  labels:
+    kubecube.io/app: kubecube
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      kubecube.io/app: kubecube
+  template:
+    metadata:
+      labels:
+        kubecube.io/app: kubecube
+    spec:
+      containers:
+        - name: kubecube
+          image: hub.c.163.com/kubecube/kubecube:0.1.8-deploy
+          securityContext:
+            runAsUser: 0
+            privileged: true
+          args:
+            - -log-level=debug
+            - -secure-port=7443
+            - -tls-cert=/etc/tls/tls.crt
+            - -tls-key=/etc/tls/tls.key
+            - -webhook-cert=/etc/tls
+            - -webhook-server-port=9443
+            - -leader-elect=true
+          env:
+            - name: WARDEN_IMAGE
+              value: hub.c.163.com/kubecube/warden:0.1.8-deploy
+            - name: PIVOT_CUBE_CLUSTER_IP_SVC
+              value: kubecube.kubecube-system.svc:7443
+            - name: PIVOT_CUBE_HOST
+              value: 10.173.32.133:30443
+            - name: JWT_SECRET
+              value: 56F0D8DB90241C6E
+            - name: NODE_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+          volumeMounts:
+            - name: cube-tls
+              mountPath: "/etc/tls"
+              readOnly: true
+      volumes:
+        - name: cube-tls
+          secret:
+            secretName: cube-tls-secret

@@ -1,0 +1,20 @@
+# permissions for end users to view cuberesourcequota.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cuberesourcequota-viewer-role
+rules:
+  - apiGroups:
+      - quota.kubecube.io
+    resources:
+      - cuberesourcequota
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - quota.kubecube.io
+    resources:
+      - cuberesourcequota/status
+    verbs:
+      - get

@@ -1,0 +1,58 @@
+# ordinary only has read authority under of
+# bottom layer namespace used of RoleBinding.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: reviewer-cluster
+  annotations:
+    kubecube.io/sync: "true"
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - namespaces
+      - namespaces/status
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - metrics.k8s.io
+    resources:
+      - pods
+      - nodes
+    verbs:
+      - get
+      - list
+      - watch
+  # reviewer has read authority of user
+  - apiGroups:
+      - user.kubecube.io
+    resources:
+      - users
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - user.kubecube.io
+    resources:
+      - users/status
+    verbs:
+      - get
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - storageclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - persistentvolumes
+    verbs:
+      - get
+      - list
+      - watch

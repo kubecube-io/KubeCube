@@ -1,0 +1,8 @@
+apiVersion: tenant.kubecube.io/v1
+kind: Tenant
+metadata:
+  name: tenant-sample
+spec:
+  # Add fields here
+  displayName: my-tenant
+  description: my-tenant

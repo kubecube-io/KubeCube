@@ -1,0 +1,11 @@
+kubecube:
+  hostPath: https://127.0.0.1:7443
+  tenant: e2e-tenant
+  project: e2e-project
+  namespace: e2e-ns
+  multiuser:
+    admin: e2e-admin
+    tenantAdmin: e2e-tenant-admin
+    projectAdmin: e2e-project-admin
+    user: e2e-user
+
