@@ -231,7 +231,7 @@ func isPodReadyOrSucceed(pod corev1.Pod) bool {
 	if pod.Status.Phase == "" {
 		return true
 	}
-	
+
 	if pod.Status.Phase == "Succeeded" {
 		return true
 	}
@@ -242,7 +242,7 @@ func isPodReadyOrSucceed(pod corev1.Pod) bool {
 			return true
 		}
 		for _, cond := range conditions {
-			if cond.Type == "Ready" && cond.Status == "False"{
+			if cond.Type == "Ready" && cond.Status == "False" {
 				return false
 			}
 		}
