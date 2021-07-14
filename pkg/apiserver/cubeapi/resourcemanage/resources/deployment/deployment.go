@@ -197,7 +197,9 @@ func (d *Deployment) getWarningEventsByPodList(podList corev1.PodList) (resource
 	// kubectl get ev --field-selector="involvedObject.uid=1a58441c-3c03-4267-85d1-a81f0c268d62,type=Warning"
 	resultEventList := make(resources.K8sJsonArr, 0)
 	for _, pod := range podList.Items {
-
+		if isPodReadyOrSucceed(pod) {
+			continue
+		}
 		fieldSelector := make(map[string]string)
 		fieldSelector["involvedObject.uid"] = string(pod.GetUID())
 		fieldSelector["type"] = "Warning"
@@ -223,4 +225,29 @@ func (d *Deployment) getWarningEventsByPodList(podList corev1.PodList) (resource
 		}
 	}
 	return resultEventList, nil
+}
+
+func isPodReadyOrSucceed(pod corev1.Pod) bool {
+	if pod.Status.Phase == "" {
+		return true
+	}
+	
+	if pod.Status.Phase == "Succeeded" {
+		return true
+	}
+
+	if pod.Status.Phase == "Running" {
+		conditions := pod.Status.Conditions
+		if len(conditions) == 0 {
+			return true
+		}
+		for _, cond := range conditions {
+			if cond.Type == "Ready" && cond.Status == "False"{
+				return false
+			}
+		}
+		return true
+	}
+
+	return false
 }
