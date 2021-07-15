@@ -27,12 +27,12 @@ import (
 func GetTokenFromReq(c *gin.Context) string {
 	// get token from header
 	var bearerToken = c.Request.Header.Get(constants.AuthorizationHeader)
-	clog.Debug("get bearer token from header: %s", bearerToken)
 	if bearerToken == "" {
+		clog.Debug("get bearer token from header is empty")
 		// get token from cookie
 		bearerToken, _ = c.Cookie(constants.AuthorizationHeader)
-		clog.Debug("get bearer token from cookie: %s", bearerToken)
 		if bearerToken == "" {
+			clog.Debug("get bearer token from cookie is empty")
 			return ""
 		}
 	}
