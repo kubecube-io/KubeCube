@@ -9,39 +9,22 @@ metadata:
     kubecube.io/role: "tenant"
   annotations:
     kubecube.io/sync: "true"
+#aggregationRule:
+#  clusterRoleSelectors:
+#    - matchLabels:
+#        kubecube.io/aggregate-to-tenant-admin: "true"
 rules:
   - apiGroups:
-      - ""
-    resources:
-      - pods/attach
-      - pods/exec
-      - pods/portforward
-      - pods/proxy
-      - secrets
-      - services/proxy
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - delete
-      - deletecollection
-      - patch
-      - update
-  - apiGroups:
-      - ""
-    resources:
-      - serviceaccounts
-    verbs:
-      - impersonate
-  - apiGroups:
-      - ""
+      - "*"
     resources:
       - pods
       - pods/attach
+      - pods/status
+      - pods/execescalate
       - pods/exec
       - pods/portforward
       - pods/proxy
+      - pods/log
     verbs:
       - get
       - list
@@ -52,17 +35,11 @@ rules:
       - patch
       - update
   - apiGroups:
-      - ""
+      - "*"
     resources:
-      - configmaps
-      - endpoints
-      - persistentvolumeclaims
       - replicationcontrollers
       - replicationcontrollers/scale
-      - secrets
-      - serviceaccounts
-      - services
-      - services/proxy
+      - replicationcontrollers/status
     verbs:
       - get
       - list
@@ -73,112 +50,39 @@ rules:
       - patch
       - update
   - apiGroups:
-      - apps
+      - "*"
     resources:
-      - daemonsets
-      - deployments
-      - deployments/rollback
-      - deployments/scale
-      - replicasets
-      - replicasets/scale
-      - statefulsets
-      - statefulsets/scale
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - delete
-      - deletecollection
-      - patch
-      - update
-  - apiGroups:
-      - autoscaling
-    resources:
-      - horizontalpodautoscalers
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - delete
-      - deletecollection
-      - patch
-      - update
-  - apiGroups:
-      - batch
-    resources:
-      - cronjobs
-      - jobs
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - delete
-      - deletecollection
-      - patch
-      - update
-  - apiGroups:
-      - extensions
-    resources:
-      - daemonsets
-      - deployments
-      - deployments/rollback
-      - deployments/scale
-      - ingresses
-      - networkpolicies
-      - replicasets
-      - replicasets/scale
-      - replicationcontrollers/scale
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - delete
-      - deletecollection
-      - patch
-      - update
-  - apiGroups:
-      - policy
-    resources:
-      - poddisruptionbudgets
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - delete
-      - deletecollection
-      - patch
-      - update
-  - apiGroups:
-      - networking.k8s.io
-    resources:
-      - ingresses
-      - networkpolicies
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - delete
-      - deletecollection
-      - patch
-      - update
-  - apiGroups:
-      - ""
-    resources:
-      - configmaps
-      - endpoints
       - persistentvolumeclaims
       - persistentvolumeclaims/status
-      - pods
-      - replicationcontrollers
-      - replicationcontrollers/scale
-      - serviceaccounts
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - configmaps
+      - endpoints
+      - secrets
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - services
+      - services/proxy
       - services/status
     verbs:
       - get
@@ -190,17 +94,11 @@ rules:
       - patch
       - update
   - apiGroups:
-      - ""
+      - "*"
     resources:
-      - bindings
-      - events
-      - limitranges
-      - pods/log
-      - pods/status
-      - replicationcontrollers/status
-      - resourcequotas
-      - resourcequotas/status
+      - serviceaccounts
     verbs:
+      - impersonate
       - get
       - list
       - watch
@@ -210,20 +108,21 @@ rules:
       - patch
       - update
   - apiGroups:
-      - apps
+      - "*"
     resources:
-      - controllerrevisions
       - daemonsets
       - daemonsets/status
       - deployments
+      - deployments/rollback
       - deployments/scale
       - deployments/status
-      - replicasets
-      - replicasets/scale
-      - replicasets/status
       - statefulsets
       - statefulsets/scale
       - statefulsets/status
+      - replicasets
+      - replicasets/scale
+      - replicasets/status
+      - controllerrevisions
     verbs:
       - get
       - list
@@ -234,7 +133,7 @@ rules:
       - patch
       - update
   - apiGroups:
-      - autoscaling
+      - "*"
     resources:
       - horizontalpodautoscalers
       - horizontalpodautoscalers/status
@@ -248,7 +147,7 @@ rules:
       - patch
       - update
   - apiGroups:
-      - batch
+      - "*"
     resources:
       - cronjobs
       - cronjobs/status
@@ -264,20 +163,11 @@ rules:
       - patch
       - update
   - apiGroups:
-      - extensions
+      - "*"
     resources:
-      - daemonsets
-      - daemonsets/status
-      - deployments
-      - deployments/scale
-      - deployments/status
       - ingresses
       - ingresses/status
       - networkpolicies
-      - replicasets
-      - replicasets/scale
-      - replicasets/status
-      - replicationcontrollers/scale
     verbs:
       - get
       - list
@@ -288,7 +178,7 @@ rules:
       - patch
       - update
   - apiGroups:
-      - policy
+      - "*"
     resources:
       - poddisruptionbudgets
       - poddisruptionbudgets/status
@@ -302,11 +192,13 @@ rules:
       - patch
       - update
   - apiGroups:
-      - networking.k8s.io
+      - "*"
     resources:
-      - ingresses
-      - ingresses/status
-      - networkpolicies
+      - bindings
+      - events
+      - limitranges
+      - resourcequotas
+      - resourcequotas/status
     verbs:
       - get
       - list
@@ -317,7 +209,7 @@ rules:
       - patch
       - update
   - apiGroups:
-      - rbac.authorization.k8s.io
+      - "*"
     resources:
       - rolebindings
       - roles
@@ -331,30 +223,107 @@ rules:
       - update
       - watch
   - apiGroups:
-      - hnc.x-k8s.io
+      - "*"
     resources:
-      - subnamespaceanchors
+      - cronjobs
+      - cronjobs/status
+      - jobs
+      - jobs/status
     verbs:
-      - create
-      - delete
       - get
       - list
+      - watch
+      - create
+      - delete
+      - deletecollection
       - patch
       - update
-      - watch
   - apiGroups:
-      - hnc.x-k8s.io
+      - "*"
     resources:
-      - subnamespaceanchors/status
+      - bindings
+      - events
+      - limitranges
+      - resourcequotas
+      - resourcequotas/status
     verbs:
       - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
       - patch
       - update
   - apiGroups:
-      - monitoring.kubecube.io
+      - "*"
+    resources:
+      - horizontalpodautoscalers
+      - horizontalpodautoscalers/status
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*" #hnc.x-k8s.io
+    resources:
+      - hierarchyconfigurations
+      - hncconfigurations
+      - subnamespaceanchors
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"  #monitoring.kubecube.io
     resources:
       - dashboards
     verbs:
       - get
       - list
       - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*" #netease.com
+    resources:
+      - nodelogconfigs
+      - logconfigs
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*" #monitoring.coreos.com
+    resources:
+      - alertmanagerconfigs
+      - podmonitors
+      - prometheusrules
+      - servicemonitors
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update

@@ -1,0 +1,10 @@
+apiVersion: cluster.kubecube.io/v1
+kind: Cluster
+metadata:
+  name: pivot-cluster
+spec:
+  kubernetesAPIEndpoint: #K8S_APIEndpoint
+  networkType: calico
+  isMemberCluster: false
+  description: "this is pivot cluster"
+  kubeconfig: #KubeConfig

@@ -24,8 +24,7 @@ metadata:
   namespace: kubecube-system
 subsets:
   - addresses:
-      #  mac    - ip: 10.242.68.57
-      - ip: 10.219.192.164
+      - ip: #LOCAL_IP
     ports:
       - name: http
         port: 7777

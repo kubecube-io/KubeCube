@@ -1,0 +1,227 @@
+# ordinary only has read authority under of
+# bottom layer namespace used of RoleBinding.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: reviewer
+  labels:
+    kubecube.io/rbac: "true"
+    kubecube.io/role: "reviewer"
+  annotations:
+    kubecube.io/sync: "true"
+#aggregationRule:
+#  clusterRoleSelectors:
+#    - matchLabels:
+#        kubecube.io/aggregate-to-reviewer: "true"
+rules:
+  - apiGroups:
+      - "*"
+    resources:
+      - pods
+      - pods/attach
+      - pods/execescalate
+      - pods/exec
+      - pods/portforward
+      - pods/proxy
+      - pods/log
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "*"
+    resources:
+      - replicationcontrollers
+      - replicationcontrollers/scale
+      - replicationcontrollers/status
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "*"
+    resources:
+      - persistentvolumeclaims
+      - persistentvolumeclaims/status
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "*"
+    resources:
+      - configmaps
+      - endpoints
+      - secrets
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "*"
+    resources:
+      - services
+      - services/proxy
+      - services/status
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "*"
+    resources:
+      - serviceaccounts
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "*"
+    resources:
+      - daemonsets
+      - daemonsets/status
+      - deployments
+      - deployments/rollback
+      - deployments/scale
+      - deployments/status
+      - statefulsets
+      - statefulsets/scale
+      - statefulsets/status
+      - replicasets
+      - replicasets/scale
+      - replicasets/status
+      - controllerrevisions
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "*"
+    resources:
+      - horizontalpodautoscalers
+      - horizontalpodautoscalers/status
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "*"
+    resources:
+      - cronjobs
+      - cronjobs/status
+      - jobs
+      - jobs/status
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "*"
+    resources:
+      - ingresses
+      - ingresses/status
+      - networkpolicies
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "*"
+    resources:
+      - poddisruptionbudgets
+      - poddisruptionbudgets/status
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "*"
+    resources:
+      - bindings
+      - events
+      - limitranges
+      - resourcequotas
+      - resourcequotas/status
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "*"
+    resources:
+      - rolebindings
+      - roles
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "*"
+    resources:
+      - cronjobs
+      - cronjobs/status
+      - jobs
+      - jobs/status
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "*"
+    resources:
+      - bindings
+      - events
+      - limitranges
+      - resourcequotas
+      - resourcequotas/status
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "*"
+    resources:
+      - horizontalpodautoscalers
+      - horizontalpodautoscalers/status
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "*" #hnc.x-k8s.io
+    resources:
+      - hierarchyconfigurations
+      - hncconfigurations
+      - subnamespaceanchors
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "*"  #monitoring.kubecube.io
+    resources:
+      - dashboards
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "*" #netease.com
+    resources:
+      - nodelogconfigs
+      - logconfigs
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "*" #monitoring.coreos.com
+    resources:
+      - alertmanagerconfigs
+      - podmonitors
+      - prometheusrules
+      - servicemonitors
+    verbs:
+      - get
+      - list
+      - watch
