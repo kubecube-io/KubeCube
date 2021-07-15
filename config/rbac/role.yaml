@@ -6,126 +6,126 @@ metadata:
   creationTimestamp: null
   name: manager-role
 rules:
-  - apiGroups:
-      - cluster.kubecube.io
-    resources:
-      - clusters
-    verbs:
-      - create
-      - delete
-      - get
-      - list
-      - patch
-      - update
-      - watch
-  - apiGroups:
-      - cluster.kubecube.io
-    resources:
-      - clusters/finalizers
-    verbs:
-      - update
-  - apiGroups:
-      - cluster.kubecube.io
-    resources:
-      - clusters/status
-    verbs:
-      - get
-      - patch
-      - update
-  - apiGroups:
-      - hotplug.kubecube.io
-    resources:
-      - hotplugs
-    verbs:
-      - create
-      - delete
-      - get
-      - list
-      - patch
-      - update
-      - watch
-  - apiGroups:
-      - hotplug.kubecube.io
-    resources:
-      - hotplugs/finalizers
-    verbs:
-      - update
-  - apiGroups:
-      - hotplug.kubecube.io
-    resources:
-      - hotplugs/status
-    verbs:
-      - get
-      - patch
-      - update
-  - apiGroups:
-      - quota.kubecube.io
-    resources:
-      - cuberesourcequota
-    verbs:
-      - create
-      - delete
-      - get
-      - list
-      - patch
-      - update
-      - watch
-  - apiGroups:
-      - quota.kubecube.io
-    resources:
-      - cuberesourcequota/finalizers
-    verbs:
-      - update
-  - apiGroups:
-      - quota.kubecube.io
-    resources:
-      - cuberesourcequota/status
-    verbs:
-      - get
-      - patch
-      - update
-  - apiGroups:
-      - tenant.kubecube.io
-    resources:
-      - projects
-    verbs:
-      - create
-      - delete
-      - get
-      - list
-      - patch
-      - update
-      - watch
-  - apiGroups:
-      - tenant.kubecube.io
-    resources:
-      - projects/finalizers
-    verbs:
-      - update
-  - apiGroups:
-      - tenant.kubecube.io
-    resources:
-      - projects/status
-    verbs:
-      - get
-      - patch
-      - update
-  - apiGroups:
-      - tenant.kubecube.io
-    resources:
-      - tenants
-    verbs:
-      - create
-      - delete
-      - get
-      - list
-      - patch
-      - update
-      - watch
-  - apiGroups:
-      - tenant.kubecube.io
-    resources:
-      - tenants/finalizers
+- apiGroups:
+  - cluster.kubecube.io
+  resources:
+  - clusters
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - cluster.kubecube.io
+  resources:
+  - clusters/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - cluster.kubecube.io
+  resources:
+  - clusters/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - hotplug.kubecube.io
+  resources:
+  - hotplugs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - hotplug.kubecube.io
+  resources:
+  - hotplugs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - hotplug.kubecube.io
+  resources:
+  - hotplugs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - quota.kubecube.io
+  resources:
+  - cuberesourcequota
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - quota.kubecube.io
+  resources:
+  - cuberesourcequota/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - quota.kubecube.io
+  resources:
+  - cuberesourcequota/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - tenant.kubecube.io
+  resources:
+  - projects
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - tenant.kubecube.io
+  resources:
+  - projects/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - tenant.kubecube.io
+  resources:
+  - projects/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - tenant.kubecube.io
+  resources:
+  - tenants
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - tenant.kubecube.io
+  resources:
+  - tenants/finalizers
   verbs:
   - update
 - apiGroups:
