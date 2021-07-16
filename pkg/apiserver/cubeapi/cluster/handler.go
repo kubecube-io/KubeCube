@@ -23,7 +23,11 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/kubecube-io/kubecube/pkg/authenticator/token"
+	"github.com/kubecube-io/kubecube/pkg/authorizer/rbac"
 	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
+	rbacv1 "k8s.io/api/rbac/v1"
+	userinfo "k8s.io/apiserver/pkg/authentication/user"
 
 	"github.com/kubecube-io/kubecube/pkg/utils/env"
 
@@ -61,6 +65,7 @@ func AddApisTo(root *gin.RouterGroup) {
 	r.GET("subnamespaces", h.getSubNamespaces)
 	r.POST("register", h.registerCluster)
 	r.POST("add", h.addCluster)
+	r.POST("nsquota", h.createNsAndQuota)
 }
 
 type result struct {
@@ -92,11 +97,13 @@ type clusterInfo struct {
 }
 
 type handler struct {
+	rbac.Interface
 	kubernetes.Client
 }
 
 func newHandler() *handler {
 	h := new(handler)
+	h.Interface = rbac.NewDefaultResolver(constants.PivotCluster)
 	h.Client = clients.Interface().Kubernetes(constants.PivotCluster)
 	return h
 }
@@ -403,6 +410,108 @@ func (h *handler) registerCluster(c *gin.Context) {
 			return
 		}
 	}
+
+	response.SuccessReturn(c, "success")
+}
+
+type nsAndQuota struct {
+	Cluster            string                       `json:"cluster"`
+	SubNamespaceAnchor *v1alpha2.SubnamespaceAnchor `json:"subNamespaceAnchor"`
+	ResourceQuota      *v1.ResourceQuota            `json:"resourceQuota"`
+}
+
+// createNsAndQuota create quota when rbac was spread to new namespace
+// @Summary create subNamespace and resourceQuota
+// @Description create subNamespace and resourceQuota
+// @Tags cluster
+// @Param nsAndQuota body nsAndQuota true "ns and quota data"
+// @Success 200 {object} string "success"
+// @Failure 400 {object} errcode.ErrorInfo
+// @Failure 500 {object} errcode.ErrorInfo
+// @Router /api/v1/cube/clusters/nsquota  [post]
+func (h *handler) createNsAndQuota(c *gin.Context) {
+	data := &nsAndQuota{}
+	err := c.ShouldBindJSON(data)
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
+		return
+	}
+
+	user := token.GetUserFromReq(c)
+	cli := clients.Interface().Kubernetes(data.Cluster)
+	ctx := c.Request.Context()
+
+	err = cli.Direct().Create(ctx, data.SubNamespaceAnchor)
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.InternalServerError)
+		return
+	}
+
+	rollback := func() {
+		err := cli.Direct().Delete(ctx, data.SubNamespaceAnchor)
+		if err != nil {
+			clog.Error(err.Error())
+		}
+	}
+
+	const (
+		retryCount    = 20
+		retryInterval = 100 * time.Millisecond
+	)
+
+	_, clusterRoles, err := h.Interface.RolesFor(&userinfo.DefaultInfo{Name: user}, "")
+	if err != nil {
+		clog.Error(err.Error())
+		rollback()
+		response.FailReturn(c, errcode.InternalServerError)
+		return
+	}
+
+	// platform level clusterRole does not need wait rbac spread
+	toWait := true
+	for _, r := range clusterRoles {
+		if v, ok := r.GetLabels()[constants.RoleLabel]; ok {
+			if v == "platform" {
+				toWait = false
+			}
+		}
+	}
+
+	count := 0
+	for toWait {
+		if count == retryCount {
+			clog.Warn("wait fo rbac spread by hnc retry exceed %v", retryCount)
+			break
+		}
+
+		list := &rbacv1.RoleBindingList{}
+		err = cli.Direct().List(ctx, list, &client.ListOptions{Namespace: data.SubNamespaceAnchor.Name})
+		if err != nil {
+			clog.Error(err.Error())
+			rollback()
+			response.FailReturn(c, errcode.InternalServerError)
+			return
+		}
+		if len(list.Items) > 0 {
+			break
+		}
+		count++
+		time.Sleep(retryInterval)
+	}
+
+	// final action failed would rollback whole action
+	err = cli.Direct().Create(ctx, data.ResourceQuota)
+	if err != nil {
+		clog.Error(err.Error())
+		rollback()
+		response.FailReturn(c, errcode.InternalServerError)
+		return
+	}
+
+	clog.Debug("user %v create ns %v and resourceQuota %v in cluster %v success",
+		user, data.SubNamespaceAnchor.Name, data.ResourceQuota.Name, data.Cluster)
 
 	response.SuccessReturn(c, "success")
 }
