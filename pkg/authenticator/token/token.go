@@ -32,7 +32,7 @@ func GetTokenFromReq(c *gin.Context) string {
 		// get token from cookie
 		bearerToken, _ = c.Cookie(constants.AuthorizationHeader)
 		if bearerToken == "" {
-			clog.Debug("get bearer token from cookie is empty")
+			clog.Warn("get bearer token from cookie is empty")
 			return ""
 		}
 	}
