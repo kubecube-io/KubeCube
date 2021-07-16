@@ -48,7 +48,7 @@
 
 ## Dependencies
 
-- hnc v0.8.0-kubecube.1
+- hnc v0.8.0-kubecube.0.1
 - nginx-ingress v0.46.0
 - helm 3.x
 - metrics-server v0.4.1
