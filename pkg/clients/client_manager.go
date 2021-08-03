@@ -45,6 +45,8 @@ func Interface() *cubeClientSet {
 	return genericClientSet
 }
 
+// Kubernetes get the indicate client for cluster, we log error instead of return it
+// for convenience, caller needs to determine whether the return value is nil
 func (c *cubeClientSet) Kubernetes(cluster string) kubernetes.Client {
 	client, err := c.k8s.GetClient(cluster)
 	if err != nil {

@@ -29,12 +29,13 @@ import (
 	"sigs.k8s.io/multi-tenancy/incubator/hnc/api/v1alpha2"
 )
 
-// PivotClient has the to communicate with pivot cluster
+// PivotClient has the way to communicate with pivot cluster
 var PivotClient client.Client
 
 // InitPivotClient make sure pivot initialized
 func InitPivotClient() {
 	if PivotClient == nil {
+		// below logic should execute in pivot cluster
 		scheme := runtime.NewScheme()
 		utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 		utilruntime.Must(apis.AddToScheme(scheme))
@@ -48,5 +49,5 @@ func InitPivotClient() {
 	}
 }
 
-// local cluster name
+// Cluster local cluster name
 var Cluster string

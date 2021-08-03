@@ -17,31 +17,73 @@ limitations under the License.
 package constants
 
 const (
+	// KubeCube all the begin
 	KubeCube = "kubecube"
 
-	// root route
+	// Warden is willing to kubecube
+	Warden = "warden"
+
+	// ApiPathRoot the root api route
 	ApiPathRoot = "/api/v1/cube"
 
-	// kubecube default namespace
+	// CubeNamespace kubecube default namespace
 	CubeNamespace = "kubecube-system"
 
-	// pivot cluster name
+	// PivotCluster pivot cluster name
 	PivotCluster = "pivot-cluster"
 
-	// warden deployment name
-	WardenDeployment = "warden"
-
-	// default pivot cube host
-	DefaultPivotCubeHost = "cube.kubecube.io"
-
-	// default pivot cube headless svc
+	// DefaultPivotCubeClusterIPSvc default pivot cube svc
 	DefaultPivotCubeClusterIPSvc = "kubecube.kubecube-system:7443"
-	DefaultAuditSvc              = "audit.kubecube-system:8888"
 
+	// DefaultAuditSvc default audit cube svc
+	DefaultAuditSvc = "audit.kubecube-system:8888"
+)
+
+// http content
+const (
 	HttpHeaderContentType        = "Content-type"
 	HttpHeaderContentDisposition = "Content-Disposition"
 	HttpHeaderContentTypeOctet   = "application/octet-stream"
+)
 
+// audit and user constant
+const (
+	EventName          = "event"
+	EventTypeUserWrite = "userwrite"
+	EventResourceType  = "resourceType"
+	EventAccountId     = "accountId"
+
+	AuthorizationHeader        = "Authorization"
+	DefaultTokenExpireDuration = 3600 // 1 hour
+)
+
+// k8s api resources
+const (
+	K8sResourceVersion   = "v1"
+	K8sResourceNamespace = "namespaces"
+	K8sResourcePod       = "pods"
+
+	K8sKindClusterRole    = "ClusterRole"
+	K8sKindRole           = "Role"
+	K8sKindServiceAccount = "ServiceAccount"
+
+	K8sGroupRBAC = "rbac.authorization.k8s.io"
+)
+
+// rbac related constant
+const (
+	PlatformAdmin = "platform-admin"
+	TenantAdmin   = "tenant-admin"
+	ProjectAdmin  = "project-admin"
+	Reviewer      = "reviewer"
+
+	TenantAdminCluster  = "tenant-admin-cluster"
+	ProjectAdminCluster = "project-admin-cluster"
+	ReviewerCluster     = "reviewer-cluster"
+)
+
+const (
+	// ClusterLabel indicates the resource which cluster relate with
 	ClusterLabel = "kubecube.io/cluster"
 
 	// TenantLabel represent which tenant resource relate with
@@ -56,33 +98,12 @@ const (
 	// RbacLabel indicates the resource of rbac is related with kubecube
 	RbacLabel = "kubecube.io/rbac"
 
+	// RoleLabel indicates the role of rbac policy
 	RoleLabel = "kubecube.io/role"
 
+	// CrdLabel indicates the crds kubecube need to dispatch
 	CrdLabel = "kubecube.io/crds"
 
-	// SyncLabel
+	// SyncLabel use for sync logic of warden
 	SyncLabel = "kubecube.io/sync"
-
-	K8sResourceVersion   = "v1"
-	K8sResourceNamespace = "namespaces"
-
-	// audit
-	EventName          = "event"
-	EventTypeUserWrite = "userwrite"
-	EventResourceType  = "resourceType"
-	EventAccountId     = "accountId"
-
-	// user
-	AuthorizationHeader        = "Authorization"
-	DefaultTokenExpireDuration = 3600 // 1 hour
-
-	// build-in cluster role
-	PlatformAdmin = "platform-admin"
-	TenantAdmin   = "tenant-admin"
-	ProjectAdmin  = "project-admin"
-	Reviewer      = "reviewer"
-
-	TenantAdminCluster  = "tenant-admin-cluster"
-	ProjectAdminCluster = "project-admin-cluster"
-	ReviewerCluster     = "reviewer-cluster"
 )

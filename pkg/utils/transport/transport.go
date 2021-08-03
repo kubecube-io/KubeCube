@@ -23,6 +23,7 @@ import (
 	"net/http"
 )
 
+// MakeTransport new transport with cert if given
 func MakeTransport(rootCa, rootKey string) *http.Transport {
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},

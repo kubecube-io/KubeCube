@@ -79,6 +79,8 @@ func LoadConfigFromDisk() (*CubeOptions, error) {
 	return conf, nil
 }
 
+// Validate verify options for every component
+// todo(weilaaa): complete it
 func (s *CubeOptions) Validate() []error {
 	var errs []error
 

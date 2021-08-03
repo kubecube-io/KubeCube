@@ -27,16 +27,22 @@ import (
 var log clog.CubeLogger
 
 const (
+	// waitPeriod default wait timeout
 	waitPeriod = 500 * time.Millisecond
 )
 
 // Reporter reports local cluster info to pivot cluster scout
 type Reporter struct {
-	Cluster       string
+	// Cluster current cluster name
+	Cluster string
+	// PivotCubeHost the target warden to report
 	PivotCubeHost string
-	PeriodSecond  int
-	WaitSecond    int
-	PivotHealthy  bool
+	// PeriodSecond is interval time to report info
+	PeriodSecond int
+	// WaitSecond is readyz wait timeout
+	WaitSecond int
+	// PivotHealthy the pivot cluster healthy status
+	PivotHealthy bool
 }
 
 func (r *Reporter) Initialize() error {
@@ -54,12 +60,14 @@ func (r *Reporter) Run(stop <-chan struct{}) {
 	r.report(stop)
 }
 
+// waitForReady wait all components of warden ready
 func (r *Reporter) waitForReady() error {
 	counts := len(checkFuncs)
 	if counts < 1 {
 		return fmt.Errorf("less 1 components to check ready")
 	}
 
+	// wait all components ready in specified time
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(r.WaitSecond)*time.Second)
 	defer cancel()
 

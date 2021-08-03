@@ -215,7 +215,7 @@ func isAllowedAccess(rbac rbac.Interface, user, namespace string) bool {
 		User:            &userinfo.DefaultInfo{Name: user},
 		Verb:            "get",
 		Namespace:       namespace,
-		Resource:        "pods",
+		Resource:        constants.K8sResourcePod,
 		ResourceRequest: true,
 	}
 	d, _, err := rbac.Authorize(context.Background(), a)

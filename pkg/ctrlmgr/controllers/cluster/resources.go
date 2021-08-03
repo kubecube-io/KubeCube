@@ -47,6 +47,7 @@ const (
 	configMapName = "kubeconfig-pivot-cluster"
 	secretName    = "cube-tls-secret"
 	webhookName   = "warden-validating-webhook-configuration"
+	appKey        = "kubecube.io/app"
 )
 
 func deployResources(ctx context.Context, memberCluster, pivotCluster clusterv1.Cluster) error {
@@ -133,7 +134,7 @@ func deployResources(ctx context.Context, memberCluster, pivotCluster clusterv1.
 // makeDeployment set kubeconfig and jwt secret for warden
 func makeDeployment(cluster string, isMemberCluster bool) *appsv1.Deployment {
 	var (
-		labels = map[string]string{"kubecube.io/app": "warden"}
+		label = map[string]string{appKey: constants.Warden}
 
 		args = []string{
 			"-pivot-cluster-kubeconfig=/etc/config/kubeconfig",
@@ -219,18 +220,18 @@ func makeDeployment(cluster string, isMemberCluster bool) *appsv1.Deployment {
 
 	d := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "warden",
+			Name:      constants.Warden,
 			Namespace: constants.CubeNamespace,
-			Labels:    labels,
+			Labels:    label,
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: int32Ptr(1),
 			Selector: &metav1.LabelSelector{
-				MatchLabels: labels,
+				MatchLabels: label,
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: labels,
+					Labels: label,
 				},
 				Spec: corev1.PodSpec{
 					InitContainers: []corev1.Container{
@@ -247,7 +248,7 @@ func makeDeployment(cluster string, isMemberCluster bool) *appsv1.Deployment {
 					},
 					Containers: []corev1.Container{
 						{
-							Name:  "warden",
+							Name:  constants.Warden,
 							Image: env.WardenImage(),
 							SecurityContext: &corev1.SecurityContext{
 								RunAsUser:  int64Ptr(0),
@@ -271,38 +272,6 @@ func makeDeployment(cluster string, isMemberCluster bool) *appsv1.Deployment {
 
 // makeKubeConfigCM make configmap container kubeConfig of pivot cluster
 func makeKubeConfigCM(pivotCluster clusterv1.Cluster) *corev1.ConfigMap {
-	//pivotConfig := config.GetConfigOrDie()
-	//
-	//currentContext := fmt.Sprintf("admin@%s", constants.PivotCluster)
-	//
-	//apiConfig := clientcmdapi.Config{
-	//	Kind:       "Config",
-	//	APIVersion: "v1",
-	//	Clusters: map[string]*clientcmdapi.Cluster{
-	//		constants.PivotCluster: {
-	//			Server:                   pivotConfig.Host,
-	//			CertificateAuthorityData: pivotConfig.CAData,
-	//		},
-	//	},
-	//	Contexts: map[string]*clientcmdapi.Context{
-	//		currentContext: {
-	//			Cluster:  constants.PivotCluster,
-	//			AuthInfo: userInfo,
-	//		},
-	//	},
-	//	AuthInfos: map[string]*clientcmdapi.AuthInfo{
-	//		userInfo: {
-	//			Token: pivotConfig.BearerToken,
-	//		},
-	//	},
-	//	CurrentContext: currentContext,
-	//}
-	//
-	//kubeConfig, err := clientcmd.Write(apiConfig)
-	//if err != nil {
-	//	klog.Infof("write kubeconfig failed: %v", err)
-	//}
-
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      configMapName,
@@ -316,18 +285,18 @@ func makeKubeConfigCM(pivotCluster clusterv1.Cluster) *corev1.ConfigMap {
 
 // makeClusterIpSvc make service to be used for auth
 func makeClusterIpSvc() *corev1.Service {
-	labels := map[string]string{
-		"kubecube.io/app": "warden",
+	label := map[string]string{
+		appKey: constants.Warden,
 	}
 
 	s := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "warden",
+			Name:      constants.Warden,
 			Namespace: constants.CubeNamespace,
-			Labels:    labels,
+			Labels:    label,
 		},
 		Spec: corev1.ServiceSpec{
-			Selector: labels,
+			Selector: label,
 			Type:     corev1.ServiceTypeClusterIP,
 			Ports: []corev1.ServicePort{
 				{
@@ -346,18 +315,18 @@ func makeClusterIpSvc() *corev1.Service {
 }
 
 func makeNodePortSvc() *corev1.Service {
-	labels := map[string]string{
-		"kubecube.io/app": "warden",
+	label := map[string]string{
+		appKey: constants.Warden,
 	}
 
 	s := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "warden-nodeport",
 			Namespace: constants.CubeNamespace,
-			Labels:    labels,
+			Labels:    label,
 		},
 		Spec: corev1.ServiceSpec{
-			Selector: labels,
+			Selector: label,
 			Type:     corev1.ServiceTypeNodePort,
 			Ports: []corev1.ServicePort{
 				{
@@ -473,15 +442,15 @@ func makeClusterRoleBinding() *rbacv1.ClusterRoleBinding {
 			Name: "kubecube-rolebinding",
 		},
 		RoleRef: rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
+			APIGroup: constants.K8sGroupRBAC,
+			Kind:     constants.K8sKindClusterRole,
 			Name:     "kubecube-role",
 		},
 		Subjects: []rbacv1.Subject{
 			{
 				Name:      "default",
-				Kind:      "ServiceAccount",
-				Namespace: "kubecube-system",
+				Kind:      constants.K8sKindServiceAccount,
+				Namespace: constants.CubeNamespace,
 			},
 		},
 	}
