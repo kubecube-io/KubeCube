@@ -170,12 +170,12 @@ func (h *handler) getUsersByRole(c *gin.Context) {
 
 	role := rbacv1.RoleRef{
 		Name:     roleName,
-		APIGroup: "rbac.authorization.k8s.io",
-		Kind:     "ClusterRole",
+		APIGroup: constants.K8sGroupRBAC,
+		Kind:     constants.K8sKindClusterRole,
 	}
 
 	if len(ns) > 0 {
-		role.Kind = "Role"
+		role.Kind = constants.K8sKindRole
 	}
 
 	users, err := h.UsersFor(role, ns)
@@ -297,12 +297,12 @@ func (h *handler) createBinds(c *gin.Context) {
 			Name: roleBinding.Subjects[0].Name,
 		}},
 		RoleRef: rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "ClusterRole",
+			APIGroup: constants.K8sGroupRBAC,
+			Kind:     constants.K8sKindClusterRole,
 		},
 	}
 
-	if roleBinding.RoleRef.Kind == "ClusterRole" {
+	if roleBinding.RoleRef.Kind == constants.K8sKindRole {
 		switch roleBinding.RoleRef.Name {
 		case constants.TenantAdmin:
 			clusterRoleBinding.RoleRef.Name = constants.TenantAdminCluster
@@ -370,7 +370,7 @@ func (h *handler) deleteBinds(c *gin.Context) {
 		return
 	}
 
-	if roleBinding.RoleRef.Kind == "ClusterRole" {
+	if roleBinding.RoleRef.Kind == constants.K8sKindClusterRole {
 		clusterRoleBindingName := "gen-" + roleBinding.Name
 		err = cli.ClientSet().RbacV1().ClusterRoleBindings().Delete(ctx, clusterRoleBindingName, v1.DeleteOptions{})
 		if err != nil {

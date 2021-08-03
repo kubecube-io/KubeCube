@@ -23,6 +23,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -65,10 +67,6 @@ func (s *SyncManager) setupCtrlWithManager(resource client.Object) error {
 		}()
 
 		if err = pivotClient.Get(ctx, req.NamespacedName, obj); err != nil {
-			if !isSyncResource(obj) {
-				return reconcile.Result{}, nil
-			}
-
 			// delete: when object is not exist in pivot cluster
 			if errors.IsNotFound(err) {
 				action = Delete
@@ -79,10 +77,6 @@ func (s *SyncManager) setupCtrlWithManager(resource client.Object) error {
 				return reconcile.Result{}, nil
 			}
 			return reconcile.Result{}, err
-		}
-
-		if !isSyncResource(obj) {
-			return reconcile.Result{}, nil
 		}
 
 		newObj, err := newGenericObj(obj)
@@ -131,6 +125,7 @@ func (s *SyncManager) setupCtrlWithManager(resource client.Object) error {
 
 	return ctrl.NewControllerManagedBy(s).
 		For(resource).
+		WithEventFilter(eventPredicate()).
 		Complete(r)
 }
 
@@ -148,7 +143,7 @@ func trimObjMeta(obj client.Object) {
 	obj.SetResourceVersion("")
 }
 
-// isSyncResource determined if sync that object
+// isSyncResource determined if sync that event
 func isSyncResource(obj client.Object) bool {
 	if v, ok := obj.GetAnnotations()[syncAnnotation]; ok {
 		b, err := strconv.ParseBool(v)
@@ -161,4 +156,22 @@ func isSyncResource(obj client.Object) bool {
 	}
 
 	return false
+}
+
+// eventPredicate do event filter for reconcile
+func eventPredicate() predicate.Funcs {
+	return predicate.Funcs{
+		CreateFunc: func(event event.CreateEvent) bool {
+			return isSyncResource(event.Object)
+		},
+		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+			return isSyncResource(updateEvent.ObjectNew)
+		},
+		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+			return isSyncResource(deleteEvent.Object)
+		},
+		GenericFunc: func(genericEvent event.GenericEvent) bool {
+			return false
+		},
+	}
 }

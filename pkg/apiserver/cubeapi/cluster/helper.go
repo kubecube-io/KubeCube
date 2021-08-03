@@ -20,31 +20,27 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/gin-gonic/gin"
+	v1 "github.com/kubecube-io/kubecube/pkg/apis/quota/v1"
 	"github.com/kubecube-io/kubecube/pkg/clients"
-
 	"github.com/kubecube-io/kubecube/pkg/quota"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	v1 "github.com/kubecube-io/kubecube/pkg/apis/quota/v1"
-	"k8s.io/apimachinery/pkg/labels"
-
-	"k8s.io/apimachinery/pkg/api/resource"
-
-	"github.com/kubecube-io/kubecube/pkg/multicluster"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-	"k8s.io/apimachinery/pkg/api/errors"
-
-	"github.com/gin-gonic/gin"
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
 	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/multicluster"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
 	"github.com/kubecube-io/kubecube/pkg/utils/strproc"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
 )
 
 const (
@@ -97,19 +93,17 @@ func makeClusterInfos(clusters clusterv1.ClusterList, pivotCli kubernetes.Client
 		info.KubeApiServer = cluster.Spec.KubernetesAPIEndpoint
 		info.NetworkType = cluster.Spec.NetworkType
 
-		// get nodes metrics info
 		nodesMc, err := cli.Metrics().MetricsV1beta1().NodeMetricses().List(ctx, metav1.ListOptions{})
 		if err != nil {
-			clog.Error("get cluster %v nodes metrics failed: %v", v, err)
-			response.FailReturn(c, errcode.InternalServerError)
-			return nil
-		}
-
-		for _, m := range nodesMc.Items {
-			info.UsedCPU += strproc.Str2int(m.Usage.Cpu().String())/1000000 + 1
-			info.UsedMem += strproc.Str2int(m.Usage.Memory().String()) / 1024
-			info.UsedStorage += (strproc.Str2int(m.Usage.Storage().String()) + 1) / 1024
-			info.UsedStorageEphemeral += (strproc.Str2int(m.Usage.StorageEphemeral().String()) + 1) / 1024
+			// record error from metric server, but ensure return normal
+			clog.Warn("get cluster %v nodes metrics failed: %v", v, err)
+		} else {
+			for _, m := range nodesMc.Items {
+				info.UsedCPU += strproc.Str2int(m.Usage.Cpu().String())/1000000 + 1
+				info.UsedMem += strproc.Str2int(m.Usage.Memory().String()) / 1024
+				info.UsedStorage += (strproc.Str2int(m.Usage.Storage().String()) + 1) / 1024
+				info.UsedStorageEphemeral += (strproc.Str2int(m.Usage.StorageEphemeral().String()) + 1) / 1024
+			}
 		}
 
 		nodes := corev1.NodeList{}

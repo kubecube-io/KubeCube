@@ -31,11 +31,7 @@ func WardenInitImage() string {
 }
 
 func PivotCubeHost() string {
-	r := os.Getenv("PIVOT_CUBE_HOST")
-	if r == "" {
-		r = constants.DefaultPivotCubeHost
-	}
-	return r
+	return os.Getenv("PIVOT_CUBE_HOST")
 }
 
 func PivotCubeClusterIPSvc() string {
