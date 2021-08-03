@@ -81,6 +81,16 @@ func (h *Helm) List(namespace string) ([]*release.Release, error) {
 	return listAction.Run()
 }
 
+// helm status
+func (h *Helm) Status(namespace string, name string) (*release.Release, error) {
+	actionConfig, err := h.GetActionConfig(namespace)
+	if err != nil {
+		return nil, err
+	}
+	statusAction := action.NewStatus(actionConfig)
+	return statusAction.Run(name)
+}
+
 // helm get values xxx
 func (h *Helm) GetValues(namespace string, name string) (map[string]interface{}, error) {
 	actionConfig, err := h.GetActionConfig(namespace)
