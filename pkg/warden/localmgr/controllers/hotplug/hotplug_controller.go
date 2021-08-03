@@ -123,18 +123,15 @@ func (r *HotplugReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		if name == "audit" {
 			continue
 		}
-		// list release
-		release, err := helm.List(namespace)
-		if err != nil {
-			log.Info("can not get release info, %v", err)
-			return ctrl.Result{}, err
-		}
 		isReleaseExist := false
-		for _, r := range release {
-			if name == r.Name {
-				// relese already exist
+		// release status
+		release, err := helm.Status(namespace, name)
+		if err != nil {
+			log.Info("can not get status from release info, %v", err)
+			isReleaseExist = false
+		} else {
+			if release.Info.Status == "deployed" {
 				isReleaseExist = true
-				break
 			}
 		}
 
