@@ -24,12 +24,17 @@ import (
 
 	hotplugv1 "github.com/kubecube-io/kubecube/pkg/apis/hotplug/v1"
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/warden/utils"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	k8syaml "sigs.k8s.io/yaml"
+)
+
+const (
+	featureConfigMap = "kubecube-feature-config"
 )
 
 // translate string to json
@@ -187,7 +192,7 @@ func convertYaml(yamlStr string) string {
 // update feature configmap
 func updateConfigMap(ctx context.Context, cli client.Client, result *hotplugv1.DeployResult) {
 	cm := corev1.ConfigMap{}
-	err := cli.Get(ctx, types.NamespacedName{Namespace: utils.Namespace, Name: utils.FeatureConfigMap}, &cm)
+	err := cli.Get(ctx, types.NamespacedName{Namespace: constants.CubeNamespace, Name: featureConfigMap}, &cm)
 	if err != nil {
 		clog.Error("can not find configmap kubecube-system/kubecube-feature-config, %v", err)
 		return

@@ -41,11 +41,6 @@ type Config struct {
 	LeaderElect       bool
 	WebhookCert       string
 	WebhookServerPort int
-
-	// local namespace
-	Namespace string
-	// feature config map
-	FeatureConfigMap string
 }
 
 func (c *Config) Validate() []error {

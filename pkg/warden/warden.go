@@ -62,8 +62,6 @@ func NewWardenWithOpts(opts *Config) *Warden {
 	}
 
 	utils.Cluster = opts.Cluster
-	utils.Namespace = opts.Namespace
-	utils.FeatureConfigMap = opts.FeatureConfigMap
 
 	// sync controller only run in member cluster
 	if opts.InMemberCluster {
