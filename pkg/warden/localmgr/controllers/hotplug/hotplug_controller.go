@@ -89,7 +89,7 @@ func (r *HotplugReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 				return ctrl.Result{}, err
 			}
 			// cluster config is nil
-			hotplugConfig = commonConfig
+			hotplugConfig = MergeHotplug(commonConfig, clusterConfig)
 		} else {
 			hotplugConfig = MergeHotplug(commonConfig, clusterConfig)
 		}
