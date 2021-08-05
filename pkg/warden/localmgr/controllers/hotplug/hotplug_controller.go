@@ -37,11 +37,11 @@ import (
 )
 
 const (
-	COMMON   = "common"
-	FAIL     = "fail"
-	SUCCESS  = "success"
-	ENABLED  = "enabled"
-	DISABLED = "disabled"
+	common   = "common"
+	fail     = "fail"
+	success  = "success"
+	enabled  = "enabled"
+	disabled = "disabled"
 )
 
 var _ reconcile.Reconciler = &HotplugReconciler{}
@@ -75,7 +75,7 @@ func (h *HotplugReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	clusterConfig := hotplugv1.Hotplug{}
 	hotplugConfig := hotplugv1.Hotplug{}
 	switch req.Name {
-	case COMMON:
+	case common:
 		err := h.Client.Get(ctx, req.NamespacedName, &commonConfig)
 		if err != nil {
 			if errors.IsNotFound(err) {
@@ -104,7 +104,7 @@ func (h *HotplugReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			log.Error("get cluster hotplug fail, %v", err)
 			return ctrl.Result{}, err
 		}
-		err = h.Client.Get(ctx, types.NamespacedName{Name: COMMON}, &commonConfig)
+		err = h.Client.Get(ctx, types.NamespacedName{Name: common}, &commonConfig)
 		if err != nil {
 			log.Warn("get common hotplug fail, %v", err)
 			return ctrl.Result{}, err
@@ -143,7 +143,7 @@ func (h *HotplugReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 		// start helm doing
 		if !isReleaseExist {
-			if c.Status != ENABLED {
+			if c.Status != enabled {
 				// release no exist & disabled, do nothing
 				addSuccessResult(result, "uninstalled")
 				continue
@@ -162,7 +162,7 @@ func (h *HotplugReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 				addSuccessResult(result, "helm install success")
 			}
 		} else {
-			if c.Status != ENABLED {
+			if c.Status != enabled {
 				// release exist & disabled, need uninstall
 				err := helm.Uninstall(namespace, name)
 				if err != nil {
@@ -197,11 +197,10 @@ func (h *HotplugReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}
 	}
 
-	// update status
-	phase := SUCCESS
+	phase := success
 	for _, r := range results {
-		if r.Status == FAIL {
-			phase = FAIL
+		if r.Status == fail {
+			phase = fail
 			continue
 		}
 		if utils.Cluster == constants.PivotCluster {
@@ -209,6 +208,7 @@ func (h *HotplugReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}
 	}
 
+	// update status
 	commonConfig.Status.Phase = phase
 	commonConfig.Status.Results = results
 	err := h.Client.Status().Update(ctx, &commonConfig)
@@ -231,13 +231,13 @@ func (h *HotplugReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 func addSuccessResult(result *hotplugv1.DeployResult, message string) {
 	clog.Info("component:%s, message:%s", result.Name, message)
-	result.Result = SUCCESS
+	result.Result = success
 	result.Message = message
 }
 
 func addFailResult(result *hotplugv1.DeployResult, message string) {
 	clog.Error("component:%s, message:%s", result.Name, message)
-	result.Result = FAIL
+	result.Result = fail
 	result.Message = message
 }
 

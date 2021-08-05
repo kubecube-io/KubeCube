@@ -51,9 +51,3 @@ func InitPivotClient() {
 
 // Cluster local cluster name
 var Cluster string
-
-// local namespace
-var Namespace string
-
-// feature configmap
-var FeatureConfigMap string
