@@ -25,5 +25,4 @@ bin
 *~
 
 # self dir
-config/crd/bases
 helmchartpkg
