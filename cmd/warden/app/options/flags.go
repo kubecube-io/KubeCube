@@ -142,15 +142,5 @@ var (
 			Value:       true,
 			Destination: &WardenOpts.GenericWardenOpts.InMemberCluster,
 		},
-		&cli.StringFlag{
-			Name:        "namespace",
-			Value:       "kubecube-system",
-			Destination: &WardenOpts.GenericWardenOpts.Namespace,
-		},
-		&cli.StringFlag{
-			Name:        "feature-configmap",
-			Value:       "kubecube-feature-config",
-			Destination: &WardenOpts.GenericWardenOpts.FeatureConfigMap,
-		},
 	}
 )
