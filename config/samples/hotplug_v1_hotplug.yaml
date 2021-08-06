@@ -1,0 +1,41 @@
+apiVersion: hotplug.kubecube.io/v1
+kind: Hotplug
+metadata:
+  annotations:
+    kubecube.io/sync: "true"
+  name: common
+spec:
+  component:
+  - name: audit
+    status: disabled
+  - name: elasticsearch
+    namespace: elasticsearch
+    pkgName: elasticsearch-7.8.1.tgz
+    status: enabled
+  - name: logseer
+    namespace: logseer
+    pkgName: logseer-v1.0.0.tgz
+    status: disabled
+  - name: logagent
+    namespace: logagent
+    pkgName: logagent-v1.0.0.tgz
+    status: disabled
+    env: |
+      clustername: "{{.cluster}}"
+  - name: kubecube-monitoring
+    namespace: kubecube-monitoring
+    pkgName: kubecube-monitoring-15.4.10.tgz
+    status: enabled
+    env: |
+      grafana:
+        enabled: false
+      prometheus:
+        prometheusSpec:
+          externalLabels:
+            cluster: "{{.cluster}}"
+          remoteWrite:
+          - url: http://10.173.32.129:31291/api/v1/receive
+  - name: kubecube-thanos
+    namespace: kubecube-monitoring
+    pkgName: thanos-3.18.0.tgz
+    status: disabled
