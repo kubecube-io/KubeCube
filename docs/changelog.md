@@ -73,12 +73,14 @@
 
 ### Other non-functional
 
+
 - Provide All-in-One lightweight deployment mode and provide high-availability deployment mode in production environment
 - Provide usage documentation, link [kubecube.io](https://www.kubecube.io/)
 - With single test and e2e test
 - Conduct laboratory stability and performance tests
 
 ## Dependencies
+
 
 - hnc v0.8.0-kubecube.1
 - nginx-ingress v0.46.0
