@@ -20,24 +20,22 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kubecube-io/kubecube/pkg/multicluster/manager"
-
-	"k8s.io/client-go/util/retry"
-
-	"github.com/kubecube-io/kubecube/pkg/clients"
-	"github.com/kubecube-io/kubecube/pkg/clog"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"k8s.io/apimachinery/pkg/api/errors"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"k8s.io/client-go/util/retry"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
+	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
+	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
+	"github.com/kubecube-io/kubecube/pkg/multicluster/manager"
 	"github.com/kubecube-io/kubecube/pkg/scout"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // addInternalCluster build internal cluster of cluster cr and add it
@@ -134,6 +132,36 @@ func (r *ClusterReconciler) updateClusterStatus(ctx context.Context, memberClust
 		}
 		return nil
 	})
+}
+
+func (r *ClusterReconciler) ensureFinalizer(ctx context.Context, cluster *clusterv1.Cluster) error {
+	if !controllerutil.ContainsFinalizer(cluster, clusterFinalizer) {
+		controllerutil.AddFinalizer(cluster, clusterFinalizer)
+		if err := r.Update(ctx, cluster); err != nil {
+			clog.Error("add finalizers for cluster %v, failed: %v", cluster.Name, err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (r *ClusterReconciler) removeFinalizer(ctx context.Context, cluster *clusterv1.Cluster) error {
+	if controllerutil.ContainsFinalizer(cluster, clusterFinalizer) {
+		if err := r.deleteExternalResources(*cluster, ctx); err != nil {
+			// if fail to delete the external dependency here, return with error
+			// so that it can be retried
+			return err
+		}
+		// remove our finalizer from the list and update it.
+		controllerutil.RemoveFinalizer(cluster, clusterFinalizer)
+		if err := r.Update(ctx, cluster); err != nil {
+			clog.Error("remove finalizers for cluster %v, failed: %v", cluster.Name, err)
+			return err
+		}
+	}
+
+	return nil
 }
 
 func int32Ptr(i int32) *int32 { return &i }

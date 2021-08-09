@@ -46,9 +46,7 @@ var scheme = runtime.NewScheme()
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	// only cache cube resource here
 	utilruntime.Must(apis.AddToScheme(scheme))
-	//+kubebuilder:scaffold:scheme
 
 	utilruntime.Must(hnc.AddToScheme(scheme))
 
@@ -62,8 +60,6 @@ type ControllerManager struct {
 }
 
 func NewCtrlMgrWithOpts(options *Config) *ControllerManager {
-	//ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
-
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                  scheme,
 		CertDir:                 options.WebhookCert,

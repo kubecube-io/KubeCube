@@ -34,7 +34,7 @@ func AddApisTo(root *gin.RouterGroup) {
 }
 
 // Scout collects information from wardens
-// todo: to optimize it for reduce goroutine use
+// todo(weilaaa): to optimize it for reduce goroutine use
 func Scout(c *gin.Context) {
 	w := &scout.WardenInfo{}
 	err := c.BindJSON(w)
@@ -46,7 +46,7 @@ func Scout(c *gin.Context) {
 
 	internalCluster, err := multicluster.Interface().Get(w.Cluster)
 	if err != nil {
-		clog.Warn(err.Error())
+		clog.Warn("wait for cluster sync: %v", err)
 		response.FailReturn(c, errcode.GetResourceError("cluster"))
 		return
 	}

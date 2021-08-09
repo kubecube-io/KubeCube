@@ -119,7 +119,7 @@ func doSync(action int, obj interface{}) {
 }
 
 // addInternalCluster build internal cluster of cluster cr and add it
-// todo: to optimize
+// todo(weilaaa): to optimize
 func addInternalCluster(cluster clusterv1.Cluster) (bool, error) {
 	_, err := MultiClusterMgr.Get(cluster.Name)
 	if err == nil {

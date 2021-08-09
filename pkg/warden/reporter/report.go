@@ -18,12 +18,12 @@ package reporter
 
 import (
 	"bytes"
-	"crypto/tls"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/kubecube-io/kubecube/pkg/scout"
+	"github.com/kubecube-io/kubecube/pkg/utils/transport"
 	"k8s.io/apimachinery/pkg/util/json"
 )
 
@@ -57,7 +57,8 @@ func (r *Reporter) do() bool {
 	url := fmt.Sprintf("https://%s%s", r.PivotCubeHost, "/api/v1/cube/scout/heartbeat")
 
 	c := &http.Client{
-		Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}},
+		// todo: verify cert
+		Transport: transport.MakeTransport("", ""),
 		Timeout:   5 * time.Second,
 	}
 

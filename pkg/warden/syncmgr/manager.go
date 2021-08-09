@@ -85,6 +85,7 @@ func (s *SyncManager) Initialize() error {
 		return fmt.Errorf("error new sync mgr: %s", err.Error())
 	}
 
+	// todo(weilaaa): init pivot client here is not elegant
 	utils.PivotClient = s.Manager.GetClient()
 
 	s.LocalClient, err = client.New(ctrl.GetConfigOrDie(), client.Options{Scheme: scheme})

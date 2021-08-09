@@ -18,13 +18,13 @@ package hotplug
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	hotplugv1 "github.com/kubecube-io/kubecube/pkg/apis/hotplug/v1"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/warden/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -37,9 +37,11 @@ import (
 )
 
 const (
-	COMMON  = "common"
-	FAIL    = "fail"
-	ENABLED = "enabled"
+	common   = "common"
+	fail     = "fail"
+	success  = "success"
+	enabled  = "enabled"
+	disabled = "disabled"
 )
 
 var _ reconcile.Reconciler = &HotplugReconciler{}
@@ -66,15 +68,15 @@ func newReconciler(mgr manager.Manager) (*HotplugReconciler, error) {
 // 1、get change config and parse
 // 2、judge is change
 // 3、install/upgrade component
-func (r *HotplugReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (h *HotplugReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := clog.WithName("controller").WithValues("hotplug", req.NamespacedName)
 	// get hotplug info
 	commonConfig := hotplugv1.Hotplug{}
 	clusterConfig := hotplugv1.Hotplug{}
 	hotplugConfig := hotplugv1.Hotplug{}
 	switch req.Name {
-	case COMMON:
-		err := r.Client.Get(ctx, req.NamespacedName, &commonConfig)
+	case common:
+		err := h.Client.Get(ctx, req.NamespacedName, &commonConfig)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				return ctrl.Result{}, nil
@@ -82,19 +84,19 @@ func (r *HotplugReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			log.Error("get common hotplug fail, %v", err)
 			return ctrl.Result{}, err
 		}
-		err = r.Client.Get(ctx, types.NamespacedName{Name: utils.Cluster}, &clusterConfig)
+		err = h.Client.Get(ctx, types.NamespacedName{Name: utils.Cluster}, &clusterConfig)
 		if err != nil {
 			if !errors.IsNotFound(err) {
 				log.Error("get cluster hotplug fail, %v", err)
 				return ctrl.Result{}, err
 			}
 			// cluster config is nil
-			hotplugConfig = commonConfig
+			hotplugConfig = MergeHotplug(commonConfig, clusterConfig)
 		} else {
 			hotplugConfig = MergeHotplug(commonConfig, clusterConfig)
 		}
 	case utils.Cluster:
-		err := r.Client.Get(ctx, req.NamespacedName, &clusterConfig)
+		err := h.Client.Get(ctx, req.NamespacedName, &clusterConfig)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				return ctrl.Result{}, nil
@@ -102,7 +104,7 @@ func (r *HotplugReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			log.Error("get cluster hotplug fail, %v", err)
 			return ctrl.Result{}, err
 		}
-		err = r.Client.Get(ctx, types.NamespacedName{Name: COMMON}, &commonConfig)
+		err = h.Client.Get(ctx, types.NamespacedName{Name: common}, &commonConfig)
 		if err != nil {
 			log.Warn("get common hotplug fail, %v", err)
 			return ctrl.Result{}, err
@@ -113,115 +115,130 @@ func (r *HotplugReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, nil
 	}
 
-	result := make(map[string]string)
-	resultStatus := "running"
+	// helm do
+	results := []*hotplugv1.DeployResult{}
 	helm := NewHelm()
-	// is change
-	for _, component := range hotplugConfig.Spec.Component {
-		namespace := component.Namespace
-		name := component.Name
+	for _, c := range hotplugConfig.Spec.Component {
+		namespace := c.Namespace
+		name := c.Name
+		result := &hotplugv1.DeployResult{Name: name, Status: c.Status}
+		results = append(results, result)
+		// audit not use helm
 		if name == "audit" {
+			addSuccessResult(result, fmt.Sprintf("audit is %v", c.Status))
 			continue
 		}
-		// list release
-		release, err := helm.List(namespace)
-		if err != nil {
-			log.Info("can not get release info, %v", err)
-			return ctrl.Result{}, err
-		}
+
+		// release status
 		isReleaseExist := false
-		for _, r := range release {
-			if name == r.Name {
-				// relese already exist
+		release, err := helm.Status(namespace, name)
+		if err != nil {
+			log.Info("%v can not get status from release info, %v", name, err)
+			isReleaseExist = false
+		} else {
+			if release.Info.Status == "deployed" {
 				isReleaseExist = true
-				break
 			}
 		}
 
+		// start helm doing
 		if !isReleaseExist {
-			if component.Status != ENABLED {
+			if c.Status != enabled {
 				// release no exist & disabled, do nothing
-				result[name] = "disabled and uninstalled"
+				addSuccessResult(result, "uninstalled")
 				continue
 			} else {
 				// release no exist & enable, need install
-				envs, err := YamlStringToJson(component.Env)
+				envs, err := YamlStringToJson(c.Env)
 				if err != nil {
-					result[name] = fmt.Sprintf("error - parse env yaml fail, %v", err)
-					resultStatus = FAIL
-				}
-				_, err = helm.Install(namespace, name, component.PkgName, envs)
-				if err != nil {
-					result[name] = fmt.Sprintf("error - helm install fail, %v", err)
-					resultStatus = FAIL
+					addFailResult(result, fmt.Sprintf("parse env yaml fail, %v", err))
 					continue
 				}
-				result[name] = "helm install success"
+				_, err = helm.Install(namespace, name, c.PkgName, envs)
+				if err != nil {
+					addFailResult(result, fmt.Sprintf("helm install fail, %v", err))
+					continue
+				}
+				addSuccessResult(result, "helm install success")
 			}
 		} else {
-			if component.Status != ENABLED {
+			if c.Status != enabled {
 				// release exist & disabled, need uninstall
 				err := helm.Uninstall(namespace, name)
 				if err != nil {
-					result[name] = fmt.Sprintf("error - helm uninstall fail, %v", err)
-					resultStatus = FAIL
+					addFailResult(result, fmt.Sprintf("helm uninstall fail, %v", err))
 					continue
 				}
-				result[name] = "helm uninstall success"
+				addSuccessResult(result, "helm uninstall success")
 			} else {
 				// release exist & enabled, need upgrade
-				envs, err := YamlStringToJson(component.Env)
+				envs, err := YamlStringToJson(c.Env)
 				if err != nil {
-					result[name] = fmt.Sprintf("error - parse env yaml fail, %v", err)
-					resultStatus = FAIL
+					addFailResult(result, fmt.Sprintf("parse env yaml fail, %v", err))
 					continue
 				}
 				// get release values
 				values, err := helm.GetValues(namespace, name)
 				if err != nil {
-					result[name] = fmt.Sprintf("error - helm value from release fail, %v", err)
-					resultStatus = FAIL
+					addFailResult(result, fmt.Sprintf("helm get values fail, %v", err))
 					continue
 				}
 				if JudgeJsonEqual(envs, values) {
-					result[name] = "release is running"
+					addSuccessResult(result, "release is running")
 					continue
 				}
-				_, err = helm.Upgrade(namespace, name, component.PkgName, envs)
+				_, err = helm.Upgrade(namespace, name, c.PkgName, envs)
 				if err != nil {
-					result[name] = fmt.Sprintf("upgrade fail, %v", err)
+					addFailResult(result, fmt.Sprintf("helm upgrade fail, %v", err))
 					continue
 				}
-				result[name] = "upgrade success"
+				addSuccessResult(result, "upgrade success")
 			}
 		}
 	}
 
-	json, err := json.Marshal(result)
+	phase := success
+	for _, r := range results {
+		if r.Status == fail {
+			phase = fail
+			continue
+		}
+		if utils.Cluster == constants.PivotCluster {
+			updateConfigMap(ctx, h.Client, r)
+		}
+	}
+
+	// update status
+	commonConfig.Status.Phase = phase
+	commonConfig.Status.Results = results
+	err := h.Client.Status().Update(ctx, &commonConfig)
 	if err != nil {
-		clog.Warn("can not convert result %v to json, %v", result, err)
-		return ctrl.Result{}, nil
+		log.Error("update common hotplug fail, %v", err)
+		return ctrl.Result{}, err
 	}
-	switch req.Name {
-	case COMMON:
-		commonConfig.Status.Phase = resultStatus
-		commonConfig.Status.Message = string(json)
-		err := r.Client.Status().Update(ctx, &commonConfig)
+	if req.Name == utils.Cluster {
+		clusterConfig.Status.Phase = phase
+		clusterConfig.Status.Results = results
+		err := h.Client.Status().Update(ctx, &clusterConfig)
 		if err != nil {
-			log.Error("update common hotplug fail, %v", err)
+			log.Error("update cluster %v hotplug fail, %v", req.Name, err)
+			return ctrl.Result{}, err
 		}
-	case utils.Cluster:
-		clusterConfig.Status.Phase = resultStatus
-		clusterConfig.Status.Message = string(json)
-		err := r.Client.Status().Update(ctx, &clusterConfig)
-		if err != nil {
-			log.Error("update cluster hotplug fail, %v", err)
-		}
-	default:
-		log.Error("this hotplug not match this cluster, %s != %s", req.Name, utils.Cluster)
 	}
-	log.Info(string(json))
+
 	return ctrl.Result{}, nil
+}
+
+func addSuccessResult(result *hotplugv1.DeployResult, message string) {
+	clog.Info("component:%s, message:%s", result.Name, message)
+	result.Result = success
+	result.Message = message
+}
+
+func addFailResult(result *hotplugv1.DeployResult, message string) {
+	clog.Error("component:%s, message:%s", result.Name, message)
+	result.Result = fail
+	result.Message = message
 }
 
 // SetupWithManager sets up the controller with the Manager.

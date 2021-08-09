@@ -114,7 +114,7 @@ func (s *Scout) Collect(ctx context.Context) {
 }
 
 // healthWarden be called once when receive heartbeat first
-// todo: populate network delay with watden info
+// todo(weilaaa): populate network delay with watden info
 func (s *Scout) healthWarden(ctx context.Context, info WardenInfo) {
 	cluster := &v1.Cluster{}
 	err := s.Client.Get(ctx, types.NamespacedName{Name: s.Cluster}, cluster)
@@ -164,11 +164,14 @@ func (s *Scout) illWarden(ctx context.Context) {
 	s.Normal = false
 }
 
+// isDisconnected determines the health of the cluster
 func isDisconnected(cluster *v1.Cluster, waitTimeoutSecond int) bool {
+	// has no LastHeartbeat return directly
 	if cluster.Status.LastHeartbeat == nil {
 		return true
 	}
 
+	// if sub time less than timeout setting, we consider the is healthy
 	v := time.Now().Sub(cluster.Status.LastHeartbeat.Time)
 	if v.Milliseconds() < (time.Duration(waitTimeoutSecond) * time.Second).Milliseconds() {
 		return false
@@ -177,6 +180,7 @@ func isDisconnected(cluster *v1.Cluster, waitTimeoutSecond int) bool {
 	return true
 }
 
+// updateClusterStatus will be called frequently，default interval is 3 seconds
 func (s *Scout) updateClusterStatus(cluster *v1.Cluster, state v1.ClusterState, reason string, lastHeartbeat *metav1.Time, ctx context.Context) error {
 	objCopy := cluster.DeepCopy()
 

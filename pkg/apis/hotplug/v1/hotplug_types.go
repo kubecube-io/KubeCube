@@ -28,6 +28,13 @@ type ComponentConfig struct {
 	Env       string `json:"env,omitempty"`
 }
 
+type DeployResult struct {
+	Name    string `json:"name,omitempty"`
+	Status  string `json:"status,omitempty"`
+	Result  string `json:"result,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
 // HotplugSpec defines the desired state of Hotplug
 type HotplugSpec struct {
 	Component []ComponentConfig `json:"component,omitempty"`
@@ -35,8 +42,8 @@ type HotplugSpec struct {
 
 // HotplugStatus defines the observed state of Hotplug
 type HotplugStatus struct {
-	Phase   string `json:"phase,omitempty"`
-	Message string `json:"message,omitempty"`
+	Phase   string          `json:"phase,omitempty"`
+	Results []*DeployResult `json:"results,omitempty"`
 }
 
 //+kubebuilder:object:root=true

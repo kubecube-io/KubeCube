@@ -18,16 +18,14 @@ package server
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"net/http"
 	"time"
 
-	"github.com/kubecube-io/kubecube/pkg/clog"
-
-	"github.com/kubecube-io/kubecube/pkg/warden/reporter"
-
 	"github.com/gin-gonic/gin"
+	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/transport"
+	"github.com/kubecube-io/kubecube/pkg/warden/reporter"
 )
 
 var log clog.CubeLogger
@@ -63,10 +61,8 @@ func (s *Server) Initialize() error {
 }
 
 func (s *Server) Run(stop <-chan struct{}) {
-	// todo: must support tls
 	go func() {
 		err := s.Server.ListenAndServeTLS(s.TlsCert, s.TlsKey)
-		//err := s.Server.ListenAndServe()
 		if err != nil {
 			log.Fatal("warden server start err: %v", err)
 		}
@@ -90,7 +86,7 @@ func (s *Server) Run(stop <-chan struct{}) {
 
 func (s *Server) readyzCheck() bool {
 	// skip tls verify when inside call
-	c := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}}
+	c := &http.Client{Transport: transport.MakeTransport("", "")}
 
 	path := fmt.Sprintf("https://%s:%d/healthz", s.BindAddr, s.Port)
 
