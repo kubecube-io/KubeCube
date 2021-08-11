@@ -36,7 +36,7 @@ const (
 
 	// default pivot cube headless svc
 	DefaultPivotCubeClusterIPSvc = "kubecube.kubecube-system:7443"
-	DefaultAuditSvc              = "audit.kubecube-system:8888"
+	DefaultAuditURL              = "http://audit.kubecube-system:8888/api/v1/cube/audit/cube"
 
 	HttpHeaderContentType        = "Content-type"
 	HttpHeaderContentDisposition = "Content-Disposition"

@@ -18,7 +18,7 @@ package token
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/kubecube-io/kubecube/pkg/authenticator/jwt"
+	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"strings"

@@ -17,6 +17,8 @@ limitations under the License.
 package user
 
 import (
+	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
+	"github.com/kubecube-io/kubecube/pkg/authentication/identityprovider/ldap"
 	"time"
 
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
@@ -24,8 +26,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	v1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
-	"github.com/kubecube-io/kubecube/pkg/authenticator/jwt"
-	"github.com/kubecube-io/kubecube/pkg/authenticator/ldap"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/md5util"
@@ -88,12 +88,13 @@ func Login(c *gin.Context) {
 		}
 
 		// ldap login
-		respInfo = ldap.Authenticate(name, password)
-		if respInfo != nil {
-			response.FailReturn(c, respInfo)
+		ldapProvider := ldap.GetProvider()
+		userInfo, err := ldapProvider.Authenticate(name, password)
+		if err != nil {
+			response.FailReturn(c, errcode.AuthenticateError)
 			return
 		}
-		clog.Info("user %s login success by ldap", name)
+		clog.Info("user %s auth success by ldap", userInfo.GetUserName())
 
 		// if user first login, create user
 		if userFind == nil {

@@ -18,12 +18,12 @@ package key
 
 import (
 	"context"
+	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
+	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	key "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
-	"github.com/kubecube-io/kubecube/pkg/authenticator/jwt"
-	"github.com/kubecube-io/kubecube/pkg/authenticator/token"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"

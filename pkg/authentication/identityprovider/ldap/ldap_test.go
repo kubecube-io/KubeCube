@@ -14,28 +14,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package apiserver
+package ldap
 
 import (
+	"fmt"
 	"github.com/kubecube-io/kubecube/pkg/authentication"
+	"testing"
 )
 
-type Config struct {
-	HttpConfig
-	authentication.LdapConfig
-	authentication.JwtConfig
-	authentication.GenericConfig
-}
+func TestAuthenticate(t *testing.T) {
+	Config = authentication.LdapConfig{}
 
-type HttpConfig struct {
-	BindAddr     string `yaml:"bindAddr,omitempty"`
-	InsecurePort int    `yaml:"insecurePort,omitempty"`
-	SecurePort   int    `yaml:"securePort, omitempty"`
-	GenericPort  int    `yaml:"genericPort,omitempty"`
-	TlsCert      string `yaml:"tlsCert,omitempty"`
-	TlsKey       string `yaml:"tlsKey,omitempty"`
-}
-
-func (c *Config) Validate() []error {
-	return nil
+	errInfo := Authenticate("test", "test123")
+	if errInfo != nil {
+		fmt.Printf("errInfo: %v\n", errInfo)
+		//t.Fail()
+	}
 }

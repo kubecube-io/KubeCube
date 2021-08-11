@@ -20,11 +20,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
-	"github.com/kubecube-io/kubecube/pkg/authenticator/token"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/env"
 
@@ -55,7 +55,7 @@ var (
 	whiteList = map[string]string{
 		constants.ApiPathRoot + "/audit": "POST",
 	}
-	auditSvc string
+	auditSvc env.AuditSvcApi
 )
 
 func init() {
@@ -94,6 +94,7 @@ func Audit() gin.HandlerFunc {
 				EventType:         constants.EventTypeUserWrite,
 				RequestId:         uuid.New().String(),
 				ResponseElements:  w.body.String(),
+				EventSource:       env.AuditEventSource(),
 			}
 
 			// get response
@@ -141,12 +142,19 @@ func sendEvent(e *Event) {
 		return
 	}
 	buffer := bytes.NewBuffer(jsonstr)
-	request, err := http.NewRequest(http.MethodPost, "http://"+auditSvc+"/api/v1/cube/audit/cube", buffer)
+	request, err := http.NewRequest(auditSvc.Method, auditSvc.URL, buffer)
 	if err != nil {
 		clog.Error("[audit] create http request error: %s", err)
 		return
 	}
-	request.Header.Set("Content-Type", "application/json;charset=UTF-8")
+	headers := strings.Split(auditSvc.Header, ",")
+	for _, header := range headers {
+		kv := strings.Split(header, "=")
+		if len(kv) != 2 {
+			continue
+		}
+		request.Header.Set(kv[0], kv[1])
+	}
 	client := http.Client{}
 	resp, err := client.Do(request.WithContext(context.TODO()))
 	if err != nil {

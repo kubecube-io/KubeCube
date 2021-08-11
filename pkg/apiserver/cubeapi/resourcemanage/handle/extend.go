@@ -16,6 +16,7 @@ limitations under the License.
 package resourcemanage
 
 import (
+	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
 	"io/ioutil"
 	"net/http"
 
@@ -30,7 +31,6 @@ import (
 	serviceRes "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/service"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 
-	"github.com/kubecube-io/kubecube/pkg/authenticator/token"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
 )
