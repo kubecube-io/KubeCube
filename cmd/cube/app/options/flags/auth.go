@@ -17,8 +17,9 @@ limitations under the License.
 package flags
 
 import (
-	"github.com/kubecube-io/kubecube/pkg/authenticator/jwt"
-	"github.com/kubecube-io/kubecube/pkg/authenticator/ldap"
+	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
+	"github.com/kubecube-io/kubecube/pkg/authentication/identityprovider/generic"
+	"github.com/kubecube-io/kubecube/pkg/authentication/identityprovider/ldap"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/urfave/cli/v2"
 )
@@ -28,7 +29,7 @@ func init() {
 		// Ldap Client
 		&cli.BoolFlag{
 			Name:        "ldap-is-enable",
-			Value:       true,
+			Value:       false,
 			Destination: &ldap.Config.LdapIsEnable,
 		},
 		&cli.StringFlag{
@@ -67,7 +68,7 @@ func init() {
 			Destination: &ldap.Config.LdapAdminPassword,
 		},
 
-		//jwt
+		// jwt
 		&cli.Int64Flag{
 			Name:        "token-expire-duration",
 			Value:       constants.DefaultTokenExpireDuration,
@@ -76,6 +77,22 @@ func init() {
 		&cli.StringFlag{
 			Name:        "jwt-issuer",
 			Destination: &jwt.Config.JwtIssuer,
+		},
+
+		// generic
+		&cli.BoolFlag{
+			Name:        "generic-auth-is-enable",
+			Value:       true,
+			Destination: &generic.Config.GenericAuthIsEnable,
+		},
+		&cli.StringFlag{
+			Name:        "url",
+			Value:       "http://127.0.0.1:8888/api/v1/cube-ultimate/auth",
+			Destination: &generic.Config.URL,
+		},
+		&cli.StringFlag{
+			Name:        "method",
+			Destination: &generic.Config.Method,
 		},
 	}...)
 }

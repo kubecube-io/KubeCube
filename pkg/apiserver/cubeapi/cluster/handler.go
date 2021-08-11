@@ -20,10 +20,10 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
+	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
 	"net/http"
 	"time"
 
-	"github.com/kubecube-io/kubecube/pkg/authenticator/token"
 	"github.com/kubecube-io/kubecube/pkg/authorizer/rbac"
 	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
 	rbacv1 "k8s.io/api/rbac/v1"

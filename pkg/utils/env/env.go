@@ -17,10 +17,17 @@ limitations under the License.
 package env
 
 import (
+	"net/http"
 	"os"
 
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
+
+type AuditSvcApi struct {
+	URL    string
+	Method string
+	Header string
+}
 
 func WardenImage() string {
 	return os.Getenv("WARDEN_IMAGE")
@@ -50,12 +57,22 @@ func AuditIsEnable() bool {
 	return true
 }
 
-func AuditSVC() string {
-	r := os.Getenv("AUDIT_SVC")
+func AuditSVC() AuditSvcApi {
+	r := os.Getenv("AUDIT_URL")
+	h := os.Getenv("AUDIT_HEADER")
 	if r == "" {
-		r = constants.DefaultAuditSvc
+		r = constants.DefaultAuditURL
+		h = "Content-Type=application/json;charset=UTF-8"
 	}
-	return r
+	m := os.Getenv("AUDIT_METHOD")
+	if m == "" {
+		m = http.MethodPost
+	}
+	return AuditSvcApi{r, m, h}
+}
+
+func AuditEventSource() string {
+	return os.Getenv("AUDIT_EVENT_SOURCE")
 }
 
 func JwtSecret() string {

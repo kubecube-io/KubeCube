@@ -36,6 +36,7 @@ type Event struct {
 	UserIdentity      *UserIdentity
 	ApiAction         string
 	ApiVersion        string
+	EventSource       string
 }
 
 type UserIdentity struct {
