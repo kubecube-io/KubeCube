@@ -81,7 +81,7 @@ func (h HeaderProvider) Authenticate(headers map[string][]string) (identityprovi
 
 	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		clog.Error("read response error: %s", err)
+		clog.Error("read response error: %v", err)
 		return nil, err
 	}
 
@@ -92,7 +92,7 @@ func (h HeaderProvider) Authenticate(headers map[string][]string) (identityprovi
 
 	var respMap map[string]interface{}
 	if err = json.Unmarshal(respBody, &respMap); err != nil {
-		clog.Error("json unmarshal error: %s", err)
+		clog.Error("json unmarshal error: %v", err)
 		return nil, err
 	}
 
