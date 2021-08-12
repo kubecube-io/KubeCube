@@ -63,20 +63,23 @@ func Auth() gin.HandlerFunc {
 				h := generic.GetProvider()
 				user, err := h.Authenticate(c.Request.Header)
 				if err != nil || user == nil {
-					clog.Error("generic auth error: %s", err)
+					clog.Error("generic auth error: %v", err)
 					response.FailReturn(c, errcode.AuthenticateError)
 					return
 				}
-				newToken, errinfo := jwt.GenerateToken(user.GetUserName(), 0)
-				if errinfo != nil {
-					response.FailReturn(c, errinfo)
+				newToken, errInfo := jwt.GenerateToken(user.GetUserName(), 0)
+				if errInfo != nil {
+					response.FailReturn(c, errInfo)
 					return
 				}
 				b := jwt.BearerTokenPrefix + " " + newToken
 				c.Request.Header.Set(constants.AuthorizationHeader, b)
 				for k, v := range user.GetRespHeader() {
 					if k == "Cookie" {
-						c.Header(k, v[0])
+						if len(v) > 1 {
+							c.Header(k, v[0])
+						}
+						break
 					}
 				}
 			} else {
