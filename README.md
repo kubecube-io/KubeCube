@@ -89,7 +89,7 @@ The architecture of KubeCube described in the figure below includes interaction 
 
 Contact us by wechat
 
-<img src="./docs/kubecube-wechat.png" alt="kubecube-wechat" style="max-width:20%;" />
+<img src="./docs/kubecube-wechat.png" alt="kubecube-wechat" width="20%" height="20%" />
 
 ## License
 
