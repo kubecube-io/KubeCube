@@ -78,7 +78,7 @@ KubeCube 产品由 KubeCube Service、Warden、CloudShell 和 AuditLog Server �
 
 欢迎加入微信群交流。
 
-<img src="./kubecube-wechat.png" alt="kubecube-wechat" style="zoom:50%;" />
+<img src="./kubecube-wechat.png" alt="kubecube-wechat" style="zoom:30%;" />
 
 
 ## 开源协议
