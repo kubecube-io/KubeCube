@@ -87,7 +87,9 @@ The architecture of KubeCube described in the figure below includes interaction 
 
 ## Feedback & Contact
 
-[FAQ](https://www.kubecube.io/docs/faq/)
+Contact us by wechat
+
+<img src="./docs/kubecube-wechat.png" alt="kubecube-wechat" style="zoom:50%;" />
 
 ## License
 
