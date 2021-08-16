@@ -27,14 +27,13 @@ import (
 )
 
 type github struct {
-	ClientID           string   `json:"clientID" yaml:"clientID"`
-	ClientSecret       string   `json:"-" yaml:"clientSecret"`
-	Endpoint           endpoint `json:"endpoint" yaml:"endpoint"`
-	RedirectURL        string   `json:"redirectURL" yaml:"redirectURL"`
-	InsecureSkipVerify bool     `json:"insecureSkipVerify" yaml:"insecureSkipVerify"`
-	Scopes             []string `json:"scopes" yaml:"scopes"`
-
-	Config *oauth2.Config `json:"-" yaml:"-"`
+	ClientID           string         `json:"clientID" yaml:"clientID"`
+	ClientSecret       string         `json:"-" yaml:"clientSecret"`
+	Endpoint           endpoint       `json:"endpoint" yaml:"endpoint"`
+	RedirectURL        string         `json:"redirectURL" yaml:"redirectURL"`
+	InsecureSkipVerify bool           `json:"insecureSkipVerify" yaml:"insecureSkipVerify"`
+	Scopes             []string       `json:"scopes" yaml:"scopes"`
+	Config             *oauth2.Config `json:"-" yaml:"-"`
 }
 
 type endpoint struct {
