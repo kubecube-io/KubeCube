@@ -17,6 +17,7 @@ package generic
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/kubecube-io/kubecube/pkg/authentication"
 	"github.com/kubecube-io/kubecube/pkg/authentication/identityprovider"
 	"github.com/kubecube-io/kubecube/pkg/clog"
@@ -27,8 +28,8 @@ import (
 var Config = authentication.GenericConfig{}
 
 type HeaderProvider struct {
-	URL    string `json:"url,omitempty" yaml:"url"`
-	Method string `json:"method,omitempty" yaml:"method"`
+	URL    string `json:"url,omitempty"`
+	Method string `json:"method,omitempty"`
 }
 
 type GenericIdentity struct {
@@ -40,6 +41,7 @@ func (g *GenericIdentity) GetRespHeader() http.Header {
 	return g.Header
 }
 
+// GetUserEmail generic auth method response does not include email
 func (g *GenericIdentity) GetUserEmail() string {
 	return ""
 }
@@ -87,7 +89,7 @@ func (h HeaderProvider) Authenticate(headers map[string][]string) (identityprovi
 
 	if resp.StatusCode != http.StatusOK {
 		clog.Error("response from the third party is not ok, response is %s", string(respBody))
-		return nil, nil
+		return nil, errors.New("response code from the third party is not 200")
 	}
 
 	var respMap map[string]interface{}
@@ -96,11 +98,18 @@ func (h HeaderProvider) Authenticate(headers map[string][]string) (identityprovi
 		return nil, err
 	}
 
-	username := respMap["name"]
+	name := ""
+	if username := respMap["name"]; username != nil {
+		n, ok := username.(string)
+		if !ok {
+			return nil, errors.New("username is not string type")
+		}
+		name = n
+	}
 	respHeader := resp.Header
 
 	return &GenericIdentity{
-		Username: username.(string),
+		Username: name,
 		Header:   respHeader,
 	}, nil
 }

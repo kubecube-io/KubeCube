@@ -1,3 +1,18 @@
+/*
+Copyright 2021 KubeCube Authors
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
 package github
 
 import (
@@ -12,33 +27,16 @@ import (
 )
 
 type github struct {
-	// ClientID is the application's ID.
-	ClientID string `json:"clientID" yaml:"clientID"`
-
-	// ClientSecret is the application's secret.
-	ClientSecret string `json:"-" yaml:"clientSecret"`
-
-	// Endpoint contains the resource server's token endpoint
-	// URLs. These are constants specific to each server and are
-	// often available via site-specific packages, such as
-	// google.Endpoint or github.endpoint.
-	Endpoint endpoint `json:"endpoint" yaml:"endpoint"`
-
-	// RedirectURL is the URL to redirect users going through
-	// the OAuth flow, after the resource owner's URLs.
-	RedirectURL string `json:"redirectURL" yaml:"redirectURL"`
-
-	// Used to turn off TLS certificate checks
-	InsecureSkipVerify bool `json:"insecureSkipVerify" yaml:"insecureSkipVerify"`
-
-	// Scope specifies optional requested permissions.
-	Scopes []string `json:"scopes" yaml:"scopes"`
+	ClientID           string   `json:"clientID" yaml:"clientID"`
+	ClientSecret       string   `json:"-" yaml:"clientSecret"`
+	Endpoint           endpoint `json:"endpoint" yaml:"endpoint"`
+	RedirectURL        string   `json:"redirectURL" yaml:"redirectURL"`
+	InsecureSkipVerify bool     `json:"insecureSkipVerify" yaml:"insecureSkipVerify"`
+	Scopes             []string `json:"scopes" yaml:"scopes"`
 
 	Config *oauth2.Config `json:"-" yaml:"-"`
 }
 
-// endpoint represents an OAuth 2.0 provider's authorization and token
-// endpoint URLs.
 type endpoint struct {
 	AuthURL     string `json:"authURL" yaml:"authURL"`
 	TokenURL    string `json:"tokenURL" yaml:"tokenURL"`
@@ -101,7 +99,7 @@ func (g githubIdentity) GetUserEmail() string {
 }
 
 func (g *github) IdentityExchange(code string) (identityprovider.Identity, error) {
-	ctx := context.TODO()
+	ctx := context.Background()
 	if g.InsecureSkipVerify {
 		client := &http.Client{
 			Transport: &http.Transport{
@@ -127,11 +125,11 @@ func (g *github) IdentityExchange(code string) (identityprovider.Identity, error
 	}
 	defer resp.Body.Close()
 
-	var githubIdentity githubIdentity
-	err = json.Unmarshal(data, &githubIdentity)
+	var identity githubIdentity
+	err = json.Unmarshal(data, &identity)
 	if err != nil {
 		return nil, err
 	}
 
-	return githubIdentity, nil
+	return identity, nil
 }
