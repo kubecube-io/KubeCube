@@ -39,14 +39,14 @@ func IsLdapOpen() bool {
 }
 
 type ldapProvider struct {
-	LdapObjectClass      string `yaml:"ldapObjectClass,omitempty"`
-	LdapLoginNameConfig  string `yaml:"ldapLoginNameConfig,omitempty"`
-	LdapObjectCategory   string `yaml:"ldapObjectCategory, omitempty"`
-	LdapServer           string `yaml:"ldapServer, omitempty"`
-	LdapPort             string `yaml:"ldapPort, omitempty"`
-	LdapBaseDN           string `yaml:"ldapBaseDN, omitempty"`
-	LdapAdminUserAccount string `yaml:"ldapAdminUserAccount, omitempty"`
-	LdapAdminPassword    string `yaml:"ldapAdminPassword, omitempty"`
+	LdapObjectClass      string `json:"ldapObjectClass,omitempty"`
+	LdapLoginNameConfig  string `json:"ldapLoginNameConfig,omitempty"`
+	LdapObjectCategory   string `json:"ldapObjectCategory,omitempty"`
+	LdapServer           string `json:"ldapServer,omitempty"`
+	LdapPort             string `json:"ldapPort,omitempty"`
+	LdapBaseDN           string `json:"ldapBaseDN,omitempty"`
+	LdapAdminUserAccount string `json:"ldapAdminUserAccount,omitempty"`
+	LdapAdminPassword    string `json:"ldapAdminPassword,omitempty"`
 }
 
 type ldapIdentity struct {
@@ -94,7 +94,7 @@ func (l ldapProvider) Authenticate(username string, password string) (identitypr
 	// create connection by admin account and password
 	conn, err := l.newConn()
 	if err != nil {
-		clog.Error("%s", err)
+		clog.Error("%v", err)
 		return nil, err
 	}
 
@@ -120,7 +120,7 @@ func (l ldapProvider) Authenticate(username string, password string) (identitypr
 		Filter:       filter,
 	})
 	if err != nil {
-		clog.Error("search ldap err: %s", err)
+		clog.Error("search ldap err: %v", err)
 		return nil, err
 	}
 
@@ -161,7 +161,7 @@ func (l *ldapProvider) newConn() (*ldap.Conn, error) {
 
 	err = conn.Bind(l.LdapAdminUserAccount, l.LdapAdminPassword)
 	if err != nil {
-		clog.Error("bind ldap server by admin password error: %s", err)
+		clog.Error("bind ldap server by admin password error: %v", err)
 		return nil, err
 	}
 	return conn, nil

@@ -138,13 +138,13 @@ func sendEvent(e *Event) {
 	clog.Debug("[audit] send event to audit service")
 	jsonstr, err := json.Marshal(e)
 	if err != nil {
-		clog.Error("[audit] json marshal event error: %s", err)
+		clog.Error("[audit] json marshal event error: %v", err)
 		return
 	}
 	buffer := bytes.NewBuffer(jsonstr)
 	request, err := http.NewRequest(auditSvc.Method, auditSvc.URL, buffer)
 	if err != nil {
-		clog.Error("[audit] create http request error: %s", err)
+		clog.Error("[audit] create http request error: %v", err)
 		return
 	}
 	headers := strings.Split(auditSvc.Header, ",")

@@ -70,14 +70,14 @@ func (h HeaderProvider) Authenticate(headers map[string][]string) (identityprovi
 
 	req, err := http.NewRequest(h.Method, h.URL, nil)
 	if err != nil {
-		clog.Error("new http request err: %s", err)
+		clog.Error("new http request err: %v", err)
 		return nil, err
 	}
 	req.Header = headers
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		clog.Error("request to generic auth error: %s", err)
+		clog.Error("request to generic auth error: %v", err)
 		return nil, err
 	}
 
