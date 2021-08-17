@@ -17,15 +17,15 @@ limitations under the License.
 package jwt
 
 import (
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-	"github.com/kubecube-io/kubecube/pkg/utils/env"
 	"time"
 
+	"github.com/dgrijalva/jwt-go"
 	"k8s.io/api/authentication/v1beta1"
 
-	"github.com/dgrijalva/jwt-go"
-	"github.com/kubecube-io/kubecube/pkg/authenticator"
+	"github.com/kubecube-io/kubecube/pkg/authentication"
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/env"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 )
 
@@ -36,10 +36,10 @@ type Claims struct {
 
 const BearerTokenPrefix = "Bearer"
 
-var Config = authenticator.JwtConfig{}
+var Config = authentication.JwtConfig{}
 
 func init() {
-	Config = authenticator.JwtConfig{
+	Config = authentication.JwtConfig{
 		JwtSecret: env.JwtSecret(),
 	}
 }

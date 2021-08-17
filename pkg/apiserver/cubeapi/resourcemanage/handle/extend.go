@@ -19,7 +19,10 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
+
 	"github.com/gin-gonic/gin"
+
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
 	cronjobRes "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/cronjob"
 	deploymentRes "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/deployment"
@@ -29,8 +32,6 @@ import (
 	pvcRes "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/pvc"
 	serviceRes "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/service"
 	"github.com/kubecube-io/kubecube/pkg/clients"
-
-	"github.com/kubecube-io/kubecube/pkg/authenticator/token"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
 )

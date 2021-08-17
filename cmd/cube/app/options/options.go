@@ -19,13 +19,13 @@ package options
 import (
 	"fmt"
 
-	"github.com/kubecube-io/kubecube/pkg/clog"
-
 	"github.com/kubecube-io/kubecube/pkg/apiserver"
-	"github.com/kubecube-io/kubecube/pkg/authenticator"
+	"github.com/kubecube-io/kubecube/pkg/authentication"
 	"github.com/kubecube-io/kubecube/pkg/clients"
+	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/ctrlmgr"
 	"github.com/kubecube-io/kubecube/pkg/cube"
+
 	"github.com/spf13/viper"
 )
 
@@ -40,7 +40,7 @@ type CubeOptions struct {
 	CtrlMgrOpts     *ctrlmgr.Config
 	ClientMgrOpts   *clients.Config
 	CubeLoggerOpts  *clog.Config
-	AuthMgrOpts     *authenticator.Config
+	AuthMgrOpts     *authentication.Config
 }
 
 func NewCubeOptions() *CubeOptions {
@@ -50,7 +50,7 @@ func NewCubeOptions() *CubeOptions {
 		CtrlMgrOpts:     &ctrlmgr.Config{},
 		ClientMgrOpts:   &clients.Config{},
 		CubeLoggerOpts:  &clog.Config{},
-		AuthMgrOpts:     &authenticator.Config{},
+		AuthMgrOpts:     &authentication.Config{},
 	}
 
 	return cubeOpts

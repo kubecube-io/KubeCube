@@ -16,12 +16,15 @@ limitations under the License.
 
 package apiserver
 
-import "github.com/kubecube-io/kubecube/pkg/authenticator"
+import (
+	"github.com/kubecube-io/kubecube/pkg/authentication"
+)
 
 type Config struct {
 	HttpConfig
-	authenticator.LdapConfig
-	authenticator.JwtConfig
+	authentication.LdapConfig
+	authentication.JwtConfig
+	authentication.GenericConfig
 }
 
 type HttpConfig struct {

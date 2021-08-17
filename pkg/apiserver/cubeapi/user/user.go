@@ -28,28 +28,24 @@ import (
 	"strings"
 	"unicode"
 
-	"k8s.io/apimachinery/pkg/util/sets"
-
-	v1 "k8s.io/api/rbac/v1"
-
-	"github.com/kubecube-io/kubecube/pkg/clients"
-
-	"github.com/kubecube-io/kubecube/pkg/multicluster"
-	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
-
-	"github.com/kubecube-io/kubecube/pkg/authenticator/jwt"
-
 	"github.com/gin-gonic/gin"
-	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
-	proxy "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
-	"github.com/kubecube-io/kubecube/pkg/clog"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
-	"github.com/kubecube-io/kubecube/pkg/utils/md5util"
-	"github.com/kubecube-io/kubecube/pkg/utils/response"
+	v1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
+	proxy "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
+	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
+	"github.com/kubecube-io/kubecube/pkg/clients"
+	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/multicluster"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
+	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
+	"github.com/kubecube-io/kubecube/pkg/utils/md5util"
+	"github.com/kubecube-io/kubecube/pkg/utils/response"
 )
 
 const (

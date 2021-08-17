@@ -21,19 +21,20 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	key "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
-	"github.com/kubecube-io/kubecube/pkg/authenticator/jwt"
-	"github.com/kubecube-io/kubecube/pkg/authenticator/token"
-	"github.com/kubecube-io/kubecube/pkg/clients"
-	"github.com/kubecube-io/kubecube/pkg/clog"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
-	"github.com/kubecube-io/kubecube/pkg/utils/response"
 	uuid "github.com/satori/go.uuid"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	key "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
+	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
+	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
+	"github.com/kubecube-io/kubecube/pkg/clients"
+	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
+	"github.com/kubecube-io/kubecube/pkg/utils/response"
 )
 
 const (
