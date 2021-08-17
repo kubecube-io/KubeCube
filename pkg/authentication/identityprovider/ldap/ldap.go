@@ -18,12 +18,13 @@ package ldap
 
 import (
 	"fmt"
-	"github.com/kubecube-io/kubecube/pkg/authentication"
-	"github.com/kubecube-io/kubecube/pkg/authentication/identityprovider"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
 
 	"github.com/go-ldap/ldap"
+	"k8s.io/apimachinery/pkg/api/errors"
+
+	"github.com/kubecube-io/kubecube/pkg/authentication"
+	"github.com/kubecube-io/kubecube/pkg/authentication/identityprovider"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 )
 

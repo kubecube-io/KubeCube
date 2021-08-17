@@ -19,11 +19,11 @@ package server
 import (
 	"net/http"
 
-	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
-	"github.com/kubecube-io/kubecube/pkg/clog"
-
 	"github.com/gin-gonic/gin"
 	"k8s.io/api/authentication/v1beta1"
+
+	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
+	"github.com/kubecube-io/kubecube/pkg/clog"
 )
 
 const (

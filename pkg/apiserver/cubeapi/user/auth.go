@@ -17,20 +17,20 @@ limitations under the License.
 package user
 
 import (
-	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
-	"github.com/kubecube-io/kubecube/pkg/authentication/identityprovider/ldap"
 	"time"
-
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	v1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
+	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
+	"github.com/kubecube-io/kubecube/pkg/authentication/identityprovider/ldap"
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/md5util"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type LoginInfo struct {

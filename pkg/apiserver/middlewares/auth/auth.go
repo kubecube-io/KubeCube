@@ -17,16 +17,16 @@ limitations under the License.
 package auth
 
 import (
-	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
-	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
-	"github.com/kubecube-io/kubecube/pkg/authentication/identityprovider/generic"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
-
 	"net/url"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
+	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
+	"github.com/kubecube-io/kubecube/pkg/authentication/identityprovider/generic"
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
 )
 

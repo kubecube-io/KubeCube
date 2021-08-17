@@ -20,23 +20,21 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
+	"io/ioutil"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
+
+	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
+	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/env"
-
-	"net/url"
-	"strings"
-
-	"io/ioutil"
-	"net/http"
-	"strconv"
-	"time"
-
-	"github.com/kubecube-io/kubecube/pkg/clog"
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary

@@ -17,19 +17,11 @@ package key_test
 
 import (
 	"encoding/json"
-	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 
 	"github.com/gin-gonic/gin"
-	"github.com/kubecube-io/kubecube/pkg/apis"
-	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/key"
-	"github.com/kubecube-io/kubecube/pkg/clients"
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes/fake"
-	fakemgr "github.com/kubecube-io/kubecube/pkg/multicluster/fake"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -38,6 +30,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/kubecube-io/kubecube/pkg/apis"
+	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/key"
+	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
+	"github.com/kubecube-io/kubecube/pkg/clients"
+	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes/fake"
+	fakemgr "github.com/kubecube-io/kubecube/pkg/multicluster/fake"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
 var _ = Describe("Key", func() {

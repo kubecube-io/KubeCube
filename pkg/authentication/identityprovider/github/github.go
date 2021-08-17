@@ -19,11 +19,13 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"github.com/kubecube-io/kubecube/pkg/authentication/identityprovider"
-	"golang.org/x/oauth2"
 	"io/ioutil"
 	"net/http"
 	"time"
+
+	"golang.org/x/oauth2"
+
+	"github.com/kubecube-io/kubecube/pkg/authentication/identityprovider"
 )
 
 type github struct {

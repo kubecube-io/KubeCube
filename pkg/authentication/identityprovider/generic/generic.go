@@ -18,11 +18,12 @@ package generic
 import (
 	"encoding/json"
 	"errors"
+	"io/ioutil"
+	"net/http"
+
 	"github.com/kubecube-io/kubecube/pkg/authentication"
 	"github.com/kubecube-io/kubecube/pkg/authentication/identityprovider"
 	"github.com/kubecube-io/kubecube/pkg/clog"
-	"io/ioutil"
-	"net/http"
 )
 
 var Config = authentication.GenericConfig{}
