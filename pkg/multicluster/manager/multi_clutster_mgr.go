@@ -145,8 +145,8 @@ func (m *MultiClustersMgr) Add(cluster string, c *InternalCluster) error {
 	m.Lock()
 	defer m.Unlock()
 
-	if c.Scout == nil || c.Client == nil {
-		return fmt.Errorf("add: %s, warden and client should not be nil", cluster)
+	if c.Scout == nil {
+		return fmt.Errorf("add: %s, scout should not be nil", cluster)
 	}
 
 	_, ok := m.Clusters[cluster]
