@@ -1,12 +1,9 @@
 /*
 Copyright 2021 KubeCube Authors
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-
     http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -314,12 +311,13 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 
 // scriptData is the data to render script
 type scriptData struct {
-	ClusterName  string `json:"clusterName"`
-	KubeConfig   string `json:"kubeConfig"`
-	K8sEndpoint  string `json:"k8sEndpoint,omitempty"`
-	NetworkType  string `json:"networkType,omitempty"`
-	Description  string `json:"description,omitempty"`
-	KubeCubeHost string `json:"kubeCubeHost,omitempty"`
+	ClusterName      string `json:"clusterName"`
+	KubeConfig       string `json:"kubeConfig"`
+	K8sEndpoint      string `json:"k8sEndpoint,omitempty"`
+	NetworkType      string `json:"networkType,omitempty"`
+	Description      string `json:"description,omitempty"`
+	KubeCubeHost     string `json:"kubeCubeHost,omitempty"`
+	InstallerVersion string `json:"installerVersion,omitempty"`
 }
 
 // addCluster return script which need be execute in member cluster node
@@ -355,6 +353,10 @@ func (h *handler) addCluster(c *gin.Context) {
 
 	if len(d.KubeCubeHost) == 0 {
 		d.KubeCubeHost = env.NodeIP()
+	}
+
+	if len(d.InstallerVersion) == 0 {
+		d.InstallerVersion = env.InstallerVersion()
 	}
 
 	kubeConfig, err := base64.StdEncoding.DecodeString(d.KubeConfig)
