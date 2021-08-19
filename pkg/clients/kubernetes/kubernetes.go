@@ -72,41 +72,45 @@ type InternalClient struct {
 }
 
 // NewClientFor generate client by config
-func NewClientFor(cfg *rest.Config, stopCh chan struct{}) Client {
+func NewClientFor(cfg *rest.Config, stopCh chan struct{}) (Client, error) {
 	var err error
 	c := new(InternalClient)
 
 	c.client, err = client.New(cfg, client.Options{Scheme: scheme})
 	if err != nil {
 		clog.Error("problem new k8s client: %v", err)
+		return nil, err
 	}
 
 	c.cache, err = cache.New(cfg, cache.Options{Scheme: scheme})
 	if err != nil {
 		clog.Error("problem new k8s cache: %v", err)
+		return nil, err
 	}
 
 	c.metrics, err = versioned.NewForConfig(cfg)
 	if err != nil {
 		clog.Error("problem new metrics client: %v", err)
+		return nil, err
 	}
 
 	c.rawClientSet, err = kubernetes.NewForConfig(cfg)
 	if err != nil {
 		clog.Error("problem new raw k8s clientSet: %v", err)
+		return nil, err
 	}
 
 	ctx := exit.SetupCtxWithStop(context.Background(), stopCh)
 
 	go func() {
-		err := c.cache.Start(ctx)
+		err = c.cache.Start(ctx)
 		if err != nil {
 			clog.Error("problem start cache: %v", err)
 		}
 	}()
 	c.cache.WaitForCacheSync(ctx)
 
-	return c
+	return c, nil
 }
 
 func (c *InternalClient) Cache() cache.Cache {

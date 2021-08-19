@@ -3,7 +3,7 @@
 # that can be found in the LICENSE file.
 
 IMG ?= hub.c.163.com/kubecube/cube:v0.0.1
-MULTI_ARCH ?= false
+MULTI_ARCH ?= true
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
 
