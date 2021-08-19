@@ -22,6 +22,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kubecube-io/kubecube/pkg/multicluster"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -178,7 +180,10 @@ func (s *Scout) illWarden(ctx context.Context) {
 // if the state of cluster is initFailed
 func (s *Scout) try2refreshInternalCluster(cluster *v1.Cluster) {
 	if s.ClusterState == v1.ClusterInitFailed {
-
+		_, err := multicluster.Interface().Get(cluster.Name)
+		if err != nil {
+			clog.Error("")
+		}
 	}
 }
 
