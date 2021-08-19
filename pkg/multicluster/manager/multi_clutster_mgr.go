@@ -22,28 +22,22 @@ import (
 	"sync"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	hnc "sigs.k8s.io/multi-tenancy/incubator/hnc/api/v1alpha2"
-
-	"github.com/kubecube-io/kubecube/pkg/apis"
-	v1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
-	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-
-	"github.com/kubecube-io/kubecube/pkg/clog"
-
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	hnc "sigs.k8s.io/multi-tenancy/incubator/hnc/api/v1alpha2"
 
+	"github.com/kubecube-io/kubecube/pkg/apis"
+	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
 	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
+	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/scout"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
 )
 
 // MultiClustersManager access to internal cluster
@@ -88,7 +82,7 @@ func newMultiClusterMgr() *MultiClustersMgr {
 		return nil
 	}
 
-	cluster := v1.Cluster{}
+	cluster := clusterv1.Cluster{}
 	err = cli.Get(context.Background(), types.NamespacedName{Name: constants.PivotCluster}, &cluster)
 	if err != nil {
 		clog.Warn(err.Error())
@@ -97,34 +91,48 @@ func newMultiClusterMgr() *MultiClustersMgr {
 
 	cfg, err := kubeconfig.LoadKubeConfigFromBytes(cluster.Spec.KubeConfig)
 	if err != nil {
-		clog.Fatal(err.Error())
+		clog.Fatal("invalid kubeconfig of pivot cluster: %v", err)
 	}
 
 	c := new(InternalCluster)
 	c.StopCh = make(chan struct{})
 	c.Config = cfg
-	c.Client = kubernetes.NewClientFor(cfg, c.StopCh)
+	c.Client, err = kubernetes.NewClientFor(cfg, c.StopCh)
+	if err != nil {
+		// early exit when connect to the k8s apiserver of control plane failed
+		clog.Fatal("make client for pivot cluster failed: %v", err)
+	}
+
 	c.Scout = scout.NewScout(constants.PivotCluster, 0, 0, c.Client.Direct(), c.StopCh)
 
 	err = m.Add(constants.PivotCluster, c)
 	if err != nil {
 		clog.Fatal("init multi cluster mgr failed: %v", err)
 	}
+
 	return m
 }
 
 // InternalCluster represent a cluster runtime contains
 // client and internal warden.
 type InternalCluster struct {
+	// Client holds all the clients needed
 	Client kubernetes.Client
-	Scout  *scout.Scout
+
+	// Scout knows the health status of cluster and keep watch
+	Scout *scout.Scout
 
 	// Config bind to a real cluster
 	Config *rest.Config
 
-	// close channel when delete cluster, goroutine
+	// StopCh for closing channel when delete cluster, goroutine
 	// of informer and scout will exit gracefully.
 	StopCh chan struct{}
+}
+
+// diagnosis inspect the health of cluster
+func (c *InternalCluster) diagnosis() clusterv1.ClusterState {
+	return c.Scout.ClusterState
 }
 
 // MultiClustersMgr a memory cache for runtime cluster.
@@ -201,4 +209,46 @@ func (m *MultiClustersMgr) FuzzyCopy() map[string]*FuzzyCluster {
 	}
 
 	return clusters
+}
+
+// AddInternalCluster build internal cluster of cluster and add it
+// to multi cluster manager
+func AddInternalCluster(cluster clusterv1.Cluster) (bool, error) {
+	_, err := MultiClusterMgr.Get(cluster.Name)
+	if err == nil {
+		// return Immediately if active internal cluster exist
+		return true, nil
+	} else {
+		// create internal cluster relate with cluster cr
+		config, err := kubeconfig.LoadKubeConfigFromBytes(cluster.Spec.KubeConfig)
+		if err != nil {
+			return true, fmt.Errorf("load kubeconfig failed: %v", err)
+		}
+
+		pivotCluster, err := MultiClusterMgr.Get(constants.PivotCluster)
+		if err != nil {
+			return true, err
+		}
+
+		c := new(InternalCluster)
+		c.StopCh = make(chan struct{})
+		c.Config = config
+		c.Scout = scout.NewScout(cluster.Name, 0, 0, pivotCluster.Client.Direct(), c.StopCh)
+		c.Client, err = kubernetes.NewClientFor(config, c.StopCh)
+		if err != nil {
+			// log error, renew clients when communicate whit cluster success by doing things below:
+			// 1. wait for heartbeat from warden of cluster
+			// 2. polling with k8s api-server
+			clog.Warn("make clients for cluster %v failed: %v", cluster.Name, err)
+			c.Scout.ClusterState = clusterv1.ClusterInitFailed
+			*cluster.Status.State = clusterv1.ClusterInitFailed
+		}
+
+		err = MultiClusterMgr.Add(cluster.Name, c)
+		if err != nil {
+			return true, fmt.Errorf("add internal cluster failed: %v", err)
+		}
+	}
+
+	return false, nil
 }

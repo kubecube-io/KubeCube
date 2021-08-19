@@ -23,9 +23,18 @@ import (
 type ClusterState string
 
 const (
+	// ClusterInitFailed happened when init cluster failed
+	// generally when network error occurred
+	ClusterInitFailed ClusterState = "initFailed"
+
+	// ClusterProcessing wait for cluster be taken over
 	ClusterProcessing ClusterState = "processing"
-	ClusterNormal     ClusterState = "normal"
-	ClusterAbnormal   ClusterState = "abnormal"
+
+	// ClusterNormal represent cluster is healthy
+	ClusterNormal ClusterState = "normal"
+
+	// ClusterAbnormal represent cluster is unhealthy
+	ClusterAbnormal ClusterState = "abnormal"
 )
 
 // ClusterSpec defines the desired state of Cluster

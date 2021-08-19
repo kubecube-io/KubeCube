@@ -22,7 +22,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
@@ -56,8 +55,16 @@ func addInternalCluster(cluster clusterv1.Cluster) (bool, error) {
 		c := new(manager.InternalCluster)
 		c.StopCh = make(chan struct{})
 		c.Config = config
-		c.Client = kubernetes.NewClientFor(config, c.StopCh)
 		c.Scout = scout.NewScout(cluster.Name, 0, 0, pivotClient, c.StopCh)
+		c.Client, err = kubernetes.NewClientFor(config, c.StopCh)
+		if err != nil {
+			// log error, renew clients when communicate whit cluster success by doing things below:
+			// 1. wait for heartbeat from warden of cluster
+			// 2. polling with k8s api-server
+			clog.Warn("make clients for cluster %v failed: %v", cluster.Name, err)
+			c.Scout.ClusterState = clusterv1.ClusterInitFailed
+			*cluster.Status.State = clusterv1.ClusterInitFailed
+		}
 
 		err = multicluster.Interface().Add(cluster.Name, c)
 		if err != nil {
@@ -115,23 +122,6 @@ func (r *ClusterReconciler) deleteExternalResources(cluster clusterv1.Cluster, c
 	clog.Debug("delete kubecube-system of cluster %v success", cluster.Name)
 
 	return nil
-}
-
-func (r *ClusterReconciler) updateClusterStatus(ctx context.Context, memberCluster clusterv1.Cluster) error {
-	memberClusterCopy := memberCluster.DeepCopy()
-
-	state := clusterv1.ClusterProcessing
-	reason := fmt.Sprintf("cluster %s initializing", memberCluster.Name)
-	memberClusterCopy.Status.State = &state
-	memberClusterCopy.Status.Reason = reason
-
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		err := r.Status().Update(ctx, memberClusterCopy, &client.UpdateOptions{})
-		if err != nil {
-			return err
-		}
-		return nil
-	})
 }
 
 func (r *ClusterReconciler) ensureFinalizer(ctx context.Context, cluster *clusterv1.Cluster) error {

@@ -18,10 +18,12 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
+	"github.com/kubecube-io/kubecube/pkg/utils"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -47,7 +49,6 @@ const clusterFinalizer = "cluster.finalizers.kubecube.io"
 // ClusterReconciler deploy warden to member cluster
 // when create event trigger
 type ClusterReconciler struct {
-	pivotHandleCount int
 	client.Client
 	Scheme       *runtime.Scheme
 	pivotCluster clusterv1.Cluster
@@ -74,24 +75,11 @@ func newReconciler(mgr manager.Manager) (reconcile.Reconciler, error) {
 //+kubebuilder:rbac:groups=cluster.kubecube.io,resources=clusters/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=cluster.kubecube.io,resources=clusters/finalizers,verbs=update
 
-// Reconcile of cluster do things below:
-// 1. build and add internal cluster.
-// 2. issues resources to specified cluster.
-// 3. watch healthy condition for warden.
-// 4. update cluster status here.
 func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	clog.Info("Reconcile cluster %v", req.Name)
 
 	isMemberCluster := !(req.Name == constants.PivotCluster)
 	currentCluster := r.pivotCluster
-
-	// pivot cluster only process once
-	if !isMemberCluster {
-		if r.pivotHandleCount > 0 {
-			return ctrl.Result{}, nil
-		}
-		r.pivotHandleCount++
-	}
 
 	if isMemberCluster {
 		// get cr ensure memberCluster cr exist
@@ -119,6 +107,8 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			return ctrl.Result{}, nil
 		}
 
+		// generate internal cluster for current cluster and add
+		// it to the cache of multi cluster manager
 		skip, err := addInternalCluster(currentCluster)
 		if err != nil {
 			clog.Error(err.Error())
@@ -127,6 +117,32 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			return ctrl.Result{}, err
 		}
 		clog.Info("add cluster %v to internal clusters success", currentCluster.Name)
+	}
+
+	return r.syncCluster(ctx, currentCluster)
+}
+
+func (r *ClusterReconciler) syncCluster(ctx context.Context, currentCluster clusterv1.Cluster) (ctrl.Result, error) {
+	if *currentCluster.Status.State == clusterv1.ClusterInitFailed {
+		err := multicluster.Interface().ScoutFor(context.Background(), currentCluster.Name)
+		if err != nil {
+			log.Error("start scout for memberCluster %v failed", currentCluster.Name)
+			return ctrl.Result{}, err
+		}
+
+		updateFn := func(cluster *clusterv1.Cluster) {
+			state := clusterv1.ClusterInitFailed
+			reason := fmt.Sprintf("cluster %s init failed", cluster.Name)
+			cluster.Status.State = &state
+			cluster.Status.Reason = reason
+		}
+
+		err = utils.UpdateStatus(ctx, r.Client, &currentCluster, updateFn)
+		if err != nil {
+			log.Error("update cluster %v status failed", currentCluster.Name)
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, nil
 	}
 
 	// deploy resources to cluster
@@ -139,10 +155,18 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	err = multicluster.Interface().ScoutFor(context.Background(), currentCluster.Name)
 	if err != nil {
 		log.Error("start scout for memberCluster %v failed", currentCluster.Name)
+		return ctrl.Result{}, err
 	}
 
 	// update cluster status to processing
-	err = r.updateClusterStatus(ctx, currentCluster)
+	updateFn := func(cluster *clusterv1.Cluster) {
+		state := clusterv1.ClusterProcessing
+		reason := fmt.Sprintf("cluster %s initializing", cluster.Name)
+		cluster.Status.State = &state
+		cluster.Status.Reason = reason
+	}
+
+	err = utils.UpdateStatus(ctx, r.Client, &currentCluster, updateFn)
 	if err != nil {
 		log.Error("update cluster %v status failed", currentCluster.Name)
 	}
