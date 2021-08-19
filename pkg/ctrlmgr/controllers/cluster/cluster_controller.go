@@ -20,7 +20,11 @@ import (
 	"context"
 	"fmt"
 
-	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
+	"github.com/kubecube-io/kubecube/pkg/clients"
+	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/multicluster"
+	"github.com/kubecube-io/kubecube/pkg/utils"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -31,12 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/kubecube-io/kubecube/pkg/clients"
-	"github.com/kubecube-io/kubecube/pkg/clog"
-	"github.com/kubecube-io/kubecube/pkg/multicluster"
-	multiclustermgr "github.com/kubecube-io/kubecube/pkg/multicluster/manager"
-	"github.com/kubecube-io/kubecube/pkg/utils"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
 )
 
 var (
@@ -110,7 +109,7 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 		// generate internal cluster for current cluster and add
 		// it to the cache of multi cluster manager
-		skip, err := multiclustermgr.AddInternalCluster(currentCluster)
+		skip, err := addInternalCluster(currentCluster)
 		if err != nil {
 			clog.Error(err.Error())
 		}
