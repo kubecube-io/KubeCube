@@ -46,7 +46,7 @@ func Scout(c *gin.Context) {
 
 	internalCluster, err := multicluster.Interface().Get(w.Cluster)
 	if err != nil {
-		clog.Warn("wait for cluster sync: %v", err)
+		clog.Warn("wait for cluster %v sync", w.Cluster)
 		response.FailReturn(c, errcode.GetResourceError("cluster"))
 		return
 	}

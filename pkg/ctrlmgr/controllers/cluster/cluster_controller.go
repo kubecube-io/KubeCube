@@ -80,6 +80,8 @@ func newReconciler(mgr manager.Manager) (reconcile.Reconciler, error) {
 // 3. watch healthy condition for warden.
 // 4. update cluster status here.
 func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	clog.Info("Reconcile cluster %v", req.Name)
+
 	isMemberCluster := !(req.Name == constants.PivotCluster)
 	currentCluster := r.pivotCluster
 
@@ -161,6 +163,9 @@ func SetupWithManager(mgr ctrl.Manager) error {
 			return true
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+			if !updateEvent.ObjectNew.GetDeletionTimestamp().IsZero() {
+				return true
+			}
 			return false
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {

@@ -65,3 +65,7 @@ func JwtSecret() string {
 func NodeIP() string {
 	return os.Getenv("NODE_IP")
 }
+
+func InstallerVersion() string {
+	return os.Getenv("INSTALLER_VERSION")
+}

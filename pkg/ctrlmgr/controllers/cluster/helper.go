@@ -148,6 +148,7 @@ func (r *ClusterReconciler) ensureFinalizer(ctx context.Context, cluster *cluste
 
 func (r *ClusterReconciler) removeFinalizer(ctx context.Context, cluster *clusterv1.Cluster) error {
 	if controllerutil.ContainsFinalizer(cluster, clusterFinalizer) {
+		clog.Info("delete cluster %v", cluster.Name)
 		if err := r.deleteExternalResources(*cluster, ctx); err != nil {
 			// if fail to delete the external dependency here, return with error
 			// so that it can be retried
