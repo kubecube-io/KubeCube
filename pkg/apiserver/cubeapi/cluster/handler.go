@@ -309,12 +309,13 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 
 // scriptData is the data to render script
 type scriptData struct {
-	ClusterName  string `json:"clusterName"`
-	KubeConfig   string `json:"kubeConfig"`
-	K8sEndpoint  string `json:"k8sEndpoint,omitempty"`
-	NetworkType  string `json:"networkType,omitempty"`
-	Description  string `json:"description,omitempty"`
-	KubeCubeHost string `json:"kubeCubeHost,omitempty"`
+	ClusterName      string `json:"clusterName"`
+	KubeConfig       string `json:"kubeConfig"`
+	K8sEndpoint      string `json:"k8sEndpoint,omitempty"`
+	NetworkType      string `json:"networkType,omitempty"`
+	Description      string `json:"description,omitempty"`
+	KubeCubeHost     string `json:"kubeCubeHost,omitempty"`
+	InstallerVersion string `json:"installerVersion,omitempty"`
 }
 
 // addCluster return script which need be execute in member cluster node
@@ -350,6 +351,10 @@ func (h *handler) addCluster(c *gin.Context) {
 
 	if len(d.KubeCubeHost) == 0 {
 		d.KubeCubeHost = env.NodeIP()
+	}
+
+	if len(d.InstallerVersion) == 0 {
+		d.InstallerVersion = env.InstallerVersion()
 	}
 
 	kubeConfig, err := base64.StdEncoding.DecodeString(d.KubeConfig)

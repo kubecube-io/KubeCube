@@ -21,22 +21,16 @@ import "html/template"
 const (
 	scriptTemplateText = `#!/usr/bin/env bash
 
-mkdir -p kubecube
-cd kubecube
+mkdir -p /etc/kubecube
+cd /etc/kubecube
 
-if [ -e "manifests" ]; then
-  echo
+if [ -e "./manifests" ]; then
+  echo -e "$(date +'%Y-%m-%d %H:%M:%S') \033[32mINFO\033[0m manifests already exist"
 else
-  echo -e "\033[32m================================================\033[0m"
-  echo -e "\033[32m Download manifests for kubecube...\033[0m"
-  echo -e "\033[32m================================================\033[0m"
-  wget https://gitee.com/kubecube/manifests/repository/archive/master.zip
-  
-  unzip master.zip > /dev/null
-  if [ $? -ne 0 ]; then
-      echo -e "\033[32m  unzip command not found, please install at first \033[0m"
-      exit 1
-  fi
+  echo -e "$(date +'%Y-%m-%d %H:%M:%S') \033[32mINFO\033[0m downloading manifests for kubecube"
+  wget https://kubecube.nos-eastchina1.126.net/kubecube-installer/{{ .InstallerVersion }}/manifests.tar.gz -O manifests.tar.gz
+
+  tar -xzvf manifests.tar.gz > /dev/null
 fi
 
 function prev_confirm() {
@@ -66,11 +60,11 @@ function prev_confirm() {
   echo -e "\033[32m         name: cube                                                                             \033[0m"
   echo -e "\033[32m         readOnly: true                                                                         \033[0m"
   echo -e "\033[32m   volumes:                                                                                     \033[0m"
-  echo -e "\033[32m     - hostPath                                                                                 \033[0m"
+  echo -e "\033[32m     - hostPath:                                                                                 \033[0m"
   echo -e "\033[32m         path: /var/log/audit                                                                   \033[0m"
   echo -e "\033[32m         type: DirectoryOrCreate                                                                \033[0m"
   echo -e "\033[32m       name: audit-log                                                                          \033[0m"
-  echo -e "\033[32m     - hostPath                                                                                 \033[0m"
+  echo -e "\033[32m     - hostPath:                                                                                 \033[0m"
   echo -e "\033[32m         path: /etc/cube                                                                        \033[0m"
   echo -e "\033[32m         type: DirectoryOrCreate                                                                \033[0m"
   echo -e "\033[32m       name: cube                                                                               \033[0m"
@@ -87,12 +81,6 @@ function prev_confirm() {
       continue
     fi
   done
-}
-
-function place_charts() {
-    echo -e "\033[32m================================================\033[0m"
-    echo -e "\033[32m Copy third part helm charts to /etc/cube/helm-pkg \033[0m"
-    cp -r manifests/third-charts /etc/cube/helm-pkg
 }
 
 function install_dependence() {
@@ -128,7 +116,6 @@ then
   kubectl get nodes | grep -v "NAME" | awk '{print $1}' | sed -n '1p' | xargs -t -i kubectl taint node {} node-role.kubernetes.io/master- > /dev/null
 fi
 
-place_charts
 install_dependence
 
 curl -k -H "Content-type: application/json" -X POST https://{{ .KubeCubeHost }}:30443/api/v1/cube/clusters/register -d '{"apiVersion":"cluster.kubecube.io/v1","kind":"Cluster","metadata":{"name":"{{ .ClusterName }}"},"spec":{"kubernetesAPIEndpoint":"{{ .K8sEndpoint }}","networkType":"{{ .NetworkType }}","isMemberCluster":true,"description":"{{ .Description }}","kubeconfig":"{{ .KubeConfig }}"}}' > /dev/null

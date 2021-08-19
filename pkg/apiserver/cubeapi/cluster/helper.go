@@ -65,6 +65,7 @@ const (
 )
 
 // makeClusterInfos make cluster info with clusters given
+// todo split metric and cluster info into two apis
 func makeClusterInfos(clusters clusterv1.ClusterList, pivotCli kubernetes.Client, c *gin.Context) []clusterInfo {
 	ctx := c.Request.Context()
 
@@ -78,11 +79,10 @@ func makeClusterInfos(clusters clusterv1.ClusterList, pivotCli kubernetes.Client
 
 		cluster := clusterv1.Cluster{}
 		clusterKey := types.NamespacedName{Name: v}
-		err := pivotCli.Cache().Get(ctx, clusterKey, &cluster)
+		err := pivotCli.Direct().Get(ctx, clusterKey, &cluster)
 		if err != nil {
-			clog.Error("get cluster %v failed: %v", v, err)
-			response.FailReturn(c, errcode.InternalServerError)
-			return nil
+			clog.Warn("get cluster %v failed: %v", v, err)
+			continue
 		}
 
 		info.Status = string(*cluster.Status.State)
