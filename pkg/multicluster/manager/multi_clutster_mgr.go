@@ -168,6 +168,14 @@ func (m *MultiClustersMgr) Get(cluster string) (*InternalCluster, error) {
 		return nil, fmt.Errorf("get: internal cluster %s not found", cluster)
 	}
 
+	if c.Scout.ClusterState == clusterv1.ClusterInitFailed {
+		return c, fmt.Errorf("internal clsuter %v is init failed, wait for refresh", cluster)
+	}
+
+	if c.Scout.ClusterState == clusterv1.ClusterAbnormal {
+		return c, fmt.Errorf("internal cluster %v is abnormal, wait for recover", cluster)
+	}
+
 	return c, nil
 }
 

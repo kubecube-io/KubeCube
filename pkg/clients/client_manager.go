@@ -50,7 +50,7 @@ func Interface() *cubeClientSet {
 func (c *cubeClientSet) Kubernetes(cluster string) kubernetes.Client {
 	client, err := c.k8s.GetClient(cluster)
 	if err != nil {
-		clog.Error("get internal cluster of cluster %v failed: %v", cluster, err)
+		clog.Error(err.Error())
 	}
 
 	return client

@@ -22,6 +22,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
+
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -125,6 +127,13 @@ func (s *Scout) healthWarden(ctx context.Context, info WardenInfo) {
 		return
 	}
 
+	// refresh clients if internal cluster is init failed before
+	err = s.refreshInternalClusterIfNeed(cluster)
+	if err != nil {
+		clog.Error(err.Error())
+		return
+	}
+
 	s.LastHeartbeat = time.Now()
 
 	updateFn := func(obj *v1.Cluster) {
@@ -151,6 +160,16 @@ func (s *Scout) illWarden(ctx context.Context) {
 	}
 
 	if !isDisconnected(cluster, s.WaitTimeoutSeconds) {
+		// going here means cluster heartbeat is normal
+
+		// refresh clients if internal cluster is init failed before
+		err = s.refreshInternalClusterIfNeed(cluster)
+		if err != nil {
+			// refresh failed, quick return and retain cluster status
+			clog.Error(err.Error())
+			return
+		}
+
 		s.LastHeartbeat = cluster.Status.LastHeartbeat.Time
 		s.ClusterState = v1.ClusterNormal
 		return
@@ -176,19 +195,35 @@ func (s *Scout) illWarden(ctx context.Context) {
 	s.ClusterState = v1.ClusterAbnormal
 }
 
-// try2refreshInternalCluster try to refresh InternalCluster of cluster
+// refreshInternalClusterIfNeed try to refresh InternalCluster of cluster
 // if the state of cluster is initFailed
-func (s *Scout) try2refreshInternalCluster(cluster *v1.Cluster) {
+func (s *Scout) refreshInternalClusterIfNeed(cluster *v1.Cluster) error {
 	if s.ClusterState == v1.ClusterInitFailed {
-		_, err := multicluster.Interface().Get(cluster.Name)
-		if err != nil {
-			clog.Error("")
+		internalCluster, err := multicluster.Interface().Get(cluster.Name)
+
+		if err != nil && internalCluster != nil {
+			if internalCluster.Scout.ClusterState != v1.ClusterInitFailed {
+				return fmt.Errorf("internal clsuter %v state is inconsistent", cluster.Name)
+			}
+
+			clog.Info("refresh clients of InternalCluster %v", cluster.Name)
+
+			clients, err := kubernetes.NewClientFor(internalCluster.Config, s.StopCh)
+			if err != nil {
+				return err
+			}
+			internalCluster.Client = clients
+			s.ClusterState = v1.ClusterNormal
+			return nil
 		}
+
+		return fmt.Errorf("internal clsuter %v state is inconsistent", cluster.Name)
 	}
+
+	return nil
 }
 
 // isDisconnected determines the health of the cluster
-// todo: compare cluster state
 func isDisconnected(cluster *v1.Cluster, waitTimeoutSecond int) bool {
 	// has no LastHeartbeat return directly
 	if cluster.Status.LastHeartbeat == nil {
