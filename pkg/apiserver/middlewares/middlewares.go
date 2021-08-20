@@ -20,6 +20,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/middlewares/audit"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/middlewares/auth"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/middlewares/precheck"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/middlewares/recovery"
 	"github.com/kubecube-io/kubecube/pkg/utils/env"
 )
@@ -28,11 +29,10 @@ func SetUpMiddlewares(router *gin.Engine) {
 	if router == nil {
 		return
 	}
+	router.Use(precheck.PreCheck())
 	router.Use(auth.Auth())
 	if env.AuditIsEnable() {
 		router.Use(audit.Audit())
 	}
 	router.Use(recovery.Recovery())
-	//router.Use(logger.Logger())
-	//router.Use(requestinfo.WithRequestInfo())
 }

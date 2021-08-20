@@ -19,12 +19,14 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"time"
 
-	"github.com/kubecube-io/kubecube/pkg/clients"
-	"github.com/kubecube-io/kubecube/pkg/clog"
-	"github.com/kubecube-io/kubecube/pkg/multicluster"
-	"github.com/kubecube-io/kubecube/pkg/utils"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
+
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -35,7 +37,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
+	"github.com/kubecube-io/kubecube/pkg/clients"
+	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/multicluster"
+	multiclustermgr "github.com/kubecube-io/kubecube/pkg/multicluster/manager"
+	"github.com/kubecube-io/kubecube/pkg/utils"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
 var (
@@ -52,9 +59,14 @@ type ClusterReconciler struct {
 	client.Client
 	Scheme       *runtime.Scheme
 	pivotCluster clusterv1.Cluster
+
+	// Affected is a channel of event.GenericEvent (see "Watching Channels" in
+	// https://book-v1.book.kubebuilder.io/beyond_basics/controller_watches.html) that is used to
+	// enqueue additional objects that need updating.
+	Affected chan event.GenericEvent
 }
 
-func newReconciler(mgr manager.Manager) (reconcile.Reconciler, error) {
+func newReconciler(mgr manager.Manager) (*ClusterReconciler, error) {
 	log = clog.WithName("cluster")
 
 	pivotCluster := clusterv1.Cluster{}
@@ -66,6 +78,7 @@ func newReconciler(mgr manager.Manager) (reconcile.Reconciler, error) {
 	r := &ClusterReconciler{
 		Client:       mgr.GetClient(),
 		Scheme:       mgr.GetScheme(),
+		Affected:     make(chan event.GenericEvent),
 		pivotCluster: pivotCluster,
 	}
 	return r, nil
@@ -109,13 +122,15 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 		// generate internal cluster for current cluster and add
 		// it to the cache of multi cluster manager
-		skip, err := addInternalCluster(currentCluster)
-		if err != nil {
+		skip, err := multiclustermgr.AddInternalCluster(currentCluster)
+		switch {
+		case err != nil && skip:
 			clog.Error(err.Error())
-		}
-		if skip {
 			return ctrl.Result{}, err
+		case *currentCluster.Status.State == clusterv1.ClusterInitFailed:
+			r.enqueue(currentCluster)
 		}
+
 		clog.Info("add cluster %v to internal clusters success", currentCluster.Name)
 	}
 
@@ -174,6 +189,29 @@ func (r *ClusterReconciler) syncCluster(ctx context.Context, currentCluster clus
 	return ctrl.Result{}, nil
 }
 
+// It enqueues a cluster for later reconciliation. This occurs in a goroutine
+// so the caller doesn't block; since the reconciler is never garbage-collected, this is safe.
+func (r *ClusterReconciler) enqueue(cluster clusterv1.Cluster) {
+	const retrySeconds = 5
+
+	config, _ := kubeconfig.LoadKubeConfigFromBytes(cluster.Spec.KubeConfig)
+
+	// try to reconnect with cluster api server, requeue if every is ok
+	go func() {
+		for {
+			select {
+			case <-time.Tick(retrySeconds * time.Second):
+				_, err := client.New(config, client.Options{Scheme: r.Scheme})
+				if err == nil {
+					log.Info("Enqueuing cluster %v for reconciliation", cluster.Name)
+					r.Affected <- event.GenericEvent{Object: &cluster}
+					return
+				}
+			}
+		}
+	}()
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func SetupWithManager(mgr ctrl.Manager) error {
 	r, err := newReconciler(mgr)
@@ -193,15 +231,17 @@ func SetupWithManager(mgr ctrl.Manager) error {
 			return false
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			return true
+			return false
 		},
 		GenericFunc: func(genericEvent event.GenericEvent) bool {
-			return false
+			// we use generic event to process init failed cluster
+			return true
 		},
 	}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&clusterv1.Cluster{}).
+		Watches(&source.Channel{Source: r.Affected}, &handler.EnqueueRequestForObject{}).
 		WithEventFilter(predicateFunc).
 		Complete(r)
 }

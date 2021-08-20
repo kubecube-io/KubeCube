@@ -93,6 +93,7 @@ func makeClusterInfos(clusters clusterv1.ClusterList, pivotCli kubernetes.Client
 		info.KubeApiServer = cluster.Spec.KubernetesAPIEndpoint
 		info.NetworkType = cluster.Spec.NetworkType
 
+		// todo(weilaaa): context may be exceed if metrics query timeout
 		nodesMc, err := cli.Metrics().MetricsV1beta1().NodeMetricses().List(ctx, metav1.ListOptions{})
 		if err != nil {
 			// record error from metric server, but ensure return normal
