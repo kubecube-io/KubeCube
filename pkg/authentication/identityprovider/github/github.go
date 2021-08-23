@@ -16,32 +16,27 @@ limitations under the License.
 package github
 
 import (
-	"context"
-	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
 
-	"golang.org/x/oauth2"
-
 	"github.com/kubecube-io/kubecube/pkg/authentication/identityprovider"
+	"github.com/kubecube-io/kubecube/pkg/clog"
 )
 
-type github struct {
-	ClientID           string         `json:"clientID" yaml:"clientID"`
-	ClientSecret       string         `json:"-" yaml:"clientSecret"`
-	Endpoint           endpoint       `json:"endpoint" yaml:"endpoint"`
-	RedirectURL        string         `json:"redirectURL" yaml:"redirectURL"`
-	InsecureSkipVerify bool           `json:"insecureSkipVerify" yaml:"insecureSkipVerify"`
-	Scopes             []string       `json:"scopes" yaml:"scopes"`
-	Config             *oauth2.Config `json:"-" yaml:"-"`
+type githubProvider struct {
+	ClientID       string `json:"clientID" yaml:"clientID"`
+	ClientSecret   string `json:"clientSecret" yaml:"clientSecret"`
+	GitHubIsEnable bool   `json:"gitHubIsEnable" yaml:"gitHubIsEnable"`
 }
 
-type endpoint struct {
-	AuthURL     string `json:"authURL" yaml:"authURL"`
-	TokenURL    string `json:"tokenURL" yaml:"tokenURL"`
-	UserInfoURL string `json:"userInfoURL" yaml:"userInfoURL"`
+type tokenInfo struct {
+	AccessToken string `json:"access_token"`
+	TokenType   string `json:"token_type"`
+	Scope       string `json:"scope"`
 }
 
 type githubIdentity struct {
@@ -76,11 +71,7 @@ type githubIdentity struct {
 	Following         int       `json:"following"`
 	CreatedAt         time.Time `json:"created_at"`
 	UpdatedAt         time.Time `json:"updated_at"`
-	PrivateGists      int       `json:"private_gists"`
-	TotalPrivateRepos int       `json:"total_private_repos"`
-	OwnedPrivateRepos int       `json:"owned_private_repos"`
-	DiskUsage         int       `json:"disk_usage"`
-	Collaborators     int       `json:"collaborators"`
+	TwitterUsername   string    `json:"twitter_username"`
 }
 
 func (g githubIdentity) GetRespHeader() http.Header {
@@ -88,7 +79,7 @@ func (g githubIdentity) GetRespHeader() http.Header {
 }
 
 func (g githubIdentity) GetUserName() string {
-	return g.Name
+	return g.Login
 }
 
 func (g githubIdentity) GetGroup() string {
@@ -99,35 +90,81 @@ func (g githubIdentity) GetUserEmail() string {
 	return g.Email
 }
 
-func (g *github) IdentityExchange(code string) (identityprovider.Identity, error) {
-	ctx := context.Background()
-	if g.InsecureSkipVerify {
-		client := &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: true,
-				},
-			},
-		}
-		ctx = context.WithValue(ctx, oauth2.HTTPClient, client)
+func GetProvider() githubProvider {
+	config := getConfig()
+	return githubProvider{
+		ClientID:       config.ClientID,
+		ClientSecret:   config.ClientSecret,
+		GitHubIsEnable: config.GitHubIsEnable,
 	}
-	token, err := g.Config.Exchange(ctx, code)
+}
+
+func (g *githubProvider) IdentityExchange(code string) (identityprovider.Identity, error) {
+	if g.ClientID == "" || g.ClientSecret == "" {
+		clog.Error("clientId or clientSecret is null")
+		return nil, errors.New("clientId or clientSecret is null")
+	}
+
+	// get token
+	req, err := http.NewRequest(http.MethodPost, "https://github.com/login/oauth/access_token?client_id="+g.ClientID+"&client_secret="+g.ClientSecret+"&code="+code, nil)
 	if err != nil {
+		clog.Error("new http post request err: %v", err)
 		return nil, err
 	}
-	resp, err := oauth2.NewClient(ctx, oauth2.StaticTokenSource(token)).Get(g.Endpoint.UserInfoURL)
+	req.Header.Set("accept", "application/json")
+	client := &http.Client{}
+	resp, err := client.Do(req)
 	if err != nil {
+		clog.Error("request to github for token error: %v", err)
 		return nil, err
 	}
 
-	data, err := ioutil.ReadAll(resp.Body)
+	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
+		clog.Error("read response error: %v", err)
 		return nil, err
 	}
 	defer resp.Body.Close()
 
+	if strings.Contains(string(respBody), "bad_verification_code") {
+		clog.Error("%v", string(respBody))
+		return nil, errors.New("bad verification code")
+	}
+
+	var t tokenInfo
+	err = json.Unmarshal(respBody, &t)
+	if err != nil {
+		return nil, err
+	}
+
+	// get user info by token
+	req, err = http.NewRequest(http.MethodGet, "https://api.github.com/user", nil)
+	if err != nil {
+		clog.Error("new http get request err: %v", err)
+		return nil, err
+	}
+	req.Header.Set("accept", "application/json")
+	req.Header.Set("Authorization", "token "+t.AccessToken)
+	resp, err = client.Do(req)
+	if err != nil {
+		clog.Error("request to github for user info error: %v", err)
+		return nil, err
+	}
+
+	respBody, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		clog.Error("read response error: %v", err)
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		clog.Error("response code is not 200")
+		return nil, errors.New("response code is not 200")
+	}
+
 	var identity githubIdentity
-	err = json.Unmarshal(data, &identity)
+	err = json.Unmarshal(respBody, &identity)
 	if err != nil {
 		return nil, err
 	}

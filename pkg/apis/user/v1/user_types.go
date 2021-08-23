@@ -31,7 +31,7 @@ const (
 	NormalLogin LoginType = "normal"
 	OpenIdLogin LoginType = "openId"
 	LDAPLogin   LoginType = "ldap"
-	Oauth2Login LoginType = "oauth2"
+	GitHubLogin LoginType = "github"
 
 	English Language = "en"
 	Chinese Language = "zh"

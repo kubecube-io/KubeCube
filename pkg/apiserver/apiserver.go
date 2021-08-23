@@ -130,6 +130,8 @@ func withSimpleServer(s *APIServer) *APIServer {
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler, url))
 	router.GET("/healthz", healthz.HealthyCheck)
 
+	router.GET("/oauth/redirect", user.GitHubLogin)
+
 	s.SimpleServer = &http.Server{
 		Addr:    fmt.Sprintf("%s:%d", s.Config.BindAddr, s.Config.GenericPort),
 		Handler: router,

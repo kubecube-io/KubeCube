@@ -17,6 +17,7 @@ limitations under the License.
 package user
 
 import (
+	"encoding/hex"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -25,6 +26,7 @@ import (
 
 	v1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
+	"github.com/kubecube-io/kubecube/pkg/authentication/identityprovider/github"
 	"github.com/kubecube-io/kubecube/pkg/authentication/identityprovider/ldap"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
@@ -40,7 +42,8 @@ type LoginInfo struct {
 }
 
 const (
-	ldapUserNamePrefix = "ldap-"
+	ldapUserNamePrefix   = "ldap-"
+	gitHubUserNamePrefix = "github-"
 )
 
 // @Summary login
@@ -76,58 +79,18 @@ func Login(c *gin.Context) {
 	// login
 	user := &v1.User{}
 	if loginType == v1.LDAPLogin && ldap.IsLdapOpen() {
-		// get user by name
-		userFind, respInfo := GetUserByName(c, ldapUserNamePrefix+name)
-		if respInfo != nil {
-			response.FailReturn(c, respInfo)
+		ldapUser, errInfo := ldapLogin(c, name, password)
+		if errInfo != nil {
+			response.FailReturn(c, errInfo)
 			return
 		}
-		if userFind != nil && userFind.Spec.State == v1.ForbiddenState {
-			response.FailReturn(c, errcode.UserIsDisabled)
-			return
-		}
-
-		// ldap login
-		ldapProvider := ldap.GetProvider()
-		userInfo, err := ldapProvider.Authenticate(name, password)
-		if err != nil {
-			response.FailReturn(c, errcode.AuthenticateError)
-			return
-		}
-		clog.Info("user %s auth success by ldap", userInfo.GetUserName())
-
-		// if user first login, create user
-		if userFind == nil {
-			user.Name = ldapUserNamePrefix + name
-			user.Spec.LoginType = v1.LDAPLogin
-			user.Spec.Password = md5util.GetMD5Salt(uuid.New().String())
-			if respInfo = CreateUserImpl(c, user); respInfo != nil {
-				response.FailReturn(c, respInfo)
-				return
-			}
-		} else {
-			user = userFind
-		}
+		user = ldapUser
 	} else if loginType == v1.NormalLogin {
-		// name and password login
-		normalUser, respInfo := GetUserByName(c, name)
-		if respInfo != nil {
-			response.FailReturn(c, respInfo)
+		normalUser, errInfo := normalLogin(c, name, password)
+		if errInfo != nil {
+			response.FailReturn(c, errInfo)
 			return
 		}
-		if normalUser == nil {
-			response.FailReturn(c, errcode.AuthenticateError)
-			return
-		}
-		if normalUser.Spec.Password != md5util.GetMD5Salt(password) {
-			response.FailReturn(c, errcode.AuthenticateError)
-			return
-		}
-		if normalUser.Spec.State == v1.ForbiddenState {
-			response.FailReturn(c, errcode.UserIsDisabled)
-			return
-		}
-		clog.Info("user %s login success with password", name)
 		user = normalUser
 	} else {
 		response.FailReturn(c, errcode.AuthenticateError)
@@ -155,4 +118,124 @@ func Login(c *gin.Context) {
 
 	response.SuccessReturn(c, user)
 	return
+}
+
+func GitHubLogin(c *gin.Context) {
+	code := c.Query("code")
+	if code == "" {
+		clog.Error("code is null")
+		response.FailReturn(c, errcode.AuthenticateError)
+		return
+	}
+
+	g := github.GetProvider()
+	if !g.GitHubIsEnable {
+		clog.Error("github auth is disabled")
+		response.FailReturn(c, errcode.AuthenticateError)
+		return
+	}
+
+	userInfo, err := g.IdentityExchange(code)
+	if err != nil {
+		response.FailReturn(c, errcode.AuthenticateError)
+		return
+	}
+	clog.Info("user %s auth success by github", userInfo.GetUserName())
+
+	// get user by name
+	userName := hex.EncodeToString([]byte(userInfo.GetUserName()))
+	userFind, respInfo := GetUserByName(c, gitHubUserNamePrefix+userName)
+	if respInfo != nil {
+		response.FailReturn(c, respInfo)
+		return
+	}
+	if userFind != nil && userFind.Spec.State == v1.ForbiddenState {
+		response.FailReturn(c, errcode.UserIsDisabled)
+		return
+	}
+
+	// if user first login, create user
+	user := &v1.User{}
+	if userFind == nil {
+		user.Name = gitHubUserNamePrefix + userName
+		user.Spec.LoginType = v1.GitHubLogin
+		user.Spec.Password = md5util.GetMD5Salt(uuid.New().String())
+		if respInfo = CreateUserImpl(c, user); respInfo != nil {
+			response.FailReturn(c, respInfo)
+			return
+		}
+	} else {
+		user = userFind
+	}
+
+	// update user login information
+	user.Status.LastLoginIP = c.ClientIP()
+	user.Status.LastLoginTime = &metav1.Time{Time: time.Now()}
+	respInfo = UpdateUserStatusImpl(c, user)
+	if respInfo != nil {
+		response.FailReturn(c, respInfo)
+		return
+	}
+
+	// generate token and return
+	token, respInfo := jwt.GenerateToken(userName, 0)
+	bearerToken := jwt.BearerTokenPrefix + " " + token
+	if respInfo != nil {
+		response.FailReturn(c, respInfo)
+		return
+	}
+	c.SetCookie(constants.AuthorizationHeader, bearerToken, int(jwt.Config.TokenExpireDuration), "/", "", false, true)
+
+	response.SuccessReturn(c, user)
+	return
+}
+
+func normalLogin(c *gin.Context, name string, password string) (*v1.User, *errcode.ErrorInfo) {
+	// name and password login
+	user, respInfo := GetUserByName(c, name)
+	if respInfo != nil {
+		return nil, respInfo
+	}
+	if user == nil {
+		return nil, errcode.AuthenticateError
+	}
+	if user.Spec.Password != md5util.GetMD5Salt(password) {
+		return nil, errcode.AuthenticateError
+	}
+	if user.Spec.State == v1.ForbiddenState {
+		return nil, errcode.UserIsDisabled
+	}
+	clog.Info("user %s login success with password", name)
+	return user, nil
+}
+
+func ldapLogin(c *gin.Context, name string, password string) (*v1.User, *errcode.ErrorInfo) {
+	// get user by name
+	name = hex.EncodeToString([]byte(name))
+	user, respInfo := GetUserByName(c, ldapUserNamePrefix+name)
+	if respInfo != nil {
+		return nil, respInfo
+	}
+	if user != nil && user.Spec.State == v1.ForbiddenState {
+		return nil, errcode.UserIsDisabled
+	}
+
+	// ldap login
+	ldapProvider := ldap.GetProvider()
+	userInfo, err := ldapProvider.Authenticate(name, password)
+	if err != nil {
+		return nil, errcode.AuthenticateError
+	}
+	clog.Info("user %s auth success by ldap", userInfo.GetUserName())
+
+	// if user first login, create user
+	if user == nil {
+		user.Name = ldapUserNamePrefix + name
+		user.Spec.LoginType = v1.LDAPLogin
+		user.Spec.Password = md5util.GetMD5Salt(uuid.New().String())
+		if respInfo = CreateUserImpl(c, user); respInfo != nil {
+			return nil, respInfo
+		}
+	}
+	return user, nil
 }
