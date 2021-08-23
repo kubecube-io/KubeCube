@@ -20,6 +20,7 @@ type Config struct {
 	JwtConfig
 	LdapConfig
 	GenericConfig
+	GitHubConfig
 }
 
 func (c *Config) Validate() []error {
@@ -48,4 +49,10 @@ type GenericConfig struct {
 	URL                 string `yaml:"url,omitempty"`
 	Method              string `yaml:"method,omitempty"`
 	GenericAuthIsEnable bool   `yaml:"genericAuthIsEnable, omitempty"`
+}
+
+type GitHubConfig struct {
+	GitHubIsEnable bool
+	ClientID       string `yaml:"clientID,omitempty"`
+	ClientSecret   string `yaml:"clientSecret,omitempty"`
 }
