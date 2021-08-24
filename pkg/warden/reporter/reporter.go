@@ -57,6 +57,8 @@ func (r *Reporter) Run(stop <-chan struct{}) {
 		log.Fatal("warden start failed: %v", err)
 	}
 
+	log.Info("all components ready, try to connect with pivot cluster")
+
 	r.report(stop)
 }
 

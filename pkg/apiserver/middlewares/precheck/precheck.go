@@ -17,6 +17,8 @@ limitations under the License.
 package precheck
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
@@ -30,29 +32,31 @@ func PreCheck() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		cluster := fetchCluster(c)
 
+		clog.Debug("request path: %v, request cluster: %v", c.FullPath(), cluster)
+
 		if len(cluster) > 0 {
 			_, err := multicluster.Interface().Get(cluster)
 			if err != nil {
-				clog.Warn(err.Error())
-				response.FailReturn(c, errcode.InternalServerError)
+				clog.Warn("cluster %v unhealthy, err: %v", cluster, err.Error())
+				response.FailReturn(c, errcode.CustomReturn(http.StatusInternalServerError, "cluster %v unhealthy"))
 				return
 			}
 		}
 	}
 }
 
+// fetchCluster fetch cluster in request
 func fetchCluster(c *gin.Context) string {
 	const key = "cluster"
 
 	switch {
-	case len(c.Query(key)) > 0:
-		return c.Query(key)
 	case len(c.Param(key)) > 0:
 		return c.Param(key)
+	case len(c.Query(key)) > 0:
+		return c.Query(key)
 	case len(c.PostForm(key)) > 0:
 		return c.PostForm(key)
 	default:
-		// todo(weilaaa): to support body
 		return ""
 	}
 }

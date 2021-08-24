@@ -67,7 +67,13 @@ func StartMultiClusterSync(ctx context.Context) {
 			doSync(del, obj)
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
-			doSync(update, newObj)
+			// we only care about delete action
+			oldCluster := oldObj.(*clusterv1.Cluster)
+			newCluster := newObj.(*clusterv1.Cluster)
+			if *oldCluster.Status.State == clusterv1.ClusterInitFailed &&
+				*newCluster.Status.State == clusterv1.ClusterProcessing {
+				doSync(update, newObj)
+			}
 		},
 	})
 
@@ -89,11 +95,13 @@ func doSync(action int, obj interface{}) {
 		return
 	}
 
+	clog.Info("cluster sync reconcile cluster %v, action: %v", cluster.Name, action)
+
 	switch action {
-	case add:
+	case add, update:
 		skip, err := AddInternalCluster(*cluster)
 		if err != nil {
-			clog.Error("skip add internal cluster %v failed: %v", cluster.Name, err)
+			clog.Error("add internal cluster %v failed: %v", cluster.Name, err)
 			return
 		}
 		if !skip || cluster.Name == constants.PivotCluster {
@@ -103,8 +111,6 @@ func doSync(action int, obj interface{}) {
 				clog.Error("scout for %v warden failed: %v", cluster.Name, err)
 			}
 		}
-	case update:
-		// temporarily not support update
 	case del:
 		err := MultiClusterMgr.Del(cluster.Name)
 		if err != nil {

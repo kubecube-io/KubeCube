@@ -26,54 +26,12 @@ import (
 
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
 	"github.com/kubecube-io/kubecube/pkg/clients"
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
-	"github.com/kubecube-io/kubecube/pkg/multicluster/manager"
-	"github.com/kubecube-io/kubecube/pkg/scout"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-// addInternalCluster build internal cluster of cluster cr and add it
-func addInternalCluster(cluster clusterv1.Cluster) (bool, error) {
-	_, err := multicluster.Interface().Get(cluster.Name)
-	if err == nil {
-		// return Immediately if active internal cluster exist
-		return true, nil
-	} else {
-		// create internal cluster relate with cluster cr
-		config, err := kubeconfig.LoadKubeConfigFromBytes(cluster.Spec.KubeConfig)
-		if err != nil {
-			return true, fmt.Errorf("load kubeconfig failed: %v", err)
-		}
-
-		pivotClient := clients.Interface().Kubernetes(constants.PivotCluster).Direct()
-
-		c := new(manager.InternalCluster)
-		c.StopCh = make(chan struct{})
-		c.Config = config
-		c.Scout = scout.NewScout(cluster.Name, 0, 0, pivotClient, c.StopCh)
-		c.Client, err = kubernetes.NewClientFor(config, c.StopCh)
-		if err != nil {
-			// log error, renew clients when communicate whit cluster success by doing things below:
-			// 1. wait for heartbeat from warden of cluster
-			// 2. polling with k8s api-server
-			clog.Warn("make clients for cluster %v failed: %v", cluster.Name, err)
-			c.Scout.ClusterState = clusterv1.ClusterInitFailed
-			*cluster.Status.State = clusterv1.ClusterInitFailed
-		}
-
-		err = multicluster.Interface().Add(cluster.Name, c)
-		if err != nil {
-			return true, fmt.Errorf("add internal cluster failed: %v", err)
-		}
-	}
-
-	return false, nil
-}
 
 func createResource(ctx context.Context, obj client.Object, c client.Client, cluster string, objKind string) error {
 	err := c.Create(ctx, obj, &client.CreateOptions{})

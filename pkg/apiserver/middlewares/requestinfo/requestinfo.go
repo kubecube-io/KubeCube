@@ -22,6 +22,7 @@ import (
 )
 
 // WithRequestInfo chooses cluster client when request triggered
+// Deprecate in v2.0.x
 func WithRequestInfo() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c = request.WithK8Client(c)

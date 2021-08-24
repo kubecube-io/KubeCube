@@ -168,10 +168,6 @@ func (m *MultiClustersMgr) Get(cluster string) (*InternalCluster, error) {
 		return nil, fmt.Errorf("get: internal cluster %s not found", cluster)
 	}
 
-	if c.Scout.ClusterState == clusterv1.ClusterInitFailed {
-		return c, fmt.Errorf("internal clsuter %v is init failed, wait for refresh", cluster)
-	}
-
 	if c.Scout.ClusterState == clusterv1.ClusterAbnormal {
 		return c, fmt.Errorf("internal cluster %v is abnormal, wait for recover", cluster)
 	}
@@ -238,19 +234,22 @@ func AddInternalCluster(cluster clusterv1.Cluster) (bool, error) {
 			return true, err
 		}
 
+		// allocate mem address to avoid nil
+		cluster.Status.State = new(clusterv1.ClusterState)
+
 		c := new(InternalCluster)
 		c.StopCh = make(chan struct{})
 		c.Config = config
 		c.Scout = scout.NewScout(cluster.Name, 0, 0, pivotCluster.Client.Direct(), c.StopCh)
 		c.Client, err = kubernetes.NewClientFor(config, c.StopCh)
 		if err != nil {
-			// log error, renew clients when communicate whit cluster success by doing things below:
-			// 1. wait for heartbeat from warden of cluster
-			// 2. polling with k8s api-server
-			clog.Warn("make clients for cluster %v failed: %v", cluster.Name, err)
-			c.Scout.ClusterState = clusterv1.ClusterInitFailed
+			// NewClientFor failed mean cluster init failed that need
+			// requeue as soon as reconnect with cluster api-server success
 			*cluster.Status.State = clusterv1.ClusterInitFailed
+			return false, err
 		}
+
+		*cluster.Status.State = clusterv1.ClusterProcessing
 
 		err = MultiClusterMgr.Add(cluster.Name, c)
 		if err != nil {

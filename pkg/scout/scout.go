@@ -22,10 +22,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
-
-	"github.com/kubecube-io/kubecube/pkg/multicluster"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -127,17 +123,15 @@ func (s *Scout) healthWarden(ctx context.Context, info WardenInfo) {
 		return
 	}
 
-	// refresh clients if internal cluster is init failed before
-	err = s.refreshInternalClusterIfNeed(cluster)
-	if err != nil {
-		clog.Error(err.Error())
-		return
+	if s.ClusterState != v1.ClusterNormal {
+		clog.Info("cluster %v connected", cluster.Name)
 	}
 
 	s.LastHeartbeat = time.Now()
 
 	updateFn := func(obj *v1.Cluster) {
-		*obj.Status.State = v1.ClusterNormal
+		state := v1.ClusterNormal
+		obj.Status.State = &state
 		obj.Status.Reason = fmt.Sprintf("receive heartbeat from cluster %s", s.Cluster)
 		obj.Status.LastHeartbeat = &metav1.Time{Time: s.LastHeartbeat}
 	}
@@ -162,12 +156,8 @@ func (s *Scout) illWarden(ctx context.Context) {
 	if !isDisconnected(cluster, s.WaitTimeoutSeconds) {
 		// going here means cluster heartbeat is normal
 
-		// refresh clients if internal cluster is init failed before
-		err = s.refreshInternalClusterIfNeed(cluster)
-		if err != nil {
-			// refresh failed, quick return and retain cluster status
-			clog.Error(err.Error())
-			return
+		if s.ClusterState != v1.ClusterNormal {
+			clog.Info("cluster %v connected", cluster.Name)
 		}
 
 		s.LastHeartbeat = cluster.Status.LastHeartbeat.Time
@@ -179,7 +169,8 @@ func (s *Scout) illWarden(ctx context.Context) {
 		reason := fmt.Sprintf("cluster %s disconnected", s.Cluster)
 
 		updateFn := func(obj *v1.Cluster) {
-			*obj.Status.State = v1.ClusterAbnormal
+			state := v1.ClusterAbnormal
+			obj.Status.State = &state
 			obj.Status.Reason = reason
 			obj.Status.LastHeartbeat = &metav1.Time{Time: s.LastHeartbeat}
 		}
@@ -195,36 +186,11 @@ func (s *Scout) illWarden(ctx context.Context) {
 	s.ClusterState = v1.ClusterAbnormal
 }
 
-// refreshInternalClusterIfNeed try to refresh InternalCluster of cluster
-// if the state of cluster is initFailed
-func (s *Scout) refreshInternalClusterIfNeed(cluster *v1.Cluster) error {
-	if s.ClusterState == v1.ClusterInitFailed {
-		internalCluster, err := multicluster.Interface().Get(cluster.Name)
-
-		if err != nil && internalCluster != nil {
-			if internalCluster.Scout.ClusterState != v1.ClusterInitFailed {
-				return fmt.Errorf("internal clsuter %v state is inconsistent", cluster.Name)
-			}
-
-			clog.Info("refresh clients of InternalCluster %v", cluster.Name)
-
-			clients, err := kubernetes.NewClientFor(internalCluster.Config, s.StopCh)
-			if err != nil {
-				return err
-			}
-			internalCluster.Client = clients
-			s.ClusterState = v1.ClusterNormal
-			return nil
-		}
-
-		return fmt.Errorf("internal clsuter %v state is inconsistent", cluster.Name)
-	}
-
-	return nil
-}
-
 // isDisconnected determines the health of the cluster
 func isDisconnected(cluster *v1.Cluster, waitTimeoutSecond int) bool {
+	clog.Debug("cluster %v, status: %v, time now: %v, last heartbeat: %v",
+		cluster.Name, *cluster.Status.State, time.Now().String(), cluster.Status.LastHeartbeat.Time.String())
+
 	// has no LastHeartbeat return directly
 	if cluster.Status.LastHeartbeat == nil {
 		return true
