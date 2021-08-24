@@ -108,10 +108,10 @@ func Login(c *gin.Context) {
 	}
 
 	// generate token and return
-	token, respInfo := jwt.GenerateToken(name, 0)
+	token, errInfo := jwt.GenerateToken(name, 0)
 	bearerToken := jwt.BearerTokenPrefix + " " + token
-	if respInfo != nil {
-		response.FailReturn(c, respInfo)
+	if errInfo != nil {
+		response.FailReturn(c, errInfo)
 		return
 	}
 	c.SetCookie(constants.AuthorizationHeader, bearerToken, int(jwt.Config.TokenExpireDuration), "/", "", false, true)
@@ -128,14 +128,14 @@ func GitHubLogin(c *gin.Context) {
 		return
 	}
 
-	g := github.GetProvider()
-	if !g.GitHubIsEnable {
+	provider := github.GetProvider()
+	if !provider.GitHubIsEnable {
 		clog.Error("github auth is disabled")
 		response.FailReturn(c, errcode.AuthenticateError)
 		return
 	}
 
-	userInfo, err := g.IdentityExchange(code)
+	userInfo, err := provider.IdentityExchange(code)
 	if err != nil {
 		response.FailReturn(c, errcode.AuthenticateError)
 		return
@@ -160,6 +160,8 @@ func GitHubLogin(c *gin.Context) {
 		user.Name = gitHubUserNamePrefix + userName
 		user.Spec.LoginType = v1.GitHubLogin
 		user.Spec.Password = md5util.GetMD5Salt(uuid.New().String())
+		user.Labels = make(map[string]string)
+		user.Labels["name"] = userInfo.GetUserName()
 		if respInfo = CreateUserImpl(c, user); respInfo != nil {
 			response.FailReturn(c, respInfo)
 			return
@@ -178,10 +180,10 @@ func GitHubLogin(c *gin.Context) {
 	}
 
 	// generate token and return
-	token, respInfo := jwt.GenerateToken(userName, 0)
+	token, errInfo := jwt.GenerateToken(userName, 0)
 	bearerToken := jwt.BearerTokenPrefix + " " + token
-	if respInfo != nil {
-		response.FailReturn(c, respInfo)
+	if errInfo != nil {
+		response.FailReturn(c, errInfo)
 		return
 	}
 	c.SetCookie(constants.AuthorizationHeader, bearerToken, int(jwt.Config.TokenExpireDuration), "/", "", false, true)
@@ -211,8 +213,8 @@ func normalLogin(c *gin.Context, name string, password string) (*v1.User, *errco
 
 func ldapLogin(c *gin.Context, name string, password string) (*v1.User, *errcode.ErrorInfo) {
 	// get user by name
-	name = hex.EncodeToString([]byte(name))
-	user, respInfo := GetUserByName(c, ldapUserNamePrefix+name)
+	baseName := hex.EncodeToString([]byte(name))
+	user, respInfo := GetUserByName(c, ldapUserNamePrefix+baseName)
 	if respInfo != nil {
 		return nil, respInfo
 	}
@@ -222,17 +224,20 @@ func ldapLogin(c *gin.Context, name string, password string) (*v1.User, *errcode
 
 	// ldap login
 	ldapProvider := ldap.GetProvider()
-	userInfo, err := ldapProvider.Authenticate(name, password)
+	_, err := ldapProvider.Authenticate(name, password)
 	if err != nil {
 		return nil, errcode.AuthenticateError
 	}
-	clog.Info("user %s auth success by ldap", userInfo.GetUserName())
+	clog.Info("user %s auth success by ldap", name)
 
 	// if user first login, create user
 	if user == nil {
-		user.Name = ldapUserNamePrefix + name
+		user = &v1.User{}
+		user.Name = ldapUserNamePrefix + baseName
 		user.Spec.LoginType = v1.LDAPLogin
 		user.Spec.Password = md5util.GetMD5Salt(uuid.New().String())
+		user.Labels = make(map[string]string)
+		user.Labels["name"] = name
 		if respInfo = CreateUserImpl(c, user); respInfo != nil {
 			return nil, respInfo
 		}
