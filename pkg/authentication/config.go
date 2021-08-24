@@ -53,6 +53,6 @@ type GenericConfig struct {
 
 type GitHubConfig struct {
 	GitHubIsEnable bool
-	ClientID       string `yaml:"clientID,omitempty"`
-	ClientSecret   string `yaml:"clientSecret,omitempty"`
+	ClientID       string
+	ClientSecret   string
 }

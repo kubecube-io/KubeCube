@@ -18,6 +18,7 @@ package github
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -26,6 +27,8 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/authentication/identityprovider"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 )
+
+const githubUserUrl = "https://api.github.com/user"
 
 type githubProvider struct {
 	ClientID       string `json:"clientID" yaml:"clientID"`
@@ -106,7 +109,8 @@ func (g *githubProvider) IdentityExchange(code string) (identityprovider.Identit
 	}
 
 	// get token
-	req, err := http.NewRequest(http.MethodPost, "https://github.com/login/oauth/access_token?client_id="+g.ClientID+"&client_secret="+g.ClientSecret+"&code="+code, nil)
+	url := fmt.Sprintf("https://github.com/login/oauth/access_token?client_id=%s&client_secret=%s&code=%s", g.ClientID, g.ClientSecret, code)
+	req, err := http.NewRequest(http.MethodPost, url, nil)
 	if err != nil {
 		clog.Error("new http post request err: %v", err)
 		return nil, err
@@ -138,7 +142,7 @@ func (g *githubProvider) IdentityExchange(code string) (identityprovider.Identit
 	}
 
 	// get user info by token
-	req, err = http.NewRequest(http.MethodGet, "https://api.github.com/user", nil)
+	req, err = http.NewRequest(http.MethodGet, githubUserUrl, nil)
 	if err != nil {
 		clog.Error("new http get request err: %v", err)
 		return nil, err

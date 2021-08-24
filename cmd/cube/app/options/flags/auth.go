@@ -82,7 +82,7 @@ func init() {
 		// generic
 		&cli.BoolFlag{
 			Name:        "generic-auth-is-enable",
-			Value:       true,
+			Value:       false,
 			Destination: &generic.Config.GenericAuthIsEnable,
 		},
 		&cli.StringFlag{

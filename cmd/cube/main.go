@@ -18,6 +18,7 @@ package main
 
 import (
 	"log"
+	"math/rand"
 	"os"
 	"strconv"
 	"time"
@@ -32,6 +33,8 @@ import (
 var version = "1.0.0"
 
 func main() {
+	rand.Seed(time.Now().UnixNano())
+
 	app := cli.NewApp()
 	app.Name = "KubeCube"
 	app.Usage = "KubCube is foundation of the world upon"
