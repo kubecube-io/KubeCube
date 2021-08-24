@@ -17,13 +17,13 @@ limitations under the License.
 package scout
 
 import (
-	"github.com/kubecube-io/kubecube/pkg/clog"
-	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
-	"github.com/kubecube-io/kubecube/pkg/utils/response"
-
 	"github.com/gin-gonic/gin"
+
+	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	"github.com/kubecube-io/kubecube/pkg/scout"
+	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
+	"github.com/kubecube-io/kubecube/pkg/utils/response"
 )
 
 const subPath = "scout"
@@ -45,14 +45,19 @@ func Scout(c *gin.Context) {
 	}
 
 	internalCluster, err := multicluster.Interface().Get(w.Cluster)
-	if err != nil {
-		clog.Warn("wait for cluster %v sync", w.Cluster)
+	if err != nil && internalCluster == nil {
+		clog.Debug("wait for cluster %v sync", w.Cluster)
 		response.FailReturn(c, errcode.GetResourceError("cluster"))
 		return
 	}
 
-	// send warden info to scout receiver
-	internalCluster.Scout.Receiver <- *w
+	if internalCluster != nil {
+		// use goroutine to fast return
+		go func() {
+			// send warden info to scout receiver
+			internalCluster.Scout.Receiver <- *w
+		}()
+	}
 
 	response.SuccessReturn(c, nil)
 }

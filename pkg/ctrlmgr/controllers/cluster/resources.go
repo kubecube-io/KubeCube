@@ -20,27 +20,22 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kubecube-io/kubecube/pkg/clog"
-	rbacv1 "k8s.io/api/rbac/v1"
-
-	"k8s.io/apimachinery/pkg/util/intstr"
-
-	"k8s.io/apimachinery/pkg/labels"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	v1 "k8s.io/api/admissionregistration/v1"
-
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-	"k8s.io/apimachinery/pkg/types"
-
-	"github.com/kubecube-io/kubecube/pkg/utils/env"
-
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
-	"github.com/kubecube-io/kubecube/pkg/clients"
+	v1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/kubecube-io/kubecube/pkg/clients"
+	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/env"
 )
 
 const (
@@ -52,7 +47,12 @@ const (
 
 func deployResources(ctx context.Context, memberCluster, pivotCluster clusterv1.Cluster) error {
 	// get target memberCluster client
-	c := clients.Interface().Kubernetes(memberCluster.Name).Direct()
+	cli := clients.Interface().Kubernetes(memberCluster.Name)
+	if cli == nil {
+		return fmt.Errorf("get internal client failed")
+	}
+
+	c := cli.Direct()
 
 	isMemberCluster := memberCluster.Spec.IsMemberCluster
 

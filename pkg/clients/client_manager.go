@@ -51,6 +51,7 @@ func (c *cubeClientSet) Kubernetes(cluster string) kubernetes.Client {
 	client, err := c.k8s.GetClient(cluster)
 	if err != nil {
 		clog.Error(err.Error())
+		return nil
 	}
 
 	return client
