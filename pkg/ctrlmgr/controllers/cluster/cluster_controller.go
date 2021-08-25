@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -57,6 +58,9 @@ type ClusterReconciler struct {
 	client.Client
 	Scheme       *runtime.Scheme
 	pivotCluster clusterv1.Cluster
+
+	// retryQueue holds all retrying cluster that has the way to stop retrying
+	retryQueue sync.Map
 
 	// Affected is a channel of event.GenericEvent (see "Watching Channels" in
 	// https://book-v1.book.kubebuilder.io/beyond_basics/controller_watches.html) that is used to
@@ -187,22 +191,41 @@ func (r *ClusterReconciler) syncCluster(ctx context.Context, currentCluster clus
 // It enqueues a cluster for later reconciliation. This occurs in a goroutine
 // so the caller doesn't block; since the reconciler is never garbage-collected, this is safe.
 func (r *ClusterReconciler) enqueue(cluster clusterv1.Cluster) {
-	const retrySeconds = 7
+	const (
+		retryInterval = 7 * time.Second
+		retryTimeout  = 12 * time.Hour
+	)
 
 	config, _ := kubeconfig.LoadKubeConfigFromBytes(cluster.Spec.KubeConfig)
+
+	// set retry timeout is 12 hours
+	ctx, cancel := context.WithTimeout(context.Background(), retryTimeout)
+
+	_, loaded := r.retryQueue.LoadOrStore(cluster.Name, cancel)
+	if loaded {
+		// directly return if this cluster was already in retry queue
+		return
+	}
 
 	// try to reconnect with cluster api server, requeue if every is ok
 	go func() {
 		log.Info("cluster %v init failed, keep retry background", cluster.Name)
+
+		// pop from retry queue when reconnected or context exceed or context canceled
+		defer r.retryQueue.Delete(cluster.Name)
+
 		for {
 			select {
-			case <-time.Tick(retrySeconds * time.Second):
+			case <-time.Tick(retryInterval):
 				_, err := client.New(config, client.Options{Scheme: r.Scheme})
 				if err == nil {
 					log.Info("enqueuing cluster %v for reconciliation", cluster.Name)
 					r.Affected <- event.GenericEvent{Object: &cluster}
 					return
 				}
+			case <-ctx.Done():
+				log.Info("cluster %v retry task stopped: %v", cluster.Name, ctx.Err())
+				return
 			}
 		}
 	}()
