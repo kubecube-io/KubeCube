@@ -79,6 +79,13 @@ func (r *ClusterReconciler) deleteExternalResources(cluster clusterv1.Cluster, c
 	}
 	clog.Debug("delete kubecube-system of cluster %v success", cluster.Name)
 
+	// stop retry task if cluster in retry queue
+	cancel, ok := r.retryQueue.Load(cluster.Name)
+	if ok {
+		cancel.(context.CancelFunc)()
+		clog.Debug("stop retry task of cluster %v success", cluster.Name)
+	}
+
 	return nil
 }
 
