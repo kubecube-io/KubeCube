@@ -130,11 +130,6 @@ type InternalCluster struct {
 	StopCh chan struct{}
 }
 
-// diagnosis inspect the health of cluster
-func (c *InternalCluster) diagnosis() clusterv1.ClusterState {
-	return c.Scout.ClusterState
-}
-
 // MultiClustersMgr a memory cache for runtime cluster.
 type MultiClustersMgr struct {
 	sync.RWMutex

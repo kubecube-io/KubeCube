@@ -27,6 +27,11 @@ const (
 	// generally when network error occurred
 	ClusterInitFailed ClusterState = "initFailed"
 
+	// ClusterReconnectedFailed happened when kubecube retry connect
+	// with member cluster exceed, in that state, user can delete
+	// cluster or reconnect manually
+	ClusterReconnectedFailed ClusterState = "reconnectedFailed"
+
 	// ClusterProcessing wait for cluster be taken over
 	ClusterProcessing ClusterState = "processing"
 
