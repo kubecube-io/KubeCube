@@ -192,6 +192,7 @@ func (r *ClusterReconciler) syncCluster(ctx context.Context, currentCluster clus
 // so the caller doesn't block; since the reconciler is never garbage-collected, this is safe.
 func (r *ClusterReconciler) enqueue(cluster clusterv1.Cluster) {
 	const (
+		// todo(weilaaa): add args for those
 		retryInterval = 7 * time.Second
 		retryTimeout  = 12 * time.Hour
 	)
@@ -225,6 +226,22 @@ func (r *ClusterReconciler) enqueue(cluster clusterv1.Cluster) {
 				}
 			case <-ctx.Done():
 				log.Info("cluster %v retry task stopped: %v", cluster.Name, ctx.Err())
+
+				// retrying timeout need update status
+				// todo(weilaaa): to allow user reconnect cluster manually
+				if ctx.Err().Error() == "context deadline exceeded" {
+					updateFn := func(cluster *clusterv1.Cluster) {
+						state := clusterv1.ClusterReconnectedFailed
+						reason := fmt.Sprintf("cluster %s reconnect timeout: %v", cluster.Name, retryTimeout)
+						cluster.Status.State = &state
+						cluster.Status.Reason = reason
+					}
+					err := utils.UpdateStatus(ctx, r.Client, &cluster, updateFn)
+					if err != nil {
+						log.Warn("update cluster %v status failed: %v", cluster.Name, err)
+					}
+				}
+
 				return
 			}
 		}

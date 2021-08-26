@@ -56,8 +56,25 @@ func (r *ClusterReconciler) deleteExternalResources(cluster clusterv1.Cluster, c
 	// Ensure that delete implementation is idempotent and safe to invoke
 	// multiple types for same object.
 
+	// reconnected failed cluster do not need gc
+	reconnectedFailedState := clusterv1.ClusterReconnectedFailed
+	if cluster.Status.State == &reconnectedFailedState {
+		return nil
+	}
+
+	// stop retry task if cluster in retry queue
+	cancel, ok := r.retryQueue.Load(cluster.Name)
+	if ok {
+		cancel.(context.CancelFunc)()
+		clog.Debug("stop retry task of cluster %v success", cluster.Name)
+		return nil
+	}
+
 	// get target memberCluster client
 	mClient := clients.Interface().Kubernetes(cluster.Name)
+	if mClient == nil {
+		return fmt.Errorf("cluster %v is abnormal", cluster.Name)
+	}
 
 	// delete internal cluster and release goroutine inside
 	err := multicluster.Interface().Del(cluster.Name)
@@ -78,13 +95,6 @@ func (r *ClusterReconciler) deleteExternalResources(cluster clusterv1.Cluster, c
 		return err
 	}
 	clog.Debug("delete kubecube-system of cluster %v success", cluster.Name)
-
-	// stop retry task if cluster in retry queue
-	cancel, ok := r.retryQueue.Load(cluster.Name)
-	if ok {
-		cancel.(context.CancelFunc)()
-		clog.Debug("stop retry task of cluster %v success", cluster.Name)
-	}
 
 	return nil
 }
