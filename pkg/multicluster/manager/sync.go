@@ -70,8 +70,9 @@ func StartMultiClusterSync(ctx context.Context) {
 			// we only care about delete action
 			oldCluster := oldObj.(*clusterv1.Cluster)
 			newCluster := newObj.(*clusterv1.Cluster)
-			if *oldCluster.Status.State == clusterv1.ClusterInitFailed &&
-				*newCluster.Status.State == clusterv1.ClusterProcessing {
+			initFailedState, ProcessingState := clusterv1.ClusterInitFailed, clusterv1.ClusterProcessing
+			if oldCluster.Status.State == &initFailedState &&
+				newCluster.Status.State == &ProcessingState {
 				doSync(update, newObj)
 			}
 		},
@@ -114,7 +115,7 @@ func doSync(action int, obj interface{}) {
 	case del:
 		err := MultiClusterMgr.Del(cluster.Name)
 		if err != nil {
-			clog.Error(err.Error())
+			clog.Warn(err.Error())
 		}
 	default:
 		clog.Warn("unknown action when sync cluster")
