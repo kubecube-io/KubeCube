@@ -89,7 +89,13 @@ func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivot
 		cli := clients.Interface().Kubernetes(v)
 		if cli == nil {
 			info.Status = string(clusterv1.ClusterAbnormal)
-			infos = append(infos, info)
+			if len(statusFilter) == 0 {
+				infos = append(infos, info)
+			} else {
+				if info.Status == statusFilter {
+					infos = append(infos, info)
+				}
+			}
 			continue
 		}
 

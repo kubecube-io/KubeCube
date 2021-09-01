@@ -70,26 +70,28 @@ type result struct {
 }
 
 type clusterInfo struct {
-	ClusterName           string    `json:"clusterName"`
-	ClusterDescription    string    `json:"clusterDescription"`
-	NetworkType           string    `json:"networkType"`
-	HarborAddr            string    `json:"harborAddr"`
-	NodeCount             int       `json:"nodeCount"`
-	TotalCPU              int       `json:"totalCpu"`
-	UsedCPU               int       `json:"usedCpu"`
-	NamespaceCount        int       `json:"namespaceCount"`
-	TotalMem              int       `json:"totalMem"`
-	UsedMem               int       `json:"usedMem"`
-	TotalStorage          int       `json:"totalStorage"`
-	UsedStorage           int       `json:"usedStorage"`
-	TotalStorageEphemeral int       `json:"totalStorageEphemeral"`
-	UsedStorageEphemeral  int       `json:"usedStorageEphemeral"`
-	TotalGpu              int       `json:"totalGpu"`
-	UsedGpu               int       `json:"usedGpu"`
-	IsMemberCluster       bool      `json:"isMemberCluster"`
-	CreateTime            time.Time `json:"createTime"`
-	KubeApiServer         string    `json:"kubeApiServer"`
-	Status                string    `json:"status"`
+	ClusterName        string    `json:"clusterName"`
+	ClusterDescription string    `json:"clusterDescription"`
+	NetworkType        string    `json:"networkType"`
+	HarborAddr         string    `json:"harborAddr"`
+	IsMemberCluster    bool      `json:"isMemberCluster"`
+	CreateTime         time.Time `json:"createTime"`
+	KubeApiServer      string    `json:"kubeApiServer"`
+	Status             string    `json:"status"`
+
+	// todo(weilaaa): move to monitor info
+	NodeCount             int `json:"nodeCount"`
+	NamespaceCount        int `json:"namespaceCount"`
+	UsedCPU               int `json:"usedCpu"`
+	TotalCPU              int `json:"totalCpu"`
+	UsedMem               int `json:"usedMem"`
+	TotalMem              int `json:"totalMem"`
+	TotalStorage          int `json:"totalStorage"`
+	UsedStorage           int `json:"usedStorage"`
+	TotalStorageEphemeral int `json:"totalStorageEphemeral"`
+	UsedStorageEphemeral  int `json:"usedStorageEphemeral"`
+	TotalGpu              int `json:"totalGpu"`
+	UsedGpu               int `json:"usedGpu"`
 }
 
 type handler struct {
@@ -152,7 +154,7 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 
 	if infos != nil {
 		res := result{
-			Total: len(clusterList.Items),
+			Total: len(infos),
 			Items: infos,
 		}
 		response.SuccessReturn(c, res)
