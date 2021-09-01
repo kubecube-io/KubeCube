@@ -55,6 +55,7 @@ func AddApisTo(root *gin.RouterGroup) {
 	h := newHandler()
 	r := root.Group(subPath)
 	r.GET("info", h.getClusterInfo)
+	r.GET("/:cluster/monitor", h.getClusterMonitorInfo)
 	r.GET("namespaces", h.getClusterNames)
 	r.GET("resources", h.getClusterResource)
 	r.GET("subnamespaces", h.getSubNamespaces)
@@ -119,6 +120,7 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 	)
 
 	clusterName := c.Query("cluster")
+	clusterStatus := c.Query("status")
 
 	if len(clusterName) > 0 {
 		key := types.NamespacedName{Name: clusterName}
@@ -141,7 +143,13 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 		clusterList = clusters
 	}
 
-	infos := makeClusterInfos(clusterList, cli, c)
+	infos, err := makeClusterInfos(c.Request.Context(), clusterList, cli, clusterStatus)
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.InternalServerError)
+		return
+	}
+
 	if infos != nil {
 		res := result{
 			Total: len(clusterList.Items),
@@ -151,6 +159,39 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 	}
 
 	return
+}
+
+type monitorInfo struct {
+	NamespaceCount        int `json:"namespaceCount"`
+	NodeCount             int `json:"nodeCount"`
+	TotalCPU              int `json:"totalCpu"`
+	UsedCPU               int `json:"usedCpu"`
+	TotalMem              int `json:"totalMem"`
+	UsedMem               int `json:"usedMem"`
+	TotalStorage          int `json:"totalStorage"`
+	UsedStorage           int `json:"usedStorage"`
+	TotalStorageEphemeral int `json:"totalStorageEphemeral"`
+	UsedStorageEphemeral  int `json:"usedStorageEphemeral"`
+	TotalGpu              int `json:"totalGpu"`
+	UsedGpu               int `json:"usedGpu"`
+}
+
+// getClusterMonitorInfo fetch resource used infos of specified cluster
+func (h *handler) getClusterMonitorInfo(c *gin.Context) {
+	cluster := c.Param("cluster")
+	if len(cluster) == 0 {
+		response.FailReturn(c, errcode.InvalidBodyFormat)
+		return
+	}
+
+	info, err := makeMonitorInfo(c.Request.Context(), cluster)
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.CustomReturn(http.StatusInternalServerError, err.Error()))
+		return
+	}
+
+	response.SuccessReturn(c, info)
 }
 
 // getClusterNames get cluster name where the namespace work in
