@@ -183,7 +183,7 @@ func GetFeatureConfig(c *gin.Context) {
 	err := cli.Cache().Get(c.Request.Context(), key, cm)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			response.FailReturn(c, errcode.CustomReturn(http.StatusNotFound, "configmap(%v/%v) not found"), key.Namespace, key.Name)
+			response.FailReturn(c, errcode.CustomReturn(http.StatusNotFound, "configmap(%v/%v) not found", key.Namespace, key.Name))
 			return
 		}
 		response.FailReturn(c, errcode.InternalServerError)
