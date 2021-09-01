@@ -19,6 +19,11 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
+
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
 
 	"github.com/gin-gonic/gin"
@@ -162,4 +167,29 @@ func ExtendHandle(c *gin.Context) {
 	default:
 		response.FailReturn(c, errcode.InvalidResourceTypeErr)
 	}
+}
+
+// GetFeatureConfig shows layout of integrated components
+// all users have read-only access ability
+func GetFeatureConfig(c *gin.Context) {
+	cli := clients.Interface().Kubernetes(constants.PivotCluster)
+	if cli == nil {
+		response.FailReturn(c, errcode.InternalServerError)
+		return
+	}
+
+	cm := &v1.ConfigMap{}
+	key := types.NamespacedName{Name: "kubecube-feature-config", Namespace: constants.CubeNamespace}
+
+	err := cli.Cache().Get(c.Request.Context(), key, cm)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			response.FailReturn(c, errcode.CustomReturn(http.StatusNotFound, "configmap(%v/%v) not found"), key.Namespace, key.Name)
+			return
+		}
+		response.FailReturn(c, errcode.InternalServerError)
+		return
+	}
+
+	response.SuccessReturn(c, cm.Data)
 }
