@@ -19,36 +19,35 @@ package syncmgr
 import (
 	"fmt"
 
-	hotplugv1 "github.com/kubecube-io/kubecube/pkg/apis/hotplug/v1"
-
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/rbac/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/multi-tenancy/incubator/hnc/api/v1alpha2"
 
-	v1 "k8s.io/api/rbac/v1"
-
 	cluster "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
+	extension "github.com/kubecube-io/kubecube/pkg/apis/extension/v1"
+	hotplug "github.com/kubecube-io/kubecube/pkg/apis/hotplug/v1"
 	quota "github.com/kubecube-io/kubecube/pkg/apis/quota/v1"
 	tenant "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
 	user "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
-
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // syncResources define resources need be sync
 var syncResources = []client.Object{
+	// k8s resources
 	&v1.RoleBinding{},
 	&v1.ClusterRoleBinding{},
 	&v1.Role{},
 	&v1.ClusterRole{},
-
 	&corev1.Namespace{},
-	&v1alpha2.SubnamespaceAnchor{},
 
-	&hotplugv1.Hotplug{},
+	// kubecube resources
+	&v1alpha2.SubnamespaceAnchor{},
+	&hotplug.Hotplug{},
 	&tenant.Tenant{},
 	&tenant.Project{},
 	&user.User{},
-	//&cluster.Cluster{},
+	&extension.ExternalResource{},
 	&quota.CubeResourceQuota{},
 }
 
@@ -77,8 +76,10 @@ func newGenericObj(obj client.Object) (client.Object, error) {
 		return &corev1.Namespace{}, nil
 	case *v1alpha2.SubnamespaceAnchor:
 		return &v1alpha2.SubnamespaceAnchor{}, nil
-	case *hotplugv1.Hotplug:
-		return &hotplugv1.Hotplug{}, nil
+	case *hotplug.Hotplug:
+		return &hotplug.Hotplug{}, nil
+	case *extension.ExternalResource:
+		return &extension.ExternalResource{}, nil
 	default:
 		return nil, fmt.Errorf("unsupport sync resource: %v", obj.GetObjectKind().GroupVersionKind().String())
 	}
