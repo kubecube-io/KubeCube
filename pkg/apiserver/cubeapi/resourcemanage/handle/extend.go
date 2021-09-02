@@ -13,16 +13,14 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package resourcemanage
 
 import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
-
 	"github.com/gin-gonic/gin"
-
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
 	cronjobRes "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/cronjob"
 	deploymentRes "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/deployment"
@@ -31,7 +29,13 @@ import (
 	podlogRes "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/podlog"
 	pvcRes "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/pvc"
 	serviceRes "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/service"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
 	"github.com/kubecube-io/kubecube/pkg/clients"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
 )
@@ -162,4 +166,29 @@ func ExtendHandle(c *gin.Context) {
 	default:
 		response.FailReturn(c, errcode.InvalidResourceTypeErr)
 	}
+}
+
+// GetFeatureConfig shows layout of integrated components
+// all users have read-only access ability
+func GetFeatureConfig(c *gin.Context) {
+	cli := clients.Interface().Kubernetes(constants.PivotCluster)
+	if cli == nil {
+		response.FailReturn(c, errcode.InternalServerError)
+		return
+	}
+
+	cm := &v1.ConfigMap{}
+	key := types.NamespacedName{Name: "kubecube-feature-config", Namespace: constants.CubeNamespace}
+
+	err := cli.Cache().Get(c.Request.Context(), key, cm)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			response.FailReturn(c, errcode.CustomReturn(http.StatusNotFound, "configmap(%v/%v) not found", key.Namespace, key.Name))
+			return
+		}
+		response.FailReturn(c, errcode.InternalServerError)
+		return
+	}
+
+	response.SuccessReturn(c, cm.Data)
 }
