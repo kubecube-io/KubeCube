@@ -78,15 +78,13 @@ func newMultiClusterMgr() *MultiClustersMgr {
 
 	cli, err := client.New(config, client.Options{Scheme: scheme})
 	if err != nil {
-		clog.Warn(err.Error())
-		return nil
+		clog.Fatal("connect to pivot cluster failed: %v", err)
 	}
 
 	cluster := clusterv1.Cluster{}
 	err = cli.Get(context.Background(), types.NamespacedName{Name: constants.PivotCluster}, &cluster)
 	if err != nil {
-		clog.Warn(err.Error())
-		return nil
+		clog.Fatal("get pivot cluster failed: %v", err)
 	}
 
 	cfg, err := kubeconfig.LoadKubeConfigFromBytes(cluster.Spec.KubeConfig)
