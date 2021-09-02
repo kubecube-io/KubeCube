@@ -1,0 +1,24 @@
+# permissions for end users to edit externalresources.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: externalresource-editor-role
+rules:
+- apiGroups:
+  - extension.kubecube.io
+  resources:
+  - externalresources
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - extension.kubecube.io
+  resources:
+  - externalresources/status
+  verbs:
+  - get

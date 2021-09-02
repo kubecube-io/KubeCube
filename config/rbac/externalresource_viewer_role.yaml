@@ -1,0 +1,20 @@
+# permissions for end users to view externalresources.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: externalresource-viewer-role
+rules:
+- apiGroups:
+  - extension.kubecube.io
+  resources:
+  - externalresources
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - extension.kubecube.io
+  resources:
+  - externalresources/status
+  verbs:
+  - get

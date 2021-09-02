@@ -9,6 +9,7 @@ resources:
 - bases/user.kubecube.io_keys.yaml
 - bases/quota.kubecube.io_cuberesourcequota.yaml
 - bases/hotplug.kubecube.io_hotplugs.yaml
+- bases/extension.kubecube.io_externalresources.yaml
 #+kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:
