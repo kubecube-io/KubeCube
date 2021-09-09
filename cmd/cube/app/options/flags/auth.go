@@ -86,13 +86,29 @@ func init() {
 			Destination: &generic.Config.GenericAuthIsEnable,
 		},
 		&cli.StringFlag{
-			Name:        "url",
+			Name:        "generic-auth-url",
 			Value:       "http://127.0.0.1:8888/api/v1/cube-ultimate/auth",
 			Destination: &generic.Config.URL,
 		},
 		&cli.StringFlag{
-			Name:        "method",
+			Name:        "generic-auth-method",
 			Destination: &generic.Config.Method,
+		},
+		&cli.StringFlag{
+			Name:        "generic-auth-scheme",
+			Destination: &generic.Config.Scheme,
+		},
+		&cli.BoolFlag{
+			Name:        "generic-auth-insecure-skip-verify",
+			Destination: &generic.Config.InsecureSkipVerify,
+		},
+		&cli.StringFlag{
+			Name:        "generic-auth-tls-cert",
+			Destination: &generic.Config.TLSCert,
+		},
+		&cli.StringFlag{
+			Name:        "generic-auth-tls-key",
+			Destination: &generic.Config.TLSKey,
 		},
 	}...)
 }

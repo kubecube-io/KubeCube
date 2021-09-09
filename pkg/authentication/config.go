@@ -46,9 +46,13 @@ type LdapConfig struct {
 }
 
 type GenericConfig struct {
-	URL                 string `yaml:"url,omitempty"`
-	Method              string `yaml:"method,omitempty"`
-	GenericAuthIsEnable bool   `yaml:"genericAuthIsEnable, omitempty"`
+	GenericAuthIsEnable bool
+	URL                 string
+	Method              string
+	Scheme              string
+	InsecureSkipVerify  bool
+	TLSCert             string
+	TLSKey              string
 }
 
 type GitHubConfig struct {

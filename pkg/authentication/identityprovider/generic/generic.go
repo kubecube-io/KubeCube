@@ -16,10 +16,12 @@ limitations under the License.
 package generic
 
 import (
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
 	"net/http"
+	"time"
 
 	"github.com/kubecube-io/kubecube/pkg/authentication"
 	"github.com/kubecube-io/kubecube/pkg/authentication/identityprovider"
@@ -29,8 +31,12 @@ import (
 var Config = authentication.GenericConfig{}
 
 type HeaderProvider struct {
-	URL    string `json:"url,omitempty"`
-	Method string `json:"method,omitempty"`
+	URL                string
+	Method             string
+	Scheme             string
+	InsecureSkipVerify bool
+	TLSCert            string
+	TLSKey             string
 }
 
 type GenericIdentity struct {
@@ -56,7 +62,8 @@ func (g *GenericIdentity) GetGroup() string {
 }
 
 func GetProvider() HeaderProvider {
-	return HeaderProvider{Config.URL, Config.Method}
+	return HeaderProvider{Config.URL, Config.Method, Config.Scheme,
+		Config.InsecureSkipVerify, Config.TLSCert, Config.TLSKey}
 }
 
 func (g *GenericIdentity) GetUserID() string {
@@ -75,7 +82,34 @@ func (h HeaderProvider) Authenticate(headers map[string][]string) (identityprovi
 		return nil, err
 	}
 	req.Header = headers
-	client := &http.Client{}
+	tr := &http.Transport{}
+	if h.Scheme == "https" {
+		cfg := &tls.Config{}
+		if h.InsecureSkipVerify == true {
+			cfg = &tls.Config{
+				InsecureSkipVerify: true,
+			}
+		} else {
+			if h.TLSCert == "" || h.TLSKey == "" {
+				clog.Error("generic auth cert is %s, key is %s", h.TLSCert, h.TLSKey)
+				return nil, errors.New("generic auth cert or key is empty")
+			}
+			certBytes := []byte(h.TLSCert)
+			ketBytes := []byte(h.TLSKey)
+			c, err := tls.X509KeyPair(certBytes, ketBytes)
+			if err != nil {
+				clog.Error("%v", err)
+				return nil, err
+			}
+			cfg = &tls.Config{
+				Certificates: []tls.Certificate{c},
+			}
+		}
+		tr = &http.Transport{
+			TLSClientConfig: cfg,
+		}
+	}
+	client := &http.Client{Timeout: 30 * time.Second, Transport: tr}
 	resp, err := client.Do(req)
 	if err != nil {
 		clog.Error("request to generic auth error: %v", err)
