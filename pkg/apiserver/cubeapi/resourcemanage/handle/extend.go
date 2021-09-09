@@ -22,6 +22,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
+
 	cronjobRes "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/cronjob"
 	deploymentRes "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/deployment"
 	jobRes "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/job"
@@ -29,10 +33,6 @@ import (
 	podlogRes "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/podlog"
 	pvcRes "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/pvc"
 	serviceRes "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/service"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
-
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
@@ -79,6 +79,14 @@ func ExtendHandle(c *gin.Context) {
 			response.FailReturn(c, errcode.ServerErr)
 			return
 		}
+		response.SuccessReturn(c, result)
+	case "services":
+		if allow := access.AccessAllow("apps", "services", "list"); !allow {
+			response.FailReturn(c, errcode.ForbiddenErr)
+			return
+		}
+		service := serviceRes.NewService(client, namespace, filter)
+		result := service.GetExtendServices()
 		response.SuccessReturn(c, result)
 	case "externalAccess":
 		externalAccess := serviceRes.NewExternalAccess(client, namespace, resourceName, filter)
@@ -177,7 +185,7 @@ func GetFeatureConfig(c *gin.Context) {
 		return
 	}
 
-	cm := &v1.ConfigMap{}
+	cm := &corev1.ConfigMap{}
 	key := types.NamespacedName{Name: "kubecube-feature-config", Namespace: constants.CubeNamespace}
 
 	err := cli.Cache().Get(c.Request.Context(), key, cm)
