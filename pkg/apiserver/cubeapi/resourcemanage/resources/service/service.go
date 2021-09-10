@@ -58,13 +58,13 @@ func (s *Service) GetExtendServices() resources.K8sJson {
 	// filter list by selector/sort/page
 	serviceListJson, err := json.Marshal(serviceList)
 	if err != nil {
-		clog.Error("convert deploymentList to json fail, %v", err)
+		clog.Error("convert serviceList to json fail, %v", err)
 		return nil
 	}
 	serviceListJson = s.filter.FilterResult(serviceListJson)
 	err = json.Unmarshal(serviceListJson, &serviceList)
 	if err != nil {
-		clog.Error("convert json to deploymentList fail, %v", err)
+		clog.Error("convert json to serviceList fail, %v", err)
 		return nil
 	}
 
@@ -84,10 +84,10 @@ func (s *Service) addExtendInfo(serviceList corev1.ServiceList) resources.K8sJso
 		ips := make([]string, 0)
 
 		switch service.Spec.Type {
-		case "NodePort":
+		case corev1.ServiceTypeNodePort:
 			// NodePort: get nodeName from ep, and get ip from node
 			var endpoints corev1.Endpoints
-			err := s.client.Cache().Get(s.ctx, types.NamespacedName{service.Namespace, service.Name}, &endpoints)
+			err := s.client.Cache().Get(s.ctx, types.NamespacedName{Namespace: service.Namespace, Name: service.Name}, &endpoints)
 			if err != nil {
 				clog.Error("can not find endpoints from cluster, %v", err)
 				return nil
@@ -107,14 +107,14 @@ func (s *Service) addExtendInfo(serviceList corev1.ServiceList) resources.K8sJso
 
 					nodeIp := ""
 					for _, nodeAddress := range node.Status.Addresses {
-						if nodeAddress.Type == "ExternalIP" {
+						if nodeAddress.Type == corev1.NodeExternalIP {
 							nodeIp = nodeAddress.Address
 							ips = append(ips, nodeIp)
 						}
 					}
 					if nodeIp == "" {
 						for _, nodeAddress := range node.Status.Addresses {
-							if nodeAddress.Type == "InternalIP" {
+							if nodeAddress.Type == corev1.NodeInternalIP {
 								nodeIp = nodeAddress.Address
 								ips = append(ips, nodeIp)
 							}
@@ -123,7 +123,7 @@ func (s *Service) addExtendInfo(serviceList corev1.ServiceList) resources.K8sJso
 					nodeNameMap[node.Name] = struct{}{}
 				}
 			}
-		case "LoadBalancer":
+		case corev1.ServiceTypeLoadBalancer:
 			// LoadBalancerr: get ip from status.LoadBalancer.Ingress
 			if service.Status.LoadBalancer.Ingress != nil {
 				for _, ingress := range service.Status.LoadBalancer.Ingress {
@@ -132,7 +132,7 @@ func (s *Service) addExtendInfo(serviceList corev1.ServiceList) resources.K8sJso
 					}
 				}
 			}
-		case "ExternalName":
+		case corev1.ServiceTypeExternalName:
 			ips = append(ips, service.Spec.ClusterIP)
 		}
 
