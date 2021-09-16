@@ -18,26 +18,22 @@ package kubernetes
 
 import (
 	"context"
+	"fmt"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-
-	"k8s.io/client-go/kubernetes"
-
-	"github.com/kubecube-io/kubecube/pkg/apis"
-
-	"k8s.io/metrics/pkg/client/clientset/versioned"
-
-	"github.com/kubecube-io/kubecube/pkg/utils/exit"
-
-	"github.com/kubecube-io/kubecube/pkg/clog"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/metrics/pkg/client/clientset/versioned"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	hnc "sigs.k8s.io/multi-tenancy/incubator/hnc/api/v1alpha2"
+
+	"github.com/kubecube-io/kubecube/pkg/apis"
+	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/exit"
 )
 
 var (
@@ -72,41 +68,42 @@ type InternalClient struct {
 }
 
 // NewClientFor generate client by config
-func NewClientFor(cfg *rest.Config, stopCh chan struct{}) Client {
+func NewClientFor(cfg *rest.Config, stopCh chan struct{}) (Client, error) {
 	var err error
 	c := new(InternalClient)
 
 	c.client, err = client.New(cfg, client.Options{Scheme: scheme})
 	if err != nil {
-		clog.Error("problem new k8s client: %v", err)
+		return nil, fmt.Errorf("new k8s client failed: %v", err)
 	}
 
 	c.cache, err = cache.New(cfg, cache.Options{Scheme: scheme})
 	if err != nil {
-		clog.Error("problem new k8s cache: %v", err)
+		return nil, fmt.Errorf("new k8s cache failed: %v", err)
 	}
 
 	c.metrics, err = versioned.NewForConfig(cfg)
 	if err != nil {
-		clog.Error("problem new metrics client: %v", err)
+		return nil, fmt.Errorf("new metrics client failed: %v", err)
 	}
 
 	c.rawClientSet, err = kubernetes.NewForConfig(cfg)
 	if err != nil {
-		clog.Error("problem new raw k8s clientSet: %v", err)
+		return nil, fmt.Errorf("new raw k8s clientSet failed: %v", err)
 	}
 
 	ctx := exit.SetupCtxWithStop(context.Background(), stopCh)
 
 	go func() {
-		err := c.cache.Start(ctx)
+		err = c.cache.Start(ctx)
 		if err != nil {
-			clog.Error("problem start cache: %v", err)
+			// that should not happened
+			clog.Error("start cache failed: %v", err)
 		}
 	}()
 	c.cache.WaitForCacheSync(ctx)
 
-	return c
+	return c, nil
 }
 
 func (c *InternalClient) Cache() cache.Cache {

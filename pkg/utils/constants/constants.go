@@ -35,8 +35,7 @@ const (
 	// DefaultPivotCubeClusterIPSvc default pivot cube svc
 	DefaultPivotCubeClusterIPSvc = "kubecube.kubecube-system:7443"
 
-	// DefaultAuditSvc default audit cube svc
-	DefaultAuditSvc = "audit.kubecube-system:8888"
+	DefaultAuditURL = "http://audit.kubecube-system:8888/api/v1/cube/audit/cube"
 )
 
 // http content
@@ -97,7 +96,6 @@ const (
 
 	// RbacLabel indicates the resource of rbac is related with kubecube
 	RbacLabel = "kubecube.io/rbac"
-
 	// RoleLabel indicates the role of rbac policy
 	RoleLabel = "kubecube.io/role"
 

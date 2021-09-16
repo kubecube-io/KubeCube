@@ -1,0 +1,6 @@
+apiVersion: extension.kubecube.io/v1
+kind: ExternalResource
+metadata:
+  name: bookinfo
+spec:
+  namespaced: false

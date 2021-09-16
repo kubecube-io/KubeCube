@@ -17,15 +17,16 @@ limitations under the License.
 package auth
 
 import (
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
-
 	"net/url"
 
 	"github.com/gin-gonic/gin"
-	"github.com/kubecube-io/kubecube/pkg/authenticator/jwt"
-	"github.com/kubecube-io/kubecube/pkg/authenticator/token"
+
+	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
+	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
+	"github.com/kubecube-io/kubecube/pkg/authentication/identityprovider/generic"
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
 )
 
@@ -58,25 +59,49 @@ func withinWhiteList(url *url.URL, method string, whiteList map[string]string) b
 func Auth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if !withinWhiteList(c.Request.URL, c.Request.Method, whiteList) {
+			if generic.Config.GenericAuthIsEnable {
+				h := generic.GetProvider()
+				user, err := h.Authenticate(c.Request.Header)
+				if err != nil || user == nil {
+					clog.Error("generic auth error: %v", err)
+					response.FailReturn(c, errcode.AuthenticateError)
+					return
+				}
+				newToken, errInfo := jwt.GenerateToken(user.GetUserName(), 0)
+				if errInfo != nil {
+					response.FailReturn(c, errInfo)
+					return
+				}
+				b := jwt.BearerTokenPrefix + " " + newToken
+				c.Request.Header.Set(constants.AuthorizationHeader, b)
+				for k, v := range user.GetRespHeader() {
+					if k == "Cookie" {
+						if len(v) > 1 {
+							c.Header(k, v[0])
+						}
+						break
+					}
+				}
+			} else {
+				userToken := token.GetTokenFromReq(c)
+				if userToken == "" {
+					response.FailReturn(c, errcode.AuthenticateError)
+					return
+				}
 
-			userToken := token.GetTokenFromReq(c)
-			if userToken == "" {
-				response.FailReturn(c, errcode.AuthenticateError)
-				return
+				newToken, respInfo := jwt.RefreshToken(userToken)
+				if respInfo != nil {
+					clog.Error("refresh token failed")
+					response.FailReturn(c, respInfo)
+					return
+				}
+
+				v := jwt.BearerTokenPrefix + " " + newToken
+
+				c.Request.Header.Set(constants.AuthorizationHeader, v)
+				c.SetCookie(constants.AuthorizationHeader, v, int(jwt.Config.TokenExpireDuration), "/", "", false, true)
 			}
-
-			newToken, respInfo := jwt.RefreshToken(userToken)
-			if respInfo != nil {
-				clog.Error("refresh token failed")
-				response.FailReturn(c, respInfo)
-				return
-			}
-
-			v := jwt.BearerTokenPrefix + " " + newToken
-
-			c.Request.Header.Set(constants.AuthorizationHeader, v)
-			c.SetCookie(constants.AuthorizationHeader, v, int(jwt.Config.TokenExpireDuration), "/", "", false, true)
+			c.Next()
 		}
-		c.Next()
 	}
 }

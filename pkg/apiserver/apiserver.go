@@ -95,6 +95,7 @@ func registerCubeAPI() http.Handler {
 
 	k8sApiExtend := router.Group(constants.ApiPathRoot + "/extend")
 	{
+		k8sApiExtend.GET("/feature-config", resourcemanage.GetFeatureConfig)
 		k8sApiExtend.Any("/clusters/:cluster/namespaces/:namespace/:resourceType/:resourceName", resourcemanage.ExtendHandle)
 		k8sApiExtend.Any("/clusters/:cluster/namespaces/:namespace/:resourceType", resourcemanage.ExtendHandle)
 		k8sApiExtend.POST("/clusters/:cluster/yaml/deploy", yamldeploy.Deploy)
@@ -129,6 +130,8 @@ func withSimpleServer(s *APIServer) *APIServer {
 	url := ginSwagger.URL("/swagger/doc.json")
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler, url))
 	router.GET("/healthz", healthz.HealthyCheck)
+
+	router.GET("/oauth/redirect", user.GitHubLogin)
 
 	s.SimpleServer = &http.Server{
 		Addr:    fmt.Sprintf("%s:%d", s.Config.BindAddr, s.Config.GenericPort),

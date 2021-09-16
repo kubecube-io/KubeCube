@@ -23,35 +23,30 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/kubecube-io/kubecube/pkg/authenticator/token"
-	"github.com/kubecube-io/kubecube/pkg/authorizer/rbac"
-	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
+	"github.com/gin-gonic/gin"
+	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	userinfo "k8s.io/apiserver/pkg/authentication/user"
-
-	"github.com/kubecube-io/kubecube/pkg/utils/env"
-
 	"k8s.io/apimachinery/pkg/api/errors"
-
-	"github.com/kubecube-io/kubecube/pkg/multicluster"
-	"github.com/kubecube-io/kubecube/pkg/utils/strproc"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
+	userinfo "k8s.io/apiserver/pkg/authentication/user"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/multi-tenancy/incubator/hnc/api/v1alpha2"
 
-	"github.com/kubecube-io/kubecube/pkg/quota"
-	v1 "k8s.io/api/core/v1"
-
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
-
-	"github.com/gin-gonic/gin"
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
+	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
+	"github.com/kubecube-io/kubecube/pkg/authorizer/rbac"
 	"github.com/kubecube-io/kubecube/pkg/clients"
+	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/multicluster"
+	"github.com/kubecube-io/kubecube/pkg/quota"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/env"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
+	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
-	"k8s.io/apimachinery/pkg/types"
+	"github.com/kubecube-io/kubecube/pkg/utils/strproc"
 )
 
 const subPath = "clusters"
@@ -60,6 +55,7 @@ func AddApisTo(root *gin.RouterGroup) {
 	h := newHandler()
 	r := root.Group(subPath)
 	r.GET("info", h.getClusterInfo)
+	r.GET("/:cluster/monitor", h.getClusterMonitorInfo)
 	r.GET("namespaces", h.getClusterNames)
 	r.GET("resources", h.getClusterResource)
 	r.GET("subnamespaces", h.getSubNamespaces)
@@ -74,26 +70,28 @@ type result struct {
 }
 
 type clusterInfo struct {
-	ClusterName           string    `json:"clusterName"`
-	ClusterDescription    string    `json:"clusterDescription"`
-	NetworkType           string    `json:"networkType"`
-	HarborAddr            string    `json:"harborAddr"`
-	NodeCount             int       `json:"nodeCount"`
-	TotalCPU              int       `json:"totalCpu"`
-	UsedCPU               int       `json:"usedCpu"`
-	NamespaceCount        int       `json:"namespaceCount"`
-	TotalMem              int       `json:"totalMem"`
-	UsedMem               int       `json:"usedMem"`
-	TotalStorage          int       `json:"totalStorage"`
-	UsedStorage           int       `json:"usedStorage"`
-	TotalStorageEphemeral int       `json:"totalStorageEphemeral"`
-	UsedStorageEphemeral  int       `json:"usedStorageEphemeral"`
-	TotalGpu              int       `json:"totalGpu"`
-	UsedGpu               int       `json:"usedGpu"`
-	IsMemberCluster       bool      `json:"isMemberCluster"`
-	CreateTime            time.Time `json:"createTime"`
-	KubeApiServer         string    `json:"kubeApiServer"`
-	Status                string    `json:"status"`
+	ClusterName        string    `json:"clusterName"`
+	ClusterDescription string    `json:"clusterDescription"`
+	NetworkType        string    `json:"networkType"`
+	HarborAddr         string    `json:"harborAddr"`
+	IsMemberCluster    bool      `json:"isMemberCluster"`
+	CreateTime         time.Time `json:"createTime"`
+	KubeApiServer      string    `json:"kubeApiServer"`
+	Status             string    `json:"status"`
+
+	// todo(weilaaa): move to monitor info
+	NodeCount             int `json:"nodeCount"`
+	NamespaceCount        int `json:"namespaceCount"`
+	UsedCPU               int `json:"usedCpu"`
+	TotalCPU              int `json:"totalCpu"`
+	UsedMem               int `json:"usedMem"`
+	TotalMem              int `json:"totalMem"`
+	TotalStorage          int `json:"totalStorage"`
+	UsedStorage           int `json:"usedStorage"`
+	TotalStorageEphemeral int `json:"totalStorageEphemeral"`
+	UsedStorageEphemeral  int `json:"usedStorageEphemeral"`
+	TotalGpu              int `json:"totalGpu"`
+	UsedGpu               int `json:"usedGpu"`
 }
 
 type handler struct {
@@ -124,6 +122,7 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 	)
 
 	clusterName := c.Query("cluster")
+	clusterStatus := c.Query("status")
 
 	if len(clusterName) > 0 {
 		key := types.NamespacedName{Name: clusterName}
@@ -146,16 +145,55 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 		clusterList = clusters
 	}
 
-	infos := makeClusterInfos(clusterList, cli, c)
+	infos, err := makeClusterInfos(c.Request.Context(), clusterList, cli, clusterStatus)
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.InternalServerError)
+		return
+	}
+
 	if infos != nil {
 		res := result{
-			Total: len(clusterList.Items),
+			Total: len(infos),
 			Items: infos,
 		}
 		response.SuccessReturn(c, res)
 	}
 
 	return
+}
+
+type monitorInfo struct {
+	NamespaceCount        int `json:"namespaceCount"`
+	NodeCount             int `json:"nodeCount"`
+	TotalCPU              int `json:"totalCpu"`
+	UsedCPU               int `json:"usedCpu"`
+	TotalMem              int `json:"totalMem"`
+	UsedMem               int `json:"usedMem"`
+	TotalStorage          int `json:"totalStorage"`
+	UsedStorage           int `json:"usedStorage"`
+	TotalStorageEphemeral int `json:"totalStorageEphemeral"`
+	UsedStorageEphemeral  int `json:"usedStorageEphemeral"`
+	TotalGpu              int `json:"totalGpu"`
+	UsedGpu               int `json:"usedGpu"`
+}
+
+// getClusterMonitorInfo fetch resource used infos of specified cluster
+func (h *handler) getClusterMonitorInfo(c *gin.Context) {
+	cluster := c.Param("cluster")
+	if len(cluster) == 0 {
+		response.FailReturn(c, errcode.InvalidBodyFormat)
+		return
+	}
+
+	info, err := makeMonitorInfo(c.Request.Context(), cluster)
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.CustomReturn(http.StatusInternalServerError, err.Error()))
+		return
+	}
+
+	response.SuccessReturn(c, info)
 }
 
 // getClusterNames get cluster name where the namespace work in

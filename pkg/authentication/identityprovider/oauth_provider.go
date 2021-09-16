@@ -14,21 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package ldap
+package identityprovider
 
-import (
-	"fmt"
-	"testing"
-
-	"github.com/kubecube-io/kubecube/pkg/authenticator"
-)
-
-func TestAuthenticate(t *testing.T) {
-	Config = authenticator.LdapConfig{}
-
-	errInfo := Authenticate("test", "test123")
-	if errInfo != nil {
-		fmt.Printf("errInfo: %v\n", errInfo)
-		//t.Fail()
-	}
+type OAuthProvider interface {
+	// IdentityExchange exchange identity from remote server
+	IdentityExchange(code string) (Identity, error)
 }

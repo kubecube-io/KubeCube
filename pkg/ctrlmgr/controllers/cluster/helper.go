@@ -22,51 +22,16 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
 	"github.com/kubecube-io/kubecube/pkg/clients"
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
-	"github.com/kubecube-io/kubecube/pkg/multicluster/manager"
-	"github.com/kubecube-io/kubecube/pkg/scout"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-// addInternalCluster build internal cluster of cluster cr and add it
-func addInternalCluster(cluster clusterv1.Cluster) (bool, error) {
-	_, err := multicluster.Interface().Get(cluster.Name)
-	if err == nil {
-		// return Immediately if active internal cluster exist
-		return true, nil
-	} else {
-		// create internal cluster relate with cluster cr
-		config, err := kubeconfig.LoadKubeConfigFromBytes(cluster.Spec.KubeConfig)
-		if err != nil {
-			return true, fmt.Errorf("load kubeconfig failed: %v", err)
-		}
-
-		pivotClient := clients.Interface().Kubernetes(constants.PivotCluster).Direct()
-
-		c := new(manager.InternalCluster)
-		c.StopCh = make(chan struct{})
-		c.Config = config
-		c.Client = kubernetes.NewClientFor(config, c.StopCh)
-		c.Scout = scout.NewScout(cluster.Name, 0, 0, pivotClient, c.StopCh)
-
-		err = multicluster.Interface().Add(cluster.Name, c)
-		if err != nil {
-			return true, fmt.Errorf("add internal cluster failed: %v", err)
-		}
-	}
-
-	return false, nil
-}
 
 func createResource(ctx context.Context, obj client.Object, c client.Client, cluster string, objKind string) error {
 	err := c.Create(ctx, obj, &client.CreateOptions{})
@@ -91,8 +56,25 @@ func (r *ClusterReconciler) deleteExternalResources(cluster clusterv1.Cluster, c
 	// Ensure that delete implementation is idempotent and safe to invoke
 	// multiple types for same object.
 
+	// reconnected failed cluster do not need gc
+	reconnectedFailedState := clusterv1.ClusterReconnectedFailed
+	if cluster.Status.State == &reconnectedFailedState {
+		return nil
+	}
+
+	// stop retry task if cluster in retry queue
+	cancel, ok := r.retryQueue.Load(cluster.Name)
+	if ok {
+		cancel.(context.CancelFunc)()
+		clog.Debug("stop retry task of cluster %v success", cluster.Name)
+		return nil
+	}
+
 	// get target memberCluster client
 	mClient := clients.Interface().Kubernetes(cluster.Name)
+	if mClient == nil {
+		return fmt.Errorf("cluster %v is abnormal", cluster.Name)
+	}
 
 	// delete internal cluster and release goroutine inside
 	err := multicluster.Interface().Del(cluster.Name)
@@ -115,23 +97,6 @@ func (r *ClusterReconciler) deleteExternalResources(cluster clusterv1.Cluster, c
 	clog.Debug("delete kubecube-system of cluster %v success", cluster.Name)
 
 	return nil
-}
-
-func (r *ClusterReconciler) updateClusterStatus(ctx context.Context, memberCluster clusterv1.Cluster) error {
-	memberClusterCopy := memberCluster.DeepCopy()
-
-	state := clusterv1.ClusterProcessing
-	reason := fmt.Sprintf("cluster %s initializing", memberCluster.Name)
-	memberClusterCopy.Status.State = &state
-	memberClusterCopy.Status.Reason = reason
-
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		err := r.Status().Update(ctx, memberClusterCopy, &client.UpdateOptions{})
-		if err != nil {
-			return err
-		}
-		return nil
-	})
 }
 
 func (r *ClusterReconciler) ensureFinalizer(ctx context.Context, cluster *clusterv1.Cluster) error {

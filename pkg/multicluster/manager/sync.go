@@ -18,21 +18,17 @@ package manager
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
-	"github.com/kubecube-io/kubecube/pkg/scout"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
-
-	"github.com/kubecube-io/kubecube/pkg/apis"
-	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
-	"github.com/kubecube-io/kubecube/pkg/clog"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	toolcache "k8s.io/client-go/tools/cache"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+
+	"github.com/kubecube-io/kubecube/pkg/apis"
+	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
+	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
 const (
@@ -71,7 +67,14 @@ func StartMultiClusterSync(ctx context.Context) {
 			doSync(del, obj)
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
-			doSync(update, newObj)
+			// we only care about delete action
+			oldCluster := oldObj.(*clusterv1.Cluster)
+			newCluster := newObj.(*clusterv1.Cluster)
+			initFailedState, ProcessingState := clusterv1.ClusterInitFailed, clusterv1.ClusterProcessing
+			if oldCluster.Status.State == &initFailedState &&
+				newCluster.Status.State == &ProcessingState {
+				doSync(update, newObj)
+			}
 		},
 	})
 
@@ -93,11 +96,14 @@ func doSync(action int, obj interface{}) {
 		return
 	}
 
+	clog.Info("cluster sync reconcile cluster %v, action: %v", cluster.Name, action)
+
 	switch action {
-	case add:
-		skip, err := addInternalCluster(*cluster)
+	case add, update:
+		skip, err := AddInternalCluster(*cluster)
 		if err != nil {
-			clog.Error("skip add internal cluster %v failed: %v", cluster.Name, err)
+			clog.Error("add internal cluster %v failed: %v", cluster.Name, err)
+			return
 		}
 		if !skip || cluster.Name == constants.PivotCluster {
 			// start to scout for warden
@@ -106,48 +112,12 @@ func doSync(action int, obj interface{}) {
 				clog.Error("scout for %v warden failed: %v", cluster.Name, err)
 			}
 		}
-	case update:
-		// temporarily not support update
 	case del:
 		err := MultiClusterMgr.Del(cluster.Name)
 		if err != nil {
-			clog.Error(err.Error())
+			clog.Warn(err.Error())
 		}
 	default:
 		clog.Warn("unknown action when sync cluster")
 	}
-}
-
-// addInternalCluster build internal cluster of cluster cr and add it
-// todo(weilaaa): to optimize
-func addInternalCluster(cluster clusterv1.Cluster) (bool, error) {
-	_, err := MultiClusterMgr.Get(cluster.Name)
-	if err == nil {
-		// return Immediately if active internal cluster exist
-		return true, nil
-	} else {
-		// create internal cluster relate with cluster cr
-		config, err := kubeconfig.LoadKubeConfigFromBytes(cluster.Spec.KubeConfig)
-		if err != nil {
-			return true, fmt.Errorf("load kubeconfig failed: %v", err)
-		}
-
-		pivotCluster, err := MultiClusterMgr.Get(constants.PivotCluster)
-		if err != nil {
-			return true, err
-		}
-
-		c := new(InternalCluster)
-		c.StopCh = make(chan struct{})
-		c.Config = config
-		c.Client = kubernetes.NewClientFor(config, c.StopCh)
-		c.Scout = scout.NewScout(cluster.Name, 0, 0, pivotCluster.Client.Direct(), c.StopCh)
-
-		err = MultiClusterMgr.Add(cluster.Name, c)
-		if err != nil {
-			return true, fmt.Errorf("add internal cluster failed: %v", err)
-		}
-	}
-
-	return false, nil
 }

@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/gin-gonic/gin"
 	v1 "github.com/kubecube-io/kubecube/pkg/apis/quota/v1"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/quota"
@@ -38,8 +37,6 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
-	"github.com/kubecube-io/kubecube/pkg/utils/response"
 	"github.com/kubecube-io/kubecube/pkg/utils/strproc"
 )
 
@@ -66,15 +63,11 @@ const (
 
 // makeClusterInfos make cluster info with clusters given
 // todo split metric and cluster info into two apis
-func makeClusterInfos(clusters clusterv1.ClusterList, pivotCli kubernetes.Client, c *gin.Context) []clusterInfo {
-	ctx := c.Request.Context()
-
+func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivotCli kubernetes.Client, statusFilter string) ([]clusterInfo, error) {
 	// populate cluster info one by one
 	infos := make([]clusterInfo, 0)
 	for _, item := range clusters.Items {
 		v := item.Name
-		cli := clients.Interface().Kubernetes(v)
-
 		info := clusterInfo{ClusterName: v}
 
 		cluster := clusterv1.Cluster{}
@@ -93,6 +86,21 @@ func makeClusterInfos(clusters clusterv1.ClusterList, pivotCli kubernetes.Client
 		info.KubeApiServer = cluster.Spec.KubernetesAPIEndpoint
 		info.NetworkType = cluster.Spec.NetworkType
 
+		cli := clients.Interface().Kubernetes(v)
+		if cli == nil {
+			info.Status = string(clusterv1.ClusterAbnormal)
+			if len(statusFilter) == 0 {
+				infos = append(infos, info)
+			} else {
+				if info.Status == statusFilter {
+					infos = append(infos, info)
+				}
+			}
+			continue
+		}
+
+		// todo(weilaaa): context may be exceed if metrics query timeout
+		// will deprecated in v2.0.x
 		nodesMc, err := cli.Metrics().MetricsV1beta1().NodeMetricses().List(ctx, metav1.ListOptions{})
 		if err != nil {
 			// record error from metric server, but ensure return normal
@@ -109,9 +117,7 @@ func makeClusterInfos(clusters clusterv1.ClusterList, pivotCli kubernetes.Client
 		nodes := corev1.NodeList{}
 		err = cli.Cache().List(ctx, &nodes)
 		if err != nil {
-			clog.Error("get cluster %v nodes failed: %v", v, err)
-			response.FailReturn(c, errcode.InternalServerError)
-			return nil
+			return nil, fmt.Errorf("get cluster %v nodes failed: %v", v, err)
 		}
 
 		info.NodeCount = len(nodes.Items)
@@ -126,17 +132,67 @@ func makeClusterInfos(clusters clusterv1.ClusterList, pivotCli kubernetes.Client
 		ns := corev1.NamespaceList{}
 		err = cli.Cache().List(ctx, &ns)
 		if err != nil {
-			clog.Error("get cluster %v namespace failed: %v", v, err)
-			response.FailReturn(c, errcode.InternalServerError)
-			return nil
+			return nil, fmt.Errorf("get cluster %v namespace failed: %v", v, err)
 		}
 
 		info.NamespaceCount = len(ns.Items)
 
-		infos = append(infos, info)
+		if len(statusFilter) == 0 {
+			infos = append(infos, info)
+		} else {
+			if info.Status == statusFilter {
+				infos = append(infos, info)
+			}
+		}
+
 	}
 
-	return infos
+	return infos, nil
+}
+
+func makeMonitorInfo(ctx context.Context, cluster string) (*monitorInfo, error) {
+	cli := clients.Interface().Kubernetes(cluster)
+	if cli == nil {
+		return nil, fmt.Errorf("cluster %v abnormal", cluster)
+	}
+
+	nodesMC, err := cli.Metrics().MetricsV1beta1().NodeMetricses().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("get cluster %v nodes metrics failed: %v", cluster, err)
+	}
+
+	info := &monitorInfo{}
+	for _, m := range nodesMC.Items {
+		info.UsedCPU += strproc.Str2int(m.Usage.Cpu().String())/1000000 + 1
+		info.UsedMem += strproc.Str2int(m.Usage.Memory().String()) / 1024
+		info.UsedStorage += (strproc.Str2int(m.Usage.Storage().String()) + 1) / 1024
+		info.UsedStorageEphemeral += (strproc.Str2int(m.Usage.StorageEphemeral().String()) + 1) / 1024
+	}
+
+	nodes := corev1.NodeList{}
+	err = cli.Cache().List(ctx, &nodes)
+	if err != nil {
+		return nil, fmt.Errorf("get cluster %v nodes failed: %v", cluster, err)
+	}
+
+	info.NodeCount = len(nodes.Items)
+
+	for _, n := range nodes.Items {
+		info.TotalCPU += strproc.Str2int(n.Status.Capacity.Cpu().String()) * 1000
+		info.TotalMem += strproc.Str2int(n.Status.Capacity.Memory().String()) / 1024
+		info.TotalStorage += (strproc.Str2int(n.Status.Capacity.Storage().String()) + 1) / 1024
+		info.TotalStorageEphemeral += (strproc.Str2int(n.Status.Capacity.StorageEphemeral().String()) + 1) / 1024
+	}
+
+	ns := corev1.NamespaceList{}
+	err = cli.Cache().List(ctx, &ns)
+	if err != nil {
+		return nil, fmt.Errorf("get cluster %v namespace failed: %v", cluster, err)
+	}
+
+	info.NamespaceCount = len(ns.Items)
+
+	return info, nil
 }
 
 // isRelateWith return true if third level namespace exist under of ancestor namespace

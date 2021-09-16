@@ -14,11 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package authenticator
+package authentication
 
 type Config struct {
 	JwtConfig
 	LdapConfig
+	GenericConfig
+	GitHubConfig
 }
 
 func (c *Config) Validate() []error {
@@ -41,4 +43,20 @@ type LdapConfig struct {
 	LdapAdminUserAccount string `yaml:"ldapAdminUserAccount, omitempty"`
 	LdapAdminPassword    string `yaml:"ldapAdminPassword, omitempty"`
 	LdapIsEnable         bool   `yaml:"ldapIsEnable, omitempty"`
+}
+
+type GenericConfig struct {
+	GenericAuthIsEnable bool
+	URL                 string
+	Method              string
+	Scheme              string
+	InsecureSkipVerify  bool
+	TLSCert             string
+	TLSKey              string
+}
+
+type GitHubConfig struct {
+	GitHubIsEnable bool
+	ClientID       string
+	ClientSecret   string
 }
