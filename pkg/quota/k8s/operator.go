@@ -18,22 +18,18 @@ package k8s
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
-
-	"github.com/kubecube-io/kubecube/pkg/utils/strslice"
-
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/kubecube-io/kubecube/pkg/quota"
-
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-	"k8s.io/apimachinery/pkg/types"
-
 	quotav1 "github.com/kubecube-io/kubecube/pkg/apis/quota/v1"
-	v1 "k8s.io/api/core/v1"
+	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/quota"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/strslice"
 )
 
 type QuotaOperator struct {
@@ -57,16 +53,21 @@ func (o *QuotaOperator) Parent() (*quotav1.CubeResourceQuota, error) {
 	var (
 		parentName string
 		ok         bool
+		quotaName  string
+		quotaNs    string
 	)
 
 	if o.CurrentQuota == nil {
 		parentName, ok = o.OldQuota.Labels[constants.CubeQuotaLabel]
+		quotaName, quotaNs = o.OldQuota.Name, o.OldQuota.Namespace
 	} else {
 		parentName, ok = o.CurrentQuota.Labels[constants.CubeQuotaLabel]
+		quotaName, quotaNs = o.CurrentQuota.Name, o.CurrentQuota.Namespace
 	}
 
 	if !ok {
-		return nil, errors.New("resourceQuota without cube quota label: kubecube.io/quota")
+		clog.Warn("resourceQuota (%v/%v) without cube quota label: kubecube.io/quota", quotaNs, quotaName)
+		return nil, nil
 	}
 
 	if parentName == "" {
@@ -89,7 +90,10 @@ func (o *QuotaOperator) Overload() (bool, error) {
 	oldQuota := o.OldQuota
 
 	parentQuota, err := o.Parent()
-	if err != nil || parentQuota == nil {
+	if err == nil && parentQuota == nil {
+		return false, nil
+	}
+	if err != nil {
 		return false, err
 	}
 
