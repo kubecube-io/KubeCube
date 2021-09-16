@@ -1,3 +1,9 @@
+# V1.0.2
+
+## BugFix
+
+- `KubeCube:` fix the problem of resource quota webhook since conformance test
+
 # V1.0.1
 
 2021-8-19
