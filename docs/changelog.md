@@ -1,3 +1,20 @@
+# v1.0.3
+## BugFix
+- fix tenant namespace annotation
+
+## Dependencies
+
+- hnc v0.8.0-kubecube.1.1
+- nginx-ingress v0.46.0
+- helm 3.x
+- metrics-server v0.4.1
+- elasticsearch 7.8
+- kubecube-monitoring 15.4.8
+- thanos 3.18.0
+- logseer v1.0.0
+- logagent v1.0.0
+- kubecube-audit 1.0.0
+
 # V1.0.2
 
 ## BugFix
