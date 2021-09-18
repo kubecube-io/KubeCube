@@ -117,6 +117,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 				Name: nsName,
 				Annotations: map[string]string{
 					"kubecube.io/sync": "1",
+					"hnc.x-k8s.io/ns":  "true",
 				},
 			},
 		}
