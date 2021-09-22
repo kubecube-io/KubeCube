@@ -188,8 +188,7 @@ func (s *Scout) illWarden(ctx context.Context) {
 
 // isDisconnected determines the health of the cluster
 func isDisconnected(cluster *v1.Cluster, waitTimeoutSecond int) bool {
-	clog.Debug("cluster %v, status: %v, time now: %v, last heartbeat: %v",
-		cluster.Name, *cluster.Status.State, time.Now().String(), cluster.Status.LastHeartbeat.Time.String())
+	clog.Debug("cluster %v, status: %v, time now: %v", cluster.Name, *cluster.Status.State, time.Now().String())
 
 	// has no LastHeartbeat return directly
 	if cluster.Status.LastHeartbeat == nil {
