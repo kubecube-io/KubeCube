@@ -103,6 +103,9 @@ func getClusterInfo(clusterName string) (string, []byte, []byte) {
 	}
 
 	host := clusterInfo.Spec.KubernetesAPIEndpoint
+	host = strings.TrimPrefix(host, "https://")
+	host = strings.TrimPrefix(host, "http://")
+
 	config, err := kubeconfig.LoadKubeConfigFromBytes(clusterInfo.Spec.KubeConfig)
 	if err != nil {
 		clog.Info("the cluster %s parser kubeconfig fail: %v", clusterName, err)
