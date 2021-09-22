@@ -199,7 +199,7 @@ func (h *HotplugReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 	phase := success
 	for _, r := range results {
-		if r.Status == fail {
+		if r.Result == fail {
 			phase = fail
 			continue
 		}
