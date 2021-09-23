@@ -1,6 +1,8 @@
 # KubeCube
 
-[![License](http://img.shields.io/badge/license-apache%20v2-blue.svg)](https://https://github.com/kubecube-io/kubecube/blob/main/LICENSE)  [![build](https://img.shields.io/github/workflow/status/kubecube-io/kubecube/Go)](https://github.com/kubecube-io/KubeCube/actions/workflows/build.yml)
+[![License](http://img.shields.io/badge/license-apache%20v2-blue.svg)](https://github.com/kubecube-io/KubeCube/blob/main/LICENSE)  [![build](https://img.shields.io/github/workflow/status/kubecube-io/kubecube/Go)](https://github.com/kubecube-io/KubeCube/actions/workflows/build.yml)  [![Certified Kubernetes](https://img.shields.io/badge/Certified%20Kubernetes-yes-brightgreen)](https://landscape.cncf.io/card-mode?category=certified-kubernetes-distribution&grouping=category&selected=kube-cube)
+
+
 
 ![logo](./docs/logo.png)
 
