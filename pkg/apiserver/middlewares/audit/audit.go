@@ -54,12 +54,10 @@ var (
 		constants.ApiPathRoot + "/audit": "POST",
 	}
 	auditSvc env.AuditSvcApi
-	client   http.Client
 )
 
 func init() {
 	auditSvc = env.AuditSVC()
-	client = http.Client{}
 }
 
 func withinWhiteList(url *url.URL, method string, whiteList map[string]string) bool {
@@ -155,7 +153,7 @@ func sendEvent(e *Event) {
 		}
 		request.Header.Set(kv[0], kv[1])
 	}
-
+	client := http.Client{}
 	resp, err := client.Do(request.WithContext(context.TODO()))
 	if err != nil {
 		clog.Error("[audit] client.Do error: %s", err)
