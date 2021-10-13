@@ -19,10 +19,10 @@ cd "${REPO_ROOT}"
 
 mkdir -p logs
 
-export INSTALLER_VERSION=v1.0.0
-export WARDEN_IMAGE=hub.c.163.com/kubecube/warden:v1.0.0
+export INSTALLER_VERSION=v1.0
+export WARDEN_IMAGE=hub.c.163.com/kubecube/warden:v1.0.3
 export JWT_SECRET=56F0D8DB90241C6E
-export WARDEN_INIT_IMAGE=hub.c.163.com/kubecube/warden-init:v1.0.0
+export WARDEN_INIT_IMAGE=hub.c.163.com/kubecube/warden-init:v1.0.3
 export PIVOT_CUBE_HOST=kubecube:7443
 
 go run -mod=vendor cmd/cube/main.go -log-level=debug -secure-port=7443 -tls-cert=deploy/tls/tls.crt -tls-key=deploy/tls/tls.key -webhook-cert=deploy/tls -webhook-server-port=9443 -leader-elect=false -log-file=logs/cube.log

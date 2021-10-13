@@ -86,3 +86,11 @@ func NodeIP() string {
 func InstallerVersion() string {
 	return os.Getenv("INSTALLER_VERSION")
 }
+
+func ChartsDownload() string {
+	r := os.Getenv("DOWNLOAD_CHARTS")
+	if r == "" {
+		r = "true"
+	}
+	return r
+}
