@@ -238,6 +238,9 @@ func makeDeployment(cluster string, isMemberCluster bool) *appsv1.Deployment {
 						{
 							Name:  "downloader",
 							Image: env.WardenInitImage(),
+							Env: []corev1.EnvVar{
+								{Name: "DOWNLOAD_CHARTS", Value: env.ChartsDownload()},
+							},
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "helm-pkg",

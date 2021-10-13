@@ -12,9 +12,13 @@
 #See the License for the specific language governing permissions and
 #limitations under the License.
 
-FROM busybox
+FROM alpine:3.13.4
 
 COPY hack/install_hotplug.sh install_hotplug.sh
+
+ENV DOWNLOAD_CHARTS true
+
+RUN wget https://kubecube.nos-eastchina1.126.net/helm-chart/third/third-charts.tar.gz -O third-charts.tar.gz
 
 RUN chmod +x install_hotplug.sh
 
