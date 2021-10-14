@@ -200,3 +200,34 @@ func GetFeatureConfig(c *gin.Context) {
 
 	response.SuccessReturn(c, cm.Data)
 }
+
+// GetConfigMap show system configMap
+// all users have read-only access ability
+func GetConfigMap(c *gin.Context) {
+	cmName := c.Param("configmap")
+	if cmName == "" {
+		response.FailReturn(c, errcode.InvalidBodyFormat)
+		return
+	}
+
+	cli := clients.Interface().Kubernetes(constants.PivotCluster)
+	if cli == nil {
+		response.FailReturn(c, errcode.InternalServerError)
+		return
+	}
+
+	cm := &corev1.ConfigMap{}
+	key := types.NamespacedName{Name: cmName, Namespace: constants.CubeNamespace}
+
+	err := cli.Cache().Get(c.Request.Context(), key, cm)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			response.FailReturn(c, errcode.CustomReturn(http.StatusNotFound, "configmap(%v/%v) not found", key.Namespace, key.Name))
+			return
+		}
+		response.FailReturn(c, errcode.InternalServerError)
+		return
+	}
+
+	response.SuccessReturn(c, cm.Data)
+}

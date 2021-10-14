@@ -8,3 +8,4 @@ data:
     enabled: true
     clientId: 876364ef6ea13b05bf8b
     clientSecret: b0afeedaa0751cfd94794f49c092fb8e6e1a759e
+    host: http://10.173.32.129:30080
