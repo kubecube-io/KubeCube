@@ -158,6 +158,7 @@ func GitHubLogin(c *gin.Context) {
 	user := &v1.User{}
 	if userFind == nil {
 		user.Name = gitHubUserNamePrefix + userName
+		user.Spec.DisplayName = gitHubUserNamePrefix + userInfo.GetUserName()
 		user.Spec.LoginType = v1.GitHubLogin
 		user.Spec.Password = md5util.GetMD5Salt(uuid.New().String())
 		user.Labels = make(map[string]string)
