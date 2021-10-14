@@ -97,7 +97,7 @@ func registerCubeAPI() http.Handler {
 	k8sApiExtend := router.Group(constants.ApiPathRoot + "/extend")
 	{
 		k8sApiExtend.GET("/feature-config", resourcemanage.GetFeatureConfig)
-		k8sApiExtend.GET("configmap/:configmap", resourcemanage.GetConfigMap)
+		k8sApiExtend.GET("/configmap/:configmap", resourcemanage.GetConfigMap)
 		k8sApiExtend.Any("/clusters/:cluster/namespaces/:namespace/:resourceType/:resourceName", resourcemanage.ExtendHandle)
 		k8sApiExtend.Any("/clusters/:cluster/namespaces/:namespace/:resourceType", resourcemanage.ExtendHandle)
 		k8sApiExtend.POST("/clusters/:cluster/yaml/deploy", yamldeploy.Deploy)
