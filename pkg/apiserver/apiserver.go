@@ -66,6 +66,7 @@ func registerCubeAPI() http.Handler {
 	authorization.AddApisTo(cubeApis)
 
 	router.POST(constants.ApiPathRoot+"/login", user.Login)
+	router.GET(constants.ApiPathRoot+"/oauth/redirect", user.GitHubLogin)
 
 	userManage := router.Group(constants.ApiPathRoot + "/user")
 	{
@@ -130,8 +131,6 @@ func withSimpleServer(s *APIServer) *APIServer {
 	url := ginSwagger.URL("/swagger/doc.json")
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler, url))
 	router.GET("/healthz", healthz.HealthyCheck)
-
-	router.GET("/oauth/redirect", user.GitHubLogin)
 
 	s.SimpleServer = &http.Server{
 		Addr:    fmt.Sprintf("%s:%d", s.Config.BindAddr, s.Config.GenericPort),

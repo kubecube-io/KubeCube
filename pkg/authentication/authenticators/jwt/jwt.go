@@ -70,6 +70,7 @@ func GenerateToken(name string, expireDuration int64) (string, *errcode.ErrorInf
 		clog.Error("sign token with jwt secret error: %s", signErr)
 		return "", errcode.InternalServerError
 	}
+	clog.Debug("generate token success, new token is %v, secret is %v, issuer is %v", signedToken, Config.JwtSecret, Config.JwtIssuer)
 	return signedToken, nil
 }
 
@@ -85,7 +86,7 @@ func ParseToken(token string) (Claims, *errcode.ErrorInfo) {
 		return []byte(Config.JwtSecret), nil
 	})
 	if parseErr != nil {
-		clog.Error("parse token error: %s", parseErr)
+		clog.Error("parse token error, jwt secret: %v, token: %v, error: %v,", Config.JwtSecret, token, parseErr)
 		return *claims, errcode.InvalidToken
 	}
 	if claims, ok := newToken.Claims.(*Claims); ok && newToken.Valid {
