@@ -39,12 +39,11 @@ const (
 )
 
 var whiteList = map[string]string{
-	constants.ApiPathRoot + "/login":                       post,
-	constants.ApiPathRoot + "/audit":                       post,
-	constants.ApiPathRoot + "/key/token":                   get,
-	constants.ApiPathRoot + "/authorization/access":        post,
-	constants.ApiPathRoot + "/oauth/redirect":              get,
-	constants.ApiPathRoot + "/extend/configmap/:configmap": get,
+	constants.ApiPathRoot + "/login":                post,
+	constants.ApiPathRoot + "/audit":                post,
+	constants.ApiPathRoot + "/key/token":            get,
+	constants.ApiPathRoot + "/authorization/access": post,
+	constants.ApiPathRoot + "/oauth/redirect":       get,
 }
 
 func withinWhiteList(url *url.URL, method string, whiteList map[string]string) bool {
