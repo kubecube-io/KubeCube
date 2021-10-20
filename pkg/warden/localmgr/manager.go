@@ -21,25 +21,21 @@ import (
 	"fmt"
 	"net/http"
 
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-
+	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers"
 	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/webhooks"
-
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-
-	"github.com/kubecube-io/kubecube/pkg/clog"
-
 	"github.com/kubecube-io/kubecube/pkg/warden/reporter"
-	"sigs.k8s.io/controller-runtime/pkg/healthz"
-
-	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/kubecube-io/kubecube/pkg/apis"
 	"github.com/kubecube-io/kubecube/pkg/utils/exit"
+	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
 )
 
 const healthProbeAddr = "0.0.0.0:9778"
@@ -56,6 +52,8 @@ func init() {
 	utilruntime.Must(apis.AddToScheme(scheme))
 
 	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
+
+	utilruntime.Must(operatorsv1.AddToScheme(scheme))
 }
 
 // LocalManager is used to list and watch the resource of local
