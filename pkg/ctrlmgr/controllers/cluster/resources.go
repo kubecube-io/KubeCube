@@ -240,6 +240,7 @@ func makeDeployment(cluster string, isMemberCluster bool) *appsv1.Deployment {
 							Image: env.WardenInitImage(),
 							Env: []corev1.EnvVar{
 								{Name: "DOWNLOAD_CHARTS", Value: env.ChartsDownload()},
+								{Name: "DOWNLOAD_URL", Value: env.ChartsDownloadUrl()},
 							},
 							VolumeMounts: []corev1.VolumeMount{
 								{

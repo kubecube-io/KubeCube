@@ -94,3 +94,7 @@ func ChartsDownload() string {
 	}
 	return r
 }
+
+func ChartsDownloadUrl() string {
+	return os.Getenv("DOWNLOAD_CHARTS_URL")
+}
