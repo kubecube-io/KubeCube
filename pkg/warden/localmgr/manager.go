@@ -29,7 +29,6 @@ import (
 
 	"github.com/kubecube-io/kubecube/pkg/apis"
 	"github.com/kubecube-io/kubecube/pkg/utils/exit"
-	operatorsv1 "github.com/operator-framework/api/pkg/operators/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -52,8 +51,6 @@ func init() {
 	utilruntime.Must(apis.AddToScheme(scheme))
 
 	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
-
-	utilruntime.Must(operatorsv1.AddToScheme(scheme))
 }
 
 // LocalManager is used to list and watch the resource of local
