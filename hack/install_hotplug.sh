@@ -16,10 +16,19 @@
 
 set -e
 
+# default download_url
+download_url="https://kubecube.nos-eastchina1.126.net/helm-chart/third/third-charts.tar.gz"
+
+if [ ${DOWNLOAD_URL} ];then
+  if [ ${DOWNLOAD_URL} != "" ]; then
+      download_url=${DOWNLOAD_URL}
+  fi
+fi
+
 if [ ${DOWNLOAD_CHARTS} = "true" ]; then
   # use remote helm charts to replace of local charts pkg
-  echo "download charts pkg form remote"
-  wget https://kubecube.nos-eastchina1.126.net/helm-chart/third/third-charts.tar.gz -O third-charts.tar.gz
+  echo "download charts pkg form remote: ${download_url}"
+  wget ${download_url} -O third-charts.tar.gz
 else
   echo "use local charts pkg"
 fi

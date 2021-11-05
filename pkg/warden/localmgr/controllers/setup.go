@@ -18,7 +18,8 @@ package controllers
 
 import (
 	"github.com/kubecube-io/kubecube/pkg/clog"
-	hotplug "github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/hotplug"
+	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/hotplug"
+	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/olm"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
@@ -28,6 +29,7 @@ var setupFns []func(manager manager.Manager) error
 func init() {
 	// setup controllers
 	setupFns = append(setupFns, hotplug.SetupWithManager)
+	setupFns = append(setupFns, olm.SetupWithManager)
 }
 
 // SetupWithManager set up controllers into manager

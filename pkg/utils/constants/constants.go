@@ -79,6 +79,11 @@ const (
 	TenantAdminCluster  = "tenant-admin-cluster"
 	ProjectAdminCluster = "project-admin-cluster"
 	ReviewerCluster     = "reviewer-cluster"
+
+	PlatformAdminAgLabel = "rbac.authorization.k8s.io/aggregate-to-platform-admin"
+	TenantAdminAgLabel   = "rbac.authorization.k8s.io/aggregate-to-tenant-admin"
+	ProjectAdminAgLabel  = "rbac.authorization.k8s.io/aggregate-to-project-admin"
+	ReviewerAgLabel      = "rbac.authorization.k8s.io/aggregate-to-reviewer"
 )
 
 const (
