@@ -16,21 +16,25 @@ limitations under the License.
 
 package jwt
 
-import "testing"
+import (
+	"testing"
+
+	"k8s.io/api/authentication/v1beta1"
+)
 
 func TestGenerateToken(t *testing.T) {
 
-	var userName = "test"
-	token, err := GenerateToken(userName, 0)
+	user1 := &v1beta1.UserInfo{Username: "test"}
+	token, err := AuthJwtImpl.GenerateToken(user1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	claims, err := ParseToken(token)
+	userInfo, err := AuthJwtImpl.Authentication(token)
 	if err != nil {
 		t.Fatal(err)
 
 	}
-	if claims.UserInfo.Username != userName {
+	if userInfo.Username != "test" {
 		t.Fail()
 	}
 
@@ -38,21 +42,21 @@ func TestGenerateToken(t *testing.T) {
 
 func TestRefreshToken(t *testing.T) {
 
-	userName := "test"
-	token, err := GenerateToken(userName, 0)
+	user1 := &v1beta1.UserInfo{Username: "test"}
+	token, err := AuthJwtImpl.GenerateToken(user1)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	newToken, err := RefreshToken(token)
+	newToken, err := AuthJwtImpl.RefreshToken(token)
 	if err != nil {
 		t.Fatal(err)
 	}
-	newUserName, err := ParseToken(newToken)
+	userInfo, err := AuthJwtImpl.Authentication(newToken)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if newUserName.UserInfo.Username != userName {
+	if userInfo.Username != "test" {
 		t.Fail()
 	}
 

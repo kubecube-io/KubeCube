@@ -22,6 +22,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	uuid "github.com/satori/go.uuid"
+	"k8s.io/api/authentication/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -225,7 +226,8 @@ func GetTokenByKey(c *gin.Context) {
 	}
 
 	// gen token
-	token, errInfo := jwt.GenerateToken(user.Name, 0)
+	authJwtImpl := jwt.AuthJwtImpl
+	token, errInfo := authJwtImpl.GenerateToken(&v1beta1.UserInfo{Username: user.Name})
 	if errInfo != nil {
 		clog.Info("gen token fail, %v", errInfo)
 		response.FailReturn(c, errcode.ServerErr)
