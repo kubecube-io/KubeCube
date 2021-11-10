@@ -20,6 +20,7 @@ import (
 	"net/url"
 
 	"github.com/gin-gonic/gin"
+	"k8s.io/api/authentication/v1beta1"
 
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
@@ -60,6 +61,7 @@ func withinWhiteList(url *url.URL, method string, whiteList map[string]string) b
 func Auth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if !withinWhiteList(c.Request.URL, c.Request.Method, whiteList) {
+			authJwtImpl := jwt.AuthJwtImpl
 			if generic.Config.GenericAuthIsEnable {
 				h := generic.GetProvider()
 				user, err := h.Authenticate(c.Request.Header)
@@ -68,9 +70,9 @@ func Auth() gin.HandlerFunc {
 					response.FailReturn(c, errcode.AuthenticateError)
 					return
 				}
-				newToken, errInfo := jwt.GenerateToken(user.GetUserName(), 0)
-				if errInfo != nil {
-					response.FailReturn(c, errInfo)
+				newToken, error := authJwtImpl.GenerateToken(&v1beta1.UserInfo{Username: user.GetUserName()})
+				if error != nil {
+					response.FailReturn(c, errcode.AuthenticateError)
 					return
 				}
 				b := jwt.BearerTokenPrefix + " " + newToken
@@ -90,17 +92,16 @@ func Auth() gin.HandlerFunc {
 					return
 				}
 
-				newToken, respInfo := jwt.RefreshToken(userToken)
+				newToken, respInfo := authJwtImpl.RefreshToken(userToken)
 				if respInfo != nil {
-					clog.Error("refresh token failed")
-					response.FailReturn(c, respInfo)
+					response.FailReturn(c, errcode.AuthenticateError)
 					return
 				}
 
 				v := jwt.BearerTokenPrefix + " " + newToken
 
 				c.Request.Header.Set(constants.AuthorizationHeader, v)
-				c.SetCookie(constants.AuthorizationHeader, v, int(jwt.Config.TokenExpireDuration), "/", "", false, true)
+				c.SetCookie(constants.AuthorizationHeader, v, int(authJwtImpl.TokenExpireDuration), "/", "", false, true)
 			}
 			c.Next()
 		}

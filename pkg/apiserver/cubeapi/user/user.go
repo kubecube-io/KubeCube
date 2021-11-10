@@ -29,6 +29,7 @@ import (
 	"unicode"
 
 	"github.com/gin-gonic/gin"
+	"k8s.io/api/authentication/v1beta1"
 	v1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -511,10 +512,10 @@ func GetKubeConfig(c *gin.Context) {
 
 	user := c.Query("user")
 
-	token, errInfo := jwt.GenerateToken(user, tokenExpiredTime)
+	authJwtImpl := jwt.AuthJwtImpl
+	token, errInfo := authJwtImpl.GenerateTokenWithExpired(&v1beta1.UserInfo{Username: user}, tokenExpiredTime)
 	if errInfo != nil {
-		clog.Error(errInfo.Message)
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.AuthenticateError)
 	}
 
 	clusters := multicluster.Interface().FuzzyCopy()

@@ -17,6 +17,7 @@ limitations under the License.
 package jwt
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -26,8 +27,19 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/env"
-	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 )
+
+type AuthJwt struct {
+	JwtSecret           string
+	TokenExpireDuration int64
+	JwtIssuer           string
+}
+
+var AuthJwtImpl = AuthJwt{
+	JwtSecret:           env.JwtSecret(),
+	TokenExpireDuration: authentication.JwtConfig{}.TokenExpireDuration,
+	JwtIssuer:           authentication.JwtConfig{}.JwtIssuer,
+}
 
 type Claims struct {
 	UserInfo v1beta1.UserInfo
@@ -36,19 +48,14 @@ type Claims struct {
 
 const BearerTokenPrefix = "Bearer"
 
-var Config = authentication.JwtConfig{}
-
-func init() {
-	Config = authentication.JwtConfig{
-		JwtSecret: env.JwtSecret(),
-	}
+func (a *AuthJwt) GenerateToken(user *v1beta1.UserInfo) (string, error) {
+	return a.GenerateTokenWithExpired(user, constants.DefaultTokenExpireDuration)
 }
 
-// GenerateToken todo: need rewrite
-func GenerateToken(name string, expireDuration int64) (string, *errcode.ErrorInfo) {
+func (a *AuthJwt) GenerateTokenWithExpired(user *v1beta1.UserInfo, expireDuration int64) (string, error) {
 	var tokenExpireDuration int64 = constants.DefaultTokenExpireDuration
-	if Config.TokenExpireDuration > 0 {
-		tokenExpireDuration = Config.TokenExpireDuration
+	if a.TokenExpireDuration > 0 {
+		tokenExpireDuration = a.TokenExpireDuration
 	}
 	if expireDuration > 0 {
 		tokenExpireDuration = expireDuration
@@ -56,50 +63,47 @@ func GenerateToken(name string, expireDuration int64) (string, *errcode.ErrorInf
 
 	claims := Claims{
 		UserInfo: v1beta1.UserInfo{
-			Username: name,
+			Username: user.Username,
 			Groups:   []string{constants.KubeCube},
 		},
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: time.Now().Unix() + tokenExpireDuration,
-			Issuer:    Config.JwtIssuer,
+			Issuer:    a.JwtIssuer,
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	signedToken, signErr := token.SignedString([]byte(Config.JwtSecret))
+	signedToken, signErr := token.SignedString([]byte(a.JwtSecret))
 	if signErr != nil {
-		clog.Error("sign token with jwt secret error: %s", signErr)
-		return "", errcode.InternalServerError
+		return "", fmt.Errorf("sign token with jwt secret error: %s", signErr)
 	}
-	clog.Debug("generate token success, new token is %v, secret is %v, issuer is %v", signedToken, Config.JwtSecret, Config.JwtIssuer)
+	clog.Debug("generate token success, new token is %v, secret is %v, issuer is %v", signedToken, a.JwtSecret, a.JwtIssuer)
 	return signedToken, nil
 }
 
-func ParseToken(token string) (Claims, *errcode.ErrorInfo) {
+func (a *AuthJwt) Authentication(token string) (user *v1beta1.UserInfo, err error) {
 	claims := &Claims{}
 
 	// Empty bearer tokens aren't valid
 	if len(token) == 0 {
-		return *claims, errcode.InvalidToken
+		return nil, fmt.Errorf("invaild token")
 	}
 
 	newToken, parseErr := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
-		return []byte(Config.JwtSecret), nil
+		return []byte(a.JwtSecret), nil
 	})
 	if parseErr != nil {
-		clog.Error("parse token error, jwt secret: %v, token: %v, error: %v,", Config.JwtSecret, token, parseErr)
-		return *claims, errcode.InvalidToken
+		return nil, fmt.Errorf("parse token error, jwt secret: %v, token: %v, error: %v", a.JwtSecret, token, parseErr)
 	}
 	if claims, ok := newToken.Claims.(*Claims); ok && newToken.Valid {
-		return *claims, nil
+		return &claims.UserInfo, nil
 	}
-	return *claims, errcode.InvalidToken
+	return nil, fmt.Errorf("invaild token")
 }
 
-func RefreshToken(token string) (string, *errcode.ErrorInfo) {
-	claims, err := ParseToken(token)
+func (a *AuthJwt) RefreshToken(token string) (string, error) {
+	userInfo, err := a.Authentication(token)
 	if err != nil {
-		clog.Error("parse token error: %s", err)
-		return "", errcode.InvalidToken
+		return "", fmt.Errorf("parse token error: %s", err)
 	}
-	return GenerateToken(claims.UserInfo.Username, 0)
+	return a.GenerateToken(userInfo)
 }

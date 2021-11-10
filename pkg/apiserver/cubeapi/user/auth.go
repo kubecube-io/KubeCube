@@ -22,6 +22,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"k8s.io/api/authentication/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	v1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
@@ -108,13 +109,14 @@ func Login(c *gin.Context) {
 	}
 
 	// generate token and return
-	token, errInfo := jwt.GenerateToken(name, 0)
-	bearerToken := jwt.BearerTokenPrefix + " " + token
-	if errInfo != nil {
-		response.FailReturn(c, errInfo)
+	authJwtImpl := jwt.AuthJwtImpl
+	token, err := authJwtImpl.GenerateToken(&v1beta1.UserInfo{Username: name})
+	if err != nil {
+		response.FailReturn(c, errcode.AuthenticateError)
 		return
 	}
-	c.SetCookie(constants.AuthorizationHeader, bearerToken, int(jwt.Config.TokenExpireDuration), "/", "", false, true)
+	bearerToken := jwt.BearerTokenPrefix + " " + token
+	c.SetCookie(constants.AuthorizationHeader, bearerToken, int(authJwtImpl.TokenExpireDuration), "/", "", false, true)
 
 	response.SuccessReturn(c, user)
 	return
@@ -181,13 +183,14 @@ func GitHubLogin(c *gin.Context) {
 	}
 
 	// generate token and return
-	token, errInfo := jwt.GenerateToken(userName, 0)
+	authJwtImpl := jwt.AuthJwtImpl
+	token, errInfo := authJwtImpl.GenerateToken(&v1beta1.UserInfo{Username: userName})
 	bearerToken := jwt.BearerTokenPrefix + " " + token
 	if errInfo != nil {
-		response.FailReturn(c, errInfo)
+		response.FailReturn(c, errcode.AuthenticateError)
 		return
 	}
-	c.SetCookie(constants.AuthorizationHeader, bearerToken, int(jwt.Config.TokenExpireDuration), "/", "", false, true)
+	c.SetCookie(constants.AuthorizationHeader, bearerToken, int(authJwtImpl.TokenExpireDuration), "/", "", false, true)
 
 	response.SuccessReturn(c, user)
 	return

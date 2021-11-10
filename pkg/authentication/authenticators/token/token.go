@@ -49,10 +49,11 @@ func GetTokenFromReq(c *gin.Context) string {
 
 func GetUserFromReq(c *gin.Context) string {
 	token := GetTokenFromReq(c)
+	authJwtImpl := jwt.AuthJwtImpl
 	if token != "" {
-		claims, err := jwt.ParseToken(token)
+		userInfo, err := authJwtImpl.Authentication(token)
 		if err == nil {
-			return claims.UserInfo.Username
+			return userInfo.Username
 		}
 	}
 	return ""
