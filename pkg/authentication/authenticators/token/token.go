@@ -49,9 +49,8 @@ func GetTokenFromReq(c *gin.Context) string {
 
 func GetUserFromReq(c *gin.Context) string {
 	token := GetTokenFromReq(c)
-	authJwtImpl := jwt.AuthJwtImpl
 	if token != "" {
-		userInfo, err := authJwtImpl.Authentication(token)
+		userInfo, err := jwt.GetAuthJwtImpl().Authentication(token)
 		if err == nil {
 			return userInfo.Username
 		}

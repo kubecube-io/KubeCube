@@ -72,11 +72,11 @@ func init() {
 		&cli.Int64Flag{
 			Name:        "token-expire-duration",
 			Value:       constants.DefaultTokenExpireDuration,
-			Destination: &jwt.AuthJwtImpl.TokenExpireDuration,
+			Destination: &jwt.Config.TokenExpireDuration,
 		},
 		&cli.StringFlag{
 			Name:        "jwt-issuer",
-			Destination: &jwt.AuthJwtImpl.JwtIssuer,
+			Destination: &jwt.Config.JwtIssuer,
 		},
 
 		// generic

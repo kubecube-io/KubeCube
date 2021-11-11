@@ -59,8 +59,9 @@ func authenticate(c *gin.Context) {
 	}
 
 	// parse jwt
-	claims, errInfo := jwt.ParseToken(authReq.Spec.Token)
-	if errInfo != nil {
+	authJwtImpl := jwt.GetAuthJwtImpl()
+	userInfo, err := authJwtImpl.Authentication(authReq.Spec.Token)
+	if err != nil {
 		authResp.Status.Authenticated = false
 		clog.Error("jwt token invalid.")
 		c.JSON(http.StatusOK, authResp)
@@ -70,7 +71,7 @@ func authenticate(c *gin.Context) {
 
 	// set response
 	authResp.Status.Authenticated = true
-	authResp.Status.User = claims.UserInfo
+	authResp.Status.User = *userInfo
 
 	clog.Debug("auth success, response: %+v", authResp)
 

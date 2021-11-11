@@ -109,7 +109,7 @@ func Login(c *gin.Context) {
 	}
 
 	// generate token and return
-	authJwtImpl := jwt.AuthJwtImpl
+	authJwtImpl := jwt.GetAuthJwtImpl()
 	token, err := authJwtImpl.GenerateToken(&v1beta1.UserInfo{Username: name})
 	if err != nil {
 		response.FailReturn(c, errcode.AuthenticateError)
@@ -183,7 +183,7 @@ func GitHubLogin(c *gin.Context) {
 	}
 
 	// generate token and return
-	authJwtImpl := jwt.AuthJwtImpl
+	authJwtImpl := jwt.GetAuthJwtImpl()
 	token, errInfo := authJwtImpl.GenerateToken(&v1beta1.UserInfo{Username: userName})
 	bearerToken := jwt.BearerTokenPrefix + " " + token
 	if errInfo != nil {

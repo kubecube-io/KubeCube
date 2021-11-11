@@ -61,7 +61,7 @@ func withinWhiteList(url *url.URL, method string, whiteList map[string]string) b
 func Auth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if !withinWhiteList(c.Request.URL, c.Request.Method, whiteList) {
-			authJwtImpl := jwt.AuthJwtImpl
+			authJwtImpl := jwt.GetAuthJwtImpl()
 			if generic.Config.GenericAuthIsEnable {
 				h := generic.GetProvider()
 				user, err := h.Authenticate(c.Request.Header)
