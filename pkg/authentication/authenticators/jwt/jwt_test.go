@@ -25,11 +25,11 @@ import (
 func TestGenerateToken(t *testing.T) {
 
 	user1 := &v1beta1.UserInfo{Username: "test"}
-	token, err := AuthJwtImpl.GenerateToken(user1)
+	token, err := GetAuthJwtImpl().GenerateToken(user1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	userInfo, err := AuthJwtImpl.Authentication(token)
+	userInfo, err := GetAuthJwtImpl().Authentication(token)
 	if err != nil {
 		t.Fatal(err)
 
@@ -43,16 +43,16 @@ func TestGenerateToken(t *testing.T) {
 func TestRefreshToken(t *testing.T) {
 
 	user1 := &v1beta1.UserInfo{Username: "test"}
-	token, err := AuthJwtImpl.GenerateToken(user1)
+	token, err := GetAuthJwtImpl().GenerateToken(user1)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	newToken, err := AuthJwtImpl.RefreshToken(token)
+	newToken, err := GetAuthJwtImpl().RefreshToken(token)
 	if err != nil {
 		t.Fatal(err)
 	}
-	userInfo, err := AuthJwtImpl.Authentication(newToken)
+	userInfo, err := GetAuthJwtImpl().Authentication(newToken)
 	if err != nil {
 		t.Fatal(err)
 	}

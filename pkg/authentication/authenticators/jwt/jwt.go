@@ -29,16 +29,17 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/env"
 )
 
+const BearerTokenPrefix = "Bearer"
+
+var (
+	Config      authentication.JwtConfig
+	authJwtImpl AuthJwt
+)
+
 type AuthJwt struct {
 	JwtSecret           string
 	TokenExpireDuration int64
 	JwtIssuer           string
-}
-
-var AuthJwtImpl = AuthJwt{
-	JwtSecret:           env.JwtSecret(),
-	TokenExpireDuration: authentication.JwtConfig{}.TokenExpireDuration,
-	JwtIssuer:           authentication.JwtConfig{}.JwtIssuer,
 }
 
 type Claims struct {
@@ -46,7 +47,16 @@ type Claims struct {
 	jwt.StandardClaims
 }
 
-const BearerTokenPrefix = "Bearer"
+func GetAuthJwtImpl() *AuthJwt {
+	if authJwtImpl.JwtSecret != "" {
+		return &authJwtImpl
+	}
+	return &AuthJwt{
+		JwtSecret:           env.JwtSecret(),
+		TokenExpireDuration: Config.TokenExpireDuration,
+		JwtIssuer:           Config.JwtIssuer,
+	}
+}
 
 func (a *AuthJwt) GenerateToken(user *v1beta1.UserInfo) (string, error) {
 	return a.GenerateTokenWithExpired(user, constants.DefaultTokenExpireDuration)

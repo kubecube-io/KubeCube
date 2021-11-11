@@ -512,7 +512,7 @@ func GetKubeConfig(c *gin.Context) {
 
 	user := c.Query("user")
 
-	authJwtImpl := jwt.AuthJwtImpl
+	authJwtImpl := jwt.GetAuthJwtImpl()
 	token, errInfo := authJwtImpl.GenerateTokenWithExpired(&v1beta1.UserInfo{Username: user}, tokenExpiredTime)
 	if errInfo != nil {
 		response.FailReturn(c, errcode.AuthenticateError)

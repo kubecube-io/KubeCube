@@ -226,7 +226,7 @@ func GetTokenByKey(c *gin.Context) {
 	}
 
 	// gen token
-	authJwtImpl := jwt.AuthJwtImpl
+	authJwtImpl := jwt.GetAuthJwtImpl()
 	token, errInfo := authJwtImpl.GenerateToken(&v1beta1.UserInfo{Username: user.Name})
 	if errInfo != nil {
 		clog.Info("gen token fail, %v", errInfo)
