@@ -21,6 +21,8 @@ import (
 	"net/http/httptest"
 	"net/url"
 
+	"k8s.io/api/authentication/v1beta1"
+
 	"github.com/gin-gonic/gin"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -100,7 +102,7 @@ var _ = Describe("Key", func() {
 
 	})
 	It("test create", func() {
-		token, err := jwt.GenerateToken("test", 0)
+		token, err := jwt.GetAuthJwtImpl().GenerateToken(&v1beta1.UserInfo{Username: "test"})
 		Expect(err).To(BeNil())
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
@@ -118,7 +120,7 @@ var _ = Describe("Key", func() {
 		Expect(m["accessKey"]).NotTo(Equal(""))
 	})
 	It("test delete", func() {
-		token, err := jwt.GenerateToken("test", 0)
+		token, err := jwt.GetAuthJwtImpl().GenerateToken(&v1beta1.UserInfo{Username: "test"})
 		Expect(err).To(BeNil())
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
@@ -133,7 +135,7 @@ var _ = Describe("Key", func() {
 		Expect(w.Code).To(Equal(http.StatusOK))
 	})
 	It("test list", func() {
-		token, err := jwt.GenerateToken("test", 0)
+		token, err := jwt.GetAuthJwtImpl().GenerateToken(&v1beta1.UserInfo{Username: "test"})
 		Expect(err).To(BeNil())
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
@@ -149,7 +151,7 @@ var _ = Describe("Key", func() {
 		Expect(err2).To(BeNil())
 	})
 	It("test get token by key", func() {
-		token, err := jwt.GenerateToken("test", 0)
+		token, err := jwt.GetAuthJwtImpl().GenerateToken(&v1beta1.UserInfo{Username: "test"})
 		Expect(err).To(BeNil())
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
@@ -168,7 +170,7 @@ var _ = Describe("Key", func() {
 		Expect(m["token"]).NotTo(Equal(""))
 	})
 	It("test get token by wrong key", func() {
-		token, err := jwt.GenerateToken("test", 0)
+		token, err := jwt.GetAuthJwtImpl().GenerateToken(&v1beta1.UserInfo{Username: "test"})
 		Expect(err).To(BeNil())
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
