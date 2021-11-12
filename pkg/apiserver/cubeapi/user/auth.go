@@ -118,6 +118,7 @@ func Login(c *gin.Context) {
 	bearerToken := jwt.BearerTokenPrefix + " " + token
 	c.SetCookie(constants.AuthorizationHeader, bearerToken, int(authJwtImpl.TokenExpireDuration), "/", "", false, true)
 
+	user.Spec.Password = ""
 	response.SuccessReturn(c, user)
 	return
 }
