@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/kubecube-io/kubecube/pkg/scout"
-	"github.com/kubecube-io/kubecube/pkg/utils/transport"
 	"k8s.io/apimachinery/pkg/util/json"
 )
 
@@ -56,13 +55,7 @@ func (r *Reporter) do() bool {
 
 	url := fmt.Sprintf("https://%s%s", r.PivotCubeHost, "/api/v1/cube/scout/heartbeat")
 
-	c := &http.Client{
-		// todo: verify cert
-		Transport: transport.MakeTransport("", ""),
-		Timeout:   5 * time.Second,
-	}
-
-	resp, err := c.Post(url, "application/json", reader)
+	resp, err := r.Client.Post(url, "application/json", reader)
 	if err != nil {
 		log.Debug("post heartbeat to pivot cluster failed: %v", err)
 		return false
