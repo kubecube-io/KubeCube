@@ -18,9 +18,6 @@ package localmgr
 
 import (
 	"context"
-	"fmt"
-	"net/http"
-
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers"
@@ -62,6 +59,8 @@ type LocalManager struct {
 	WebhookServerPort int
 
 	ctrl.Manager
+
+	ready bool
 }
 
 func (m *LocalManager) Initialize() error {
@@ -102,23 +101,7 @@ func (m *LocalManager) Initialize() error {
 }
 
 func (m *LocalManager) readyzCheck() bool {
-	path := fmt.Sprintf("http://%s/readyz", healthProbeAddr)
-
-	resp, err := http.Get(path)
-	if err != nil {
-		log.Debug("local controller manager not ready: %v", err)
-		return false
-	}
-
-	_ = resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return false
-	}
-
-	log.Info("local controller manager ready")
-
-	return true
+	return m.ready
 }
 
 func (m *LocalManager) Run(stop <-chan struct{}) {
@@ -127,4 +110,7 @@ func (m *LocalManager) Run(stop <-chan struct{}) {
 	if err != nil {
 		log.Fatal("start local controller manager failed: %s", err)
 	}
+
+	// mark manager ready
+	m.ready = true
 }

@@ -18,7 +18,9 @@ package reporter
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/kubecube-io/kubecube/pkg/clog"
@@ -43,10 +45,21 @@ type Reporter struct {
 	WaitSecond int
 	// PivotHealthy the pivot cluster healthy status
 	PivotHealthy bool
+	// Client used to report heartbeat
+	*http.Client
 }
 
 func (r *Reporter) Initialize() error {
 	log = clog.WithName("reporter")
+
+	// todo:(vela) support tls
+	r.Client = &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+		Timeout: 5 * time.Second,
+	}
+
 	return nil
 }
 

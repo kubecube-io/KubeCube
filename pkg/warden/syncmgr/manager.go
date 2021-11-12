@@ -19,8 +19,6 @@ package syncmgr
 import (
 	"context"
 	"fmt"
-	"net/http"
-
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
 	"sigs.k8s.io/multi-tenancy/incubator/hnc/api/v1alpha2"
@@ -30,8 +28,6 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/clog"
 
 	"github.com/kubecube-io/kubecube/pkg/warden/reporter"
-	"sigs.k8s.io/controller-runtime/pkg/healthz"
-
 	//v1 "k8s.io/api/rbac/v1"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
@@ -46,8 +42,6 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"
 )
-
-const healthProbeAddr = "0.0.0.0:9777"
 
 var (
 	log clog.CubeLogger
@@ -70,6 +64,8 @@ type SyncManager struct {
 	ctrl.Manager
 	LocalClient            client.Client
 	PivotClusterKubeConfig string
+
+	ready bool
 }
 
 func (s *SyncManager) Initialize() error {
@@ -80,7 +76,7 @@ func (s *SyncManager) Initialize() error {
 		return fmt.Errorf("error building kubeconfig: %s", err.Error())
 	}
 
-	s.Manager, err = manager.New(cfg, ctrl.Options{Scheme: scheme, HealthProbeBindAddress: healthProbeAddr})
+	s.Manager, err = manager.New(cfg, ctrl.Options{Scheme: scheme})
 	if err != nil {
 		return fmt.Errorf("error new sync mgr: %s", err.Error())
 	}
@@ -100,34 +96,13 @@ func (s *SyncManager) Initialize() error {
 		}
 	}
 
-	err = s.Manager.AddReadyzCheck("readyz", healthz.Ping)
-	if err != nil {
-		return err
-	}
-
 	reporter.RegisterCheckFunc(s.readyzCheck)
 
 	return nil
 }
 
 func (s *SyncManager) readyzCheck() bool {
-	path := fmt.Sprintf("http://%s/readyz", healthProbeAddr)
-
-	resp, err := http.Get(path)
-	if err != nil {
-		log.Debug("sync manager not ready: %v", err)
-		return false
-	}
-
-	_ = resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return false
-	}
-
-	log.Info("sync manager ready")
-
-	return true
+	return s.ready
 }
 
 func (s *SyncManager) Run(stop <-chan struct{}) {
@@ -136,4 +111,7 @@ func (s *SyncManager) Run(stop <-chan struct{}) {
 	if err != nil {
 		log.Fatal("start sync manager failed: %s", err)
 	}
+
+	// mark sync manager ready
+	s.ready = true
 }

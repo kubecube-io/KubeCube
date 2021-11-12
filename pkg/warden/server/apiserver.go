@@ -19,12 +19,11 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/kubecube-io/kubecube/pkg/warden/server/authproxy"
 	"net/http"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/kubecube-io/kubecube/pkg/clog"
-	"github.com/kubecube-io/kubecube/pkg/utils/transport"
 	"github.com/kubecube-io/kubecube/pkg/warden/reporter"
 )
 
@@ -39,21 +38,22 @@ type Server struct {
 	Port      int
 	TlsCert   string
 	TlsKey    string
+
+	ready bool
 }
 
 func (s *Server) Initialize() error {
 	log = clog.WithName("apiserver")
 
-	r := gin.Default()
-
-	r.GET("healthz", healthCheck)
-
-	root := r.Group(apiPathRoot)
-	{
-		root.POST("authenticate", authenticate)
+	authProxyHandler, err := authproxy.NewHandler()
+	if err != nil {
+		return err
 	}
 
-	s.Server = &http.Server{Handler: r, Addr: fmt.Sprintf("%s:%d", s.BindAddr, s.Port)}
+	mux := http.NewServeMux()
+	mux.Handle("/", authProxyHandler)
+
+	s.Server = &http.Server{Handler: mux, Addr: fmt.Sprintf("%s:%d", s.BindAddr, s.Port)}
 
 	reporter.RegisterCheckFunc(s.readyzCheck)
 
@@ -70,6 +70,9 @@ func (s *Server) Run(stop <-chan struct{}) {
 
 	log.Info("warden server listen in %s:%d", s.BindAddr, s.Port)
 
+	// mark auth proxy server ready
+	s.ready = true
+
 	<-stop
 
 	log.Info("Shutting down warden server")
@@ -85,24 +88,5 @@ func (s *Server) Run(stop <-chan struct{}) {
 }
 
 func (s *Server) readyzCheck() bool {
-	// skip tls verify when inside call
-	c := &http.Client{Transport: transport.MakeTransport("", "")}
-
-	path := fmt.Sprintf("https://%s:%d/healthz", s.BindAddr, s.Port)
-
-	resp, err := c.Get(path)
-	if err != nil {
-		log.Debug("api server not ready: %v", err)
-		return false
-	}
-
-	_ = resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return false
-	}
-
-	log.Info("api server ready")
-
-	return true
+	return s.ready
 }
