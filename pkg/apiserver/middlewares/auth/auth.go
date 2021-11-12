@@ -86,8 +86,8 @@ func Auth() gin.HandlerFunc {
 					}
 				}
 			} else {
-				userToken := token.GetTokenFromReq(c)
-				if userToken == "" {
+				userToken, err := token.GetTokenFromReq(c.Request)
+				if err != nil {
 					response.FailReturn(c, errcode.AuthenticateError)
 					return
 				}

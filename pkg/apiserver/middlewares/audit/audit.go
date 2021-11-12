@@ -226,11 +226,11 @@ func getUserIdentity(c *gin.Context) *UserIdentity {
 		return userIdentity
 	}
 
-	user := token.GetUserFromReq(c)
-	if user == "" {
+	userInfo, err := token.GetUserFromReq(c.Request)
+	if err != nil {
 		return nil
 	}
-	userIdentity.AccountId = user
+	userIdentity.AccountId = userInfo.Username
 	return userIdentity
 }
 

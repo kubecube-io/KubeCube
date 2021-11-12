@@ -17,43 +17,53 @@ limitations under the License.
 package token
 
 import (
+	"fmt"
+	"net/http"
 	"strings"
 
-	"github.com/gin-gonic/gin"
+	"k8s.io/api/authentication/v1beta1"
 
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
-func GetTokenFromReq(c *gin.Context) string {
+func GetTokenFromReq(req *http.Request) (string, error) {
 	// get token from header
-	var bearerToken = c.Request.Header.Get(constants.AuthorizationHeader)
+	var bearerToken = req.Header.Get(constants.AuthorizationHeader)
 	if bearerToken == "" {
 		clog.Debug("get bearer token from header is empty")
 		// get token from cookie
-		bearerToken, _ = c.Cookie(constants.AuthorizationHeader)
+		cookie, err := req.Cookie(constants.AuthorizationHeader)
+		if err != nil {
+			clog.Error("err: %v", err.Error())
+			return "", err
+		}
+		bearerToken = cookie.Value
 		if bearerToken == "" {
 			clog.Warn("get bearer token from cookie is empty")
-			return ""
+			return "", nil
 		}
 	}
 
 	// parse bearer token
 	parts := strings.Split(bearerToken, " ")
 	if len(parts) < 2 || strings.ToLower(parts[0]) != strings.ToLower(jwt.BearerTokenPrefix) {
-		return ""
+		return "", fmt.Errorf("bearer token: %s format is wrong", bearerToken)
 	}
-	return parts[1]
+	return parts[1], nil
 }
 
-func GetUserFromReq(c *gin.Context) string {
-	token := GetTokenFromReq(c)
-	if token != "" {
-		userInfo, err := jwt.GetAuthJwtImpl().Authentication(token)
-		if err == nil {
-			return userInfo.Username
-		}
+func GetUserFromReq(req *http.Request) (*v1beta1.UserInfo, error) {
+	token, err := GetTokenFromReq(req)
+	if err != nil {
+		return nil, err
 	}
-	return ""
+
+	userInfo, err := jwt.GetAuthJwtImpl().Authentication(token)
+	if err != nil {
+		return nil, err
+	}
+
+	return userInfo, nil
 }

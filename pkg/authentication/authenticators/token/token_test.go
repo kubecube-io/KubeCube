@@ -18,11 +18,12 @@ package token
 
 import (
 	"bytes"
-	"github.com/gin-gonic/gin"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/gin-gonic/gin"
 )
 
 type header struct {
@@ -50,7 +51,7 @@ func TestGetTokenFromReq(t *testing.T) {
 	var token string
 	router := gin.New()
 	router.GET("/api/v1/cube/proxy/clusters/:cluster/apis/apps/v1/namespaces/:namespace/statefulsets/:name", func(c *gin.Context) {
-		token = GetTokenFromReq(c)
+		token, _ = GetTokenFromReq(c.Request)
 		return
 	})
 	_ = performRequest(router, http.MethodGet, "/api/v1/cube/proxy/clusters/pivot-cluster/apis/apps/v1/namespaces/dev/statefulsets/stsA", []byte(""), []header{{"Authorization", "Bearer abcde"}})

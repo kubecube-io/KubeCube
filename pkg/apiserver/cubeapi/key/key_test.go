@@ -21,12 +21,11 @@ import (
 	"net/http/httptest"
 	"net/url"
 
-	"k8s.io/api/authentication/v1beta1"
-
 	"github.com/gin-gonic/gin"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/api/authentication/v1beta1"
 	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
