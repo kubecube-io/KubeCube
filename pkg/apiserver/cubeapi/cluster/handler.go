@@ -481,7 +481,11 @@ func (h *handler) createNsAndQuota(c *gin.Context) {
 		return
 	}
 
-	user := token.GetUserFromReq(c)
+	userInfo, err := token.GetUserFromReq(c.Request)
+	if err != nil {
+		response.FailReturn(c, errcode.AuthenticateError)
+		return
+	}
 	cli := clients.Interface().Kubernetes(data.Cluster)
 	ctx := c.Request.Context()
 
@@ -504,7 +508,7 @@ func (h *handler) createNsAndQuota(c *gin.Context) {
 		retryInterval = 100 * time.Millisecond
 	)
 
-	_, clusterRoles, err := h.Interface.RolesFor(&userinfo.DefaultInfo{Name: user}, "")
+	_, clusterRoles, err := h.Interface.RolesFor(&userinfo.DefaultInfo{Name: userInfo.Username}, "")
 	if err != nil {
 		clog.Error(err.Error())
 		rollback()
@@ -554,7 +558,7 @@ func (h *handler) createNsAndQuota(c *gin.Context) {
 	}
 
 	clog.Debug("user %v create ns %v and resourceQuota %v in cluster %v success",
-		user, data.SubNamespaceAnchor.Name, data.ResourceQuota.Name, data.Cluster)
+		userInfo.Username, data.SubNamespaceAnchor.Name, data.ResourceQuota.Name, data.Cluster)
 
 	response.SuccessReturn(c, "success")
 }

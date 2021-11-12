@@ -56,8 +56,12 @@ func ExtendHandle(c *gin.Context) {
 		return
 	}
 	// access
-	userName := token.GetUserFromReq(c)
-	access := resources.NewSimpleAccess(cluster, userName, namespace)
+	userInfo, err := token.GetUserFromReq(c.Request)
+	if err != nil {
+		response.FailReturn(c, errcode.AuthenticateError)
+		return
+	}
+	access := resources.NewSimpleAccess(cluster, userInfo.Username, namespace)
 
 	switch resourceType {
 	case "deployments":
