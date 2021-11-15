@@ -112,18 +112,18 @@ func registerCubeAPI(cfg *Config) http.Handler {
 	return router
 }
 
-func NewAPIServerWithOpts(ops *Config) *APIServer {
-	router := registerCubeAPI(ops)
+func NewAPIServerWithOpts(opts *Config) *APIServer {
+	router := registerCubeAPI(opts)
 
 	s := &APIServer{
 		Server: &http.Server{
 			Handler: router,
-			Addr:    fmt.Sprintf("%s:%d", ops.BindAddr, ops.InsecurePort),
+			Addr:    fmt.Sprintf("%s:%d", opts.BindAddr, opts.InsecurePort),
 		},
-		Config: ops,
+		Config: opts,
 	}
 
-	if ops.SecurePort != 0 {
+	if opts.SecurePort != 0 {
 		s.Server.Addr = fmt.Sprintf("%s:%d", s.Config.BindAddr, s.Config.SecurePort)
 	}
 
