@@ -19,6 +19,7 @@ package apiserver
 import (
 	"context"
 	"fmt"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/middlewares"
 	"net/http"
 	"time"
 
@@ -33,7 +34,6 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/key"
 	resourcemanage "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/user"
-	"github.com/kubecube-io/kubecube/pkg/apiserver/middlewares"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	_ "github.com/kubecube-io/kubecube/pkg/utils/errcode"
@@ -56,7 +56,7 @@ type APIServer struct {
 // @version 1.0
 // @description This is KubeCube api documentation.
 // registerCubeAPI register apis for cube api server
-func registerCubeAPI() http.Handler {
+func registerCubeAPI(cfg *Config) http.Handler {
 	router := gin.New()
 	cubeApis := router.Group(constants.ApiPathRoot)
 
@@ -64,8 +64,12 @@ func registerCubeAPI() http.Handler {
 
 	scout.AddApisTo(cubeApis)
 	middlewares.SetUpMiddlewares(router)
-	cluster.AddApisTo(cubeApis)
-	authorization.AddApisTo(cubeApis)
+
+	// clusters apis handler
+	cluster.NewHandler().AddApisTo(cubeApis)
+
+	// authZ apis handler
+	authorization.NewHandler().AddApisTo(cubeApis)
 
 	router.POST(constants.ApiPathRoot+"/login", user.Login)
 	router.GET(constants.ApiPathRoot+"/oauth/redirect", user.GitHubLogin)
@@ -108,7 +112,7 @@ func registerCubeAPI() http.Handler {
 }
 
 func NewAPIServerWithOpts(ops *Config) *APIServer {
-	router := registerCubeAPI()
+	router := registerCubeAPI(ops)
 
 	s := &APIServer{
 		Server: &http.Server{

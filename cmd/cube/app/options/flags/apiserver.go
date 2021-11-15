@@ -49,5 +49,13 @@ func init() {
 			Name:        "tls-key",
 			Destination: &CubeOpts.APIServerOpts.TlsKey,
 		},
+		&cli.StringFlag{
+			Name:        "ca-cert",
+			Destination: &CubeOpts.APIServerOpts.CaCert,
+		},
+		&cli.StringFlag{
+			Name:        "ca-key",
+			Destination: &CubeOpts.APIServerOpts.CaKey,
+		},
 	}...)
 }
