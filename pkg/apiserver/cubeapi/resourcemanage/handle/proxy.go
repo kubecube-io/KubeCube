@@ -17,40 +17,25 @@ package resourcemanage
 
 import (
 	"context"
-	"crypto/tls"
-	"net"
-	"net/http"
-	"net/http/httputil"
-	"strconv"
-	"strings"
-	"time"
-
 	"github.com/gin-gonic/gin"
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
 	resources "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/ctls"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	kubeconfig "github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
 	"k8s.io/apimachinery/pkg/types"
+	"net/http"
+	"net/http/httputil"
+	"strconv"
+	"strings"
 )
 
-var ts = &http.Transport{
-	DialContext: (&net.Dialer{
-		Timeout:   30 * time.Second,
-		KeepAlive: 30 * time.Second,
-	}).DialContext,
-	ForceAttemptHTTP2:     true,
-	MaxIdleConns:          50,
-	IdleConnTimeout:       60 * time.Second,
-	TLSHandshakeTimeout:   10 * time.Second,
-	ExpectContinueTimeout: 1 * time.Second,
-	TLSClientConfig:       &tls.Config{InsecureSkipVerify: true},
-}
-
-// api/v1/cube/proxy/cluster/{cluster}/{k8s_url}
+// ProxyHandle proxy all request access to k8s, request uri format like below
+// api/v1/cube/proxy/clusters/{cluster}/{k8s_url}
 func ProxyHandle(c *gin.Context) {
 	// http request params
 	cluster := c.Param("cluster")
@@ -59,11 +44,19 @@ func ProxyHandle(c *gin.Context) {
 	isFilter := c.Query("isFilter")
 
 	// get cluster info by cluster name
-	host, _, _ := getClusterInfo(cluster)
+	host, certData, keyData, caData := getClusterInfo(cluster)
 	if host == "" {
 		response.FailReturn(c, errcode.ClusterNotFoundError(cluster))
 		return
 	}
+
+	ts, err := ctls.MakeMTlsTransportByPem(caData, certData, keyData)
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.InternalServerError)
+		return
+	}
+
 	// create director
 	director := func(req *http.Request) {
 		req.URL.Scheme = "https"
@@ -89,17 +82,17 @@ func ProxyHandle(c *gin.Context) {
 }
 
 // get cluster info by clusterName
-func getClusterInfo(clusterName string) (string, []byte, []byte) {
+func getClusterInfo(clusterName string) (string, []byte, []byte, []byte) {
 
 	client := clients.Interface().Kubernetes(constants.PivotCluster)
 	if client == nil {
-		return "", nil, nil
+		return "", nil, nil, nil
 	}
 	clusterInfo := clusterv1.Cluster{}
 	err := client.Cache().Get(context.Background(), types.NamespacedName{Name: clusterName}, &clusterInfo)
 	if err != nil {
 		clog.Info("the cluster %s is no exist: %v", clusterName, err)
-		return "", nil, nil
+		return "", nil, nil, nil
 	}
 
 	host := clusterInfo.Spec.KubernetesAPIEndpoint
@@ -109,10 +102,10 @@ func getClusterInfo(clusterName string) (string, []byte, []byte) {
 	config, err := kubeconfig.LoadKubeConfigFromBytes(clusterInfo.Spec.KubeConfig)
 	if err != nil {
 		clog.Info("the cluster %s parser kubeconfig fail: %v", clusterName, err)
-		return "", nil, nil
+		return "", nil, nil, nil
 	}
 
-	return host, config.CertData, config.KeyData
+	return host, config.CertData, config.KeyData, config.CAData
 }
 
 // product match/sort/page to other function

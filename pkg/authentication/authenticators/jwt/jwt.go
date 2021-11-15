@@ -112,10 +112,16 @@ func (a *AuthJwt) Authentication(token string) (user *v1beta1.UserInfo, err erro
 	return nil, fmt.Errorf("invaild token")
 }
 
-func (a *AuthJwt) RefreshToken(token string) (string, error) {
+func (a *AuthJwt) RefreshToken(token string) (*v1beta1.UserInfo, string, error) {
 	userInfo, err := a.Authentication(token)
 	if err != nil {
-		return "", fmt.Errorf("parse token error: %s", err)
+		return nil, "", fmt.Errorf("parse token error: %s", err)
 	}
-	return a.GenerateToken(userInfo)
+
+	newToken, err := a.GenerateToken(userInfo)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return userInfo, newToken, nil
 }

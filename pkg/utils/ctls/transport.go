@@ -21,7 +21,9 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
+	"time"
 )
 
 func MakeTlsTransportByFile(caFile string) (*http.Transport, error) {
@@ -76,5 +78,15 @@ func MakeMTlsTransport(caCert []byte, clientCert tls.Certificate) (*http.Transpo
 	return &http.Transport{TLSClientConfig: &tls.Config{
 		RootCAs:      pool,
 		Certificates: []tls.Certificate{clientCert},
-	}}, nil
+	},
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          50,
+		IdleConnTimeout:       60 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}, nil
 }

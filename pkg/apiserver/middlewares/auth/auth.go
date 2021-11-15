@@ -20,8 +20,6 @@ import (
 	"net/url"
 
 	"github.com/gin-gonic/gin"
-	"k8s.io/api/authentication/v1beta1"
-
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
 	"github.com/kubecube-io/kubecube/pkg/authentication/identityprovider/generic"
@@ -70,13 +68,14 @@ func Auth() gin.HandlerFunc {
 					response.FailReturn(c, errcode.AuthenticateError)
 					return
 				}
-				newToken, error := authJwtImpl.GenerateToken(&v1beta1.UserInfo{Username: user.GetUserName()})
-				if error != nil {
-					response.FailReturn(c, errcode.AuthenticateError)
-					return
-				}
-				b := jwt.BearerTokenPrefix + " " + newToken
-				c.Request.Header.Set(constants.AuthorizationHeader, b)
+				//newToken, error := authJwtImpl.GenerateToken(&v1beta1.UserInfo{Username: user.GetUserName()})
+				//if error != nil {
+				//	response.FailReturn(c, errcode.AuthenticateError)
+				//	return
+				//}
+				//b := jwt.BearerTokenPrefix + " " + newToken
+				//c.Request.Header.Set(constants.AuthorizationHeader, b)
+				c.Request.Header.Set(constants.ImpersonateUserKey, user.GetUserName())
 				for k, v := range user.GetRespHeader() {
 					if k == "Cookie" {
 						if len(v) > 1 {
@@ -92,7 +91,7 @@ func Auth() gin.HandlerFunc {
 					return
 				}
 
-				newToken, respInfo := authJwtImpl.RefreshToken(userToken)
+				user, newToken, respInfo := authJwtImpl.RefreshToken(userToken)
 				if respInfo != nil {
 					response.FailReturn(c, errcode.AuthenticateError)
 					return
@@ -100,7 +99,8 @@ func Auth() gin.HandlerFunc {
 
 				v := jwt.BearerTokenPrefix + " " + newToken
 
-				c.Request.Header.Set(constants.AuthorizationHeader, v)
+				//c.Request.Header.Set(constants.AuthorizationHeader, v)
+				c.Request.Header.Set(constants.ImpersonateUserKey, user.Username)
 				c.SetCookie(constants.AuthorizationHeader, v, int(authJwtImpl.TokenExpireDuration), "/", "", false, true)
 			}
 			c.Next()

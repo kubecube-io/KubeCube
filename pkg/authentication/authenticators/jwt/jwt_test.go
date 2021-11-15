@@ -48,7 +48,7 @@ func TestRefreshToken(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	newToken, err := GetAuthJwtImpl().RefreshToken(token)
+	_, newToken, err := GetAuthJwtImpl().RefreshToken(token)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -3,27 +3,21 @@ package authproxy
 import (
 	"context"
 	"fmt"
-	"github.com/kubecube-io/kubecube/pkg/clog"
-	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"time"
 
 	v1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators"
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
+	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/ctls"
 	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
 	"github.com/kubecube-io/kubecube/pkg/warden/utils"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
-)
-
-const (
-	impersonateUserKey  = "Impersonate-User"
-	impersonateGroupKey = "Impersonate-Group"
 )
 
 // Handler forwards all the requests to specified k8s-apiserver
@@ -67,16 +61,6 @@ func NewHandler() (*Handler, error) {
 		return nil, err
 	}
 
-	ts.DialContext = (&net.Dialer{
-		Timeout:   30 * time.Second,
-		KeepAlive: 30 * time.Second,
-	}).DialContext
-	ts.ForceAttemptHTTP2 = true
-	ts.MaxIdleConns = 50
-	ts.IdleConnTimeout = 60 * time.Second
-	ts.TLSHandshakeTimeout = 10 * time.Second
-	ts.ExpectContinueTimeout = 1 * time.Second
-
 	proxy := httputil.NewSingleHostReverseProxy(target)
 	proxy.Transport = ts
 
@@ -97,7 +81,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	clog.Debug("user(%v) access to %v with verb(%v)", user.Username, r.Method)
 
 	// impersonate given user to access k8s-apiserver
-	r.Header.Set(impersonateUserKey, user.Username)
+	r.Header.Set(constants.ImpersonateUserKey, user.Username)
 
 	h.proxy.ServeHTTP(w, r)
 }
