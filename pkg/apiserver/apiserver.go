@@ -19,7 +19,6 @@ package apiserver
 import (
 	"context"
 	"fmt"
-	"github.com/kubecube-io/kubecube/pkg/apiserver/middlewares"
 	"net/http"
 	"time"
 
@@ -27,6 +26,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/cluster"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/scout"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/yamldeploy"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/middlewares"
 
 	_ "github.com/kubecube-io/kubecube/docs"
 	_ "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
