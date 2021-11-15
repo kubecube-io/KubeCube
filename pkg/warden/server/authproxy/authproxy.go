@@ -1,18 +1,24 @@
 package authproxy
 
 import (
+	"context"
+	"fmt"
+	"github.com/kubecube-io/kubecube/pkg/clog"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"time"
 
+	v1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators"
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
+	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
 	"github.com/kubecube-io/kubecube/pkg/utils/ctls"
-	"k8s.io/api/authentication/v1beta1"
+	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
+	"github.com/kubecube-io/kubecube/pkg/warden/utils"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
-	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 const (
@@ -35,21 +41,28 @@ type Handler struct {
 
 func NewHandler() (*Handler, error) {
 	h := &Handler{}
-	h.authMgr = &jwt.AuthJwtImpl{}
+	h.authMgr = jwt.GetAuthJwtImpl()
 
 	// get cluster info from rest config
-	cfg, err := ctrl.GetConfig()
+	cluster := v1.Cluster{}
+	err := utils.PivotClient.Get(context.Background(), types.NamespacedName{Name: utils.Cluster}, &cluster)
 	if err != nil {
 		return nil, err
 	}
 
-	target, err := url.Parse(cfg.Host)
+	restConfig, err := kubeconfig.LoadKubeConfigFromBytes(cluster.Spec.KubeConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	target, err := url.Parse(restConfig.Host)
 	if err != nil {
 		return nil, err
 	}
 
 	// k8s-apiserver needs extract user info from client cert
-	ts, err := ctls.MakeMTlsTransportByPem(cfg.CAData, cfg.CertData, cfg.KeyData)
+	// we use admin cert to access k8s-apiserver
+	ts, err := ctls.MakeMTlsTransportByPem(restConfig.CAData, restConfig.CertData, restConfig.KeyData)
 	if err != nil {
 		return nil, err
 	}
@@ -73,11 +86,15 @@ func NewHandler() (*Handler, error) {
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	//_, err := token.GetUserFromReq(r)
-	//if err != nil {
-	//}
+	// parse token transfer to user info
+	user, err := token.GetUserFromReq(r)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		fmt.Fprintf(w, "token invalid: %v", err)
+		return
+	}
 
-	var user v1beta1.UserInfo
+	clog.Debug("user(%v) access to %v with verb(%v)", user.Username, r.Method)
 
 	// impersonate given user to access k8s-apiserver
 	r.Header.Set(impersonateUserKey, user.Username)

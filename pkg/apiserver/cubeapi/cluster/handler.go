@@ -51,8 +51,7 @@ import (
 
 const subPath = "clusters"
 
-func AddApisTo(root *gin.RouterGroup) {
-	h := newHandler()
+func (h *handler) AddApisTo(root *gin.RouterGroup) {
 	r := root.Group(subPath)
 	r.GET("info", h.getClusterInfo)
 	r.GET("/:cluster/monitor", h.getClusterMonitorInfo)
@@ -99,7 +98,7 @@ type handler struct {
 	kubernetes.Client
 }
 
-func newHandler() *handler {
+func NewHandler() *handler {
 	h := new(handler)
 	h.Interface = rbac.NewDefaultResolver(constants.PivotCluster)
 	h.Client = clients.Interface().Kubernetes(constants.PivotCluster)

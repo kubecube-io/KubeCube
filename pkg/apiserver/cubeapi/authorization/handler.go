@@ -42,8 +42,7 @@ import (
 
 const subPath = "authorization"
 
-func AddApisTo(root *gin.RouterGroup) {
-	h := newHandler()
+func (h *handler) AddApisTo(root *gin.RouterGroup) {
 	r := root.Group(subPath)
 	r.GET("roles", h.getRolesByUser)
 	r.GET("clusterroles", h.getClusterRolesByLevel)
@@ -66,7 +65,7 @@ type handler struct {
 	kubernetes.Client
 }
 
-func newHandler() *handler {
+func NewHandler() *handler {
 	h := new(handler)
 	h.Interface = rbac.NewDefaultResolver(constants.PivotCluster)
 	h.Client = clients.Interface().Kubernetes(constants.PivotCluster)
