@@ -87,8 +87,10 @@ func BuildKubeConfigForUser(cms []*ConfigMeta) ([]byte, error) {
 		context := authInfo + "@" + cluster
 
 		apiConfig.Clusters[cluster] = &api.Cluster{
-			Server:                   cm.Config.Host,
-			CertificateAuthorityData: cm.Config.CAData,
+			Server: cm.Config.Host,
+			// todo: set cube ca to access auth proxy server
+			//CertificateAuthorityData: cm.Config.CAData,
+			InsecureSkipTLSVerify: true,
 		}
 
 		apiConfig.AuthInfos[authInfo] = &api.AuthInfo{

@@ -43,6 +43,9 @@ const (
 	HttpHeaderContentType        = "Content-type"
 	HttpHeaderContentDisposition = "Content-Disposition"
 	HttpHeaderContentTypeOctet   = "application/octet-stream"
+
+	ImpersonateUserKey  = "Impersonate-User"
+	ImpersonateGroupKey = "Impersonate-Group"
 )
 
 // audit and user constant

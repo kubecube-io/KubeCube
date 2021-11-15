@@ -19,12 +19,9 @@ package user
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -521,30 +518,6 @@ func GetKubeConfig(c *gin.Context) {
 		response.FailReturn(c, errcode.AuthenticateError)
 	}
 
-	// todo: pass ca cert by args as soon as user apis rewrite
-	cli := clients.Interface().Kubernetes(constants.PivotCluster)
-	if cli == nil {
-		response.FailReturn(c, errcode.InternalServerError)
-		return
-	}
-
-	kubeConfigSecret := corev1.Secret{}
-	key := types.NamespacedName{Name: "cube-tls-secret", Namespace: constants.CubeNamespace}
-
-	err := cli.Cache().Get(context.Background(), key, &kubeConfigSecret)
-	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.InternalServerError)
-		return
-	}
-
-	caCert, ok := kubeConfigSecret.Data["ca.crt"]
-	if !ok {
-		clog.Error("cloud not found ca cert in cube-tls=secret")
-		response.FailReturn(c, errcode.InternalServerError)
-		return
-	}
-
 	clusters := multicluster.Interface().FuzzyCopy()
 	cms := make([]*kubeconfig.ConfigMeta, 0, len(clusters))
 
@@ -558,8 +531,6 @@ func GetKubeConfig(c *gin.Context) {
 		// set auth proxy server address
 		// todo: make port settable
 		cm.Config.Host = strings.Replace(cm.Config.Host, "6443", "31443", 1)
-		// set cube ca to access auth proxy server
-		cm.Config.CAData = caCert
 		cms = append(cms, cm)
 	}
 

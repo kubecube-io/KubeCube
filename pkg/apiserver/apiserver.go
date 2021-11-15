@@ -60,9 +60,10 @@ func registerCubeAPI(cfg *Config) http.Handler {
 	router := gin.New()
 	cubeApis := router.Group(constants.ApiPathRoot)
 
-	router.GET(constants.ApiPathRoot+"/extend/configmap/:configmap", resourcemanage.GetConfigMap)
+	// register apis do not need middlewares
+	apisOutsideMiddlewares(cubeApis)
 
-	scout.AddApisTo(cubeApis)
+	// set middlewares for apis below
 	middlewares.SetUpMiddlewares(router)
 
 	// clusters apis handler
@@ -144,6 +145,12 @@ func withSimpleServer(s *APIServer) *APIServer {
 	}
 
 	return s
+}
+
+func apisOutsideMiddlewares(root *gin.RouterGroup) {
+	scout.AddApisTo(root)
+
+	root.GET("/extend/configmap/:configmap", resourcemanage.GetConfigMap)
 }
 
 func (s *APIServer) Initialize() error {

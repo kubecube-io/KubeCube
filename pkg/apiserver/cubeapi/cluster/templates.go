@@ -33,56 +33,6 @@ else
   tar -xzvf manifests.tar.gz > /dev/null
 fi
 
-function prev_confirm() {
-  echo -e "\033[32m================================================================================================\033[0m"
-  echo -e "\033[32m IMPORTANT !!!                                                                                  \033[0m"
-  echo -e "\033[32m You must change the args of k8s api-server before installing kubecube, steps below:            \033[0m"
-  echo -e "\033[32m 1. find the manifests folder contains kube-apiserver.yaml                                      \033[0m"
-  echo -e "\033[32m    generally in /etc/kubernetes/manifests of master node.                                      \033[0m"
-  echo -e "\033[32m 2. add patches as below:                                                                       \033[0m"
-  echo -e "\033[32m================================================================================================\033[0m"
-  echo -e "\033[32m spec:                                                                                          \033[0m"
-  echo -e "\033[32m   containers:                                                                                  \033[0m"
-  echo -e "\033[32m     - command:                                                                                 \033[0m"
-  echo -e "\033[32m         - kube-apiserver                                                                       \033[0m"
-  echo -e "\033[32m         - --audit-webhook-config-file=/etc/cube/audit/audit-webhook.config                     \033[0m"
-  echo -e "\033[32m         - --audit-policy-file=/etc/cube/audit/audit-policy.yaml                                \033[0m"
-  echo -e "\033[32m         - --authentication-token-webhook-config-file=/etc/cube/warden/webhook.config           \033[0m"
-  echo -e "\033[32m         - --audit-log-format=json                                                              \033[0m"
-  echo -e "\033[32m         - --audit-log-maxage=10                                                                \033[0m"
-  echo -e "\033[32m         - --audit-log-maxbackup=10                                                             \033[0m"
-  echo -e "\033[32m         - --audit-log-maxsize=100                                                              \033[0m"
-  echo -e "\033[32m         - --audit-log-path=/var/log/audit                                                      \033[0m"
-  echo -e "\033[32m       volumeMounts:                                                                            \033[0m"
-  echo -e "\033[32m       - mountPath: /var/log/audit                                                              \033[0m"
-  echo -e "\033[32m         name: audit-log                                                                        \033[0m"
-  echo -e "\033[32m       - mountPath: /etc/cube                                                                   \033[0m"
-  echo -e "\033[32m         name: cube                                                                             \033[0m"
-  echo -e "\033[32m         readOnly: true                                                                         \033[0m"
-  echo -e "\033[32m   volumes:                                                                                     \033[0m"
-  echo -e "\033[32m     - hostPath:                                                                                 \033[0m"
-  echo -e "\033[32m         path: /var/log/audit                                                                   \033[0m"
-  echo -e "\033[32m         type: DirectoryOrCreate                                                                \033[0m"
-  echo -e "\033[32m       name: audit-log                                                                          \033[0m"
-  echo -e "\033[32m     - hostPath:                                                                                 \033[0m"
-  echo -e "\033[32m         path: /etc/cube                                                                        \033[0m"
-  echo -e "\033[32m         type: DirectoryOrCreate                                                                \033[0m"
-  echo -e "\033[32m       name: cube                                                                               \033[0m"
-  echo -e "\033[32m================================================================================================\033[0m"
-  echo -e "\033[32m Please enter 'exit' to modify args of k8s api-server \033[0m"
-  echo -e "\033[32m After modify is done, please redo script and enter 'confirm' to continue \033[0m"
-  while read confirm
-  do
-    if [[ ${confirm} = "confirm" ]]; then
-      break
-    elif [[ ${confirm} = "exit" ]]; then
-      exit 1
-    else
-      continue
-    fi
-  done
-}
-
 function install_dependence() {
   echo -e "\033[32m================================================\033[0m"
   echo -e "\033[32m deploy hnc-manager, and wait for ready...\033[0m"
@@ -108,12 +58,6 @@ function install_dependence() {
   echo -e "\033[32m deploy nginx ingress controller...\033[0m"
   kubectl apply -f manifests/ingress-controller/ingress-controller.yaml
 }
-
-prev_confirm
-
-echo -e "\033[32m================================================\033[0m"
-echo -e "\033[32m wait for api-server restart...\033[0m"
-kubectl wait --for=condition=Ready --timeout=300s pods --all --namespace kube-system
 
 if [ $(kubectl get nodes | wc -l) -eq 2 ]
 then
