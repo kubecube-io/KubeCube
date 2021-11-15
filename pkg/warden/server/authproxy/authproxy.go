@@ -94,7 +94,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clog.Debug("user(%v) access to %v with verb(%v)", user.Username, r.Method)
+	// todo: do audit log here
+	clog.Debug("user(%v) access to %v with verb(%v)", user.Username, r.URL.Path, r.Method)
 
 	// impersonate given user to access k8s-apiserver
 	r.Header.Set(constants.ImpersonateUserKey, user.Username)
