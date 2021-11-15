@@ -32,6 +32,14 @@ else
 
   tar -xzvf manifests.tar.gz > /dev/null
 fi
+	
+function init_etcd_secret (){
+  kubectl create namespace kubecube-monitoring --dry-run=client -o yaml | kubectl apply -f -
+  kubectl create secret generic etcd-certs -n kubecube-monitoring --dry-run=client -o yaml \
+  --from-file=ca.crt=/etc/kubernetes/pki/ca.crt \
+  --from-file=client.crt=/etc/kubernetes/pki/apiserver-etcd-client.crt \
+  --from-file=client.key=/etc/kubernetes/pki/apiserver-etcd-client.key | kubectl apply -f -
+}	
 
 function install_dependence() {
   echo -e "\033[32m================================================\033[0m"
@@ -67,6 +75,7 @@ then
 fi
 
 install_dependence
+init_etcd_secret
 
 curl -k -H "Content-type: application/json" -X POST https://{{ .KubeCubeHost }}:30443/api/v1/cube/clusters/register -d '{"apiVersion":"cluster.kubecube.io/v1","kind":"Cluster","metadata":{"name":"{{ .ClusterName }}"},"spec":{"kubernetesAPIEndpoint":"{{ .K8sEndpoint }}","networkType":"{{ .NetworkType }}","isMemberCluster":true,"description":"{{ .Description }}","kubeconfig":"{{ .KubeConfig }}"}}' > /dev/null
 if [[ $? = 0 ]]; then
