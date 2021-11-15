@@ -34,7 +34,7 @@ import (
 	"strings"
 )
 
-// ProxyHandle proxy all request access to k8s, request uri format like below
+// ProxyHandle proxy all requests access to k8s, request uri format like below
 // api/v1/cube/proxy/clusters/{cluster}/{k8s_url}
 func ProxyHandle(c *gin.Context) {
 	// http request params

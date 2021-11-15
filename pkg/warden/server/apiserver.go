@@ -19,12 +19,12 @@ package server
 import (
 	"context"
 	"fmt"
-	"github.com/kubecube-io/kubecube/pkg/warden/server/authproxy"
 	"net/http"
 	"time"
 
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/warden/reporter"
+	"github.com/kubecube-io/kubecube/pkg/warden/server/authproxy"
 )
 
 var log clog.CubeLogger
