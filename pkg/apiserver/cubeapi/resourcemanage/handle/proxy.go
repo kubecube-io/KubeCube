@@ -13,25 +13,28 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package resourcemanage
 
 import (
 	"context"
+	"net/http"
+	"net/http/httputil"
+	"strconv"
+	"strings"
+
 	"github.com/gin-gonic/gin"
+	"k8s.io/apimachinery/pkg/types"
+
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
-	resources "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/ctls"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
-	kubeconfig "github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
+	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
-	"k8s.io/apimachinery/pkg/types"
-	"net/http"
-	"net/http/httputil"
-	"strconv"
-	"strings"
 )
 
 // ProxyHandle proxy all requests access to k8s, request uri format like below
