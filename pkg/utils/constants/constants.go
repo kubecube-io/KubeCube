@@ -110,6 +110,12 @@ const (
 	// CrdLabel indicates the crds kubecube need to dispatch
 	CrdLabel = "kubecube.io/crds"
 
-	// SyncLabel use for sync logic of warden
-	SyncLabel = "kubecube.io/sync"
+	// SyncAnnotation use for sync logic of warden
+	SyncAnnotation = "kubecube.io/sync"
+)
+
+// hnc related conest
+const (
+	// HncInherited means resource is inherited form upon namespace by hnc
+	HncInherited = "hnc.x-k8s.io/inherited-from"
 )

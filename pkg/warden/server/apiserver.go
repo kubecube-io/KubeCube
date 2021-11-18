@@ -43,17 +43,7 @@ type Server struct {
 }
 
 func (s *Server) Initialize() error {
-	log = clog.WithName("apiserver")
-
-	authProxyHandler, err := authproxy.NewHandler()
-	if err != nil {
-		return err
-	}
-
-	mux := http.NewServeMux()
-	mux.Handle("/", authProxyHandler)
-
-	s.Server = &http.Server{Handler: mux, Addr: fmt.Sprintf("%s:%d", s.BindAddr, s.Port)}
+	log = clog.WithName("authproxy")
 
 	reporter.RegisterCheckFunc(s.readyzCheck)
 
@@ -61,30 +51,40 @@ func (s *Server) Initialize() error {
 }
 
 func (s *Server) Run(stop <-chan struct{}) {
+	authProxyHandler, err := authproxy.NewHandler()
+	if err != nil {
+		log.Fatal("new auth proxy handler failed: %v", err)
+	}
+
+	mux := http.NewServeMux()
+	mux.Handle("/", authProxyHandler)
+
+	s.Server = &http.Server{Handler: mux, Addr: fmt.Sprintf("%s:%d", s.BindAddr, s.Port)}
+
 	go func() {
 		err := s.Server.ListenAndServeTLS(s.TlsCert, s.TlsKey)
 		if err != nil {
-			log.Fatal("warden server start err: %v", err)
+			log.Fatal("auth proxy server start err: %v", err)
 		}
 	}()
 
-	log.Info("warden server listen in %s:%d", s.BindAddr, s.Port)
+	log.Info("auth proxy server listen in %s:%d", s.BindAddr, s.Port)
 
 	// mark auth proxy server ready
 	s.ready = true
 
 	<-stop
 
-	log.Info("Shutting down warden server")
+	log.Info("Shutting down auth proxy server")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	if err := s.Server.Shutdown(ctx); err != nil {
-		log.Fatal("server forced to shutdown:", err)
+		log.Fatal("auth proxy server forced to shutdown:", err)
 	}
 
-	log.Info("server exiting")
+	log.Info("auth proxy server exiting")
 }
 
 func (s *Server) readyzCheck() bool {

@@ -27,6 +27,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
+	"k8s.io/api/authentication/v1beta1"
 )
 
 const (
@@ -64,17 +65,18 @@ func Auth() gin.HandlerFunc {
 				h := generic.GetProvider()
 				user, err := h.Authenticate(c.Request.Header)
 				if err != nil || user == nil {
-					clog.Error("generic auth error: %v", err)
+					clog.Warn("generic auth error: %v", err)
 					response.FailReturn(c, errcode.AuthenticateError)
 					return
 				}
-				//newToken, error := authJwtImpl.GenerateToken(&v1beta1.UserInfo{Username: user.GetUserName()})
-				//if error != nil {
-				//	response.FailReturn(c, errcode.AuthenticateError)
-				//	return
-				//}
-				//b := jwt.BearerTokenPrefix + " " + newToken
-				//c.Request.Header.Set(constants.AuthorizationHeader, b)
+				newToken, err := authJwtImpl.GenerateToken(&v1beta1.UserInfo{Username: user.GetUserName()})
+				if err != nil {
+					clog.Warn(err.Error())
+					response.FailReturn(c, errcode.AuthenticateError)
+					return
+				}
+				b := jwt.BearerTokenPrefix + " " + newToken
+				c.Request.Header.Set(constants.AuthorizationHeader, b)
 				c.Request.Header.Set(constants.ImpersonateUserKey, user.GetUserName())
 				for k, v := range user.GetRespHeader() {
 					if k == "Cookie" {
@@ -87,19 +89,21 @@ func Auth() gin.HandlerFunc {
 			} else {
 				userToken, err := token.GetTokenFromReq(c.Request)
 				if err != nil {
+					clog.Warn(err.Error())
 					response.FailReturn(c, errcode.AuthenticateError)
 					return
 				}
 
-				user, newToken, respInfo := authJwtImpl.RefreshToken(userToken)
-				if respInfo != nil {
+				user, newToken, err := authJwtImpl.RefreshToken(userToken)
+				if err != nil {
+					clog.Warn(err.Error())
 					response.FailReturn(c, errcode.AuthenticateError)
 					return
 				}
 
 				v := jwt.BearerTokenPrefix + " " + newToken
 
-				//c.Request.Header.Set(constants.AuthorizationHeader, v)
+				c.Request.Header.Set(constants.AuthorizationHeader, v)
 				c.Request.Header.Set(constants.ImpersonateUserKey, user.Username)
 				c.SetCookie(constants.AuthorizationHeader, v, int(authJwtImpl.TokenExpireDuration), "/", "", false, true)
 			}

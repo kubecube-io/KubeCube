@@ -105,7 +105,8 @@ func (w Warden) Initialize() error {
 
 func (w *Warden) Run(stop <-chan struct{}) {
 	if w.SyncCtrl != nil {
-		go w.SyncCtrl.Run(stop)
+		// wait for cache synced
+		w.SyncCtrl.Run(stop)
 	}
 
 	go w.LocalCtrl.Run(stop)

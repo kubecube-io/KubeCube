@@ -162,6 +162,7 @@ func (r *ClusterReconciler) syncCluster(ctx context.Context, currentCluster clus
 	// deploy resources to cluster
 	err := deployResources(ctx, currentCluster, r.pivotCluster)
 	if err != nil {
+		// todo: handle error
 		log.Error("deploy resource failed: %v", err)
 	}
 

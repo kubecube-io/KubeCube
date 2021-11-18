@@ -40,10 +40,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const subPath = "authorization"
+const subPath = "/authorization"
 
-func (h *handler) AddApisTo(root *gin.RouterGroup) {
-	r := root.Group(subPath)
+func (h *handler) AddApisTo(root *gin.Engine) {
+	r := root.Group(constants.ApiPathRoot + subPath)
 	r.GET("roles", h.getRolesByUser)
 	r.GET("clusterroles", h.getClusterRolesByLevel)
 	r.GET("users", h.getUsersByRole)
@@ -288,7 +288,7 @@ func (h *handler) createBinds(c *gin.Context) {
 
 	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
 		ObjectMeta: v1.ObjectMeta{
-			Annotations: map[string]string{constants.SyncLabel: "true"},
+			Annotations: map[string]string{constants.SyncAnnotation: "true"},
 			Name:        "gen-" + roleBinding.Name,
 		},
 		Subjects: []rbacv1.Subject{{
