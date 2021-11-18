@@ -20,6 +20,7 @@ import (
 	"context"
 	"strconv"
 
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -36,9 +37,6 @@ const (
 
 	// pivot resource version key for compare with local resource
 	pivotResourceVersion = "pivotResourceVersion"
-
-	// syncAnnotation specified resource need sync
-	syncAnnotation = "kubecube.io/sync"
 )
 
 /*
@@ -63,7 +61,7 @@ func (s *SyncManager) setupCtrlWithManager(resource client.Object) error {
 
 		// record sync log
 		defer func() {
-			log.Info("sync: %s obj, name: %v, namespace: %v, err: %v", action, obj.GetName(), obj.GetNamespace(), err)
+			log.Info("sync: %s %v, name: %v, namespace: %v, err: %v", action, obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), obj.GetNamespace(), err)
 		}()
 
 		if err = pivotClient.Get(ctx, req.NamespacedName, obj); err != nil {
@@ -93,7 +91,7 @@ func (s *SyncManager) setupCtrlWithManager(resource client.Object) error {
 				action = Create
 				err = localClient.Create(ctx, obj, &client.CreateOptions{})
 				if err != nil {
-					return reconcile.Result{}, err
+					return reconcile.Result{Requeue: true}, err
 				}
 				return reconcile.Result{}, nil
 			}
@@ -145,13 +143,18 @@ func trimObjMeta(obj client.Object) {
 
 // isSyncResource determined if sync that event
 func isSyncResource(obj client.Object) bool {
-	if v, ok := obj.GetAnnotations()[syncAnnotation]; ok {
+	// resource inherited by hnc do not need sync
+	if _, ok := obj.GetLabels()[constants.HncInherited]; ok {
+		return false
+	}
+
+	if v, ok := obj.GetAnnotations()[constants.SyncAnnotation]; ok {
 		b, err := strconv.ParseBool(v)
 		if b && err == nil {
 			return true
 		}
 		if err != nil {
-			log.Error("value format of annotation %v failed: %v, got value: %v%", syncAnnotation, err, v)
+			log.Error("value format of annotation %v failed: %v, got value: %v%", constants.SyncAnnotation, err, v)
 		}
 	}
 

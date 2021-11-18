@@ -23,6 +23,7 @@ import (
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
 	v1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -65,29 +66,6 @@ func deployResources(ctx context.Context, memberCluster, pivotCluster clusterv1.
 			return err
 		}
 
-		// create tlsSecret to member cluster
-		secret := makeTLSSecret()
-		err = createResource(ctx, secret, c, memberCluster.Name, "secret")
-		if err != nil {
-			return err
-		}
-
-		// create crds to member cluster
-		crds := makeCRDs()
-		for _, crd := range crds {
-			err := createResource(ctx, crd, c, memberCluster.Name, "crd")
-			if err != nil {
-				return err
-			}
-		}
-
-		// create kubeConfig cm to member cluster
-		cm := makeKubeConfigCM(pivotCluster)
-		err = createResource(ctx, cm, c, memberCluster.Name, "configmap")
-		if err != nil {
-			return err
-		}
-
 		clusterRole := makeClusterRole()
 		err = createResource(ctx, clusterRole, c, memberCluster.Name, "ClusterRole")
 		if err != nil {
@@ -99,29 +77,59 @@ func deployResources(ctx context.Context, memberCluster, pivotCluster clusterv1.
 		if err != nil {
 			return err
 		}
+
+		// install dependence into target cluster by job
+		prevJob := makePrevJob()
+		err = createResource(ctx, prevJob, c, memberCluster.Name, "job")
+		if err != nil {
+			return err
+		}
+
+		// wait until job complete
+		err = waitForJobComplete(c, types.NamespacedName{Name: prevJob.Name, Namespace: prevJob.Namespace})
+		if err != nil {
+			return err
+		}
+
+		// create tls secret to target cluster
+		secret := makeTLSSecret()
+		err = createResource(ctx, secret, c, memberCluster.Name, "secret")
+		if err != nil {
+			return err
+		}
+
+		// create crds to target cluster
+		crds := makeCRDs()
+		for _, crd := range crds {
+			err := createResource(ctx, crd, c, memberCluster.Name, "crd")
+			if err != nil {
+				return err
+			}
+		}
+
+		// create kubeConfig cm to target cluster
+		cm := makeKubeConfigCM(pivotCluster)
+		err = createResource(ctx, cm, c, memberCluster.Name, "configmap")
+		if err != nil {
+			return err
+		}
 	}
 
-	// create warden deployment to member cluster
+	// create warden deployment to target cluster
 	deployment := makeDeployment(memberCluster.Name, isMemberCluster)
 	err := createResource(ctx, deployment, c, memberCluster.Name, "deployment")
 	if err != nil {
 		return err
 	}
 
-	// create service to warden
-	svc := makeClusterIpSvc()
-	err = createResource(ctx, svc, c, memberCluster.Name, "service")
-	if err != nil {
-		return err
-	}
-
-	npSvc := makeNodePortSvc()
+	// create warden service to target cluster
+	npSvc := makeWardenSvc()
 	err = createResource(ctx, npSvc, c, memberCluster.Name, "service")
 	if err != nil {
 		clog.Warn("NodePort service %v already exist: %v", npSvc.Name, err)
 	}
 
-	// create validate webhook to member cluster
+	// create validate webhook to target cluster
 	wh := makeWardenWebhook()
 	err = createResource(ctx, wh, c, memberCluster.Name, "validateWebhookConfiguration")
 	if err != nil {
@@ -287,45 +295,86 @@ func makeKubeConfigCM(pivotCluster clusterv1.Cluster) *corev1.ConfigMap {
 	return cm
 }
 
-// makeClusterIpSvc make service to be used for auth
-func makeClusterIpSvc() *corev1.Service {
-	label := map[string]string{
-		appKey: constants.Warden,
-	}
+// makePrevJob make prev job that used to install dependence into target cluster
+func makePrevJob() *batchv1.Job {
+	const (
+		masterMark = "node-role.kubernetes.io/master"
+		existsOp   = "Exists"
+		mountPki   = "/etc/kubernetes/pki"
+		mountName  = "pki-mount"
+	)
 
-	s := &corev1.Service{
+	directoryType := corev1.HostPathDirectory
+
+	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      constants.Warden,
+			Name:      "install-dependence",
 			Namespace: constants.CubeNamespace,
-			Labels:    label,
 		},
-		Spec: corev1.ServiceSpec{
-			Selector: label,
-			Type:     corev1.ServiceTypeClusterIP,
-			Ports: []corev1.ServicePort{
-				{
-					Name: "https",
-					Port: 7443,
-				},
-				{
-					Name: "webhook",
-					Port: 8443,
+		Spec: batchv1.JobSpec{
+			BackoffLimit: int32Ptr(4),
+			Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "install-dependence",
+							Image: env.DependenceJobImage(),
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									MountPath: mountPki,
+									Name:      mountName,
+								},
+							},
+						},
+					},
+					Volumes: []corev1.Volume{
+						{
+							Name: mountName,
+							VolumeSource: corev1.VolumeSource{
+								HostPath: &corev1.HostPathVolumeSource{
+									Path: mountPki,
+									Type: &directoryType,
+								},
+							},
+						},
+					},
+					RestartPolicy: corev1.RestartPolicyNever,
+					Affinity: &corev1.Affinity{
+						NodeAffinity: &corev1.NodeAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+								NodeSelectorTerms: []corev1.NodeSelectorTerm{
+									{
+										MatchExpressions: []corev1.NodeSelectorRequirement{
+											{
+												Key:      masterMark,
+												Operator: existsOp,
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+					Tolerations: []corev1.Toleration{
+						{
+							Key:      masterMark,
+							Operator: existsOp,
+						},
+					},
 				},
 			},
 		},
 	}
-
-	return s
 }
 
-func makeNodePortSvc() *corev1.Service {
+func makeWardenSvc() *corev1.Service {
 	label := map[string]string{
 		appKey: constants.Warden,
 	}
 
 	s := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "warden-nodeport",
+			Name:      "warden",
 			Namespace: constants.CubeNamespace,
 			Labels:    label,
 		},
@@ -338,6 +387,18 @@ func makeNodePortSvc() *corev1.Service {
 					Port:       7443,
 					TargetPort: intstr.FromInt(7443),
 					NodePort:   31443,
+				},
+				{
+					Name:       "webhook",
+					Port:       8443,
+					TargetPort: intstr.FromInt(8443),
+					NodePort:   32444,
+				},
+				{
+					Name:       "health",
+					Port:       9778,
+					TargetPort: intstr.FromInt(9778),
+					NodePort:   32445,
 				},
 			},
 		},
@@ -354,6 +415,7 @@ func makeNamespace() *corev1.Namespace {
 	}
 }
 
+// makeCRDs install crds which labels contains "kubecube.io/crds=true"
 func makeCRDs() (crds []*apiextensionsv1.CustomResourceDefinition) {
 	pClient := clients.Interface().Kubernetes(constants.PivotCluster).Cache()
 	crdList := apiextensionsv1.CustomResourceDefinitionList{}

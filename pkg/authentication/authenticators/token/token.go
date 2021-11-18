@@ -47,7 +47,12 @@ func GetTokenFromReq(req *http.Request) (string, error) {
 	}
 
 	// parse bearer token
-	parts := strings.Split(bearerToken, " ")
+	var parts []string
+	if strings.Contains(bearerToken, " ") {
+		parts = strings.Split(bearerToken, " ")
+	} else {
+		parts = strings.Split(bearerToken, "+")
+	}
 	if len(parts) < 2 || strings.ToLower(parts[0]) != strings.ToLower(jwt.BearerTokenPrefix) {
 		return "", fmt.Errorf("bearer token: %s format is wrong", bearerToken)
 	}

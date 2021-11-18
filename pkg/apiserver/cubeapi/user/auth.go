@@ -112,6 +112,7 @@ func Login(c *gin.Context) {
 	authJwtImpl := jwt.GetAuthJwtImpl()
 	token, err := authJwtImpl.GenerateToken(&v1beta1.UserInfo{Username: name})
 	if err != nil {
+		clog.Warn(err.Error())
 		response.FailReturn(c, errcode.AuthenticateError)
 		return
 	}

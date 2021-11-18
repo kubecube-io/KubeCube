@@ -22,18 +22,17 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/authorization"
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/cluster"
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/scout"
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/yamldeploy"
-	"github.com/kubecube-io/kubecube/pkg/apiserver/middlewares"
-
 	_ "github.com/kubecube-io/kubecube/docs"
 	_ "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/authorization"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/cluster"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/healthz"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/key"
 	resourcemanage "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/scout"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/user"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/yamldeploy"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/middlewares"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	_ "github.com/kubecube-io/kubecube/pkg/utils/errcode"
@@ -58,19 +57,18 @@ type APIServer struct {
 // registerCubeAPI register apis for cube api server
 func registerCubeAPI(cfg *Config) http.Handler {
 	router := gin.New()
-	cubeApis := router.Group(constants.ApiPathRoot)
 
 	// register apis do not need middlewares
-	apisOutsideMiddlewares(cubeApis)
+	apisOutsideMiddlewares(router)
 
 	// set middlewares for apis below
 	middlewares.SetUpMiddlewares(router)
 
 	// clusters apis handler
-	cluster.NewHandler().AddApisTo(cubeApis)
+	cluster.NewHandler().AddApisTo(router)
 
 	// authZ apis handler
-	authorization.NewHandler().AddApisTo(cubeApis)
+	authorization.NewHandler().AddApisTo(router)
 
 	router.POST(constants.ApiPathRoot+"/login", user.Login)
 	router.GET(constants.ApiPathRoot+"/oauth/redirect", user.GitHubLogin)
@@ -147,10 +145,10 @@ func withSimpleServer(s *APIServer) *APIServer {
 	return s
 }
 
-func apisOutsideMiddlewares(root *gin.RouterGroup) {
+func apisOutsideMiddlewares(root *gin.Engine) {
 	scout.AddApisTo(root)
 
-	root.GET("/extend/configmap/:configmap", resourcemanage.GetConfigMap)
+	root.GET(constants.ApiPathRoot+"/extend/configmap/:configmap", resourcemanage.GetConfigMap)
 }
 
 func (s *APIServer) Initialize() error {

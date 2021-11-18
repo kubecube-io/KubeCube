@@ -78,6 +78,10 @@ func ProxyHandle(c *gin.Context) {
 		return
 	}
 	requestProxy := &httputil.ReverseProxy{Director: director, Transport: ts, ModifyResponse: filter.ModifyResponse, ErrorHandler: errorHandler}
+
+	// trim auth token here
+	c.Request.Header.Del(constants.AuthorizationHeader)
+
 	requestProxy.ServeHTTP(c.Writer, c.Request)
 }
 

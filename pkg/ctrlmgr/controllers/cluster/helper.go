@@ -19,9 +19,13 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"time"
 
+	v1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
@@ -46,6 +50,33 @@ func createResource(ctx context.Context, obj client.Object, c client.Client, clu
 	log.Info("create %v %v to cluster %v success", objKind, obj.GetName(), cluster)
 
 	return nil
+}
+
+// waitForJobComplete block and wait until job meets completed
+func waitForJobComplete(cli client.Client, namespacedName types.NamespacedName) error {
+	isJobCompleted := func(j v1.Job) bool {
+		status := j.Status
+		for _, c := range status.Conditions {
+			if c.Status == corev1.ConditionTrue && c.Type == "Complete" {
+				return true
+			}
+		}
+		return false
+	}
+
+	return wait.Poll(3*time.Second, 5*time.Minute, func() (done bool, err error) {
+		j := v1.Job{}
+		err = cli.Get(context.Background(), namespacedName, &j)
+		if err != nil {
+			// fetch job failed, abort and return error directly
+			return false, err
+		}
+		if isJobCompleted(j) {
+			clog.Info("install dependence job(%v/%v) meet completed", namespacedName.Namespace, namespacedName.Name)
+			return true, nil
+		}
+		return false, nil
+	})
 }
 
 // deleteExternalResources delete external dependency of cluster

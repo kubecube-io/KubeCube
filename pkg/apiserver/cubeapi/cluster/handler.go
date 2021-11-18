@@ -49,10 +49,10 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/strproc"
 )
 
-const subPath = "clusters"
+const subPath = "/clusters"
 
-func (h *handler) AddApisTo(root *gin.RouterGroup) {
-	r := root.Group(subPath)
+func (h *handler) AddApisTo(root *gin.Engine) {
+	r := root.Group(constants.ApiPathRoot + subPath)
 	r.GET("info", h.getClusterInfo)
 	r.GET("/:cluster/monitor", h.getClusterMonitorInfo)
 	r.GET("namespaces", h.getClusterNames)

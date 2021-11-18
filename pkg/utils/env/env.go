@@ -37,6 +37,10 @@ func WardenInitImage() string {
 	return os.Getenv("WARDEN_INIT_IMAGE")
 }
 
+func DependenceJobImage() string {
+	return os.Getenv("DEPENDENCE_JOB_IMAGE")
+}
+
 func PivotCubeHost() string {
 	return os.Getenv("PIVOT_CUBE_HOST")
 }
