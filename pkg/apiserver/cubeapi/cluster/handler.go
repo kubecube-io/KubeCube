@@ -360,6 +360,7 @@ type scriptData struct {
 	InstallerVersion string `json:"installerVersion,omitempty"`
 }
 
+// Deprecated: this api will be removed in the future
 // addCluster return script which need be execute in member cluster node
 // @Summary Add cluster
 // @Description add cluster to KubeCube
