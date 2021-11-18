@@ -27,8 +27,10 @@ import (
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	userinfo "k8s.io/apiserver/pkg/authentication/user"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/multi-tenancy/incubator/hnc/api/v1alpha2"
@@ -501,6 +503,30 @@ func (h *handler) createNsAndQuota(c *gin.Context) {
 		if err != nil {
 			clog.Error(err.Error())
 		}
+		err = cli.ClientSet().CoreV1().Namespaces().Delete(ctx, data.SubNamespaceAnchor.Name, metav1.DeleteOptions{})
+		if err != nil {
+			if !errors.IsNotFound(err) {
+				clog.Error(err.Error())
+			}
+		}
+	}
+
+	// wait for namespace created
+	err = wait.Poll(200*time.Millisecond, 2*time.Second, func() (done bool, err error) {
+		_, err = cli.ClientSet().CoreV1().Namespaces().Get(ctx, data.SubNamespaceAnchor.Name, metav1.GetOptions{})
+		if err != nil {
+			if errors.IsNotFound(err) {
+				return false, nil
+			}
+			return false, err
+		} else {
+			return true, nil
+		}
+	})
+	if err != nil {
+		rollback()
+		response.FailReturn(c, errcode.InternalServerError)
+		return
 	}
 
 	const (
@@ -526,6 +552,7 @@ func (h *handler) createNsAndQuota(c *gin.Context) {
 		}
 	}
 
+	// wait for rbac resources spread
 	count := 0
 	for toWait {
 		if count == retryCount {
