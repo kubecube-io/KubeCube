@@ -83,10 +83,12 @@ func JwtSecret() string {
 	return os.Getenv("JWT_SECRET")
 }
 
+// Deprecated as soon as remove dependence of apiserver
 func NodeIP() string {
 	return os.Getenv("NODE_IP")
 }
 
+// Deprecated as soon as remove dependence of apiserver
 func InstallerVersion() string {
 	return os.Getenv("INSTALLER_VERSION")
 }
