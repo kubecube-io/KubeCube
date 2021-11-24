@@ -20,23 +20,32 @@ import (
 	"context"
 	"io/ioutil"
 	"net/http"
+	"time"
 
 	jsoniter "github.com/json-iterator/go"
+	"github.com/onsi/ginkgo"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
 	userpkg "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/user"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/test/e2e/framework"
-	"github.com/onsi/ginkgo"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+const (
+	waitInterval = 1 * time.Second
+	waitTimeout  = 10 * time.Second
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 var _ = ginkgo.Describe("Test user action", func() {
 	f := framework.NewDefaultFramework("user")
+	ctx := context.Background()
 
 	ginkgo.Context("user", func() {
 		var cli kubernetes.Client
@@ -51,7 +60,7 @@ var _ = ginkgo.Describe("Test user action", func() {
 					Name: "test123",
 				},
 			}
-			err := cli.Direct().Delete(context.TODO(), user)
+			err := cli.Direct().Delete(ctx, user)
 
 			// create user by api
 			userItem := userv1.User{
@@ -59,7 +68,7 @@ var _ = ginkgo.Describe("Test user action", func() {
 					Name: "test123",
 				},
 				Spec: userv1.UserSpec{
-					Password: "test123",
+					Password: "test-123",
 				},
 			}
 			userBody, _ := json.Marshal(userItem)
@@ -70,12 +79,12 @@ var _ = ginkgo.Describe("Test user action", func() {
 
 			// check user is created in cluster
 			user = &userv1.User{}
-			err = cli.Direct().Get(context.TODO(), client.ObjectKey{Name: "test123"}, user)
+			err = cli.Direct().Get(ctx, client.ObjectKey{Name: "test123"}, user)
 			framework.ExpectNoError(err)
-			framework.ExpectEqual(user.Spec.Password, "3f4f95cd5a45bb6c11d8eb2bfbb89642")
+			framework.ExpectEqual(user.Spec.Password, "e3a5524bd788dfa149611daa9cc90a8f")
 
 			// check user login by password
-			loginBody := userpkg.LoginInfo{Name: "test123", Password: "test123", LoginType: "normal"}
+			loginBody := userpkg.LoginInfo{Name: "test123", Password: "test-123", LoginType: "normal"}
 			loginBytes, _ := json.Marshal(loginBody)
 			req = f.HttpHelper.Post(f.HttpHelper.FormatUrl("/login"), string(loginBytes), nil)
 			resp, err = f.HttpHelper.Client.Do(&req)
@@ -84,20 +93,6 @@ var _ = ginkgo.Describe("Test user action", func() {
 		})
 
 		ginkgo.It("update user", func() {
-			// create user in cluster
-			user := &userv1.User{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test123",
-				},
-				Spec: userv1.UserSpec{
-					Password: "test123",
-				},
-			}
-			err := cli.Direct().Delete(context.TODO(), user)
-			framework.ExpectNoError(err)
-			err = cli.Direct().Create(context.TODO(), user)
-			framework.ExpectNoError(err)
-
 			// update user by api
 			newUser := userv1.User{
 				Spec: userv1.UserSpec{
@@ -111,8 +106,8 @@ var _ = ginkgo.Describe("Test user action", func() {
 			framework.ExpectNoError(err)
 
 			// check user is updated in cluster
-			user = &userv1.User{}
-			err = cli.Direct().Get(context.TODO(), client.ObjectKey{Name: "test123"}, user)
+			user := &userv1.User{}
+			err = cli.Direct().Get(ctx, client.ObjectKey{Name: "test123"}, user)
 			framework.ExpectNoError(err)
 			framework.ExpectEqual(user.Spec.Phone, "18816212224")
 		})
@@ -121,14 +116,24 @@ var _ = ginkgo.Describe("Test user action", func() {
 			// create user in cluster
 			user1 := &userv1.User{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "user1",
+					Name: "test124",
 				},
 				Spec: userv1.UserSpec{
-					Password: "test123",
+					Password: "test-124",
 				},
 			}
-			err := cli.Direct().Delete(context.TODO(), user1)
-			err = cli.Direct().Create(context.TODO(), user1)
+			err := cli.Direct().Delete(ctx, user1)
+			err = cli.Direct().Create(ctx, user1)
+			framework.ExpectNoError(err)
+			err = wait.Poll(waitInterval, waitTimeout,
+				func() (bool, error) {
+					err = cli.Direct().Get(ctx, client.ObjectKey{Name: "test124"}, user1)
+					if err != nil {
+						return false, nil
+					} else {
+						return true, nil
+					}
+				})
 			framework.ExpectNoError(err)
 
 			// list user by api
@@ -141,23 +146,20 @@ var _ = ginkgo.Describe("Test user action", func() {
 			var userList userpkg.UserList
 			err = json.Unmarshal(body, &userList)
 			framework.ExpectNoError(err)
-			user1Exist := false
+			test124Exist := false
 			test123Exist := false
 			for _, item := range userList.Items {
 				switch item.Name {
-				case "user1":
-					user1Exist = true
+				case "test124":
+					test124Exist = true
 				case "test123":
 					test123Exist = true
 				default:
 					continue
 				}
 			}
-			framework.ExpectEqual(true, user1Exist)
-			framework.ExpectEqual(true, test123Exist)
-
+			framework.ExpectEqual(test124Exist, true)
+			framework.ExpectEqual(test123Exist, true)
 		})
-
 	})
-
 })
