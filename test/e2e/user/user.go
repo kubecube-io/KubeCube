@@ -63,7 +63,7 @@ var _ = ginkgo.Describe("Test user action", func() {
 				},
 			}
 			userBody, _ := json.Marshal(userItem)
-			req := f.HttpHelper.Request(http.MethodPost, f.HttpHelper.FormatUrl("/user"), string(userBody))
+			req := f.HttpHelper.Post(f.HttpHelper.FormatUrl("/user"), string(userBody), nil)
 			resp, err := f.HttpHelper.Client.Do(&req)
 			framework.ExpectNoError(err)
 			framework.ExpectEqual(resp.StatusCode, http.StatusOK)
@@ -77,7 +77,7 @@ var _ = ginkgo.Describe("Test user action", func() {
 			// check user login by password
 			loginBody := userpkg.LoginInfo{Name: "test123", Password: "test123", LoginType: "normal"}
 			loginBytes, _ := json.Marshal(loginBody)
-			req = f.HttpHelper.Request(http.MethodPost, f.HttpHelper.FormatUrl("/login"), string(loginBytes))
+			req = f.HttpHelper.Post(f.HttpHelper.FormatUrl("/login"), string(loginBytes), nil)
 			resp, err = f.HttpHelper.Client.Do(&req)
 			framework.ExpectNoError(err)
 			framework.ExpectEqual(resp.StatusCode, http.StatusOK)
@@ -105,7 +105,7 @@ var _ = ginkgo.Describe("Test user action", func() {
 				},
 			}
 			newBody, _ := json.Marshal(newUser)
-			req := f.HttpHelper.Request(http.MethodPut, f.HttpHelper.FormatUrl("/user/test123"), string(newBody))
+			req := f.HttpHelper.Put(f.HttpHelper.FormatUrl("/user/test123"), string(newBody), nil)
 			resp, err := f.HttpHelper.Client.Do(&req)
 			framework.ExpectEqual(resp.StatusCode, http.StatusOK)
 			framework.ExpectNoError(err)
@@ -132,7 +132,7 @@ var _ = ginkgo.Describe("Test user action", func() {
 			framework.ExpectNoError(err)
 
 			// list user by api
-			req := f.HttpHelper.Request(http.MethodGet, f.HttpHelper.FormatUrl("/user"), "")
+			req := f.HttpHelper.Get(f.HttpHelper.FormatUrl("/user"), nil)
 			resp, err := f.HttpHelper.Client.Do(&req)
 			framework.ExpectEqual(resp.StatusCode, http.StatusOK)
 			framework.ExpectNoError(err)

@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package k8sproxy
 
 import (
@@ -35,7 +36,7 @@ var _ = ginkgo.Describe("Test k8s proxy", func() {
 
 	ginkgo.Context("Test namespace", func() {
 		ginkgo.It("get namespace", func() {
-			req := f.HttpHelper.Request(http.MethodGet, f.HttpHelper.FormatUrl("/proxy/clusters/pivot-cluster/api/v1/namespaces"), "")
+			req := f.HttpHelper.Get(f.HttpHelper.FormatUrl("/proxy/clusters/pivot-cluster/api/v1/namespaces?pageSize=1000"), nil)
 			resp, err := f.HttpHelper.Client.Do(&req)
 			framework.ExpectNoError(err)
 			body, err := ioutil.ReadAll(resp.Body)
@@ -71,7 +72,7 @@ var _ = ginkgo.Describe("Test k8s proxy", func() {
 			ginkgo.It("post deployment", func() {
 				deployJosn := "{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"name\":\"deployment-example\"},\"spec\":{\"replicas\":3,\"revisionHistoryLimit\":10,\"selector\":{\"matchLabels\":{\"app\":\"nginx\"}},\"template\":{\"metadata\":{\"labels\":{\"app\":\"nginx\"}},\"spec\":{\"containers\":[{\"name\":\"nginx\",\"image\":\"nginx:1.14\",\"ports\":[{\"containerPort\":80}]}]}}}}"
 				url := fmt.Sprintf("/proxy/clusters/pivot-cluster/apis/apps/v1/namespaces/%s/deployments", ns.Name)
-				req := f.HttpHelper.Request(http.MethodPost, f.HttpHelper.FormatUrl(url), deployJosn)
+				req := f.HttpHelper.Post(f.HttpHelper.FormatUrl(url), deployJosn, nil)
 				resp, err := f.HttpHelper.Client.Do(&req)
 				framework.ExpectNoError(err)
 				defer resp.Body.Close()
@@ -86,7 +87,7 @@ var _ = ginkgo.Describe("Test k8s proxy", func() {
 			ginkgo.It("post illegal deployment", func() {
 				deployJosn := "{\"apiVersion\":\"apps/v1\",\"kind\":\"Deploymentxxx\",\"metadata\":{\"name\":\"deployment-example\"},\"spec\":{\"replicas\":3,\"revisionHistoryLimit\":10,\"selector\":{\"matchLabels\":{\"app\":\"nginx\"}},\"template\":{\"metadata\":{\"labels\":{\"app\":\"nginx\"}},\"spec\":{\"containers\":[{\"name\":\"nginx\",\"image\":\"nginx:1.14\",\"ports\":[{\"containerPort\":80}]}]}}}}"
 				url := fmt.Sprintf("/proxy/clusters/pivot-cluster/apis/apps/v1/namespaces/%s/deployments", ns.Name)
-				req := f.HttpHelper.Request(http.MethodPost, f.HttpHelper.FormatUrl(url), deployJosn)
+				req := f.HttpHelper.Post(f.HttpHelper.FormatUrl(url), deployJosn, nil)
 				resp, err := f.HttpHelper.Client.Do(&req)
 				framework.ExpectNoError(err)
 				defer resp.Body.Close()
@@ -108,7 +109,7 @@ var _ = ginkgo.Describe("Test k8s proxy", func() {
 			deployJosn := "{\"apiVersion\":\"apps/v1\",\"kind\":\"Deploymentxxx\",\"metadata\":{\"name\":\"deployment-example\"},\"spec\":{\"replicas\":3,\"revisionHistoryLimit\":10,\"selector\":{\"matchLabels\":{\"app\":\"nginx\"}},\"template\":{\"metadata\":{\"labels\":{\"app\":\"nginx\"}},\"spec\":{\"containers\":[{\"name\":\"nginx\",\"image\":\"nginx:1.14\",\"ports\":[{\"containerPort\":80}]}]}}}}"
 			url := "/proxy/clusters/pivot-cluster/apis/apps/v1/namespaces/e2e-ns/deployments"
 
-			ret := f.HttpHelper.MultiUserRequest(http.MethodPost, url, deployJosn)
+			ret := f.HttpHelper.MultiUserRequest(http.MethodPost, url, deployJosn, nil)
 			for k, v := range ret {
 				framework.ExpectNoError(v.Err)
 				b, err := ioutil.ReadAll(v.Resp.Body)
