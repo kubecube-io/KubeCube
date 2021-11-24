@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package framework
 
 import (
@@ -56,7 +57,7 @@ func NewFramework(baseName string) *Framework {
 	// Create strong k8s client
 	clients.InitCubeClientSetWithOpts(nil)
 	// Creating a http client
-	f.HttpHelper = NewHttpHelper().Login()
+	f.HttpHelper = NewHttpHelper().AuthToken()
 	// preset tenant/project/namspace
 	f.TenantName = viper.GetString("kubecube.tenant")
 	f.ProjectName = viper.GetString("kubecube.project")
@@ -76,15 +77,12 @@ func (f *Framework) ReadEnvConfig() {
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		// 在当前目录下面查找名为 "config.yaml" 的配置文件
 		viper.AddConfigPath(current)
 		viper.SetConfigName("config")
 		viper.SetConfigType("yaml")
 	}
 	viper.SetEnvPrefix("kubecube")
-	// 读取匹配的环境变量
 	viper.AutomaticEnv()
-	// 如果有配置文件，则读取它
 	if err := viper.ReadInConfig(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)

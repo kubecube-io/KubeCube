@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package e2e
 
 import (
@@ -22,7 +23,6 @@ import (
 	"time"
 
 	// test sources
-
 	_ "github.com/kubecube-io/kubecube/test/e2e/k8sproxy"
 	_ "github.com/kubecube-io/kubecube/test/e2e/openapi"
 	_ "github.com/kubecube-io/kubecube/test/e2e/tenant"

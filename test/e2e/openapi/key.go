@@ -18,7 +18,6 @@ package openapi
 
 import (
 	"io/ioutil"
-	"net/http"
 
 	jsoniter "github.com/json-iterator/go"
 	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
@@ -33,7 +32,7 @@ var _ = ginkgo.Describe("Test OpenAPI", func() {
 	ginkgo.Context("key", func() {
 		ginkgo.It("create key", func() {
 			url := "/key/create"
-			req := f.HttpHelper.Request(http.MethodGet, f.HttpHelper.FormatUrl(url), "")
+			req := f.HttpHelper.Get(f.HttpHelper.FormatUrl(url), nil)
 			resp, err := f.HttpHelper.Client.Do(&req)
 			framework.ExpectNoError(err)
 			defer resp.Body.Close()
@@ -58,7 +57,7 @@ var _ = ginkgo.Describe("Test OpenAPI", func() {
 
 		ginkgo.It("list key and get key token and delete key", func() {
 			url := "/key"
-			req := f.HttpHelper.Request(http.MethodGet, f.HttpHelper.FormatUrl(url), "")
+			req := f.HttpHelper.Get(f.HttpHelper.FormatUrl(url), nil)
 			resp, err := f.HttpHelper.Client.Do(&req)
 			framework.ExpectNoError(err)
 			defer resp.Body.Close()
@@ -70,7 +69,7 @@ var _ = ginkgo.Describe("Test OpenAPI", func() {
 				accessKey := key.Name
 				secretKey := key.Spec.SecretKey
 				url := "/key/token?accessKey=" + accessKey + "&secretKey=" + secretKey
-				req := f.HttpHelper.Request(http.MethodGet, f.HttpHelper.FormatUrl(url), "")
+				req := f.HttpHelper.Get(f.HttpHelper.FormatUrl(url), nil)
 				resp, err = f.HttpHelper.Client.Do(&req)
 				framework.ExpectNoError(err)
 				body, err = ioutil.ReadAll(resp.Body)
@@ -83,7 +82,7 @@ var _ = ginkgo.Describe("Test OpenAPI", func() {
 			}
 			if len(keyList.Items) > 0 {
 				url = "/key?accessKey=" + keyList.Items[0].Name
-				req = f.HttpHelper.Request(http.MethodDelete, f.HttpHelper.FormatUrl(url), "")
+				req = f.HttpHelper.Delete(f.HttpHelper.FormatUrl(url))
 				resp, err = f.HttpHelper.Client.Do(&req)
 				framework.ExpectNoError(err)
 				body, err = ioutil.ReadAll(resp.Body)

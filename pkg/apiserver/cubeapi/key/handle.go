@@ -65,6 +65,7 @@ func CreateKey(c *gin.Context) {
 	keyList := key.KeyList{}
 	err = pivotClient.Cache().List(ctx, &keyList, client.MatchingLabels{UserLabel: userInfo.Username})
 	if err != nil {
+		clog.Warn("list key fail, %v", err)
 		response.FailReturn(c, errcode.ServerErr)
 		return
 	}
@@ -96,6 +97,7 @@ func CreateKey(c *gin.Context) {
 	}
 	err = pivotClient.Direct().Create(ctx, &keyInfo)
 	if err != nil {
+		clog.Warn("create key fail, %v", err)
 		response.FailReturn(c, errcode.ServerErr)
 		return
 	}
@@ -196,7 +198,7 @@ func GetTokenByKey(c *gin.Context) {
 	secretKey := c.Query("secretKey")
 
 	// get key
-	pivotClient := clients.Interface().Kubernetes(constants.PivotCluster).Cache()
+	pivotClient := clients.Interface().Kubernetes(constants.PivotCluster).Direct()
 	ctx := context.Background()
 	keyInfo := key.Key{}
 	err := pivotClient.Get(ctx, types.NamespacedName{Name: accessKey}, &keyInfo)
@@ -221,6 +223,7 @@ func GetTokenByKey(c *gin.Context) {
 			response.FailReturn(c, errcode.UserNotExistErr)
 			return
 		}
+		clog.Info("check user exist, fail %v", err)
 		response.FailReturn(c, errcode.ServerErr)
 		return
 	}

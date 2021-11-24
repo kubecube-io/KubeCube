@@ -1,5 +1,5 @@
 kubecube:
-  hostPath: https://127.0.0.1:7443
+  hostPath: https://10.173.32.129:30443
   tenant: e2e-tenant
   project: e2e-project
   namespace: e2e-ns
@@ -8,4 +8,13 @@ kubecube:
     tenantAdmin: e2e-tenant-admin
     projectAdmin: e2e-project-admin
     user: e2e-user
+  multiuserAkSk:
+    adminAk: ad318173f4854f4a9c7e33e0c22d1038
+    adminSk: 49bbb77ba500487f97b59c02fa83ff92
+    tenantAdminAk: 2aa66a3390584e4e8f2126e94b9f8790
+    tenantAdminSk: 20934b3b5fe64a00bd8bf676c03c1225
+    projectAdminAk: ad318173f4854f4a9c7e33e0c22d1000
+    projectAdminSk: 49bbb77ba500487f97b59c02fa83ff92
+    userAk: 65e50251bc2d4ebda8aee00eb201b54c
+    userSk: d2abb1b7da7f400cb0cf8637f380efa0
 

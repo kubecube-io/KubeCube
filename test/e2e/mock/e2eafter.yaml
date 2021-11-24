@@ -39,6 +39,47 @@ spec:
   displayName: my-tenant
   description: my-tenant
 ---
+# ak/sk
+apiVersion: user.kubecube.io/v1
+kind: Key
+metadata:
+  name: ad318173f4854f4a9c7e33e0c22d1038
+  labels:
+    kubecube.io/user: e2e-admin
+spec:
+  secretKey: 49bbb77ba500487f97b59c02fa83ff92
+  user: e2e-admin
+---
+apiVersion: user.kubecube.io/v1
+kind: Key
+metadata:
+  name: 2aa66a3390584e4e8f2126e94b9f8790
+  labels:
+    kubecube.io/user: e2e-tenant-admin
+spec:
+  secretKey: 20934b3b5fe64a00bd8bf676c03c1225
+  user: e2e-tenant-admin
+---
+apiVersion: user.kubecube.io/v1
+kind: Key
+metadata:
+  name: ad318173f4854f4a9c7e33e0c22d1000
+  labels:
+    kubecube.io/user: e2e-project-admin
+spec:
+  secretKey: 49bbb77ba500487f97b59c02fa83ff92
+  user: e2e-project-admin
+---
+apiVersion: user.kubecube.io/v1
+kind: Key
+metadata:
+  name: 65e50251bc2d4ebda8aee00eb201b54c
+  labels:
+    kubecube.io/user: e2e-user
+spec:
+  secretKey: d2abb1b7da7f400cb0cf8637f380efa0
+  user: e2e-user
+---
 ## rolebidng
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -52,6 +93,21 @@ subjects:
 - apiGroup: rbac.authorization.k8s.io
   kind: User
   name: e2e-admin
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    kubecube.io/rbac: "true"
+  name: e2e-tenant-clusterrolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tenant-admin-cluster
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: User
+    name: e2e-tenant-admin
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -69,6 +125,21 @@ subjects:
 - apiGroup: rbac.authorization.k8s.io
   kind: User
   name: e2e-tenant-admin
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    kubecube.io/rbac: "true"
+  name: e2e-project-clusterrolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: project-admin-cluster
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: User
+    name: e2e-project-admin
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding

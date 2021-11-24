@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 
 	"github.com/kubecube-io/kubecube/test/e2e/framework"
 	"github.com/onsi/ginkgo"
@@ -38,7 +37,7 @@ kind: Namespace
 metadata:
   name: yamldeploye2e`
 			url := "/extend/clusters/pivot-cluster/yaml/deploy"
-			req := f.HttpHelper.Request(http.MethodPost, f.HttpHelper.FormatUrl(url), yamlStr)
+			req := f.HttpHelper.Post(f.HttpHelper.FormatUrl(url), yamlStr, nil)
 			resp, err := f.HttpHelper.Client.Do(&req)
 			framework.ExpectNoError(err)
 			defer resp.Body.Close()
@@ -65,7 +64,7 @@ kind: Namespace
 metadata:
   name: yamldeploye2edryrun`
 			url := "/extend/clusters/pivot-cluster/yaml/deploy?dryRun=true"
-			req := f.HttpHelper.Request(http.MethodPost, f.HttpHelper.FormatUrl(url), yamlStr)
+			req := f.HttpHelper.Post(f.HttpHelper.FormatUrl(url), yamlStr, nil)
 			resp, err := f.HttpHelper.Client.Do(&req)
 			framework.ExpectNoError(err)
 			defer resp.Body.Close()
@@ -121,7 +120,7 @@ spec:
 `
 			yamlStr = fmt.Sprintf(yamlStr, ns.Name)
 			url := "/extend/clusters/pivot-cluster/yaml/deploy"
-			req := f.HttpHelper.Request(http.MethodPost, f.HttpHelper.FormatUrl(url), yamlStr)
+			req := f.HttpHelper.Post(f.HttpHelper.FormatUrl(url), yamlStr, nil)
 			resp, err := f.HttpHelper.Client.Do(&req)
 			framework.ExpectNoError(err)
 			defer resp.Body.Close()

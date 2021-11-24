@@ -13,6 +13,9 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// this file is lifted directly from k8s.io/kubernetes/test/e2e/framework/expect.go
+
 package framework
 
 import (

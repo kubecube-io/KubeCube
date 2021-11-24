@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package e2e
 
 import (
@@ -36,6 +37,8 @@ import (
 	"github.com/kubecube-io/kubecube/test/e2e/framework"
 )
 
+var runSuite bool = false
+
 func RunE2ETests(t *testing.T) {
 	RegisterFailHandler(Fail)
 
@@ -45,6 +48,9 @@ func RunE2ETests(t *testing.T) {
 var metadataAccessor = meta.NewAccessor()
 
 var _ = BeforeSuite(func() {
+	if !runSuite {
+		return
+	}
 	_ = framework.NewDefaultFramework("e2etest")
 	clusters := multicluster.Interface().FuzzyCopy()
 	cluster, ok := clusters[constants.PivotCluster]
@@ -114,6 +120,9 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
+	if !runSuite {
+		return
+	}
 	_ = framework.NewDefaultFramework("e2etest")
 	clusters := multicluster.Interface().FuzzyCopy()
 	cluster, ok := clusters[constants.PivotCluster]
