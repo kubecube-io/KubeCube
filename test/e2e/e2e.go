@@ -17,27 +17,29 @@ limitations under the License.
 package e2e
 
 import (
+	"fmt"
 	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/spf13/viper"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/cli-runtime/pkg/resource"
+	"k8s.io/client-go/restmapper"
 	"sigs.k8s.io/yaml"
 
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/yamldeploy"
+	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-	"github.com/kubecube-io/kubecube/test/e2e/framework"
 )
-
-var runSuite bool = false
 
 func RunE2ETests(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -47,26 +49,34 @@ func RunE2ETests(t *testing.T) {
 
 var metadataAccessor = meta.NewAccessor()
 
-var _ = BeforeSuite(func() {
-	if !runSuite {
-		return
-	}
-	_ = framework.NewDefaultFramework("e2etest")
+func Init() {
+	clog.Info("init basic data")
+	// Read config.yaml
+	readEnvConfig()
+	// Create strong k8s client
+	clients.InitCubeClientSetWithOpts(nil)
 	clusters := multicluster.Interface().FuzzyCopy()
 	cluster, ok := clusters[constants.PivotCluster]
 	if !ok {
-		clog.Info("failed to get cluster info")
+		clog.Error("failed to get cluster info")
 		return
 	}
+	groupResources, err := restmapper.GetAPIGroupResources(cluster.Client.ClientSet().Discovery())
+	if err != nil {
+		clog.Warn("restmapper get api group resources fail, %v", err)
+		return
+	}
+
+	// read init yaml
 	yamlFile, err := ioutil.ReadFile("./mock/e2ebefore.yaml")
 	if err != nil {
-		clog.Info("failed to read yaml file : %v\n", err)
+		clog.Error("failed to read yaml file : %v\n", err)
 		return
 	}
-	yamls := strings.Split(string(yamlFile), "---")
 
+	yamls := strings.Split(string(yamlFile), "---")
 	for i := 0; i < 20; i++ {
-		ret := false
+		ret := true
 		for _, y := range yamls {
 			if len(y) <= 0 {
 				continue
@@ -88,10 +98,9 @@ var _ = BeforeSuite(func() {
 				continue
 			}
 
-			// init mapping
-			restMapping, err := yamldeploy.InitRestMapper(cluster.Client, gvk)
+			restMapping, err := restmapper.NewDiscoveryRESTMapper(groupResources).RESTMapping(gvk.GroupKind(), gvk.Version)
 			if err != nil {
-				clog.Info("%v", err)
+				clog.Warn("create rest mapping fail, %v", err)
 				continue
 			}
 
@@ -101,15 +110,11 @@ var _ = BeforeSuite(func() {
 				clog.Info("%v", err)
 				continue
 			}
-
 			// create
 			restHelper := resource.NewHelper(restClient, restMapping)
 			_, err = restHelper.Create(namespace, true, obj)
-			if err == nil || errors.IsAlreadyExists(err) {
-				ret = true
-			} else {
+			if err != nil && !errors.IsAlreadyExists(err) {
 				ret = false
-				break
 			}
 		}
 		if ret {
@@ -117,19 +122,22 @@ var _ = BeforeSuite(func() {
 		}
 		time.Sleep(time.Duration(5) * time.Second)
 	}
-})
+}
 
-var _ = AfterSuite(func() {
-	if !runSuite {
-		return
-	}
-	_ = framework.NewDefaultFramework("e2etest")
+func Clean() {
+	clog.Info("clean basic data")
 	clusters := multicluster.Interface().FuzzyCopy()
 	cluster, ok := clusters[constants.PivotCluster]
 	if !ok {
 		clog.Info("failed to get cluster info")
 		return
 	}
+	groupResources, err := restmapper.GetAPIGroupResources(cluster.Client.ClientSet().Discovery())
+	if err != nil {
+		clog.Warn("restmapper get api group resources fail, %v", err)
+		return
+	}
+
 	yamlFile, err := ioutil.ReadFile("./mock/e2eafter.yaml")
 	if err != nil {
 		clog.Info("failed to read yaml file : %v\n", err)
@@ -138,7 +146,7 @@ var _ = AfterSuite(func() {
 	yamls := strings.Split(string(yamlFile), "---")
 
 	for i := 0; i < 20; i++ {
-		ret := false
+		ret := true
 		for _, y := range yamls {
 			if len(y) <= 0 {
 				continue
@@ -161,9 +169,9 @@ var _ = AfterSuite(func() {
 			}
 
 			// init mapping
-			restMapping, err := yamldeploy.InitRestMapper(cluster.Client, gvk)
+			restMapping, err := restmapper.NewDiscoveryRESTMapper(groupResources).RESTMapping(gvk.GroupKind(), gvk.Version)
 			if err != nil {
-				clog.Info("%v", err)
+				clog.Warn("create rest mapping fail, %v", err)
 				continue
 			}
 
@@ -181,11 +189,8 @@ var _ = AfterSuite(func() {
 
 			restHelper := resource.NewHelper(restClient, restMapping)
 			_, err = restHelper.Delete(namespace, name)
-			if err == nil || errors.IsNotFound(err) {
-				ret = true
-			} else {
+			if err != nil && !errors.IsNotFound(err) {
 				ret = false
-				break
 			}
 		}
 		if ret {
@@ -193,4 +198,28 @@ var _ = AfterSuite(func() {
 		}
 		time.Sleep(time.Duration(5) * time.Second)
 	}
-})
+}
+
+// Read env config
+func readEnvConfig() {
+	// todo commond line
+	cfgFile := ""
+	if cfgFile != "" {
+		viper.SetConfigFile(cfgFile)
+	} else {
+		current, err := os.Getwd()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		viper.AddConfigPath(current)
+		viper.SetConfigName("config")
+		viper.SetConfigType("yaml")
+	}
+	viper.SetEnvPrefix("kubecube")
+	viper.AutomaticEnv()
+	if err := viper.ReadInConfig(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+}
