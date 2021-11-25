@@ -20,6 +20,8 @@ import (
 	"net/url"
 
 	"github.com/gin-gonic/gin"
+	"k8s.io/api/authentication/v1beta1"
+
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
 	"github.com/kubecube-io/kubecube/pkg/authentication/identityprovider/generic"
@@ -27,7 +29,6 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
-	"k8s.io/api/authentication/v1beta1"
 )
 
 const (
@@ -38,7 +39,7 @@ const (
 	patch = "PATCH"
 )
 
-var whiteList = map[string]string{
+var AuthWhiteList = map[string]string{
 	constants.ApiPathRoot + "/login":                post,
 	constants.ApiPathRoot + "/audit":                post,
 	constants.ApiPathRoot + "/key/token":            get,
@@ -59,7 +60,7 @@ func withinWhiteList(url *url.URL, method string, whiteList map[string]string) b
 
 func Auth() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if !withinWhiteList(c.Request.URL, c.Request.Method, whiteList) {
+		if !withinWhiteList(c.Request.URL, c.Request.Method, AuthWhiteList) {
 			authJwtImpl := jwt.GetAuthJwtImpl()
 			if generic.Config.GenericAuthIsEnable {
 				h := generic.GetProvider()
