@@ -1,5 +1,5 @@
 kubecube:
-  hostPath: https://10.173.32.129:30443
+  hostPath: https://127.0.0.1:7443
   tenant: e2e-tenant
   project: e2e-project
   namespace: e2e-ns

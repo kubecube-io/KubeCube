@@ -18,11 +18,11 @@ package e2e
 
 import (
 	"math/rand"
-	"os"
 	"testing"
 	"time"
 
 	// test sources
+	"github.com/kubecube-io/kubecube/pkg/clog"
 	_ "github.com/kubecube-io/kubecube/test/e2e/k8sproxy"
 	_ "github.com/kubecube-io/kubecube/test/e2e/openapi"
 	_ "github.com/kubecube-io/kubecube/test/e2e/tenant"
@@ -32,9 +32,12 @@ import (
 
 // entrance
 func TestMain(m *testing.M) {
-
+	clog.Info("e2e begin")
+	Init()
 	rand.Seed(time.Now().UnixNano())
-	os.Exit(m.Run())
+	m.Run()
+	Clean()
+	clog.Info("e2e end")
 }
 
 // start e2e test

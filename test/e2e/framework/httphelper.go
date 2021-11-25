@@ -31,10 +31,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-const (
-	bearer = "bearer"
-)
-
 type AuthUser struct {
 	Username string
 	Ak       string
@@ -45,13 +41,24 @@ type AuthUser struct {
 }
 
 type HttpHelper struct {
-	HostPath         string
-	UltimateHostPath string
-	Admin            AuthUser
-	TenantAdmin      AuthUser
-	ProjectAdmin     AuthUser
-	User             AuthUser
-	Client           http.Client
+	HostPath     string
+	Admin        AuthUser
+	TenantAdmin  AuthUser
+	ProjectAdmin AuthUser
+	User         AuthUser
+	Client       http.Client
+}
+
+var httphelper *HttpHelper
+
+// single mode
+func NewSingleHttpHelper() *HttpHelper {
+	if httphelper != nil {
+		return httphelper
+	}
+
+	httphelper = NewHttpHelper().AuthToken()
+	return httphelper
 }
 
 func NewHttpHelper() *HttpHelper {
@@ -84,7 +91,6 @@ func NewHttpHelper() *HttpHelper {
 		Transport: tr,
 		Timeout:   30 * time.Second,
 	}
-
 	return h
 }
 

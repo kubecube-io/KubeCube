@@ -17,10 +17,6 @@ limitations under the License.
 package framework
 
 import (
-	"fmt"
-	"os"
-
-	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/spf13/viper"
 )
 
@@ -52,39 +48,12 @@ func NewFramework(baseName string) *Framework {
 		BaseName: baseName,
 		Timeouts: NewTimeoutContextWithDefaults(),
 	}
-	// Read config.yaml
-	f.ReadEnvConfig()
-	// Create strong k8s client
-	clients.InitCubeClientSetWithOpts(nil)
+
 	// Creating a http client
-	f.HttpHelper = NewHttpHelper().AuthToken()
+	f.HttpHelper = NewSingleHttpHelper()
 	// preset tenant/project/namspace
 	f.TenantName = viper.GetString("kubecube.tenant")
 	f.ProjectName = viper.GetString("kubecube.project")
 	f.Namespace = viper.GetString("kubecube.namespace")
 	return f
-}
-
-// Read env config
-func (f *Framework) ReadEnvConfig() {
-	// todo commond line
-	cfgFile := ""
-	if cfgFile != "" {
-		viper.SetConfigFile(cfgFile)
-	} else {
-		current, err := os.Getwd()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		viper.AddConfigPath(current)
-		viper.SetConfigName("config")
-		viper.SetConfigType("yaml")
-	}
-	viper.SetEnvPrefix("kubecube")
-	viper.AutomaticEnv()
-	if err := viper.ReadInConfig(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
 }
