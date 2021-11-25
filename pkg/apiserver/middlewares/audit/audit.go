@@ -31,6 +31,7 @@ import (
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 
+	"github.com/kubecube-io/kubecube/pkg/apiserver/middlewares/auth"
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
@@ -50,7 +51,7 @@ const (
 )
 
 var (
-	whiteList = map[string]string{
+	auditWhiteList = map[string]string{
 		constants.ApiPathRoot + "/audit": "POST",
 	}
 	auditSvc env.AuditSvcApi
@@ -77,7 +78,7 @@ func Audit() gin.HandlerFunc {
 		w := &responseBodyWriter{body: &bytes.Buffer{}, ResponseWriter: c.Writer}
 		c.Writer = w
 		c.Next()
-		if !withinWhiteList(c.Request.URL, c.Request.Method, whiteList) {
+		if !withinWhiteList(c.Request.URL, c.Request.Method, auditWhiteList) {
 			clog.Debug("[audit] get event information")
 			e := &Event{
 				EventTime:         time.Now().Unix(),
@@ -86,13 +87,16 @@ func Audit() gin.HandlerFunc {
 				RequestMethod:     c.Request.Method,
 				ResponseStatus:    c.Writer.Status(),
 				Url:               c.Request.URL.String(),
-				UserIdentity:      getUserIdentity(c),
 				UserAgent:         "HTTP",
 				RequestParameters: getParameters(c),
 				EventType:         constants.EventTypeUserWrite,
 				RequestId:         uuid.New().String(),
 				ResponseElements:  w.body.String(),
 				EventSource:       env.AuditEventSource(),
+			}
+
+			if !withinWhiteList(c.Request.URL, c.Request.Method, auth.AuthWhiteList) {
+				e.UserIdentity = getUserIdentity(c)
 			}
 
 			// get response
