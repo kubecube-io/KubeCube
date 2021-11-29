@@ -32,9 +32,9 @@ import (
 	"github.com/onsi/ginkgo"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	hnc "sigs.k8s.io/multi-tenancy/incubator/hnc/api/v1alpha2"
 )
 
