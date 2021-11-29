@@ -23,6 +23,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -63,11 +64,11 @@ func init() {
 
 func withinWhiteList(url *url.URL, method string, whiteList map[string]string) bool {
 	queryUrl := url.Path
-	if _, ok := whiteList[queryUrl]; ok {
-		if whiteList[queryUrl] == method {
+	for k, v := range whiteList {
+		match, err := regexp.MatchString(k, queryUrl)
+		if err != nil && match && method == v {
 			return true
 		}
-		return false
 	}
 	return false
 }

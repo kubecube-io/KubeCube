@@ -18,6 +18,7 @@ package auth
 
 import (
 	"net/url"
+	"regexp"
 
 	"github.com/gin-gonic/gin"
 	"k8s.io/api/authentication/v1beta1"
@@ -49,11 +50,11 @@ var AuthWhiteList = map[string]string{
 
 func withinWhiteList(url *url.URL, method string, whiteList map[string]string) bool {
 	queryUrl := url.Path
-	if _, ok := whiteList[queryUrl]; ok {
-		if whiteList[queryUrl] == method {
+	for k, v := range whiteList {
+		match, err := regexp.MatchString(k, queryUrl)
+		if err != nil && match && method == v {
 			return true
 		}
-		return false
 	}
 	return false
 }
