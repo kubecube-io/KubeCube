@@ -193,6 +193,7 @@ func GitHubLogin(c *gin.Context) {
 		return
 	}
 	c.SetCookie(constants.AuthorizationHeader, bearerToken, int(authJwtImpl.TokenExpireDuration), "/", "", false, true)
+	c.Set(constants.EventAccountId, user.Name)
 
 	response.SuccessReturn(c, user)
 	return
