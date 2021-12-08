@@ -295,6 +295,13 @@ func (h *handler) getClusterResource(c *gin.Context) {
 // @Failure 500 {object} errcode.ErrorInfo
 // @Router /api/v1/cube/clusters/subnamespaces  [get]
 func (h *handler) getSubNamespaces(c *gin.Context) {
+	type respBody struct {
+		Namespace     string       `json:"namespace"`
+		Cluster       string       `json:"cluster"`
+		Project       string       `json:"project"`
+		NamespaceBody v1.Namespace `json:"namespaceBody"`
+	}
+
 	tenant := c.Query("tenant")
 	ctx := c.Request.Context()
 	clusters := multicluster.Interface().FuzzyCopy()
@@ -319,7 +326,7 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 		}
 	}
 
-	items := make([]map[string]string, 0)
+	items := make([]respBody, 0)
 
 	// search in every cluster
 	for _, cluster := range clusters {
@@ -333,11 +340,22 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 		for _, anchor := range anchors.Items {
 			project, ok := anchor.Labels[constants.ProjectLabel]
 			if ok && anchor.ObjectMeta.DeletionTimestamp.IsZero() {
-				item := map[string]string{
-					"namespace": anchor.Name,
-					"cluster":   cluster.Name,
-					"project":   project,
+
+				// fetch namespace under subNamespace
+				ns := v1.Namespace{}
+				err = cli.Direct().Get(ctx, types.NamespacedName{Name: anchor.Name}, &ns)
+				if err != nil {
+					clog.Error(err.Error())
+					continue
 				}
+
+				item := respBody{
+					Namespace:     anchor.Name,
+					Cluster:       cluster.Name,
+					Project:       project,
+					NamespaceBody: ns,
+				}
+
 				items = append(items, item)
 			}
 		}

@@ -302,16 +302,14 @@ func (h *handler) createBinds(c *gin.Context) {
 	}
 
 	// we should create specified ClusterRoleBinding for different RoleRef
-	if roleBinding.RoleRef.Kind == constants.K8sKindClusterRole {
-		switch roleBinding.RoleRef.Name {
-		case constants.TenantAdmin:
+	if roleBinding.RoleRef.Kind == constants.K8sKindClusterRole && roleBinding.RoleRef.Name != constants.ReviewerCluster {
+		if _, ok := roleBinding.Labels[constants.TenantLabel]; ok {
 			clusterRoleBinding.RoleRef.Name = constants.TenantAdminCluster
-		case constants.ProjectAdmin:
-			clusterRoleBinding.RoleRef.Name = constants.ProjectAdminCluster
-		case constants.Reviewer:
-			clusterRoleBinding.RoleRef.Name = constants.ReviewerCluster
 		}
-		// platform-admin ignored
+		if _, ok := roleBinding.Labels[constants.ProjectLabel]; ok {
+			clusterRoleBinding.RoleRef.Name = constants.ProjectAdminCluster
+		}
+		// platform level ignored
 	}
 
 	err = cli.Direct().Create(ctx, roleBinding)

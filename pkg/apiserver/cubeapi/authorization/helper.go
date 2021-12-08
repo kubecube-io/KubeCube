@@ -273,20 +273,43 @@ func getRolesByNs(ctx context.Context, cli kubernetes.Client, ns string) (map[st
 		return nil, fmt.Errorf("unknown namespace format: %v", ns)
 	}
 
+	// listClusterRoleFn list ClusterRole by given label selectors
+	listClusterRoleFn := func(labelStr string) ([]string, error) {
+		labelSelector, err := labels.Parse(labelStr)
+		if err != nil {
+			return nil, err
+		}
+
+		list := rbacv1.ClusterRoleList{}
+		err = cli.Cache().List(ctx, &list, &client.ListOptions{LabelSelector: labelSelector})
+		if err != nil {
+			return nil, err
+		}
+		res := make([]string, 0, len(list.Items))
+		for _, v := range list.Items {
+			res = append(res, v.Name)
+		}
+		return res, nil
+	}
+
 	r := make(map[string]interface{})
 
 	prefix := strs[0] + symbol + strs[1]
 	switch prefix {
 	case tenantPrefix:
-		r["clusterRoles"] = result{
-			Total: 2,
-			Items: []string{constants.TenantAdmin, constants.Reviewer},
+		res, err := listClusterRoleFn(fmt.Sprintf("%v=%v", constants.RoleLabel, "tenant"))
+		if err != nil {
+			return nil, err
 		}
+		res = append(res, constants.Reviewer)
+		r["clusterRoles"] = result{Total: len(res), Items: res}
 	case projectPrefix:
-		r["clusterRoles"] = result{
-			Total: 2,
-			Items: []string{constants.ProjectAdmin, constants.Reviewer},
+		res, err := listClusterRoleFn(fmt.Sprintf("%v=%v", constants.RoleLabel, "project"))
+		if err != nil {
+			return nil, err
 		}
+		res = append(res, constants.Reviewer)
+		r["clusterRoles"] = result{Total: len(res), Items: res}
 	default:
 		return nil, fmt.Errorf("unknown prefix of namespace: %v", prefix)
 	}
