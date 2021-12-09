@@ -99,10 +99,7 @@ func (r *CubeResourceQuotaValidator) Handle(ctx context.Context, req admission.R
 		}
 	}
 
-	// we consider the object finally create successful if UID was generated
-	if cube.IsRelyOnObj(currentQuota, oldQuota) {
-		go callback(q, req.Operation == v1.Delete)
-	}
+	go callback(q, req.Operation == v1.Delete)
 
 	return admission.Allowed("")
 }
