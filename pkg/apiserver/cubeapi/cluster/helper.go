@@ -78,7 +78,13 @@ func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivot
 			continue
 		}
 
-		info.Status = string(*cluster.Status.State)
+		state := cluster.Status.State
+		if state == nil {
+			processState := clusterv1.ClusterProcessing
+			state = &processState
+		}
+
+		info.Status = string(*state)
 		info.ClusterDescription = cluster.Spec.Description
 		info.CreateTime = cluster.CreationTimestamp.Time
 		info.IsMemberCluster = cluster.Spec.IsMemberCluster

@@ -17,7 +17,6 @@ limitations under the License.
 package cluster
 
 import (
-	"bytes"
 	"encoding/base64"
 	"fmt"
 	"net/http"
@@ -44,7 +43,6 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	"github.com/kubecube-io/kubecube/pkg/quota"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-	"github.com/kubecube-io/kubecube/pkg/utils/env"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
@@ -353,16 +351,14 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 
 // scriptData is the data to render script
 type scriptData struct {
-	ClusterName      string `json:"clusterName"`
-	KubeConfig       string `json:"kubeConfig"`
-	K8sEndpoint      string `json:"k8sEndpoint,omitempty"`
-	NetworkType      string `json:"networkType,omitempty"`
-	Description      string `json:"description,omitempty"`
-	KubeCubeHost     string `json:"kubeCubeHost,omitempty"`
-	InstallerVersion string `json:"installerVersion,omitempty"`
+	ClusterName string `json:"clusterName"`
+	KubeConfig  string `json:"kubeConfig"`
+	K8sEndpoint string `json:"k8sEndpoint,omitempty"`
+	NetworkType string `json:"networkType,omitempty"`
+	Description string `json:"description,omitempty"`
+	HarborAddr  string `json:"harborAddr,omitempty"`
 }
 
-// Deprecated: this api will be removed in the future
 // addCluster return script which need be execute in member cluster node
 // @Summary Add cluster
 // @Description add cluster to KubeCube
@@ -394,14 +390,6 @@ func (h *handler) addCluster(c *gin.Context) {
 		d.NetworkType = defaultNetworkType
 	}
 
-	if len(d.KubeCubeHost) == 0 {
-		d.KubeCubeHost = env.NodeIP()
-	}
-
-	if len(d.InstallerVersion) == 0 {
-		d.InstallerVersion = env.InstallerVersion()
-	}
-
 	kubeConfig, err := base64.StdEncoding.DecodeString(d.KubeConfig)
 	if err != nil {
 		clog.Warn(err.Error())
@@ -420,19 +408,38 @@ func (h *handler) addCluster(c *gin.Context) {
 		d.K8sEndpoint = config.Host
 	}
 
-	var s string
-	w := bytes.NewBufferString(s)
-
-	err = scriptTemplate.Execute(w, d)
-	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
-		return
+	cluster := &clusterv1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: d.ClusterName,
+		},
+		Spec: clusterv1.ClusterSpec{
+			KubeConfig:            kubeConfig,
+			KubernetesAPIEndpoint: config.Host,
+			IsMemberCluster:       true,
+			Description:           d.Description,
+		},
 	}
 
-	res := base64.StdEncoding.EncodeToString(w.Bytes())
+	if len(d.NetworkType) > 0 {
+		cluster.Spec.NetworkType = d.NetworkType
+	}
 
-	response.SuccessReturn(c, res)
+	if len(d.HarborAddr) > 0 {
+		cluster.Spec.HarborAddr = d.HarborAddr
+	}
+
+	err = h.Direct().Create(c.Request.Context(), cluster)
+	if err != nil {
+		if errors.IsAlreadyExists(err) {
+			clog.Warn(err.Error())
+		} else {
+			clog.Error(err.Error())
+			response.FailReturn(c, errcode.CustomReturn(http.StatusInternalServerError, err.Error()))
+			return
+		}
+	}
+
+	response.SuccessReturn(c, "success")
 }
 
 // registerCluster is a callback api for add cluster to pivot cluster

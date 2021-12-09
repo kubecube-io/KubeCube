@@ -44,6 +44,10 @@ const (
 	secretName    = "cube-tls-secret"
 	webhookName   = "warden-validating-webhook-configuration"
 	appKey        = "kubecube.io/app"
+	masterMark    = "node-role.kubernetes.io/master"
+	existsOp      = "Exists"
+	mountPki      = "/etc/kubernetes/pki"
+	mountName     = "pki-mount"
 )
 
 func deployResources(ctx context.Context, memberCluster, pivotCluster clusterv1.Cluster) error {
@@ -274,6 +278,17 @@ func makeDeployment(cluster string, isMemberCluster bool) *appsv1.Deployment {
 							VolumeMounts: volumeMounts,
 						},
 					},
+					Tolerations: []corev1.Toleration{
+						{
+							Key:      masterMark,
+							Operator: existsOp,
+						},
+						{
+							Key:      constants.CubeNodeTaint,
+							Operator: existsOp,
+							Effect:   "NoSchedule",
+						},
+					},
 					Volumes: volumes,
 				},
 			},
@@ -297,13 +312,6 @@ func makeKubeConfigCM(pivotCluster clusterv1.Cluster) *corev1.ConfigMap {
 
 // makePrevJob make prev job that used to install dependence into target cluster
 func makePrevJob() *batchv1.Job {
-	const (
-		masterMark = "node-role.kubernetes.io/master"
-		existsOp   = "Exists"
-		mountPki   = "/etc/kubernetes/pki"
-		mountName  = "pki-mount"
-	)
-
 	directoryType := corev1.HostPathDirectory
 
 	return &batchv1.Job{
@@ -359,6 +367,11 @@ func makePrevJob() *batchv1.Job {
 						{
 							Key:      masterMark,
 							Operator: existsOp,
+						},
+						{
+							Key:      constants.CubeNodeTaint,
+							Operator: existsOp,
+							Effect:   "NoSchedule",
 						},
 					},
 				},
