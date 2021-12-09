@@ -17,16 +17,21 @@ limitations under the License.
 package cube
 
 import (
+	"context"
+	"fmt"
+	"strings"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-
-	"github.com/kubecube-io/kubecube/pkg/clog"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	quotav1 "github.com/kubecube-io/kubecube/pkg/apis/quota/v1"
+	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/quota"
 )
 
-func isExceedParent(current, old, parent *quotav1.CubeResourceQuota) bool {
+func isExceedParent(current, old, parent *quotav1.CubeResourceQuota) (bool, string) {
 	for _, rs := range quota.ResourceNames {
 		pHard := parent.Spec.Hard
 		pUsed := parent.Status.Used
@@ -37,7 +42,7 @@ func isExceedParent(current, old, parent *quotav1.CubeResourceQuota) bool {
 			// if this resource kind not parent quota hard but in current quota
 			// hard we consider the current quota is exceed parent limit
 			if _, ok := cHard[rs]; ok {
-				return true
+				return true, fmt.Sprintf("can not set a resource(%v) that parent quota hard not had", rs)
 			}
 			// both quota have no that resource kind, continue directly
 			continue
@@ -47,7 +52,7 @@ func isExceedParent(current, old, parent *quotav1.CubeResourceQuota) bool {
 		parentUsed, ok := pUsed[rs]
 		if !ok {
 			if _, ok := cHard[rs]; ok {
-				return true
+				return true, fmt.Sprintf("can not set a resource(%v) that parent quota used not had", rs)
 			}
 			continue
 		}
@@ -56,7 +61,7 @@ func isExceedParent(current, old, parent *quotav1.CubeResourceQuota) bool {
 		// we consider the current quota is exceed parent limit
 		currentHard, ok := cHard[rs]
 		if !ok {
-			return true
+			return true, fmt.Sprintf("less resource(%v) but parent quota had", rs)
 		}
 
 		oldHard := ensureValue(old, rs)
@@ -64,48 +69,74 @@ func isExceedParent(current, old, parent *quotav1.CubeResourceQuota) bool {
 		// if changed > left, we consider the current quota is exceed parent limit
 		changed := currentHard.DeepCopy()
 		changed.Sub(oldHard)
+
 		if isExceed(parentHard, parentUsed, changed) {
-			clog.Debug("overload, resource: %v, parent hard: %v, parent used: %v, changed: %v", rs, parentHard.String(), parentUsed.String(), changed.String())
-			return true
+			return true, fmt.Sprintf("overload, resource(%v), parent hard(%v), parent used(%v), changed(%v)", rs, parentHard.String(), parentUsed.String(), changed.String())
 		}
 	}
 
-	return false
+	return false, ""
 }
 
-func refreshUsedResource(current, old, parent *quotav1.CubeResourceQuota) *quotav1.CubeResourceQuota {
-	for _, rs := range quota.ResourceNames {
-		pUsed := parent.Status.Used
-		pHard := parent.Spec.Hard
+func refreshUsedResource(current, old, parent *quotav1.CubeResourceQuota, cli client.Client) *quotav1.CubeResourceQuota {
+	newParentUsed := quota.ClearQuotas(parent.Status.Used)
 
-		// parent used
-		parentUsed, ok := pUsed[rs]
-		if !ok {
-			continue
+	for _, sub := range parent.Status.SubResourceQuotas {
+		subResourceQuota, err := getCubeResourceQuota(cli, sub)
+		if err != nil {
+			clog.Error(err.Error())
+			// any error occurred return directly
+			return parent
 		}
-
-		// hard certainly exist if hard has
-		// parent used
-		parentHard := pHard[rs]
-
-		oldHard := ensureValue(old, rs)
-		currentHard := ensureValue(current, rs)
-
-		// newUsed = newHard - oldHard + oldUsed
-		changed := currentHard.DeepCopy()
-		changed.Sub(oldHard)
-
-		newUsed := parentUsed.DeepCopy()
-		newUsed.Add(changed)
-
-		if newUsed.Cmp(parentHard) == 1 {
-			clog.Error("quota new used bigger than hard of parent %v, new used: %v, hard: %v", parent.Name, newUsed.String(), parentHard.String())
+		// use new CubeResourceQuota if present
+		if subResourceQuota.Name == current.Name {
+			subResourceQuota = current
 		}
-
-		parent.Status.Used[rs] = newUsed
+		for _, rs := range quota.ResourceNames {
+			// continue if parent used quota had no that resource
+			newUsed, ok := newParentUsed[rs]
+			if !ok {
+				continue
+			}
+			rq, ok := subResourceQuota.Spec.Hard[rs]
+			if !ok {
+				// continue if subResourceQuota had no that resource
+				continue
+			}
+			newUsed.Add(rq)
+			newParentUsed[rs] = newUsed
+		}
 	}
 
+	parent.Status.Used = newParentUsed
+
 	return parent
+}
+
+func getCubeResourceQuota(cli client.Client, s string) (*quotav1.CubeResourceQuota, error) {
+	splitS := strings.Split(s, ".")
+	splitSLen := len(splitS)
+	if splitSLen < 2 {
+		return nil, fmt.Errorf("subResourceQuota name invilde: %v", s)
+	}
+
+	names := splitS[:splitSLen-1]
+	name := ""
+	for i, v := range names {
+		if i == len(names)-1 {
+			name += v
+		} else {
+			name += v + "."
+		}
+	}
+
+	rq := &quotav1.CubeResourceQuota{}
+	err := cli.Get(context.Background(), types.NamespacedName{Name: name}, rq)
+	if err != nil {
+		return nil, err
+	}
+
+	return rq, nil
 }
 
 func ensureValue(c *quotav1.CubeResourceQuota, key v1.ResourceName) resource.Quantity {

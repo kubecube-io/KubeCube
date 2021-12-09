@@ -59,3 +59,12 @@ var ResourceNames = []v1.ResourceName{
 func ZeroQ() resource.Quantity {
 	return resource.MustParse("0")
 }
+
+// ClearQuotas clear all quotas of give
+func ClearQuotas(l v1.ResourceList) v1.ResourceList {
+	for k := range l {
+		l[k] = ZeroQ()
+	}
+
+	return l
+}

@@ -88,13 +88,12 @@ func (r *CubeResourceQuotaValidator) Handle(ctx context.Context, req admission.R
 	q := cube.NewQuotaOperator(r.Client, currentQuota, oldQuota, context.Background())
 
 	if req.Operation != v1.Delete {
-		isOverLoad, err := q.Overload()
+		isOverLoad, reason, err := q.Overload()
 		if err != nil {
 			return admission.Errored(http.StatusInternalServerError, err)
 		}
 
 		if isOverLoad {
-			reason := fmt.Sprintf("request of cube resource quota overload")
 			clog.Warn(reason)
 			return admission.Errored(http.StatusNotAcceptable, errors.New(reason))
 		}

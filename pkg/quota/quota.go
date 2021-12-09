@@ -25,8 +25,8 @@ type Interface interface {
 	// if its orphan
 	Parent() (*quotav1.CubeResourceQuota, error)
 
-	// Overload return true if this quota exceed limit
-	Overload() (bool, error)
+	// Overload return true and reason if this quota exceed limit
+	Overload() (bool, string, error)
 
 	// UpdateParentStatus will update parent used resource
 	// according to this resource quota. This operation must

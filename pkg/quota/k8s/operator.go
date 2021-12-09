@@ -33,16 +33,18 @@ import (
 )
 
 type QuotaOperator struct {
-	Client       client.Client
+	PivotClient  client.Client
+	LocalClient  client.Client
 	CurrentQuota *v1.ResourceQuota
 	OldQuota     *v1.ResourceQuota
 
 	context.Context
 }
 
-func NewQuotaOperator(client client.Client, current, old *v1.ResourceQuota, ctx context.Context) quota.Interface {
+func NewQuotaOperator(pivot, local client.Client, current, old *v1.ResourceQuota, ctx context.Context) quota.Interface {
 	return &QuotaOperator{
-		Client:       client,
+		PivotClient:  pivot,
+		LocalClient:  local,
 		CurrentQuota: current,
 		OldQuota:     old,
 		Context:      ctx,
@@ -77,7 +79,7 @@ func (o *QuotaOperator) Parent() (*quotav1.CubeResourceQuota, error) {
 	key := types.NamespacedName{Name: parentName}
 	parentQuota := &quotav1.CubeResourceQuota{}
 
-	err := o.Client.Get(o.Context, key, parentQuota)
+	err := o.PivotClient.Get(o.Context, key, parentQuota)
 	if err != nil {
 		return nil, err
 	}
@@ -85,19 +87,21 @@ func (o *QuotaOperator) Parent() (*quotav1.CubeResourceQuota, error) {
 	return parentQuota, nil
 }
 
-func (o *QuotaOperator) Overload() (bool, error) {
+func (o *QuotaOperator) Overload() (bool, string, error) {
 	currentQuota := o.CurrentQuota
 	oldQuota := o.OldQuota
 
 	parentQuota, err := o.Parent()
 	if err == nil && parentQuota == nil {
-		return false, nil
+		return false, "", nil
 	}
 	if err != nil {
-		return false, err
+		return false, "", err
 	}
 
-	return isExceedParent(currentQuota, oldQuota, parentQuota), nil
+	isOverload, reason := isExceedParent(currentQuota, oldQuota, parentQuota)
+
+	return isOverload, reason, nil
 }
 
 func (o *QuotaOperator) UpdateParentStatus(flush bool) error {
@@ -113,8 +117,6 @@ func (o *QuotaOperator) UpdateParentStatus(flush bool) error {
 	currentQuota := o.CurrentQuota.DeepCopy()
 	oldQuota := o.OldQuota.DeepCopy()
 
-	refreshed := refreshUsedResource(currentQuota, oldQuota, parentQuota)
-
 	// update subResourceQuotas status of parent
 	var subResourceQuota string
 	if currentQuota != nil {
@@ -124,22 +126,26 @@ func (o *QuotaOperator) UpdateParentStatus(flush bool) error {
 		subResourceQuota = fmt.Sprintf("%v.%v.%v", oldQuota.Name, oldQuota.Namespace, quota.SubFix)
 	}
 
+	// populate new sub resource quotas
 	switch flush {
 	case true:
-		subResourceQuotas := refreshed.Status.SubResourceQuotas
+		subResourceQuotas := parentQuota.Status.SubResourceQuotas
 		if subResourceQuotas != nil {
-			refreshed.Status.SubResourceQuotas = strslice.RemoveString(subResourceQuotas, subResourceQuota)
+			parentQuota.Status.SubResourceQuotas = strslice.RemoveString(subResourceQuotas, subResourceQuota)
 		}
 	case false:
-		if refreshed.Status.SubResourceQuotas == nil {
-			refreshed.Status.SubResourceQuotas = []string{subResourceQuota}
+		if parentQuota.Status.SubResourceQuotas == nil {
+			parentQuota.Status.SubResourceQuotas = []string{subResourceQuota}
 		} else {
-			refreshed.Status.SubResourceQuotas = strslice.InsertString(refreshed.Status.SubResourceQuotas, subResourceQuota)
+			parentQuota.Status.SubResourceQuotas = strslice.InsertString(parentQuota.Status.SubResourceQuotas, subResourceQuota)
 		}
 	}
 
+	// refresh new used of parent quota
+	refreshed := refreshUsedResource(currentQuota, oldQuota, parentQuota, o.LocalClient)
+
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		err = o.Client.Status().Update(o.Context, refreshed)
+		err = o.PivotClient.Status().Update(o.Context, refreshed)
 		if err != nil {
 			return err
 		}

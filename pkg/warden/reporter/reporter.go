@@ -45,7 +45,7 @@ type Reporter struct {
 	WaitSecond int
 	// PivotHealthy the pivot cluster healthy status
 	PivotHealthy bool
-	// Client used to report heartbeat
+	// PivotClient used to report heartbeat
 	*http.Client
 }
 

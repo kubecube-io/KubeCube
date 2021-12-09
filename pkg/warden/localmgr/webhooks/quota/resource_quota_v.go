@@ -32,6 +32,7 @@ import (
 
 type ResourceQuotaValidator struct {
 	PivotClient client.Client
+	LocalClient client.Client
 	decoder     *admission.Decoder
 }
 
@@ -68,16 +69,15 @@ func (r *ResourceQuotaValidator) Handle(ctx context.Context, req admission.Reque
 		currentQuota = nil
 	}
 
-	q := k8s.NewQuotaOperator(r.PivotClient, currentQuota, oldQuota, context.Background())
+	q := k8s.NewQuotaOperator(r.PivotClient, r.LocalClient, currentQuota, oldQuota, context.Background())
 
 	if req.Operation != admissionv1.Delete {
-		isOverLoad, err := q.Overload()
+		isOverLoad, reason, err := q.Overload()
 		if err != nil {
 			return admission.Errored(http.StatusInternalServerError, err)
 		}
 
 		if isOverLoad {
-			reason := "request of resource currentQuota overload"
 			clog.Warn(reason)
 			return admission.Errored(http.StatusNotAcceptable, errors.New(reason))
 		}
