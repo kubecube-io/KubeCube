@@ -29,7 +29,7 @@ import (
 func SetupWithWebhooks(mgr manager.Manager) {
 	hookServer := mgr.GetWebhookServer()
 
-	hookServer.Register("/validate-core-kubernetes-v1-resource-quota", &webhook.Admission{Handler: &quota.ResourceQuotaValidator{PivotClient: utils.PivotClient}})
+	hookServer.Register("/validate-core-kubernetes-v1-resource-quota", &webhook.Admission{Handler: &quota.ResourceQuotaValidator{PivotClient: utils.PivotClient, LocalClient: mgr.GetClient()}})
 
 	hookServer.Register("/warden-validate-hotplug-kubecube-io-v1-hotplug", admisson.ValidatingWebhookFor(hotplug.NewHotplugValidator()))
 

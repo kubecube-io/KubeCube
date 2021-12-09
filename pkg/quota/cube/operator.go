@@ -79,21 +79,23 @@ func (o *QuotaOperator) Parent() (*quotav1.CubeResourceQuota, error) {
 	return parentQuota, nil
 }
 
-func (o *QuotaOperator) Overload() (bool, error) {
+func (o *QuotaOperator) Overload() (bool, string, error) {
 	currentQuota := o.CurrentQuota
 	oldQuota := o.OldQuota
 
 	// todo: there is must be a way limit the hard of node pool kind
 	if isTenantKind(currentQuota, oldQuota) {
-		return false, nil
+		return false, "", nil
 	}
 
 	parentQuota, err := o.Parent()
 	if err != nil || parentQuota == nil {
-		return false, err
+		return false, "", err
 	}
 
-	return isExceedParent(currentQuota, oldQuota, parentQuota), nil
+	isOverload, reason := isExceedParent(currentQuota, oldQuota, parentQuota)
+
+	return isOverload, reason, nil
 }
 
 func (o *QuotaOperator) UpdateParentStatus(flush bool) error {
@@ -109,9 +111,6 @@ func (o *QuotaOperator) UpdateParentStatus(flush bool) error {
 	currentQuota := o.CurrentQuota.DeepCopy()
 	oldQuota := o.OldQuota.DeepCopy()
 
-	// update used status of parent
-	refreshed := refreshUsedResource(currentQuota, oldQuota, parentQuota)
-
 	// update subResourceQuotas status of parent
 	var subResourceQuota string
 	if currentQuota != nil {
@@ -123,17 +122,20 @@ func (o *QuotaOperator) UpdateParentStatus(flush bool) error {
 
 	switch flush {
 	case true:
-		subResourceQuotas := refreshed.Status.SubResourceQuotas
+		subResourceQuotas := parentQuota.Status.SubResourceQuotas
 		if subResourceQuotas != nil {
-			refreshed.Status.SubResourceQuotas = strslice.RemoveString(subResourceQuotas, subResourceQuota)
+			parentQuota.Status.SubResourceQuotas = strslice.RemoveString(subResourceQuotas, subResourceQuota)
 		}
 	case false:
-		if refreshed.Status.SubResourceQuotas == nil {
-			refreshed.Status.SubResourceQuotas = []string{subResourceQuota}
+		if parentQuota.Status.SubResourceQuotas == nil {
+			parentQuota.Status.SubResourceQuotas = []string{subResourceQuota}
 		} else {
-			refreshed.Status.SubResourceQuotas = strslice.InsertString(refreshed.Status.SubResourceQuotas, subResourceQuota)
+			parentQuota.Status.SubResourceQuotas = strslice.InsertString(parentQuota.Status.SubResourceQuotas, subResourceQuota)
 		}
 	}
+
+	// update used status of parent
+	refreshed := refreshUsedResource(currentQuota, oldQuota, parentQuota, o.Client)
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		err = o.Client.Status().Update(o.Context, refreshed)
