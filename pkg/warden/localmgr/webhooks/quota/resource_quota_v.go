@@ -83,9 +83,7 @@ func (r *ResourceQuotaValidator) Handle(ctx context.Context, req admission.Reque
 		}
 	}
 
-	if k8s.IsRelyOnObj(currentQuota, oldQuota) {
-		go callback(q, req.Operation == admissionv1.Delete)
-	}
+	go callback(q, req.Operation == admissionv1.Delete)
 
 	return admission.Allowed("")
 }
