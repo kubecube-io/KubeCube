@@ -109,6 +109,11 @@ const (
 	SyncAnnotation = "kubecube.io/sync"
 )
 
+const (
+	// CubeNodeTaint is node taint that managed by KubeCube
+	CubeNodeTaint = "node.kubecube.io"
+)
+
 // hnc related conest
 const (
 	// HncInherited means resource is inherited form upon namespace by hnc
