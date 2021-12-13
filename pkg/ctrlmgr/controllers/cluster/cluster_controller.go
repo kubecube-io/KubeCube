@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -107,7 +106,7 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			return ctrl.Result{}, err
 		}
 		// examine DeletionTimestamp to determine if object is under deletion
-		if currentCluster.ObjectMeta.DeletionTimestamp.IsZero() {
+		if currentCluster.ObjectMeta.DeletionTimestamp == nil {
 			// ensure finalizer
 			if err := r.ensureFinalizer(ctx, &currentCluster); err != nil {
 				return ctrl.Result{}, err
@@ -123,67 +122,41 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 		// generate internal cluster for current cluster and add
 		// it to the cache of multi cluster manager
-		skip, err := multiclustermgr.AddInternalCluster(currentCluster)
+		err := multiclustermgr.AddInternalCluster(currentCluster)
 		if err != nil {
-			log.Error(err.Error())
-		}
-
-		if err != nil && !skip {
-			updateFn := func(cluster *clusterv1.Cluster) {
-				initFailedState := clusterv1.ClusterInitFailed
-				reason := fmt.Sprintf("cluster %s init failed", cluster.Name)
-				cluster.Status.State = &initFailedState
-				cluster.Status.Reason = reason
-			}
-
-			err := utils.UpdateStatus(ctx, r.Client, &currentCluster, updateFn)
-			if err != nil {
-				log.Error("update cluster %v status failed", currentCluster.Name)
-				return ctrl.Result{}, err
-			}
-
+			clog.Error(err.Error())
+			_ = utils.UpdateClusterStatusByState(ctx, r.Client, &currentCluster, clusterv1.ClusterInitFailed)
 			r.enqueue(currentCluster)
-
 			return ctrl.Result{}, nil
 		}
 
-		if skip {
-			clog.Info("skip cluster %v reconcile", currentCluster.Name)
-			return ctrl.Result{}, err
-		}
-
-		clog.Info("add cluster %v to internal clusters success", currentCluster.Name)
+		clog.Info("ensure cluster %v in internal clusters success", currentCluster.Name)
 	}
 
 	return r.syncCluster(ctx, currentCluster)
 }
 
 func (r *ClusterReconciler) syncCluster(ctx context.Context, currentCluster clusterv1.Cluster) (ctrl.Result, error) {
-	// deploy resources to cluster
-	err := deployResources(ctx, currentCluster, r.pivotCluster)
+	// update cluster status to processing
+	err := utils.UpdateClusterStatusByState(ctx, r.Client, &currentCluster, clusterv1.ClusterProcessing)
 	if err != nil {
-		// todo: handle error
+		return ctrl.Result{}, err
+	}
+
+	// deploy resources to cluster
+	err = deployResources(ctx, currentCluster, r.pivotCluster)
+	if err != nil {
 		log.Error("deploy resource failed: %v", err)
+		_ = utils.UpdateClusterStatusByState(ctx, r.Client, &currentCluster, clusterv1.ClusterInitFailed)
+		return ctrl.Result{}, err
 	}
 
 	// start to scout loop for memberCluster warden, non-block
 	err = multicluster.Interface().ScoutFor(context.Background(), currentCluster.Name)
 	if err != nil {
 		log.Error("start scout for cluster %v failed", currentCluster.Name)
+		_ = utils.UpdateClusterStatusByState(ctx, r.Client, &currentCluster, clusterv1.ClusterInitFailed)
 		return ctrl.Result{}, err
-	}
-
-	// update cluster status to processing
-	updateFn := func(cluster *clusterv1.Cluster) {
-		state := clusterv1.ClusterProcessing
-		reason := fmt.Sprintf("cluster %s initializing", cluster.Name)
-		cluster.Status.State = &state
-		cluster.Status.Reason = reason
-	}
-
-	err = utils.UpdateStatus(ctx, r.Client, &currentCluster, updateFn)
-	if err != nil {
-		log.Warn("update cluster %v status failed: %v", currentCluster.Name, err)
 	}
 
 	return ctrl.Result{}, nil
@@ -231,16 +204,7 @@ func (r *ClusterReconciler) enqueue(cluster clusterv1.Cluster) {
 				// retrying timeout need update status
 				// todo(weilaaa): to allow user reconnect cluster manually
 				if ctx.Err().Error() == "context deadline exceeded" {
-					updateFn := func(cluster *clusterv1.Cluster) {
-						state := clusterv1.ClusterReconnectedFailed
-						reason := fmt.Sprintf("cluster %s reconnect timeout: %v", cluster.Name, retryTimeout)
-						cluster.Status.State = &state
-						cluster.Status.Reason = reason
-					}
-					err := utils.UpdateStatus(ctx, r.Client, &cluster, updateFn)
-					if err != nil {
-						log.Warn("update cluster %v status failed: %v", cluster.Name, err)
-					}
+					_ = utils.UpdateClusterStatusByState(ctx, r.Client, &cluster, clusterv1.ClusterReconnectedFailed)
 				}
 
 				return

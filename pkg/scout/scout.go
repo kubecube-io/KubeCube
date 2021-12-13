@@ -136,7 +136,7 @@ func (s *Scout) healthWarden(ctx context.Context, info WardenInfo) {
 		obj.Status.LastHeartbeat = &metav1.Time{Time: s.LastHeartbeat}
 	}
 
-	err = utils.UpdateStatus(ctx, s.Client, cluster, updateFn)
+	err = utils.UpdateClusterStatus(ctx, s.Client, cluster, updateFn)
 	if err != nil {
 		clog.Error(err.Error())
 		return
@@ -177,7 +177,7 @@ func (s *Scout) illWarden(ctx context.Context) {
 
 		clog.Warn("%v, last heartbeat: %v", reason, s.LastHeartbeat)
 
-		err := utils.UpdateStatus(ctx, s.Client, cluster, updateFn)
+		err := utils.UpdateClusterStatus(ctx, s.Client, cluster, updateFn)
 		if err != nil {
 			clog.Error(err.Error())
 		}

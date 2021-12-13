@@ -92,18 +92,20 @@ func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivot
 		info.KubeApiServer = cluster.Spec.KubernetesAPIEndpoint
 		info.NetworkType = cluster.Spec.NetworkType
 
-		cli := clients.Interface().Kubernetes(v)
-		if cli == nil {
+		internalCluster, err := multicluster.Interface().Get(v)
+		if internalCluster != nil && err != nil {
 			info.Status = string(clusterv1.ClusterAbnormal)
+		}
+		if internalCluster == nil {
 			if len(statusFilter) == 0 {
 				infos = append(infos, info)
-			} else {
-				if info.Status == statusFilter {
-					infos = append(infos, info)
-				}
+			} else if info.Status == statusFilter {
+				infos = append(infos, info)
 			}
 			continue
 		}
+
+		cli := internalCluster.Client
 
 		// todo(weilaaa): context may be exceed if metrics query timeout
 		// will deprecated in v2.0.x
@@ -145,12 +147,9 @@ func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivot
 
 		if len(statusFilter) == 0 {
 			infos = append(infos, info)
-		} else {
-			if info.Status == statusFilter {
-				infos = append(infos, info)
-			}
+		} else if info.Status == statusFilter {
+			infos = append(infos, info)
 		}
-
 	}
 
 	return infos, nil

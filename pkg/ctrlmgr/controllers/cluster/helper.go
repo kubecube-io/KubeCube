@@ -21,15 +21,16 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/kubecube-io/kubecube/pkg/utils"
 	v1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
-	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
@@ -102,29 +103,35 @@ func (r *ClusterReconciler) deleteExternalResources(cluster clusterv1.Cluster, c
 	}
 
 	// get target memberCluster client
-	mClient := clients.Interface().Kubernetes(cluster.Name)
-	if mClient == nil {
-		return fmt.Errorf("cluster %v is abnormal", cluster.Name)
+	internalCluster, err := multicluster.Interface().Get(cluster.Name)
+	if internalCluster != nil && err != nil {
+		// retry if member cluster is unhealthy
+		clog.Warn(err.Error())
+		return err
+	}
+	if internalCluster == nil {
+		clog.Warn("cluster %v may be deleted, fallthrough", cluster.Name)
+	} else {
+		mClient := internalCluster.Client
+		// delete kubecube-system of cluster
+		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: constants.CubeNamespace}}
+		err := mClient.Direct().Delete(ctx, &ns)
+		if err != nil {
+			if errors.IsNotFound(err) {
+				clog.Warn("namespace %v of cluster %v not found, delete skip", constants.CubeNamespace, cluster.Name)
+			}
+			// retry if delete resources in member cluster failed
+			clog.Error("delete namespace %v of cluster %v failed: %v", constants.CubeNamespace, cluster.Name, err)
+			return err
+		}
 	}
 
 	// delete internal cluster and release goroutine inside
-	err := multicluster.Interface().Del(cluster.Name)
+	err = multicluster.Interface().Del(cluster.Name)
 	if err != nil {
-		clog.Error("delete internal cluster %v failed", err)
-		return err
+		clog.Warn("cluster %v not found in internal clusters, skip", err)
 	}
-	clog.Debug("delete internal cluster %v success", cluster.Name)
 
-	// delete kubecube-system of cluster
-	ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: constants.CubeNamespace}}
-	err = mClient.Direct().Delete(ctx, &ns)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			clog.Warn("namespace %v of cluster %v not failed, delete skip", constants.CubeNamespace, cluster.Name)
-		}
-		clog.Error("delete namespace %v of cluster %v failed: %v", constants.CubeNamespace, cluster.Name, err)
-		return err
-	}
 	clog.Debug("delete kubecube-system of cluster %v success", cluster.Name)
 
 	return nil
@@ -145,6 +152,12 @@ func (r *ClusterReconciler) ensureFinalizer(ctx context.Context, cluster *cluste
 func (r *ClusterReconciler) removeFinalizer(ctx context.Context, cluster *clusterv1.Cluster) error {
 	if controllerutil.ContainsFinalizer(cluster, clusterFinalizer) {
 		clog.Info("delete cluster %v", cluster.Name)
+
+		err := utils.UpdateClusterStatusByState(ctx, r.Client, cluster, clusterv1.ClusterDeleting)
+		if err != nil {
+			return err
+		}
+
 		if err := r.deleteExternalResources(*cluster, ctx); err != nil {
 			// if fail to delete the external dependency here, return with error
 			// so that it can be retried
@@ -152,8 +165,23 @@ func (r *ClusterReconciler) removeFinalizer(ctx context.Context, cluster *cluste
 		}
 		// remove our finalizer from the list and update it.
 		controllerutil.RemoveFinalizer(cluster, clusterFinalizer)
-		if err := r.Update(ctx, cluster); err != nil {
-			clog.Error("remove finalizers for cluster %v, failed: %v", cluster.Name, err)
+		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			newCluster := &clusterv1.Cluster{}
+			err := r.Get(ctx, types.NamespacedName{Name: cluster.Name}, newCluster)
+			if err != nil {
+				return err
+			}
+
+			newCluster.Finalizers = cluster.Finalizers
+
+			err = r.Update(ctx, newCluster)
+			if err != nil {
+				return err
+			}
+			return nil
+		})
+		if err != nil {
+			clog.Warn("remove finalizers for cluster %v, failed: %v", cluster.Name, err)
 			return err
 		}
 	}
