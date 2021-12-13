@@ -35,6 +35,9 @@ const (
 	// ClusterProcessing wait for cluster be taken over
 	ClusterProcessing ClusterState = "processing"
 
+	// ClusterDeleting means cluster is under deleting
+	ClusterDeleting ClusterState = "deleting"
+
 	// ClusterNormal represent cluster is healthy
 	ClusterNormal ClusterState = "normal"
 

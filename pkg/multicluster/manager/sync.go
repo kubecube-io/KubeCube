@@ -28,7 +28,6 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/apis"
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
 	"github.com/kubecube-io/kubecube/pkg/clog"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
 const (
@@ -100,17 +99,15 @@ func doSync(action int, obj interface{}) {
 
 	switch action {
 	case add, update:
-		skip, err := AddInternalCluster(*cluster)
+		err := AddInternalCluster(*cluster)
 		if err != nil {
 			clog.Error("add internal cluster %v failed: %v", cluster.Name, err)
 			return
 		}
-		if !skip || cluster.Name == constants.PivotCluster {
-			// start to scout for warden
-			err = MultiClusterMgr.ScoutFor(context.Background(), cluster.Name)
-			if err != nil {
-				clog.Error("scout for %v warden failed: %v", cluster.Name, err)
-			}
+		// start to scout for warden
+		err = MultiClusterMgr.ScoutFor(context.Background(), cluster.Name)
+		if err != nil {
+			clog.Error("scout for %v warden failed: %v", cluster.Name, err)
 		}
 	case del:
 		err := MultiClusterMgr.Del(cluster.Name)

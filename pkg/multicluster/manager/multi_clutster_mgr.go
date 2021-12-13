@@ -210,21 +210,21 @@ func (m *MultiClustersMgr) FuzzyCopy() map[string]*FuzzyCluster {
 
 // AddInternalCluster build internal cluster of cluster and add it
 // to multi cluster manager
-func AddInternalCluster(cluster clusterv1.Cluster) (bool, error) {
+func AddInternalCluster(cluster clusterv1.Cluster) error {
 	_, err := MultiClusterMgr.Get(cluster.Name)
 	if err == nil {
 		// return Immediately if active internal cluster exist
-		return true, nil
+		return nil
 	} else {
 		// create internal cluster relate with cluster cr
 		config, err := kubeconfig.LoadKubeConfigFromBytes(cluster.Spec.KubeConfig)
 		if err != nil {
-			return true, fmt.Errorf("load kubeconfig failed: %v", err)
+			return fmt.Errorf("load kubeconfig failed: %v", err)
 		}
 
 		pivotCluster, err := MultiClusterMgr.Get(constants.PivotCluster)
 		if err != nil {
-			return true, err
+			return err
 		}
 
 		// allocate mem address to avoid nil
@@ -239,16 +239,16 @@ func AddInternalCluster(cluster clusterv1.Cluster) (bool, error) {
 			// NewClientFor failed mean cluster init failed that need
 			// requeue as soon as reconnect with cluster api-server success
 			*cluster.Status.State = clusterv1.ClusterInitFailed
-			return false, err
+			return err
 		}
 
 		*cluster.Status.State = clusterv1.ClusterProcessing
 
 		err = MultiClusterMgr.Add(cluster.Name, c)
 		if err != nil {
-			return true, fmt.Errorf("add internal cluster failed: %v", err)
+			return fmt.Errorf("add internal cluster failed: %v", err)
 		}
 	}
 
-	return false, nil
+	return nil
 }
