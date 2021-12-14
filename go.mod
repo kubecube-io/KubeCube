@@ -16,6 +16,7 @@ require (
 	github.com/json-iterator/go v1.1.11
 	github.com/leodido/go-urn v1.2.1 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
+	github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.15.0
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
@@ -31,7 +32,7 @@ require (
 	github.com/urfave/cli/v2 v2.3.0
 	go.uber.org/zap v1.19.0
 	golang.org/x/crypto v0.0.0-20210505212654-3497b51f5e64 // indirect
-	golang.org/x/net v0.0.0-20210505214959-0714010a04ed // indirect
+	golang.org/x/net v0.0.0-20210505214959-0714010a04ed
 	golang.org/x/term v0.0.0-20210220032956-6a3ed077a48d // indirect
 	golang.org/x/tools v0.1.5 // indirect
 	gopkg.in/asn1-ber.v1 v1.0.0-20181015200546-f715ec2f112d // indirect
@@ -43,6 +44,7 @@ require (
 	k8s.io/apiserver v0.20.4
 	k8s.io/cli-runtime v0.20.5
 	k8s.io/client-go v0.22.1
+	k8s.io/klog/v2 v2.4.0
 	k8s.io/kube-openapi v0.0.0-20210305001622-591a79e4bda7 // indirect
 	k8s.io/kubectl v0.20.5
 	k8s.io/metrics v0.20.5

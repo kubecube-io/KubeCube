@@ -29,8 +29,6 @@ import (
 
 var log clog.CubeLogger
 
-const apiPathRoot = "/api/v1/warden"
-
 type Server struct {
 	Server    *http.Server
 	JwtSecret string
