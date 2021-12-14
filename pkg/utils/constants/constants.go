@@ -48,13 +48,8 @@ const (
 	ImpersonateGroupKey = "Impersonate-Group"
 )
 
-// audit and user constant
+// user constant
 const (
-	EventName          = "event"
-	EventTypeUserWrite = "userwrite"
-	EventResourceType  = "resourceType"
-	EventAccountId     = "accountId"
-
 	AuthorizationHeader        = "Authorization"
 	DefaultTokenExpireDuration = 3600 // 1 hour
 )

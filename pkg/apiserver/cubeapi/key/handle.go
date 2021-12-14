@@ -33,6 +33,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/audit"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
@@ -50,8 +51,7 @@ const (
 // @Failure 500 {object} errcode.ErrorInfo
 // @Router /api/v1/cube/key/create  [get]
 func CreateKey(c *gin.Context) {
-	c.Set(constants.EventName, "create key")
-	c.Set(constants.EventResourceType, "key")
+	c = audit.SetAuditInfo(c, audit.CreateKey, "")
 	// get user info
 	userInfo, err := token.GetUserFromReq(c.Request)
 	if err != nil {
@@ -118,10 +118,8 @@ func CreateKey(c *gin.Context) {
 // @Failure 500 {object} errcode.ErrorInfo
 // @Router /api/v1/cube/key  [delete]
 func DeleteKey(c *gin.Context) {
-	c.Set(constants.EventName, "delete key")
-	c.Set(constants.EventResourceType, "key")
-
 	accessKey := c.Query("accessKey")
+	c = audit.SetAuditInfo(c, audit.DeleteKey, accessKey)
 	// get user info
 	userInfo, err := token.GetUserFromReq(c.Request)
 	if err != nil {
@@ -161,9 +159,6 @@ func DeleteKey(c *gin.Context) {
 // @Failure 500 {object} errcode.ErrorInfo
 // @Router /api/v1/cube/key  [get]
 func ListKey(c *gin.Context) {
-	c.Set(constants.EventName, "list key")
-	c.Set(constants.EventResourceType, "key")
-
 	// get user info
 	userInfo, err := token.GetUserFromReq(c.Request)
 	if err != nil {
@@ -191,9 +186,6 @@ func ListKey(c *gin.Context) {
 // @Failure 500 {object} errcode.ErrorInfo
 // @Router /api/v1/cube/key/token  [get]
 func GetTokenByKey(c *gin.Context) {
-	c.Set(constants.EventName, "get token by key")
-	c.Set(constants.EventResourceType, "key")
-
 	accessKey := c.Query("accessKey")
 	secretKey := c.Query("secretKey")
 

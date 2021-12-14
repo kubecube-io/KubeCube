@@ -43,6 +43,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	"github.com/kubecube-io/kubecube/pkg/quota"
+	"github.com/kubecube-io/kubecube/pkg/utils/audit"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/env"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
@@ -444,6 +445,7 @@ func (h *handler) registerCluster(c *gin.Context) {
 		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 		return
 	}
+	c = audit.SetAuditInfo(c, audit.RegisterCluster, cluster.Name)
 
 	err = h.Direct().Create(c.Request.Context(), cluster)
 	if err != nil {
