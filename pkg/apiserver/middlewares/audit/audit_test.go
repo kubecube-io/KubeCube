@@ -27,9 +27,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/kubecube-io/kubecube/pkg/utils/audit"
 )
 
 type header struct {
@@ -60,7 +61,7 @@ func TestSendEvent(t *testing.T) {
 		Url:             "/api/v1/cube/login",
 		UserIdentity:    &UserIdentity{"admin"},
 		UserAgent:       "HTTP",
-		EventType:       constants.EventTypeUserWrite,
+		EventType:       audit.EventTypeUserWrite,
 		RequestId:       uuid.New().String(),
 	}
 
