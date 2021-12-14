@@ -19,8 +19,12 @@ package authproxy
 import (
 	"context"
 	"net/http"
-	"net/http/httputil"
 	"net/url"
+	"strings"
+	"time"
+
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/rest"
 
 	v1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators"
@@ -28,11 +32,9 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-	"github.com/kubecube-io/kubecube/pkg/utils/ctls"
 	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
+	"github.com/kubecube-io/kubecube/pkg/warden/server/authproxy/proxy"
 	"github.com/kubecube-io/kubecube/pkg/warden/utils"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/rest"
 )
 
 // Handler forwards all the requests to specified k8s-apiserver
@@ -45,7 +47,7 @@ type Handler struct {
 	cfg *rest.Config
 
 	// proxy do real proxy action with any inbound stream
-	proxy *httputil.ReverseProxy
+	proxy *proxy.UpgradeAwareHandler
 }
 
 func NewHandler() (*Handler, error) {
@@ -64,22 +66,31 @@ func NewHandler() (*Handler, error) {
 		return nil, err
 	}
 
-	target, err := url.Parse(restConfig.Host)
+	host := restConfig.Host
+	if !strings.HasSuffix(host, "/") {
+		host = host + "/"
+	}
+	target, err := url.Parse(host)
 	if err != nil {
 		return nil, err
 	}
 
-	// k8s-apiserver needs extract user info from client cert
-	// we use admin cert to access k8s-apiserver
-	ts, err := ctls.MakeMTlsTransportByPem(restConfig.CAData, restConfig.CertData, restConfig.KeyData)
+	responder := &responder{}
+	ts, err := rest.TransportFor(restConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	proxy := httputil.NewSingleHostReverseProxy(target)
-	proxy.Transport = ts
+	upgradeTransport, err := makeUpgradeTransport(restConfig, 30*time.Second)
+	if err != nil {
+		return nil, err
+	}
 
-	h.proxy = proxy
+	p := proxy.NewUpgradeAwareHandler(target, ts, false, false, responder)
+	p.UpgradeTransport = upgradeTransport
+	p.UseRequestLocation = true
+
+	h.proxy = p
 
 	return h, nil
 }
