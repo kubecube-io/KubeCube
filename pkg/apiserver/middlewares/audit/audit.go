@@ -221,11 +221,11 @@ func getEventName(c *gin.Context, e Event) *Event {
 			break
 		}
 	}
-
-	e.EventName = methodStr + objectType
+	objectType = objectType[:len(objectType)-1]
+	e.EventName = methodStr + strings.Title(objectType)
 	e.Description = e.Description + audit.ResourceType[objectType]
 	e.ResourceReports = []Resource{{
-		ResourceType: objectType[:len(objectType)-1],
+		ResourceType: objectType,
 		ResourceName: objectName,
 	}}
 	return &e
