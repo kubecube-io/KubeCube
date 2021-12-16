@@ -66,7 +66,7 @@ func withinWhiteList(url *url.URL, method string, whiteList map[string]string) b
 	queryUrl := url.Path
 	for k, v := range whiteList {
 		match, err := regexp.MatchString(k, queryUrl)
-		if err == nil && match && method == v {
+		if err != nil && match && method == v {
 			return true
 		}
 	}
