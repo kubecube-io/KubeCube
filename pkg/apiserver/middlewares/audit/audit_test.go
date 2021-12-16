@@ -69,27 +69,36 @@ func TestSendEvent(t *testing.T) {
 }
 
 func TestGetEventName(t *testing.T) {
-	// check post method
 	e := &Event{}
 	router := gin.New()
+
+	// check get method
+	router.GET("/api/v1/cube/proxy/clusters/:cluster/apis/apps/v1/namespaces/:namespace/statefulsets/:name", func(c *gin.Context) {
+		e = getEventName(c, *e)
+		return
+	})
+	_ = performRequest(router, http.MethodGet, "/api/v1/cube/proxy/clusters/pivot-cluster/apis/apps/v1/namespaces/dev/statefulsets/stsA", []byte(""))
+	if e.EventName != "[KubeCube] query statefulsets" {
+		t.Fail()
+	}
+
+	// check post method
 	router.POST("/api/v1/cube/proxy/clusters/:cluster/api/v1/namespaces/:namespace/services", func(c *gin.Context) {
 		e = getEventName(c, *e)
 		return
 	})
 	_ = performRequest(router, http.MethodPost, "/api/v1/cube/proxy/clusters/pivot-cluster/api/v1/namespaces/dev/services", []byte(""))
-	if e.EventName != "createService" {
+	if e.EventName != "[KubeCube] create services" {
 		t.Fail()
 	}
 
 	// check put method
-	e = &Event{}
-	router = gin.New()
 	router.PUT("/api/v1/cube/proxy/clusters/:cluster/api/v1/namespaces/:namespace/secrets/:name", func(c *gin.Context) {
 		e = getEventName(c, *e)
 		return
 	})
 	_ = performRequest(router, http.MethodPut, "/api/v1/cube/proxy/clusters/pivot-cluster/api/v1/namespaces/dev/secrets/secretA", []byte(""))
-	if e.EventName != "updateSecret" {
+	if e.EventName != "[KubeCube] update secrets" {
 		t.Fail()
 	}
 }
