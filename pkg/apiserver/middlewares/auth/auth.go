@@ -88,7 +88,6 @@ func Auth() gin.HandlerFunc {
 						break
 					}
 				}
-				c.Set(constants.EventAccountId, user.GetUserName())
 			} else {
 				userToken, err := token.GetTokenFromReq(c.Request)
 				if err != nil {
@@ -109,7 +108,6 @@ func Auth() gin.HandlerFunc {
 				c.Request.Header.Set(constants.AuthorizationHeader, v)
 				c.Request.Header.Set(constants.ImpersonateUserKey, user.Username)
 				c.SetCookie(constants.AuthorizationHeader, v, int(authJwtImpl.TokenExpireDuration), "/", "", false, true)
-				c.Set(constants.EventAccountId, user.Username)
 			}
 			c.Next()
 		}
