@@ -35,7 +35,6 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/apiserver/middlewares/auth"
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
 	"github.com/kubecube-io/kubecube/pkg/clog"
-	"github.com/kubecube-io/kubecube/pkg/utils/audit"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/env"
 )
@@ -48,7 +47,8 @@ const (
 	eventActionDelete = "delete"
 	eventActionQuery  = "query"
 
-	eventRespBody = "responseBody"
+	eventRespBody         = "responseBody"
+	eventResourceKubeCube = "[KubeCube]"
 )
 
 var (
@@ -79,11 +79,10 @@ func Audit() gin.HandlerFunc {
 		w := &responseBodyWriter{body: &bytes.Buffer{}, ResponseWriter: c.Writer}
 		c.Writer = w
 		c.Next()
-		if !withinWhiteList(c.Request.URL, c.Request.Method, auditWhiteList) &&
-			!withinWhiteList(c.Request.URL, c.Request.Method, auth.AuthWhiteList) && c.Request.Method != http.MethodGet {
+		if !withinWhiteList(c.Request.URL, c.Request.Method, auditWhiteList) {
 			clog.Debug("[audit] get event information")
 			e := &Event{
-				EventTime:         time.Now().UnixNano() / int64(time.Millisecond),
+				EventTime:         time.Now().Unix(),
 				EventVersion:      "V1",
 				SourceIpAddress:   c.ClientIP(),
 				RequestMethod:     c.Request.Method,
@@ -91,11 +90,14 @@ func Audit() gin.HandlerFunc {
 				Url:               c.Request.URL.String(),
 				UserAgent:         "HTTP",
 				RequestParameters: getParameters(c),
-				EventType:         audit.EventTypeUserWrite,
+				EventType:         constants.EventTypeUserWrite,
 				RequestId:         uuid.New().String(),
 				ResponseElements:  w.body.String(),
 				EventSource:       env.AuditEventSource(),
-				UserIdentity:      getUserIdentity(c),
+			}
+
+			if !withinWhiteList(c.Request.URL, c.Request.Method, auth.AuthWhiteList) {
+				e.UserIdentity = getUserIdentity(c)
 			}
 
 			// get response
@@ -111,16 +113,22 @@ func Audit() gin.HandlerFunc {
 			}
 
 			// get event name and description
-			eventName, isExist := c.Get(audit.EventName)
+			eventName, isExist := c.Get(constants.EventName)
 			if isExist == true {
 				e.EventName = eventName.(string)
-				e.Description = c.GetString(audit.EventDescription)
-				e.ResourceReports = []Resource{{
-					ResourceType: c.GetString(audit.EventDescription),
-					ResourceName: c.GetString(audit.EventResourceName),
-				}}
+				e.Description = eventName.(string)
 			} else {
 				e = getEventName(c, *e)
+			}
+
+			// get resource type
+			resourceType, isExists := c.Get(constants.EventResourceType)
+			if isExists == true {
+				e.ResourceReports = []Resource{{ResourceType: resourceType.(string)}}
+			} else {
+				if e.ResponseElements != "" {
+
+				}
 			}
 
 			go sendEvent(e)
@@ -170,64 +178,46 @@ func sendEvent(e *Event) {
 // get event name and description
 func getEventName(c *gin.Context, e Event) *Event {
 	var (
-		methodStr  string
-		objectType string
-		objectName string
+		methodStr string
+		object    string
 	)
 
-	requestURI := c.Request.RequestURI
+	url := c.Request.RequestURI
 	method := c.Request.Method
 
 	switch method {
 	case http.MethodPost:
 		methodStr = eventActionCreate
-		e.Description = "创建"
 		break
-	case http.MethodPut, http.MethodPatch:
+	case http.MethodPut:
 		methodStr = eventActionUpdate
-		e.Description = "更新"
 		break
 	case http.MethodDelete:
 		methodStr = eventActionDelete
-		e.Description = "删除"
+		break
+	case http.MethodGet:
+		methodStr = eventActionQuery
 	}
 
-	queryUrl := strings.Trim(strings.Split(fmt.Sprint(requestURI), "?")[0], "/api/v1/cube")
+	queryUrl := strings.Split(fmt.Sprint(url), "?")[0]
 	urlstrs := strings.Split(queryUrl, "/")
-	length := len(urlstrs)
 	for i, str := range urlstrs {
 		if str == constants.K8sResourceNamespace {
-			if length == i+1 {
-				objectType = constants.K8sResourceNamespace
-			} else if length == i+2 {
-				objectType = constants.K8sResourceNamespace
-				objectName = urlstrs[i+1]
-
-			} else if length == i+3 {
-				objectType = urlstrs[i+2]
-
-			} else if length == i+4 {
-				objectType = urlstrs[i+2]
-				objectName = urlstrs[i+3]
+			if i+2 < len(urlstrs) {
+				object = urlstrs[i+2]
+			} else {
+				object = constants.K8sResourceNamespace
 			}
 			break
 		}
 
 		if str == constants.K8sResourceVersion && urlstrs[i+1] != constants.K8sResourceNamespace {
-			objectType = urlstrs[i+1]
-			if i+2 < len(urlstrs) {
-				objectName = urlstrs[i+2]
-			}
-			break
+			object = urlstrs[i+1]
 		}
 	}
 
-	e.EventName = methodStr + objectType
-	e.Description = e.Description + audit.ResourceType[objectType]
-	e.ResourceReports = []Resource{{
-		ResourceType: objectType[:len(objectType)-1],
-		ResourceName: objectName,
-	}}
+	e.EventName = eventResourceKubeCube + " " + methodStr + " " + object
+	e.Description = e.EventName
 	return &e
 }
 
@@ -235,7 +225,7 @@ func getEventName(c *gin.Context, e Event) *Event {
 func getUserIdentity(c *gin.Context) *UserIdentity {
 
 	userIdentity := &UserIdentity{}
-	accountId, isExist := c.Get(audit.EventAccountId)
+	accountId, isExist := c.Get(constants.EventAccountId)
 	if isExist {
 		userIdentity.AccountId = accountId.(string)
 		return userIdentity

@@ -30,7 +30,6 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/authentication/identityprovider/github"
 	"github.com/kubecube-io/kubecube/pkg/authentication/identityprovider/ldap"
 	"github.com/kubecube-io/kubecube/pkg/clog"
-	"github.com/kubecube-io/kubecube/pkg/utils/audit"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/md5util"
@@ -58,6 +57,8 @@ const (
 // @Failure 500 {object} errcode.ErrorInfo
 // @Router /api/v1/cube/login  [post]
 func Login(c *gin.Context) {
+	c.Set(constants.EventName, "login")
+
 	// check struct
 	var userLoginInfo = LoginInfo{}
 	if err := c.ShouldBindJSON(&userLoginInfo); err != nil {
@@ -97,8 +98,7 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	c = audit.SetAuditInfo(c, audit.Login, user.Name)
-	c.Set(audit.EventAccountId, user.Name)
+	c.Set(constants.EventAccountId, user.Name)
 	// update user login information
 	user.Status.LastLoginIP = c.ClientIP()
 	user.Status.LastLoginTime = &metav1.Time{Time: time.Now()}
@@ -193,8 +193,7 @@ func GitHubLogin(c *gin.Context) {
 		return
 	}
 	c.SetCookie(constants.AuthorizationHeader, bearerToken, int(authJwtImpl.TokenExpireDuration), "/", "", false, true)
-	c.Set(audit.EventAccountId, user.Name)
-	c = audit.SetAuditInfo(c, audit.Login, user.Name)
+	c.Set(constants.EventAccountId, user.Name)
 
 	response.SuccessReturn(c, user)
 	return

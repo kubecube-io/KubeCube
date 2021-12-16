@@ -27,7 +27,6 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
 	"github.com/kubecube-io/kubecube/pkg/authentication/identityprovider/generic"
 	"github.com/kubecube-io/kubecube/pkg/clog"
-	"github.com/kubecube-io/kubecube/pkg/utils/audit"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
@@ -89,7 +88,7 @@ func Auth() gin.HandlerFunc {
 						break
 					}
 				}
-				c.Set(audit.EventAccountId, user.GetUserName())
+				c.Set(constants.EventAccountId, user.GetUserName())
 			} else {
 				userToken, err := token.GetTokenFromReq(c.Request)
 				if err != nil {
@@ -110,7 +109,7 @@ func Auth() gin.HandlerFunc {
 				c.Request.Header.Set(constants.AuthorizationHeader, v)
 				c.Request.Header.Set(constants.ImpersonateUserKey, user.Username)
 				c.SetCookie(constants.AuthorizationHeader, v, int(authJwtImpl.TokenExpireDuration), "/", "", false, true)
-				c.Set(audit.EventAccountId, user.Username)
+				c.Set(constants.EventAccountId, user.Username)
 			}
 			c.Next()
 		}
