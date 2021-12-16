@@ -1,3 +1,32 @@
+# v1.1.0
+
+## Feature
+- auth-proxy in front of k8s-apiserver for proxying kubectl and restful access ([#73](https://github.com/kubecube-io/KubeCube/pull/73), [#67](https://github.com/kubecube-io/KubeCube/pull/67))
+- change algorithm of quota [#72](https://github.com/kubecube-io/KubeCube/pull/72)
+- add operation of e2e init and end [#68](https://github.com/kubecube-io/KubeCube/pull/68)
+- clean up: implement jwt utils to interface ([#64](https://github.com/kubecube-io/KubeCube/pull/64), [#65](https://github.com/kubecube-io/KubeCube/pull/65))
+- github login of oAuth2 support [#60](https://github.com/kubecube-io/KubeCube/pull/60)
+- warden-init-container can use charts pkg offline or download it from remote [#57](https://github.com/kubecube-io/KubeCube/pull/57)
+
+## BugFix
+- fix that can not add customize ClusterRole [#71](https://github.com/kubecube-io/KubeCube/pull/71)
+- hide user password when login [#66](https://github.com/kubecube-io/KubeCube/pull/66)
+- close response body after do audit middlewares [#55](https://github.com/kubecube-io/KubeCube/pull/55/files)
+- fix hotplug result status error && fix proxy http and https in kubecube [#52](https://github.com/kubecube-io/KubeCube/pull/52)
+
+## Dependencies
+
+- hnc v0.8.0-kubecube.1.1
+- nginx-ingress v0.46.0
+- helm 3.x
+- metrics-server v0.4.1
+- elasticsearch 7.8
+- kubecube-monitoring 15.4.8
+- thanos 3.18.0
+- logseer v1.0.0
+- logagent v1.0.0
+- kubecube-audit 1.1.0
+
 # v1.0.3
 ## BugFix
 - fix tenant namespace annotation
