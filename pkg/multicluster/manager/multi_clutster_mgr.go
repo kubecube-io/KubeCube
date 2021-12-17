@@ -95,6 +95,7 @@ func newMultiClusterMgr() *MultiClustersMgr {
 	c := new(InternalCluster)
 	c.StopCh = make(chan struct{})
 	c.Config = cfg
+	c.RawConfig = cluster.Spec.KubeConfig
 	c.Client, err = kubernetes.NewClientFor(cfg, c.StopCh)
 	if err != nil {
 		// early exit when connect to the k8s apiserver of control plane failed
@@ -122,6 +123,9 @@ type InternalCluster struct {
 
 	// Config bind to a real cluster
 	Config *rest.Config
+
+	// RawConfig holds raw kubeconfig
+	RawConfig []byte
 
 	// StopCh for closing channel when delete cluster, goroutine
 	// of informer and scout will exit gracefully.
@@ -198,9 +202,11 @@ func (m *MultiClustersMgr) FuzzyCopy() map[string]*FuzzyCluster {
 
 	clusters := make(map[string]*FuzzyCluster)
 	for name, v := range m.Clusters {
+		// we must new *rest.Config just like deep copy
+		cfg, _ := kubeconfig.LoadKubeConfigFromBytes(v.RawConfig)
 		clusters[name] = &FuzzyCluster{
 			Name:   name,
-			Config: v.Config,
+			Config: cfg,
 			Client: v.Client,
 		}
 	}
@@ -233,6 +239,7 @@ func AddInternalCluster(cluster clusterv1.Cluster) error {
 		c := new(InternalCluster)
 		c.StopCh = make(chan struct{})
 		c.Config = config
+		c.RawConfig = cluster.Spec.KubeConfig
 		c.Scout = scout.NewScout(cluster.Name, 0, 0, pivotCluster.Client.Direct(), c.StopCh)
 		c.Client, err = kubernetes.NewClientFor(config, c.StopCh)
 		if err != nil {
