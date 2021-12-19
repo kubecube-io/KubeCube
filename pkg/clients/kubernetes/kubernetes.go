@@ -37,18 +37,17 @@ import (
 )
 
 var (
-	scheme = runtime.NewScheme()
+	scheme = initScheme()
 )
 
-func init() {
+func initScheme() *runtime.Scheme {
+	s := runtime.NewScheme()
 	// cache for all k8s and crd resource
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
-	utilruntime.Must(apis.AddToScheme(scheme))
-
-	utilruntime.Must(hnc.AddToScheme(scheme))
-
-	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
+	utilruntime.Must(clientgoscheme.AddToScheme(s))
+	utilruntime.Must(apis.AddToScheme(s))
+	utilruntime.Must(hnc.AddToScheme(s))
+	utilruntime.Must(apiextensionsv1.AddToScheme(s))
+	return s
 }
 
 // Client retrieves k8s resource with cache or not

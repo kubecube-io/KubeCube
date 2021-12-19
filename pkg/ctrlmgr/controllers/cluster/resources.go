@@ -50,70 +50,62 @@ const (
 	mountName     = "pki-mount"
 )
 
-func deployResources(ctx context.Context, memberCluster, pivotCluster clusterv1.Cluster) error {
-	// get target memberCluster client
-	cli := clients.Interface().Kubernetes(memberCluster.Name)
-	if cli == nil {
-		return fmt.Errorf("get internal client failed")
-	}
-
-	c := cli.Direct()
-
+func deployResources(ctx context.Context, cli client.Client, memberCluster, pivotCluster clusterv1.Cluster) error {
 	isMemberCluster := memberCluster.Spec.IsMemberCluster
 
 	// create resource below when cluster is member
 	if isMemberCluster {
+		// create crds to target cluster
+		crds := makeCRDs()
+		for _, crd := range crds {
+			err := createResource(ctx, crd, cli, memberCluster.Name, "crd")
+			if err != nil {
+				return err
+			}
+		}
+
 		// create namespace to member cluster
 		ns := makeNamespace()
-		err := createResource(ctx, ns, c, memberCluster.Name, "namespace")
+		err := createResource(ctx, ns, cli, memberCluster.Name, "namespace")
 		if err != nil {
 			return err
 		}
 
 		clusterRole := makeClusterRole()
-		err = createResource(ctx, clusterRole, c, memberCluster.Name, "ClusterRole")
+		err = createResource(ctx, clusterRole, cli, memberCluster.Name, "ClusterRole")
 		if err != nil {
 			return err
 		}
 
 		clusterRoleBinding := makeClusterRoleBinding()
-		err = createResource(ctx, clusterRoleBinding, c, memberCluster.Name, "ClusterRoleBinding")
-		if err != nil {
-			return err
-		}
-
-		// install dependence into target cluster by job
-		prevJob := makePrevJob()
-		err = createResource(ctx, prevJob, c, memberCluster.Name, "job")
-		if err != nil {
-			return err
-		}
-
-		// wait until job complete
-		err = waitForJobComplete(c, types.NamespacedName{Name: prevJob.Name, Namespace: prevJob.Namespace})
+		err = createResource(ctx, clusterRoleBinding, cli, memberCluster.Name, "ClusterRoleBinding")
 		if err != nil {
 			return err
 		}
 
 		// create tls secret to target cluster
 		secret := makeTLSSecret()
-		err = createResource(ctx, secret, c, memberCluster.Name, "secret")
+		err = createResource(ctx, secret, cli, memberCluster.Name, "secret")
 		if err != nil {
 			return err
 		}
 
-		// create crds to target cluster
-		crds := makeCRDs()
-		for _, crd := range crds {
-			err := createResource(ctx, crd, c, memberCluster.Name, "crd")
-			if err != nil {
-				return err
-			}
-		}
-
 		// create kubeConfig cm to target cluster
 		cm := makeKubeConfigCM(pivotCluster)
-		err = createResource(ctx, cm, c, memberCluster.Name, "configmap")
+		err = createResource(ctx, cm, cli, memberCluster.Name, "configmap")
+		if err != nil {
+			return err
+		}
+
+		// install dependence into target cluster by job
+		prevJob := makePrevJob()
+		err = createResource(ctx, prevJob, cli, memberCluster.Name, "job")
+		if err != nil {
+			return err
+		}
+
+		// wait until job complete
+		err = waitForJobComplete(cli, types.NamespacedName{Name: prevJob.Name, Namespace: prevJob.Namespace})
 		if err != nil {
 			return err
 		}
@@ -121,21 +113,21 @@ func deployResources(ctx context.Context, memberCluster, pivotCluster clusterv1.
 
 	// create warden deployment to target cluster
 	deployment := makeDeployment(memberCluster.Name, isMemberCluster)
-	err := createResource(ctx, deployment, c, memberCluster.Name, "deployment")
+	err := createResource(ctx, deployment, cli, memberCluster.Name, "deployment")
 	if err != nil {
 		return err
 	}
 
 	// create warden service to target cluster
 	npSvc := makeWardenSvc()
-	err = createResource(ctx, npSvc, c, memberCluster.Name, "service")
+	err = createResource(ctx, npSvc, cli, memberCluster.Name, "service")
 	if err != nil {
 		clog.Warn("NodePort service %v already exist: %v", npSvc.Name, err)
 	}
 
 	// create validate webhook to target cluster
 	wh := makeWardenWebhook()
-	err = createResource(ctx, wh, c, memberCluster.Name, "validateWebhookConfiguration")
+	err = createResource(ctx, wh, cli, memberCluster.Name, "validateWebhookConfiguration")
 	if err != nil {
 		return err
 	}

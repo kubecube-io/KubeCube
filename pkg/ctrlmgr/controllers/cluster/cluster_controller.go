@@ -92,72 +92,84 @@ func newReconciler(mgr manager.Manager) (*ClusterReconciler, error) {
 func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	clog.Info("Reconcile cluster %v", req.Name)
 
-	isMemberCluster := !(req.Name == constants.PivotCluster)
-	currentCluster := r.pivotCluster
+	cluster := clusterv1.Cluster{}
 
-	if isMemberCluster {
-		// get cr ensure current cluster cr exist
-		if err := r.Get(ctx, req.NamespacedName, &currentCluster); err != nil {
-			if errors.IsNotFound(err) {
-				log.Debug("current cluster %v has deleted, skip", currentCluster.Name)
-				return ctrl.Result{}, nil
-			}
-			log.Error("get current cluster %v cr failed: %v", currentCluster.Name, err)
+	// get cr ensure current cluster cr exist
+	if err := r.Get(ctx, req.NamespacedName, &cluster); err != nil {
+		if errors.IsNotFound(err) {
+			log.Debug("current cluster %v has deleted, skip", cluster.Name)
+			return ctrl.Result{}, nil
+		}
+		log.Error("get current cluster %v cr failed: %v", cluster.Name, err)
+		return ctrl.Result{}, err
+	}
+
+	// examine DeletionTimestamp to determine if object is under deletion
+	if cluster.ObjectMeta.DeletionTimestamp == nil {
+		// ensure finalizer
+		if err := r.ensureFinalizer(ctx, &cluster); err != nil {
 			return ctrl.Result{}, err
 		}
-		// examine DeletionTimestamp to determine if object is under deletion
-		if currentCluster.ObjectMeta.DeletionTimestamp == nil {
-			// ensure finalizer
-			if err := r.ensureFinalizer(ctx, &currentCluster); err != nil {
-				return ctrl.Result{}, err
-			}
-		} else {
-			// relation remove
-			if err := r.removeFinalizer(ctx, &currentCluster); err != nil {
-				return ctrl.Result{}, err
-			}
-			// Stop reconciliation as the item is being deleted
-			return ctrl.Result{}, nil
+	} else {
+		// relation remove
+		if err := r.removeFinalizer(ctx, &cluster); err != nil {
+			return ctrl.Result{}, err
 		}
-
-		// generate internal cluster for current cluster and add
-		// it to the cache of multi cluster manager
-		err := multiclustermgr.AddInternalCluster(currentCluster)
-		if err != nil {
-			clog.Error(err.Error())
-			_ = utils.UpdateClusterStatusByState(ctx, r.Client, &currentCluster, clusterv1.ClusterInitFailed)
-			r.enqueue(currentCluster)
-			return ctrl.Result{}, nil
-		}
-
-		clog.Info("ensure cluster %v in internal clusters success", currentCluster.Name)
+		// Stop reconciliation as the item is being deleted
+		return ctrl.Result{}, nil
 	}
 
-	return r.syncCluster(ctx, currentCluster)
+	return r.syncCluster(ctx, cluster)
 }
 
-func (r *ClusterReconciler) syncCluster(ctx context.Context, currentCluster clusterv1.Cluster) (ctrl.Result, error) {
+func (r *ClusterReconciler) syncCluster(ctx context.Context, cluster clusterv1.Cluster) (ctrl.Result, error) {
 	// update cluster status to processing
-	err := utils.UpdateClusterStatusByState(ctx, r.Client, &currentCluster, clusterv1.ClusterProcessing)
+	err := utils.UpdateClusterStatusByState(ctx, r.Client, &cluster, clusterv1.ClusterProcessing)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
+	clog.Info("Cluster %v is processing", cluster.Name)
+
+	// try connect to cluster, tempClient will be GC after function down
+	tempClient, err := tryConnectCluster(cluster)
+	if err != nil {
+		// todo: what if kubeconfig is wrong
+		clog.Error(err.Error())
+		_ = utils.UpdateClusterStatusByState(ctx, r.Client, &cluster, clusterv1.ClusterInitFailed)
+		r.enqueue(cluster)
+		return ctrl.Result{}, nil
+	}
+	clog.Info("Handshake with cluster %v success", cluster.Name)
 
 	// deploy resources to cluster
-	err = deployResources(ctx, currentCluster, r.pivotCluster)
+	err = deployResources(ctx, tempClient, cluster, r.pivotCluster)
 	if err != nil {
 		log.Error("deploy resource failed: %v", err)
-		_ = utils.UpdateClusterStatusByState(ctx, r.Client, &currentCluster, clusterv1.ClusterInitFailed)
+		_ = utils.UpdateClusterStatusByState(ctx, r.Client, &cluster, clusterv1.ClusterInitFailed)
+		return ctrl.Result{}, err
+	}
+	clog.Info("Ensure resources in cluster %v success", cluster.Name)
+
+	// generate internal cluster for current cluster and add
+	// it to the cache of multi cluster manager
+	err = multiclustermgr.AddInternalCluster(cluster)
+	if err != nil {
+		clog.Error(err.Error())
+		_ = utils.UpdateClusterStatusByState(ctx, r.Client, &cluster, clusterv1.ClusterInitFailed)
+		r.enqueue(cluster)
+		return ctrl.Result{}, nil
+	}
+	clog.Info("Ensure cluster %v in internal clusters success", cluster.Name)
+
+	// start to scout loop for memberCluster warden, non-block
+	err = multicluster.Interface().ScoutFor(context.Background(), cluster.Name)
+	if err != nil {
+		log.Error("start scout for cluster %v failed", cluster.Name)
+		_ = utils.UpdateClusterStatusByState(ctx, r.Client, &cluster, clusterv1.ClusterInitFailed)
 		return ctrl.Result{}, err
 	}
 
-	// start to scout loop for memberCluster warden, non-block
-	err = multicluster.Interface().ScoutFor(context.Background(), currentCluster.Name)
-	if err != nil {
-		log.Error("start scout for cluster %v failed", currentCluster.Name)
-		_ = utils.UpdateClusterStatusByState(ctx, r.Client, &currentCluster, clusterv1.ClusterInitFailed)
-		return ctrl.Result{}, err
-	}
+	// status convert to normal after receive birth cry from scout
 
 	return ctrl.Result{}, nil
 }

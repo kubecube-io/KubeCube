@@ -32,7 +32,7 @@ func (m *MultiClustersMgr) ScoutFor(ctx context.Context, cluster string) error {
 	}
 
 	c.Scout.Once.Do(func() {
-		clog.Info("start scout for cluster %v, status: %v", c.Scout.Cluster, c.Scout.ClusterState)
+		clog.Info("Start scout for cluster %v", c.Scout.Cluster)
 
 		ctx = exit.SetupCtxWithStop(ctx, c.Scout.StopCh)
 
