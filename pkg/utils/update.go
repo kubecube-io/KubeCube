@@ -27,19 +27,17 @@ import (
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
 )
 
-func UpdateClusterStatus(ctx context.Context, cli client.Client, currentCluster *clusterv1.Cluster, updateFn func(cluster *clusterv1.Cluster)) error {
-	memberClusterCopy := currentCluster.DeepCopy()
-
-	updateFn(memberClusterCopy)
+func UpdateClusterStatus(ctx context.Context, cli client.Client, cluster *clusterv1.Cluster, updateFn func(cluster *clusterv1.Cluster)) error {
+	updateFn(cluster)
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		newCluster := &clusterv1.Cluster{}
-		err := cli.Get(ctx, types.NamespacedName{Name: currentCluster.Name}, newCluster)
+		err := cli.Get(ctx, types.NamespacedName{Name: cluster.Name}, newCluster)
 		if err != nil {
 			return err
 		}
 
-		newCluster.Status = memberClusterCopy.Status
+		newCluster.Status = cluster.Status
 
 		err = cli.Status().Update(ctx, newCluster, &client.UpdateOptions{})
 		if err != nil {
@@ -49,12 +47,12 @@ func UpdateClusterStatus(ctx context.Context, cli client.Client, currentCluster 
 	})
 }
 
-func UpdateClusterStatusByState(ctx context.Context, cli client.Client, currentCluster *clusterv1.Cluster, state clusterv1.ClusterState) error {
+func UpdateClusterStatusByState(ctx context.Context, cli client.Client, cluster *clusterv1.Cluster, state clusterv1.ClusterState) error {
 	updateFn := func(cluster *clusterv1.Cluster) {
 		reason := fmt.Sprintf("cluster(%v) is %s", cluster.Name, state)
 		cluster.Status.State = &state
 		cluster.Status.Reason = reason
 	}
 
-	return UpdateClusterStatus(ctx, cli, currentCluster, updateFn)
+	return UpdateClusterStatus(ctx, cli, cluster, updateFn)
 }
