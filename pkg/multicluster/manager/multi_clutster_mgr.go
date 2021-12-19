@@ -243,13 +243,8 @@ func AddInternalCluster(cluster clusterv1.Cluster) error {
 		c.Scout = scout.NewScout(cluster.Name, 0, 0, pivotCluster.Client.Direct(), c.StopCh)
 		c.Client, err = kubernetes.NewClientFor(config, c.StopCh)
 		if err != nil {
-			// NewClientFor failed mean cluster init failed that need
-			// requeue as soon as reconnect with cluster api-server success
-			*cluster.Status.State = clusterv1.ClusterInitFailed
 			return err
 		}
-
-		*cluster.Status.State = clusterv1.ClusterProcessing
 
 		err = MultiClusterMgr.Add(cluster.Name, c)
 		if err != nil {

@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kubecube-io/kubecube/pkg/utils"
 	v1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,7 +32,9 @@ import (
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
+	"github.com/kubecube-io/kubecube/pkg/utils"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -78,6 +79,20 @@ func waitForJobComplete(cli client.Client, namespacedName types.NamespacedName) 
 		}
 		return false, nil
 	})
+}
+
+func tryConnectCluster(cluster clusterv1.Cluster) (client.Client, error) {
+	config, err := kubeconfig.LoadKubeConfigFromBytes(cluster.Spec.KubeConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	cli, err := client.New(config, client.Options{})
+	if err != nil {
+		return nil, err
+	}
+
+	return cli, nil
 }
 
 // deleteExternalResources delete external dependency of cluster
