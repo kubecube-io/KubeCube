@@ -90,7 +90,7 @@ func newReconciler(mgr manager.Manager) (*ClusterReconciler, error) {
 //+kubebuilder:rbac:groups=cluster.kubecube.io,resources=clusters/finalizers,verbs=update
 
 func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	clog.Info("Reconcile cluster %v", req.Name)
+	log.Info("Reconcile cluster %v", req.Name)
 
 	cluster := clusterv1.Cluster{}
 
@@ -128,18 +128,18 @@ func (r *ClusterReconciler) syncCluster(ctx context.Context, cluster clusterv1.C
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	clog.Info("Cluster %v is processing", cluster.Name)
+	log.Info("Cluster %v is processing", cluster.Name)
 
 	// try connect to cluster, tempClient will be GC after function down
 	tempClient, err := tryConnectCluster(cluster)
 	if err != nil {
 		// todo: what if kubeconfig is wrong
-		clog.Error(err.Error())
+		log.Error(err.Error())
 		_ = utils.UpdateClusterStatusByState(ctx, r.Client, &cluster, clusterv1.ClusterInitFailed)
 		r.enqueue(cluster)
 		return ctrl.Result{}, nil
 	}
-	clog.Info("Handshake with cluster %v success", cluster.Name)
+	log.Info("Handshake with cluster %v success", cluster.Name)
 
 	// deploy resources to cluster
 	err = deployResources(ctx, tempClient, cluster, r.pivotCluster)
@@ -148,18 +148,18 @@ func (r *ClusterReconciler) syncCluster(ctx context.Context, cluster clusterv1.C
 		_ = utils.UpdateClusterStatusByState(ctx, r.Client, &cluster, clusterv1.ClusterInitFailed)
 		return ctrl.Result{}, err
 	}
-	clog.Info("Ensure resources in cluster %v success", cluster.Name)
+	log.Info("Ensure resources in cluster %v success", cluster.Name)
 
 	// generate internal cluster for current cluster and add
 	// it to the cache of multi cluster manager
 	err = multiclustermgr.AddInternalCluster(cluster)
 	if err != nil {
-		clog.Error(err.Error())
+		log.Error(err.Error())
 		_ = utils.UpdateClusterStatusByState(ctx, r.Client, &cluster, clusterv1.ClusterInitFailed)
 		r.enqueue(cluster)
 		return ctrl.Result{}, nil
 	}
-	clog.Info("Ensure cluster %v in internal clusters success", cluster.Name)
+	log.Info("Ensure cluster %v in internal clusters success", cluster.Name)
 
 	// start to scout loop for memberCluster warden, non-block
 	err = multicluster.Interface().ScoutFor(context.Background(), cluster.Name)
