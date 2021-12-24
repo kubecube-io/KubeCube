@@ -88,6 +88,7 @@ func Auth() gin.HandlerFunc {
 						break
 					}
 				}
+				c.Set(constants.EventAccountId, user.GetUserName())
 			} else {
 				userToken, err := token.GetTokenFromReq(c.Request)
 				if err != nil {

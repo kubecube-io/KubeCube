@@ -29,27 +29,23 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gogf/gf/v2/i18n/gi18n"
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 
 	"github.com/kubecube-io/kubecube/pkg/apiserver/middlewares/auth"
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/audit"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/env"
+	"github.com/kubecube-io/kubecube/pkg/utils/international/en"
+	"github.com/kubecube-io/kubecube/pkg/utils/international/zh"
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
-const (
-	eventActionCreate = "create"
-	eventActionUpdate = "update"
-	eventActionDelete = "delete"
-	eventActionQuery  = "query"
-
-	eventRespBody         = "responseBody"
-	eventResourceKubeCube = "[KubeCube]"
-)
+const eventRespBody = "responseBody"
 
 var (
 	auditWhiteList = map[string]string{
@@ -79,10 +75,11 @@ func Audit() gin.HandlerFunc {
 		w := &responseBodyWriter{body: &bytes.Buffer{}, ResponseWriter: c.Writer}
 		c.Writer = w
 		c.Next()
-		if !withinWhiteList(c.Request.URL, c.Request.Method, auditWhiteList) {
+		if !withinWhiteList(c.Request.URL, c.Request.Method, auditWhiteList) &&
+			!withinWhiteList(c.Request.URL, c.Request.Method, auth.AuthWhiteList) && c.Request.Method != http.MethodGet {
 			clog.Debug("[audit] get event information")
 			e := &Event{
-				EventTime:         time.Now().Unix(),
+				EventTime:         time.Now().UnixNano() / int64(time.Millisecond),
 				EventVersion:      "V1",
 				SourceIpAddress:   c.ClientIP(),
 				RequestMethod:     c.Request.Method,
@@ -94,10 +91,7 @@ func Audit() gin.HandlerFunc {
 				RequestId:         uuid.New().String(),
 				ResponseElements:  w.body.String(),
 				EventSource:       env.AuditEventSource(),
-			}
-
-			if !withinWhiteList(c.Request.URL, c.Request.Method, auth.AuthWhiteList) {
-				e.UserIdentity = getUserIdentity(c)
+				UserIdentity:      getUserIdentity(c),
 			}
 
 			// get response
@@ -113,22 +107,23 @@ func Audit() gin.HandlerFunc {
 			}
 
 			// get event name and description
+			t := &gi18n.Manager{}
+			if env.AuditLanguage() == "zh" {
+				t = zh.GetZhManager()
+			} else {
+				t = en.GetEnManager()
+			}
+			ctx := context.Background()
 			eventName, isExist := c.Get(constants.EventName)
 			if isExist == true {
 				e.EventName = eventName.(string)
-				e.Description = eventName.(string)
+				e.Description = t.Translate(ctx, eventName.(string))
+				e.ResourceReports = []Resource{{
+					ResourceType: t.Translate(ctx, c.GetString(audit.EventResourceType)),
+					ResourceName: c.GetString(audit.EventResourceName),
+				}}
 			} else {
-				e = getEventName(c, *e)
-			}
-
-			// get resource type
-			resourceType, isExists := c.Get(constants.EventResourceType)
-			if isExists == true {
-				e.ResourceReports = []Resource{{ResourceType: resourceType.(string)}}
-			} else {
-				if e.ResponseElements != "" {
-
-				}
+				e = handleProxyApi(ctx, c, *e, t)
 			}
 
 			go sendEvent(e)
@@ -176,48 +171,56 @@ func sendEvent(e *Event) {
 }
 
 // get event name and description
-func getEventName(c *gin.Context, e Event) *Event {
+func handleProxyApi(ctx context.Context, c *gin.Context, e Event, t *gi18n.Manager) *Event {
 	var (
-		methodStr string
-		object    string
+		objectType string
+		objectName string
 	)
 
-	url := c.Request.RequestURI
-	method := c.Request.Method
-
-	switch method {
-	case http.MethodPost:
-		methodStr = eventActionCreate
-		break
-	case http.MethodPut:
-		methodStr = eventActionUpdate
-		break
-	case http.MethodDelete:
-		methodStr = eventActionDelete
-		break
-	case http.MethodGet:
-		methodStr = eventActionQuery
+	requestURI := c.Request.RequestURI
+	if !strings.HasPrefix(requestURI, "/api/v1/cube/proxy") &&
+		!strings.HasPrefix(requestURI, "/api/v1/cube/extend") {
+		return &e
 	}
 
-	queryUrl := strings.Split(fmt.Sprint(url), "?")[0]
+	queryUrl := strings.Trim(strings.Split(fmt.Sprint(requestURI), "?")[0], "/api/v1/cube")
 	urlstrs := strings.Split(queryUrl, "/")
+	length := len(urlstrs)
 	for i, str := range urlstrs {
 		if str == constants.K8sResourceNamespace {
-			if i+2 < len(urlstrs) {
-				object = urlstrs[i+2]
-			} else {
-				object = constants.K8sResourceNamespace
+			if length == i+1 {
+				objectType = constants.K8sResourceNamespace
+			} else if length == i+2 {
+				objectType = constants.K8sResourceNamespace
+				objectName = urlstrs[i+1]
+
+			} else if length == i+3 {
+				objectType = urlstrs[i+2]
+
+			} else if length == i+4 {
+				objectType = urlstrs[i+2]
+				objectName = urlstrs[i+3]
 			}
 			break
 		}
 
 		if str == constants.K8sResourceVersion && urlstrs[i+1] != constants.K8sResourceNamespace {
-			object = urlstrs[i+1]
+			objectType = urlstrs[i+1]
+			if i+2 < len(urlstrs) {
+				objectName = urlstrs[i+2]
+			}
+			break
 		}
 	}
 
-	e.EventName = eventResourceKubeCube + " " + methodStr + " " + object
-	e.Description = e.EventName
+	method := c.Request.Method
+	enT := en.GetEnManager()
+	e.EventName = enT.Translate(ctx, method) + strings.Title(objectType[:len(objectType)-1])
+	e.Description = t.Translate(ctx, method) + t.Translate(ctx, objectType)
+	e.ResourceReports = []Resource{{
+		ResourceType: objectType[:len(objectType)-1],
+		ResourceName: objectName,
+	}}
 	return &e
 }
 
