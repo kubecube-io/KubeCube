@@ -1,0 +1,28 @@
+# method
+POST = "create"
+PUT = "update"
+DELETE = "delete"
+
+# resourceType
+deployments = "Deployment"
+namespaces = "Namespace"
+jobs = "Job"
+cronjobs = "Cronjob"
+persistentvolumeclaims = "Persistentvolumeclaim"
+customresourcedefinitions = "Customresourcedefinition"
+horizontalpodautoscalers = "Horizontalpodautoscaler"
+networkpolicies = "Networkpolicie"
+statefulsets = "Statefulset"
+replicasets = "Replicaset"
+pods = "Pod"
+secrets = "Secret"
+ingresses = "Ingress"
+services = "Service"
+configmaps = "Configmap"
+user = "User"
+key = "Key"
+
+# description
+createUser = "createUser"
+updateUser = "updateUser"
+deleteKey = "deleteKey"

@@ -1,8 +1,9 @@
 # github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78
 github.com/Azure/go-ansiterm
 github.com/Azure/go-ansiterm/winterm
-# github.com/BurntSushi/toml v0.3.1
+# github.com/BurntSushi/toml v0.4.1
 github.com/BurntSushi/toml
+github.com/BurntSushi/toml/internal
 # github.com/KyleBanks/depth v1.2.1
 github.com/KyleBanks/depth
 # github.com/MakeNowJust/heredoc v0.0.0-20170808103936-bb23615498cd
@@ -51,6 +52,8 @@ github.com/asaskevich/govalidator
 github.com/beorn7/perks/quantile
 # github.com/cespare/xxhash/v2 v2.1.1
 github.com/cespare/xxhash/v2
+# github.com/clbanning/mxj/v2 v2.5.5
+github.com/clbanning/mxj/v2
 # github.com/containerd/cgroups v0.0.0-20190919134610-bf292b21730f
 github.com/containerd/cgroups/stats/v1
 # github.com/containerd/containerd v1.3.4
@@ -148,9 +151,8 @@ github.com/evanphx/json-patch
 # github.com/exponent-io/jsonpath v0.0.0-20151013193312-d6023ce2651d
 github.com/exponent-io/jsonpath
 # github.com/fatih/color v1.12.0
-## explicit
 github.com/fatih/color
-# github.com/fsnotify/fsnotify v1.4.9
+# github.com/fsnotify/fsnotify v1.5.1
 github.com/fsnotify/fsnotify
 # github.com/ghodss/yaml v1.0.0
 github.com/ghodss/yaml
@@ -195,6 +197,51 @@ github.com/gobwas/glob/syntax/ast
 github.com/gobwas/glob/syntax/lexer
 github.com/gobwas/glob/util/runes
 github.com/gobwas/glob/util/strings
+# github.com/gogf/gf/v2 v2.0.0-beta
+## explicit
+github.com/gogf/gf/v2/container/garray
+github.com/gogf/gf/v2/container/glist
+github.com/gogf/gf/v2/container/gmap
+github.com/gogf/gf/v2/container/gqueue
+github.com/gogf/gf/v2/container/gset
+github.com/gogf/gf/v2/container/gtree
+github.com/gogf/gf/v2/container/gtype
+github.com/gogf/gf/v2/container/gvar
+github.com/gogf/gf/v2/crypto/gmd5
+github.com/gogf/gf/v2/debug/gdebug
+github.com/gogf/gf/v2/encoding/gbase64
+github.com/gogf/gf/v2/encoding/gbinary
+github.com/gogf/gf/v2/encoding/gcharset
+github.com/gogf/gf/v2/encoding/gcompress
+github.com/gogf/gf/v2/encoding/ghash
+github.com/gogf/gf/v2/encoding/gini
+github.com/gogf/gf/v2/encoding/gjson
+github.com/gogf/gf/v2/encoding/gtoml
+github.com/gogf/gf/v2/encoding/gxml
+github.com/gogf/gf/v2/encoding/gyaml
+github.com/gogf/gf/v2/errors/gcode
+github.com/gogf/gf/v2/errors/gerror
+github.com/gogf/gf/v2/i18n/gi18n
+github.com/gogf/gf/v2/internal/command
+github.com/gogf/gf/v2/internal/empty
+github.com/gogf/gf/v2/internal/fileinfo
+github.com/gogf/gf/v2/internal/intlog
+github.com/gogf/gf/v2/internal/json
+github.com/gogf/gf/v2/internal/rwmutex
+github.com/gogf/gf/v2/internal/structs
+github.com/gogf/gf/v2/internal/utils
+github.com/gogf/gf/v2/os/gcache
+github.com/gogf/gf/v2/os/gcmd
+github.com/gogf/gf/v2/os/gfile
+github.com/gogf/gf/v2/os/gfsnotify
+github.com/gogf/gf/v2/os/gres
+github.com/gogf/gf/v2/os/gtime
+github.com/gogf/gf/v2/os/gtimer
+github.com/gogf/gf/v2/text/gregex
+github.com/gogf/gf/v2/text/gstr
+github.com/gogf/gf/v2/util/gconv
+github.com/gogf/gf/v2/util/grand
+github.com/gogf/gf/v2/util/gutil
 # github.com/gogo/protobuf v1.3.2
 github.com/gogo/protobuf/gogoproto
 github.com/gogo/protobuf/proto
@@ -211,7 +258,6 @@ github.com/golang/protobuf/ptypes/timestamp
 # github.com/google/btree v1.0.0
 github.com/google/btree
 # github.com/google/go-cmp v0.5.6
-## explicit
 github.com/google/go-cmp/cmp
 github.com/google/go-cmp/cmp/internal/diff
 github.com/google/go-cmp/cmp/internal/flags
@@ -288,7 +334,7 @@ github.com/mailru/easyjson/jwriter
 github.com/mattn/go-colorable
 # github.com/mattn/go-isatty v0.0.12
 github.com/mattn/go-isatty
-# github.com/mattn/go-runewidth v0.0.4
+# github.com/mattn/go-runewidth v0.0.9
 github.com/mattn/go-runewidth
 # github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369
 github.com/matttproud/golang_protobuf_extensions/pbutil
@@ -445,6 +491,12 @@ go.opencensus.io/internal
 go.opencensus.io/trace
 go.opencensus.io/trace/internal
 go.opencensus.io/trace/tracestate
+# go.opentelemetry.io/otel v1.0.0
+go.opentelemetry.io/otel/attribute
+go.opentelemetry.io/otel/codes
+go.opentelemetry.io/otel/internal
+# go.opentelemetry.io/otel/trace v1.0.0
+go.opentelemetry.io/otel/trace
 # go.uber.org/atomic v1.7.0
 go.uber.org/atomic
 # go.uber.org/multierr v1.6.0
@@ -473,7 +525,7 @@ golang.org/x/crypto/pbkdf2
 golang.org/x/crypto/scrypt
 golang.org/x/crypto/sha3
 golang.org/x/crypto/ssh/terminal
-# golang.org/x/net v0.0.0-20210505214959-0714010a04ed
+# golang.org/x/net v0.0.0-20210520170846-37e1c6afe023
 ## explicit
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
@@ -493,7 +545,7 @@ golang.org/x/oauth2/internal
 # golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.0.0-20210510120138-977fb7262007
+# golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c
 golang.org/x/sys/cpu
 golang.org/x/sys/execabs
 golang.org/x/sys/internal/unsafeheader
@@ -507,6 +559,7 @@ golang.org/x/term
 golang.org/x/text/encoding
 golang.org/x/text/encoding/charmap
 golang.org/x/text/encoding/htmlindex
+golang.org/x/text/encoding/ianaindex
 golang.org/x/text/encoding/internal
 golang.org/x/text/encoding/internal/identifier
 golang.org/x/text/encoding/japanese

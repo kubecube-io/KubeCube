@@ -1,0 +1,28 @@
+# method
+POST = "创建"
+PUT = "更新"
+DELETE = "删除"
+
+# resourceType
+deployments = "无状态负载"
+namespaces = "namespace"
+jobs = "任务"
+cronjobs = "定时任务"
+persistentvolumeclaims = "存储声明"
+customresourcedefinitions = "自定义资源"
+horizontalpodautoscalers = "自动伸缩(HPA)"
+networkpolicies = "网络策略"
+statefulsets = "有状态负载"
+replicasets = "副本集"
+pods = "副本"
+secret = "secret"
+ingresses = "ingress"
+services = "service"
+configmaps = "configmap"
+user = "user"
+key = "key"
+
+# description
+createUser = "创建用户"
+updateUser = "更新用户"
+deleteKey = "删除密钥"

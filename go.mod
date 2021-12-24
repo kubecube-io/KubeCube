@@ -5,13 +5,12 @@ go 1.16
 require (
 	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
-	github.com/fatih/color v1.12.0 // indirect
 	github.com/gin-gonic/gin v1.7.1
 	github.com/go-ldap/ldap v3.0.3+incompatible
 	github.com/go-logr/logr v0.4.0
 	github.com/go-openapi/swag v0.19.15 // indirect
 	github.com/go-playground/validator/v10 v10.5.0 // indirect
-	github.com/google/go-cmp v0.5.6 // indirect
+	github.com/gogf/gf/v2 v2.0.0-beta
 	github.com/google/uuid v1.1.2
 	github.com/json-iterator/go v1.1.11
 	github.com/leodido/go-urn v1.2.1 // indirect
@@ -32,7 +31,7 @@ require (
 	github.com/urfave/cli/v2 v2.3.0
 	go.uber.org/zap v1.19.0
 	golang.org/x/crypto v0.0.0-20210505212654-3497b51f5e64 // indirect
-	golang.org/x/net v0.0.0-20210505214959-0714010a04ed
+	golang.org/x/net v0.0.0-20210520170846-37e1c6afe023
 	golang.org/x/term v0.0.0-20210220032956-6a3ed077a48d // indirect
 	golang.org/x/tools v0.1.5 // indirect
 	gopkg.in/asn1-ber.v1 v1.0.0-20181015200546-f715ec2f112d // indirect

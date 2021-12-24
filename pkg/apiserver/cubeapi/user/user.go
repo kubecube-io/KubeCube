@@ -42,6 +42,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
+	"github.com/kubecube-io/kubecube/pkg/utils/audit"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
@@ -88,8 +89,6 @@ type ResetPwd struct {
 // @Failure 500 {object} errcode.ErrorInfo
 // @Router /api/v1/cube/user [post]
 func CreateUser(c *gin.Context) {
-	c.Set(constants.EventName, "create user")
-	c.Set(constants.EventResourceType, "user")
 	// check param
 	user, errInfo := CheckAndCompleteCreateParam(c)
 	if errInfo != nil {
@@ -102,6 +101,7 @@ func CreateUser(c *gin.Context) {
 		response.FailReturn(c, errInfo)
 		return
 	}
+	c = audit.SetAuditInfo(c, audit.CreateUser, user.Name)
 	response.SuccessReturn(c, nil)
 	return
 }
@@ -129,8 +129,6 @@ func CreateUserImpl(c *gin.Context, user *userv1.User) *errcode.ErrorInfo {
 // @Failure 500 {object} errcode.ErrorInfo
 // @Router /api/v1/cube/user/:username [put]
 func UpdateUser(c *gin.Context) {
-	c.Set(constants.EventName, "update user")
-	c.Set(constants.EventResourceType, "user")
 	//check struct
 	newUser := &userv1.User{}
 	if err := c.ShouldBindJSON(newUser); err != nil {
@@ -164,6 +162,7 @@ func UpdateUser(c *gin.Context) {
 		response.FailReturn(c, errcode.UpdateResourceError(resourceTypeUser))
 		return
 	}
+	c = audit.SetAuditInfo(c, audit.UpdateUser, user.Name)
 	response.SuccessReturn(c, nil)
 	return
 }
@@ -198,9 +197,6 @@ func UpdateUserStatusImpl(c *gin.Context, newUser *userv1.User) *errcode.ErrorIn
 // @Failure 500 {object} errcode.ErrorInfo
 // @Router /api/v1/cube/user  [get]
 func ListUsers(c *gin.Context) {
-	c.Set(constants.EventName, "list users")
-	c.Set(constants.EventResourceType, "user")
-
 	// get all user
 	kClient := clients.Interface().Kubernetes(constants.PivotCluster).Cache()
 	allUserList := &userv1.UserList{}

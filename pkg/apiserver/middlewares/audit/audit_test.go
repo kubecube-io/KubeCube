@@ -73,7 +73,7 @@ func TestGetEventName(t *testing.T) {
 
 	// check get method
 	router.GET("/api/v1/cube/proxy/clusters/:cluster/apis/apps/v1/namespaces/:namespace/statefulsets/:name", func(c *gin.Context) {
-		e = getEventName(c, *e)
+		e = handleProxyApi(c, *e)
 		return
 	})
 	_ = performRequest(router, http.MethodGet, "/api/v1/cube/proxy/clusters/pivot-cluster/apis/apps/v1/namespaces/dev/statefulsets/stsA", []byte(""))
@@ -83,7 +83,7 @@ func TestGetEventName(t *testing.T) {
 
 	// check post method
 	router.POST("/api/v1/cube/proxy/clusters/:cluster/api/v1/namespaces/:namespace/services", func(c *gin.Context) {
-		e = getEventName(c, *e)
+		e = handleProxyApi(c, *e)
 		return
 	})
 	_ = performRequest(router, http.MethodPost, "/api/v1/cube/proxy/clusters/pivot-cluster/api/v1/namespaces/dev/services", []byte(""))
@@ -93,7 +93,7 @@ func TestGetEventName(t *testing.T) {
 
 	// check put method
 	router.PUT("/api/v1/cube/proxy/clusters/:cluster/api/v1/namespaces/:namespace/secrets/:name", func(c *gin.Context) {
-		e = getEventName(c, *e)
+		e = handleProxyApi(c, *e)
 		return
 	})
 	_ = performRequest(router, http.MethodPut, "/api/v1/cube/proxy/clusters/pivot-cluster/api/v1/namespaces/dev/secrets/secretA", []byte(""))

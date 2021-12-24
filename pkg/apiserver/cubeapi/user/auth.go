@@ -57,8 +57,6 @@ const (
 // @Failure 500 {object} errcode.ErrorInfo
 // @Router /api/v1/cube/login  [post]
 func Login(c *gin.Context) {
-	c.Set(constants.EventName, "login")
-
 	// check struct
 	var userLoginInfo = LoginInfo{}
 	if err := c.ShouldBindJSON(&userLoginInfo); err != nil {

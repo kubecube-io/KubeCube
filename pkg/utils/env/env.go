@@ -76,7 +76,11 @@ func AuditSVC() AuditSvcApi {
 }
 
 func AuditEventSource() string {
-	return os.Getenv("AUDIT_EVENT_SOURCE")
+	r := os.Getenv("AUDIT_EVENT_SOURCE")
+	if r == "" {
+		r = "KubeCube"
+	}
+	return r
 }
 
 func JwtSecret() string {
@@ -103,4 +107,12 @@ func ChartsDownload() string {
 
 func ChartsDownloadUrl() string {
 	return os.Getenv("DOWNLOAD_CHARTS_URL")
+}
+
+func AuditLanguage() string {
+	l := os.Getenv("AUDIT_LANGUAGE")
+	if l == "" {
+		l = "en"
+	}
+	return l
 }
