@@ -18,6 +18,7 @@ package apiserver
 
 import (
 	"github.com/kubecube-io/kubecube/pkg/authentication"
+	"github.com/kubecube-io/kubecube/pkg/utils/international"
 )
 
 type Config struct {
@@ -25,6 +26,7 @@ type Config struct {
 	authentication.LdapConfig
 	authentication.JwtConfig
 	authentication.GenericConfig
+	Gi18nManagers *international.Gi18nManagers
 }
 
 type HttpConfig struct {

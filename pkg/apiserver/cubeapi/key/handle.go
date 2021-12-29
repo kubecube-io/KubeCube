@@ -118,6 +118,7 @@ func CreateKey(c *gin.Context) {
 // @Router /api/v1/cube/key  [delete]
 func DeleteKey(c *gin.Context) {
 	accessKey := c.Query("accessKey")
+	c = audit.SetAuditInfo(c, audit.DeleteKey, accessKey)
 	// get user info
 	userInfo, err := token.GetUserFromReq(c.Request)
 	if err != nil {
@@ -147,7 +148,6 @@ func DeleteKey(c *gin.Context) {
 		return
 	}
 
-	c = audit.SetAuditInfo(c, audit.DeleteKey, accessKey)
 	response.SuccessReturn(c, nil)
 }
 

@@ -62,7 +62,7 @@ func registerCubeAPI(cfg *Config) http.Handler {
 	apisOutsideMiddlewares(router)
 
 	// set middlewares for apis below
-	middlewares.SetUpMiddlewares(router)
+	middlewares.SetUpMiddlewares(router, cfg.Gi18nManagers)
 
 	// clusters apis handler
 	cluster.NewHandler().AddApisTo(router)
