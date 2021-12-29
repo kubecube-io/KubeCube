@@ -26,7 +26,6 @@ COPY pkg/ pkg/
 COPY docs/ docs/
 COPY vendor/ vendor/
 COPY Makefile Makefile
-COPY i18n/ i18n/
 
 # Build
 RUN make build-cube
@@ -36,6 +35,5 @@ RUN make build-cube
 FROM alpine:3.13.4
 WORKDIR /
 COPY --from=builder /workspace/cube .
-COPY --from=builder /workspace/i18n i18n
 
 ENTRYPOINT ["/cube"]

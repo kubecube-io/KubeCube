@@ -24,6 +24,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/ctrlmgr"
 	"github.com/kubecube-io/kubecube/pkg/cube"
+	"github.com/kubecube-io/kubecube/pkg/utils/international"
 	"github.com/urfave/cli/v2"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/sample-controller/pkg/signals"
@@ -62,12 +63,18 @@ func run(s *options.CubeOptions, stop <-chan struct{}) {
 	// initialize cube client set
 	clients.InitCubeClientSetWithOpts(s.ClientMgrOpts)
 
-	c := cube.New(s.GenericCubeOpts)
+	// initialize language managers
+	m, err := international.InitGi18nManagers()
+	if err != nil {
+		clog.Fatal("cube initialized gi18n managers failed: %v", err)
+	}
+	s.APIServerOpts.Gi18nManagers = m
 
+	c := cube.New(s.GenericCubeOpts)
 	c.IntegrateWith("cube-controller-manager", ctrlmgr.NewCtrlMgrWithOpts(s.CtrlMgrOpts))
 	c.IntegrateWith("cube-apiserver", apiserver.NewAPIServerWithOpts(s.APIServerOpts))
 
-	err := c.Initialize()
+	err = c.Initialize()
 	if err != nil {
 		clog.Fatal("cube initialized failed: %v", err)
 	}

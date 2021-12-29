@@ -29,7 +29,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gogf/gf/v2/i18n/gi18n"
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 
@@ -39,20 +38,22 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/audit"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/env"
-	"github.com/kubecube-io/kubecube/pkg/utils/international/en"
-	"github.com/kubecube-io/kubecube/pkg/utils/international/zh"
+	"github.com/kubecube-io/kubecube/pkg/utils/international"
 )
 
-var json = jsoniter.ConfigCompatibleWithStandardLibrary
-
-const eventRespBody = "responseBody"
-
 var (
+	json           = jsoniter.ConfigCompatibleWithStandardLibrary
 	auditWhiteList = map[string]string{
 		constants.ApiPathRoot + "/audit": "POST",
 	}
 	auditSvc env.AuditSvcApi
 )
+
+const eventRespBody = "responseBody"
+
+type Handler struct {
+	Managers *international.Gi18nManagers
+}
 
 func init() {
 	auditSvc = env.AuditSVC()
@@ -69,7 +70,7 @@ func withinWhiteList(url *url.URL, method string, whiteList map[string]string) b
 	return false
 }
 
-func Audit() gin.HandlerFunc {
+func (h *Handler) Audit() gin.HandlerFunc {
 	return func(c *gin.Context) {
 
 		w := &responseBodyWriter{body: &bytes.Buffer{}, ResponseWriter: c.Writer}
@@ -107,11 +108,9 @@ func Audit() gin.HandlerFunc {
 			}
 
 			// get event name and description
-			t := &gi18n.Manager{}
-			if env.AuditLanguage() == "zh" {
-				t = zh.GetZhManager()
-			} else {
-				t = en.GetEnManager()
+			t := h.Managers.GetInstants(env.AuditLanguage())
+			if t == nil {
+				t = h.Managers.GetInstants("en")
 			}
 			ctx := context.Background()
 			eventName, isExist := c.Get(constants.EventName)
@@ -123,7 +122,7 @@ func Audit() gin.HandlerFunc {
 					ResourceName: c.GetString(audit.EventResourceName),
 				}}
 			} else {
-				e = handleProxyApi(ctx, c, *e, t)
+				e = h.handleProxyApi(ctx, c, *e)
 			}
 
 			go sendEvent(e)
@@ -171,7 +170,7 @@ func sendEvent(e *Event) {
 }
 
 // get event name and description
-func handleProxyApi(ctx context.Context, c *gin.Context, e Event, t *gi18n.Manager) *Event {
+func (h *Handler) handleProxyApi(ctx context.Context, c *gin.Context, e Event) *Event {
 	var (
 		objectType string
 		objectName string
@@ -214,8 +213,12 @@ func handleProxyApi(ctx context.Context, c *gin.Context, e Event, t *gi18n.Manag
 	}
 
 	method := c.Request.Method
-	enT := en.GetEnManager()
+	enT := h.Managers.GetInstants("en")
 	e.EventName = enT.Translate(ctx, method) + strings.Title(objectType[:len(objectType)-1])
+	t := h.Managers.GetInstants(env.AuditLanguage())
+	if t == nil {
+		t = h.Managers.GetInstants("en")
+	}
 	e.Description = t.Translate(ctx, method) + t.Translate(ctx, objectType)
 	e.ResourceReports = []Resource{{
 		ResourceType: objectType[:len(objectType)-1],

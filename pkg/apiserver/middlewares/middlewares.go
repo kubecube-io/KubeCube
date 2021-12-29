@@ -23,16 +23,20 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/apiserver/middlewares/precheck"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/middlewares/recovery"
 	"github.com/kubecube-io/kubecube/pkg/utils/env"
+	"github.com/kubecube-io/kubecube/pkg/utils/international"
 )
 
-func SetUpMiddlewares(router *gin.Engine) {
+func SetUpMiddlewares(router *gin.Engine, managers *international.Gi18nManagers) {
 	if router == nil {
 		return
 	}
 	router.Use(precheck.PreCheck())
 	router.Use(auth.Auth())
 	if env.AuditIsEnable() {
-		router.Use(audit.Audit())
+		h := audit.Handler{
+			Managers: managers,
+		}
+		router.Use(h.Audit())
 	}
 	router.Use(recovery.Recovery())
 }
