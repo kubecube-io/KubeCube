@@ -28,10 +28,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gogf/gf/v2/i18n/gi18n"
-	"github.com/kubecube-io/kubecube/pkg/utils/international"
-
 	"github.com/gin-gonic/gin"
+	"github.com/gogf/gf/v2/i18n/gi18n"
 	"github.com/google/uuid"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -88,11 +86,8 @@ func TestGetEventName(t *testing.T) {
 	enInstance.SetPath(file)
 	enInstance.SetLanguage("en")
 	h := Handler{
-		Managers: &international.Gi18nManagers{
-			Managers: map[string]*gi18n.Manager{
-				"en": enInstance,
-			},
-		},
+		enInstance,
+		enInstance,
 	}
 
 	// check post method

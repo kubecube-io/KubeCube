@@ -22,15 +22,13 @@ import (
 	"sync"
 
 	"github.com/gogf/gf/v2/i18n/gi18n"
+	v1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-	v1 "k8s.io/api/core/v1"
-	ioerrors "k8s.io/apimachinery/pkg/api/errors"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-var defaultOptions = []string{"zh,en"}
 
 type Gi18nManagers struct {
 	Managers map[string]*gi18n.Manager
@@ -49,22 +47,16 @@ func InitGi18nManagers() (*Gi18nManagers, error) {
 	}
 	cm := &v1.ConfigMap{}
 	err := kClient.Get(context.Background(), client.ObjectKey{Name: "kubecube-language-config", Namespace: constants.CubeNamespace}, cm)
-	if err != nil && !ioerrors.IsNotFound(err) {
+	if err != nil {
 		clog.Error("get configmap kubecube-language-config from K8s err: %v", err)
 		return nil, err
 	}
-	var languages []string
-	if ioerrors.IsNotFound(err) {
-		languages = defaultOptions
-	} else {
-		languages = strings.Split(cm.Data["languages"], ",")
-	}
 
+	var languages []string
+	languages = strings.Split(cm.Data["languages"], ",")
 	m := &Gi18nManagers{
 		Managers: make(map[string]*gi18n.Manager),
 	}
-	m.lock.Lock()
-	defer m.lock.Unlock()
 	for _, l := range languages {
 		inst := gi18n.Instance(l)
 		inst.SetLanguage(l)
@@ -80,8 +72,8 @@ func (g *Gi18nManagers) GetInstants(language string) *gi18n.Manager {
 }
 
 func (g *Gi18nManagers) Translate(ctx context.Context, language string, content string) string {
-	m := g.Managers[language]
 	g.lock.RLock()
-	defer g.lock.RUnlock()
+	m := g.Managers[language]
+	g.lock.RUnlock()
 	return m.Translate(ctx, content)
 }

@@ -33,9 +33,7 @@ func SetUpMiddlewares(router *gin.Engine, managers *international.Gi18nManagers)
 	router.Use(precheck.PreCheck())
 	router.Use(auth.Auth())
 	if env.AuditIsEnable() {
-		h := audit.Handler{
-			Managers: managers,
-		}
+		h := audit.NewHandler(managers)
 		router.Use(h.Audit())
 	}
 	router.Use(recovery.Recovery())
