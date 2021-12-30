@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gogf/gf/v2/i18n/gi18n"
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 
@@ -52,11 +53,19 @@ var (
 const eventRespBody = "responseBody"
 
 type Handler struct {
-	Managers *international.Gi18nManagers
+	EnInstance  *gi18n.Manager
+	EnvInstance *gi18n.Manager
 }
 
 func init() {
 	auditSvc = env.AuditSVC()
+}
+
+func NewHandler(managers *international.Gi18nManagers) Handler {
+	enT := managers.GetInstants("en")
+	envT := managers.GetInstants(env.AuditLanguage())
+	h := Handler{enT, envT}
+	return h
 }
 
 func withinWhiteList(url *url.URL, method string, whiteList map[string]string) bool {
@@ -108,9 +117,9 @@ func (h *Handler) Audit() gin.HandlerFunc {
 			}
 
 			// get event name and description
-			t := h.Managers.GetInstants(env.AuditLanguage())
+			t := h.EnvInstance
 			if t == nil {
-				t = h.Managers.GetInstants("en")
+				t = h.EnInstance
 			}
 			ctx := context.Background()
 			eventName, isExist := c.Get(constants.EventName)
@@ -213,11 +222,10 @@ func (h *Handler) handleProxyApi(ctx context.Context, c *gin.Context, e Event) *
 	}
 
 	method := c.Request.Method
-	enT := h.Managers.GetInstants("en")
-	e.EventName = enT.Translate(ctx, method) + strings.Title(objectType[:len(objectType)-1])
-	t := h.Managers.GetInstants(env.AuditLanguage())
+	e.EventName = h.EnInstance.Translate(ctx, method) + strings.Title(objectType[:len(objectType)-1])
+	t := h.EnvInstance
 	if t == nil {
-		t = h.Managers.GetInstants("en")
+		t = h.EnInstance
 	}
 	e.Description = t.Translate(ctx, method) + t.Translate(ctx, objectType)
 	e.ResourceReports = []Resource{{
