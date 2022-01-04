@@ -39,7 +39,6 @@ cd "${REPO_ROOT}"
 function make_manifests() {
   sed s/#K8S_APIEndpoint/${K8S_API}/ deploy/template/pivotCluster.yaml | sed s/#KubeConfig/${KUBECONFIG}/ > deploy/manifests/pivotCluster.yaml
   sed s/#LOCAL_IP/${IPADDR}/ deploy/template/cubeLocalSvc.yaml > deploy/manifests/cubeLocalSvc.yaml
-  sed s/#LOCAL_IP/${IPADDR}/ deploy/template/webhook.config > deploy/webhook.config
 }
 
 make_manifests

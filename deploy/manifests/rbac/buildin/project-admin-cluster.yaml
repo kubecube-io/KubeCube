@@ -1,0 +1,13 @@
+# project-admin has limited privileges under of
+# project namespace used of RoleBinding.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: project-admin-cluster
+  annotations:
+    kubecube.io/sync: "true"
+aggregationRule:
+  clusterRoleSelectors:
+    - matchLabels:
+        rbac.authorization.k8s.io/aggregate-to-project-admin-cluster: "true"
+rules: []

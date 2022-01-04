@@ -1,15 +1,13 @@
-# project-admin has limited privileges under of
-# project namespace used of RoleBinding.
+# tenant admin has limited privileges under of
+# tenant namespace used of RoleBinding.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: project-admin-cluster
+  name:  aggregate-to-tenant-admin-cluster
+  labels:
+    rbac.authorization.k8s.io/aggregate-to-tenant-admin-cluster: "true"
   annotations:
     kubecube.io/sync: "true"
-#aggregationRule:
-#  clusterRoleSelectors:
-#    - matchLabels:
-#        kubecube.io/aggregate-to-project-admin-cluster: "true"
 rules:
   # only has read authority of namespace cause
   # subNamespace will replace it
@@ -31,6 +29,33 @@ rules:
       - get
       - list
       - watch
+  # tenant access to operate project
+  - apiGroups:
+      - tenant.kubecube.io
+    resources:
+      - projects
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - tenant.kubecube.io
+    resources:
+      - projects/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - tenant.kubecube.io
+    resources:
+      - projects/status
+    verbs:
+      - get
+      - patch
+      - update
   # access to operate cuberesourcequota
   - apiGroups:
       - quota.kubecube.io
@@ -58,7 +83,7 @@ rules:
       - get
       - patch
       - update
-  # project has read authority of user
+  # tenant has read authority of user
   - apiGroups:
       - user.kubecube.io
     resources:
@@ -101,6 +126,8 @@ rules:
       - "*" #storage.kubecube.io
     resources:
       - cephs
+      - nfs
     verbs:
       - get
       - list
+      - watch
