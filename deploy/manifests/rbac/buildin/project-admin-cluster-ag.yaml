@@ -1,16 +1,16 @@
-# ordinary only has read authority under of
-# bottom layer namespace used of RoleBinding.
+# project-admin has limited privileges under of
+# project namespace used of RoleBinding.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: reviewer-cluster
+  name:  aggregate-to-project-admin-cluster
+  labels:
+    rbac.authorization.k8s.io/aggregate-to-project-admin-cluster: "true"
   annotations:
     kubecube.io/sync: "true"
-#aggregationRule:
-#  clusterRoleSelectors:
-#    - matchLabels:
-#        kubecube.io/aggregate-to-reviewer-cluster: "true"
 rules:
+  # only has read authority of namespace cause
+  # subNamespace will replace it
   - apiGroups:
       - ""
     resources:
@@ -29,7 +29,34 @@ rules:
       - get
       - list
       - watch
-  # reviewer has read authority of user
+  # access to operate cuberesourcequota
+  - apiGroups:
+      - quota.kubecube.io
+    resources:
+      - cuberesourcequota
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - quota.kubecube.io
+    resources:
+      - cuberesourcequota/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - quota.kubecube.io
+    resources:
+      - cuberesourcequota/status
+    verbs:
+      - get
+      - patch
+      - update
+  # project has read authority of user
   - apiGroups:
       - user.kubecube.io
     resources:
@@ -72,6 +99,8 @@ rules:
       - "*" #storage.kubecube.io
     resources:
       - cephs
+      - nfs
     verbs:
       - get
       - list
+      - watch

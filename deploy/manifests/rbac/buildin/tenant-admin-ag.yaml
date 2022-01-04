@@ -1,18 +1,13 @@
-# platform-admin has all privileges used
-# of ClusterRoleBinding.
+# tenant admin has limited privileges under of
+# tenant namespace used of RoleBinding.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: platform-admin
+  name:  aggregate-to-tenant-admin
   labels:
-    kubecube.io/rbac: "true"
-    kubecube.io/role: "platform"
+    rbac.authorization.k8s.io/aggregate-to-tenant-admin: "true"
   annotations:
     kubecube.io/sync: "true"
-#aggregationRule:
-#  clusterRoleSelectors:
-#    - matchLabels:
-#        kubecube.io/aggregate-to-platform-admin: "true"
 rules:
   - apiGroups:
       - "*"
@@ -194,7 +189,11 @@ rules:
   - apiGroups:
       - "*"
     resources:
-      - nodes
+      - bindings
+      - events
+      - limitranges
+      - resourcequotas
+      - resourcequotas/status
     verbs:
       - get
       - list
@@ -207,20 +206,24 @@ rules:
   - apiGroups:
       - "*"
     resources:
-      - persistentvolumes
+      - rolebindings
+      - roles
     verbs:
-      - get
-      - list
-      - watch
       - create
       - delete
       - deletecollection
+      - get
+      - list
       - patch
       - update
+      - watch
   - apiGroups:
       - "*"
     resources:
-      - storageclasses
+      - cronjobs
+      - cronjobs/status
+      - jobs
+      - jobs/status
     verbs:
       - get
       - list
@@ -250,178 +253,8 @@ rules:
   - apiGroups:
       - "*"
     resources:
-      - namespaces
-      - namespaces/status
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - delete
-      - deletecollection
-      - patch
-      - update
-  - apiGroups:
-      - "*"
-    resources:
-      - localsubjectaccessreviews
-    verbs:
-      - create
-      - delete
-      - deletecollection
-      - get
-      - list
-      - patch
-      - update
-      - watch
-  - apiGroups:
-      - "*"
-    resources:
-      - rolebindings
-      - roles
-      - clusterrolebindings
-      - clusterroles
-    verbs:
-      - create
-      - delete
-      - deletecollection
-      - get
-      - list
-      - patch
-      - update
-      - watch
-  # access to operate cuberesourcequota
-  - apiGroups:
-      - "*"
-    resources:
-      - cuberesourcequota
-      - cuberesourcequota/finalizers
-      - cuberesourcequota/status
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - delete
-      - deletecollection
-      - patch
-      - update
-  # access to operate cluster
-  - apiGroups:
-      - "*"
-    resources:
-      - clusters
-      - clusters/finalizers
-      - clusters/status
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - delete
-      - deletecollection
-      - patch
-      - update
-  # access to operate tenant
-  - apiGroups:
-      - "*"
-    resources:
-      - tenants
-      - tenants/finalizers
-      - tenants/status
-      - projects
-      - projects/finalizers
-      - projects/status
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - delete
-      - deletecollection
-      - patch
-      - update
-  # access to operate project
-  - apiGroups:
-      - "*"
-    resources:
-      - users
-      - users/finalizers
-      - users/status
-      - keys
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - delete
-      - deletecollection
-      - patch
-      - update
-  - apiGroups:
-      - "*"  #monitoring.kubecube.io
-    resources:
-      - dashboards
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - delete
-      - deletecollection
-      - patch
-      - update
-  - apiGroups:
-      - "*" #apiextensions.k8s.io
-    resources:
-      - customresourcedefinitions
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - delete
-      - deletecollection
-      - patch
-      - update
-  - apiGroups:
-      - "*" #monitoring.coreos.com
-    resources:
-      - alertmanagerconfigs
-      - alertmanagers
-      - podmonitors
-      - probes
-      - prometheuses
-      - prometheusrules
-      - servicemonitors
-      - thanosrulers
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - delete
-      - deletecollection
-      - patch
-      - update
-  - apiGroups:
-      - "*" #crd.projectcalico.org
-    resources:
-      - bgpconfigurations
-      - bgppeers
-      - blockaffinities
-      - clusterinformations
-      - felixconfigurations
-      - globalnetworkpolicies
-      - globalnetworksets
-      - hostendpoints
-      - ipamblocks
-      - ipamconfigs
-      - ipamhandles
-      - ippools
-      - kubecontrollersconfigurations
-      - networkpolicies
-      - networksets
+      - horizontalpodautoscalers
+      - horizontalpodautoscalers/status
     verbs:
       - get
       - list
@@ -447,9 +280,9 @@ rules:
       - patch
       - update
   - apiGroups:
-      - "*" #hotplug.kubecube.io
+      - "*"  #monitoring.kubecube.io
     resources:
-      - hotplugs
+      - dashboards
     verbs:
       - get
       - list
@@ -474,9 +307,12 @@ rules:
       - patch
       - update
   - apiGroups:
-      - "*" #storage.kubecube.io
+      - "*" #monitoring.coreos.com
     resources:
-      - cephs
+      - alertmanagerconfigs
+      - podmonitors
+      - prometheusrules
+      - servicemonitors
     verbs:
       - get
       - list
