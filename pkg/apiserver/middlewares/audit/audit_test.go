@@ -78,7 +78,7 @@ func TestGetEventName(t *testing.T) {
 		t.Fail()
 		return
 	}
-	file = strings.TrimSuffix(file, "pkg/apiserver/middlewares/audit") + "i18n"
+	file = strings.TrimSuffix(file, "pkg/apiserver/middlewares/audit") + "test/i18n"
 
 	e := &Event{}
 	ctx := context.Background()
