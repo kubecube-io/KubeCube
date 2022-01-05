@@ -50,7 +50,10 @@ var (
 	auditSvc env.AuditSvcApi
 )
 
-const eventRespBody = "responseBody"
+const (
+	eventRespBody   = "responseBody"
+	eventObjectName = "objectName"
+)
 
 type Handler struct {
 	EnInstance  *gi18n.Manager
@@ -81,7 +84,9 @@ func withinWhiteList(url *url.URL, method string, whiteList map[string]string) b
 
 func (h *Handler) Audit() gin.HandlerFunc {
 	return func(c *gin.Context) {
-
+		if c.Request.Method == http.MethodPost {
+			c.Set(eventObjectName, getPostObjectName(c))
+		}
 		w := &responseBodyWriter{body: &bytes.Buffer{}, ResponseWriter: c.Writer}
 		c.Writer = w
 		c.Next()
@@ -228,6 +233,10 @@ func (h *Handler) handleProxyApi(ctx context.Context, c *gin.Context, e Event) *
 		t = h.EnInstance
 	}
 	e.Description = t.Translate(ctx, method) + t.Translate(ctx, objectType)
+
+	if http.MethodPost == method && objectName == "" {
+		objectName = c.GetString(eventObjectName)
+	}
 	e.ResourceReports = []Resource{{
 		ResourceType: objectType[:len(objectType)-1],
 		ResourceName: objectName,
@@ -305,4 +314,26 @@ func (r responseBodyWriter) Write(b []byte) (int, error) {
 func (r responseBodyWriter) WriteString(s string) (n int, err error) {
 	r.body.WriteString(s)
 	return r.ResponseWriter.WriteString(s)
+}
+
+func getPostObjectName(c *gin.Context) string {
+	data, err := c.GetRawData()
+	body := make(map[string]interface{})
+	err = json.Unmarshal(data, &body)
+	if err != nil {
+		clog.Error("[audit] unmarshal request body err: %s", err.Error())
+		return ""
+	}
+	metadata, ok := body["metadata"].(map[string]interface{})
+	if !ok {
+		clog.Error("[audit] convert metadata to map failed")
+		return ""
+	}
+	c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(data))
+	name, ok := metadata["name"].(string)
+	if !ok {
+		clog.Error("[audit] convert name to string failed")
+		return ""
+	}
+	return name
 }
