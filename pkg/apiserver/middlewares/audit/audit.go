@@ -84,12 +84,15 @@ func withinWhiteList(url *url.URL, method string, whiteList map[string]string) b
 
 func (h *Handler) Audit() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// can not get resource name from url when create resource, so handle specially
 		if c.Request.Method == http.MethodPost {
 			c.Set(eventObjectName, getPostObjectName(c))
 		}
 		w := &responseBodyWriter{body: &bytes.Buffer{}, ResponseWriter: c.Writer}
 		c.Writer = w
+
 		c.Next()
+
 		if !withinWhiteList(c.Request.URL, c.Request.Method, auditWhiteList) &&
 			!withinWhiteList(c.Request.URL, c.Request.Method, auth.AuthWhiteList) && c.Request.Method != http.MethodGet {
 			clog.Debug("[audit] get event information")
@@ -317,23 +320,36 @@ func (r responseBodyWriter) WriteString(s string) (n int, err error) {
 }
 
 func getPostObjectName(c *gin.Context) string {
+	// get request body
 	data, err := c.GetRawData()
+	// put request body back
+	c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(data))
+	// get resource name from metadata.name
 	body := make(map[string]interface{})
 	err = json.Unmarshal(data, &body)
 	if err != nil {
 		clog.Error("[audit] unmarshal request body err: %s", err.Error())
 		return ""
 	}
-	metadata, ok := body["metadata"].(map[string]interface{})
+	metadata, exist := body["metadata"]
+	if !exist {
+		clog.Error("[audit] the resource metadata is nil")
+		return ""
+	}
+	metadataMap, ok := metadata.(map[string]interface{})
 	if !ok {
 		clog.Error("[audit] convert metadata to map failed")
 		return ""
 	}
-	c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(data))
-	name, ok := metadata["name"].(string)
+	name, exist := metadataMap["name"]
+	if !exist {
+		clog.Error("[audit] the resource metadata.name is nil")
+		return ""
+	}
+	nameStr, ok := name.(string)
 	if !ok {
 		clog.Error("[audit] convert name to string failed")
 		return ""
 	}
-	return name
+	return nameStr
 }
