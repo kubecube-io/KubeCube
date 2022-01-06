@@ -19,19 +19,19 @@ import (
 	"context"
 
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
+	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Pvc struct {
 	ctx       context.Context
-	client    kubernetes.Client
+	client    mgrclient.Client
 	namespace string
 	filter    resources.Filter
 }
 
-func NewPvc(client kubernetes.Client, namespace string, filter resources.Filter) Pvc {
+func NewPvc(client mgrclient.Client, namespace string, filter resources.Filter) Pvc {
 	ctx := context.Background()
 	return Pvc{
 		ctx:       ctx,

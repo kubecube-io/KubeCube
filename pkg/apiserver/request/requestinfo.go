@@ -19,8 +19,8 @@ package request
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/kubecube-io/kubecube/pkg/clients"
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
@@ -32,7 +32,7 @@ type ReqInfo struct {
 }
 
 // K8ClientFrom retrieves client from context
-func K8ClientFrom(c *gin.Context) kubernetes.Client {
+func K8ClientFrom(c *gin.Context) client.Client {
 	v, ok := c.Get(requestInfoKey)
 	if !ok {
 		clog.Warn("request info not found")
@@ -49,7 +49,7 @@ func K8ClientFrom(c *gin.Context) kubernetes.Client {
 func WithK8Client(c *gin.Context) *gin.Context {
 	// todo: set cluster client according to request
 	// master cluster client used by default
-	r := &ReqInfo{cluster: constants.PivotCluster}
+	r := &ReqInfo{cluster: constants.LocalCluster}
 
 	c.Set(requestInfoKey, r)
 

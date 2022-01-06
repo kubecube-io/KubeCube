@@ -17,7 +17,6 @@ limitations under the License.
 package fake
 
 import (
-	k8s "github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/metrics/pkg/client/clientset/versioned"
@@ -25,15 +24,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache/informertest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	cacheFake "github.com/kubecube-io/kubecube/pkg/clients/kubernetes/fake/cache"
+	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
+	cacheFake "github.com/kubecube-io/kubecube/pkg/multicluster/client/fake/cache"
 	clientSetFake "k8s.io/client-go/kubernetes/fake"
 	metricsFake "k8s.io/metrics/pkg/client/clientset/versioned/fake"
 	clientFake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-var _ k8s.Client = &FakerClient{}
+var _ mgrclient.Client = &FakerClient{}
 
-// FakerClient implement kubernetes.Client
+// FakerClient implement kubernetes.client
 type FakerClient struct {
 	client client.Client
 	cache  cache.Cache
@@ -53,14 +53,14 @@ type Options struct {
 }
 
 // NewFakeClientsFor new fake client by customize
-func NewFakeClientsFor(fn func(c *FakerClient)) k8s.Client {
+func NewFakeClientsFor(fn func(c *FakerClient)) mgrclient.Client {
 	c := new(FakerClient)
 	fn(c)
 	return c
 }
 
 // NewFakeClients new fake client by given options
-func NewFakeClients(opts *Options) k8s.Client {
+func NewFakeClients(opts *Options) mgrclient.Client {
 	c := new(FakerClient)
 
 	cli := clientFake.NewClientBuilder().WithScheme(opts.Scheme).WithObjects(opts.Objs...).WithRuntimeObjects(opts.ClientRuntimeObjs...).WithLists(opts.Lists...).Build()

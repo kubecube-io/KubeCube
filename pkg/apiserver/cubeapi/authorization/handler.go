@@ -20,15 +20,15 @@ import (
 	"fmt"
 	"net/http"
 
-	userinfo "k8s.io/apiserver/pkg/authentication/user"
-
-	"k8s.io/apiserver/pkg/authorization/authorizer"
-
 	"github.com/gin-gonic/gin"
+	userinfo "k8s.io/apiserver/pkg/authentication/user"
+	"k8s.io/apiserver/pkg/authorization/authorizer"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	"github.com/kubecube-io/kubecube/pkg/authorizer/rbac"
 	"github.com/kubecube-io/kubecube/pkg/clients"
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
@@ -37,7 +37,6 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const subPath = "/authorization"
@@ -62,13 +61,13 @@ type result struct {
 
 type handler struct {
 	rbac.Interface
-	kubernetes.Client
+	mgrclient.Client
 }
 
 func NewHandler() *handler {
 	h := new(handler)
-	h.Interface = rbac.NewDefaultResolver(constants.PivotCluster)
-	h.Client = clients.Interface().Kubernetes(constants.PivotCluster)
+	h.Interface = rbac.NewDefaultResolver(constants.LocalCluster)
+	h.Client = clients.Interface().Kubernetes(constants.LocalCluster)
 	return h
 }
 

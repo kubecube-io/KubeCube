@@ -50,11 +50,15 @@ const (
 	mountName     = "pki-mount"
 )
 
-func deployResources(ctx context.Context, cli client.Client, memberCluster, pivotCluster clusterv1.Cluster) error {
+func deployResources(ctx context.Context, cli client.Client, memberCluster, pivotCluster *clusterv1.Cluster) error {
 	isMemberCluster := memberCluster.Spec.IsMemberCluster
 
 	// create resource below when cluster is member
 	if isMemberCluster {
+		if pivotCluster == nil {
+			return fmt.Errorf("pivot cluster not ready")
+		}
+
 		// create crds to target cluster
 		crds := makeCRDs()
 		for _, crd := range crds {
@@ -217,7 +221,7 @@ func makeDeployment(cluster string, isMemberCluster bool) *appsv1.Deployment {
 			"-in-member-cluster=false",
 			"-tls-cert=/etc/tls/tls.crt",
 			"-tls-key=/etc/tls/tls.key",
-			fmt.Sprintf("-cluster=%s", constants.PivotCluster),
+			fmt.Sprintf("-cluster=%s", cluster),
 			fmt.Sprintf("-pivot-cube-host=%s", env.PivotCubeClusterIPSvc()),
 		}
 	}
@@ -290,7 +294,7 @@ func makeDeployment(cluster string, isMemberCluster bool) *appsv1.Deployment {
 }
 
 // makeKubeConfigCM make configmap container kubeConfig of pivot cluster
-func makeKubeConfigCM(pivotCluster clusterv1.Cluster) *corev1.ConfigMap {
+func makeKubeConfigCM(pivotCluster *clusterv1.Cluster) *corev1.ConfigMap {
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      configMapName,
@@ -422,7 +426,7 @@ func makeNamespace() *corev1.Namespace {
 
 // makeCRDs install crds which labels contains "kubecube.io/crds=true"
 func makeCRDs() (crds []*apiextensionsv1.CustomResourceDefinition) {
-	pClient := clients.Interface().Kubernetes(constants.PivotCluster).Cache()
+	pClient := clients.Interface().Kubernetes(constants.LocalCluster).Cache()
 	crdList := apiextensionsv1.CustomResourceDefinitionList{}
 
 	labelSelector, err := labels.Parse(fmt.Sprintf("%v=%v", constants.CrdLabel, true))
@@ -450,7 +454,7 @@ func makeCRDs() (crds []*apiextensionsv1.CustomResourceDefinition) {
 }
 
 func makeWardenWebhook() *v1.ValidatingWebhookConfiguration {
-	pClient := clients.Interface().Kubernetes(constants.PivotCluster).Cache()
+	pClient := clients.Interface().Kubernetes(constants.LocalCluster).Cache()
 	wh := v1.ValidatingWebhookConfiguration{}
 	key := types.NamespacedName{Name: webhookName}
 	err := pClient.Get(context.Background(), key, &wh)
@@ -467,7 +471,7 @@ func makeWardenWebhook() *v1.ValidatingWebhookConfiguration {
 }
 
 func makeTLSSecret() *corev1.Secret {
-	pClient := clients.Interface().Kubernetes(constants.PivotCluster).Cache()
+	pClient := clients.Interface().Kubernetes(constants.LocalCluster).Cache()
 	secret := corev1.Secret{}
 	key := types.NamespacedName{
 		Name:      secretName,

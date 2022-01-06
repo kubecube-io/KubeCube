@@ -16,14 +16,15 @@ limitations under the License.
 package job_test
 
 import (
+	"github.com/kubecube-io/kubecube/pkg/multicluster"
+	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
 	"github.com/kubecube-io/kubecube/pkg/clients"
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes/fake"
-	fakemgr "github.com/kubecube-io/kubecube/pkg/multicluster/fake"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -66,12 +67,12 @@ var _ = Describe("Job", func() {
 			ClientSetRuntimeObjs: []runtime.Object{},
 			Lists:                []client.ObjectList{&jobList},
 		}
-		fakemgr.InitFakeMultiClusterMgrWithOpts(opts)
+		multicluster.InitFakeMultiClusterMgrWithOpts(opts)
 		clients.InitCubeClientSetWithOpts(nil)
 	})
 
 	It("test get job extend info", func() {
-		client := clients.Interface().Kubernetes("pivot-cluster")
+		client := clients.Interface().Kubernetes(constants.LocalCluster)
 		Expect(client).NotTo(BeNil())
 		job := job.NewJob(client, ns, resources.Filter{Limit: 10})
 		ret := job.GetExtendJobs()

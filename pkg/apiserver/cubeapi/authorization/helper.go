@@ -21,22 +21,19 @@ import (
 	"fmt"
 	"strings"
 
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
-
-	"github.com/kubecube-io/kubecube/pkg/clog"
-
-	"github.com/kubecube-io/kubecube/pkg/authorizer/rbac"
 	userinfo "k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/apiserver/pkg/authorization/authorizer"
-
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
 	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
+	"github.com/kubecube-io/kubecube/pkg/authorizer/rbac"
+	"github.com/kubecube-io/kubecube/pkg/clog"
+	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	rbacv1 "k8s.io/api/rbac/v1"
 )
 
@@ -81,7 +78,7 @@ const (
 )
 
 // getVisibleTenants get visible tenants of user
-func getVisibleTenants(rbac rbac.Interface, user string, cli kubernetes.Client, ctx context.Context) (result, error) {
+func getVisibleTenants(rbac rbac.Interface, user string, cli mgrclient.Client, ctx context.Context) (result, error) {
 	tenantSet := sets.NewString()
 	tenantList := tenantv1.TenantList{}
 	err := cli.Cache().List(ctx, &tenantList)
@@ -134,7 +131,7 @@ func getVisibleTenants(rbac rbac.Interface, user string, cli kubernetes.Client, 
 }
 
 // getVisibleProjects get visible projects of user
-func getVisibleProjects(rbac rbac.Interface, user string, cli kubernetes.Client, ctx context.Context, tenant string) (result, error) {
+func getVisibleProjects(rbac rbac.Interface, user string, cli mgrclient.Client, ctx context.Context, tenant string) (result, error) {
 	var lists []tenantv1.Project
 	projectList := tenantv1.ProjectList{}
 	err := cli.Cache().List(ctx, &projectList)
@@ -172,7 +169,7 @@ func filterBy(tenant string, projects []tenantv1.Project) (res []tenantv1.Projec
 }
 
 // getVisibleObjs get visible objects of user
-func getVisibleObjs(rbac rbac.Interface, user string, cli kubernetes.Client, ctx context.Context, objKind int) (result, error) {
+func getVisibleObjs(rbac rbac.Interface, user string, cli mgrclient.Client, ctx context.Context, objKind int) (result, error) {
 	res := result{}
 	var lists []interface{}
 	switch objKind {
@@ -227,7 +224,7 @@ func isAllowedAccess(rbac rbac.Interface, user, namespace string) bool {
 }
 
 // getAllRoles get all roles and cluster roles related with kubecube
-func getAllRoles(ctx context.Context, cli kubernetes.Client) (map[string]interface{}, error) {
+func getAllRoles(ctx context.Context, cli mgrclient.Client) (map[string]interface{}, error) {
 	labelSelector, err := labels.Parse(fmt.Sprintf("%v=%v", constants.RbacLabel, true))
 	if err != nil {
 		return nil, err
@@ -261,7 +258,7 @@ func getAllRoles(ctx context.Context, cli kubernetes.Client) (map[string]interfa
 }
 
 // getRolesByNs get all role under tenant or project
-func getRolesByNs(ctx context.Context, cli kubernetes.Client, ns string) (map[string]interface{}, error) {
+func getRolesByNs(ctx context.Context, cli mgrclient.Client, ns string) (map[string]interface{}, error) {
 	const (
 		symbol        = "-"
 		tenantPrefix  = "kubecube-tenant"
@@ -349,7 +346,7 @@ func isPlatformAdmin(r rbac.Interface, user string) bool {
 	return false
 }
 
-func isTenantAdmin(r rbac.Interface, cli kubernetes.Client, user string) bool {
+func isTenantAdmin(r rbac.Interface, cli mgrclient.Client, user string) bool {
 	tenantList := tenantv1.TenantList{}
 	err := cli.Cache().List(context.Background(), &tenantList)
 	if err != nil {
@@ -374,7 +371,7 @@ func isTenantAdmin(r rbac.Interface, cli kubernetes.Client, user string) bool {
 	return false
 }
 
-func isProjectAdmin(r rbac.Interface, cli kubernetes.Client, user string) bool {
+func isProjectAdmin(r rbac.Interface, cli mgrclient.Client, user string) bool {
 	projectList := tenantv1.ProjectList{}
 	err := cli.Cache().List(context.Background(), &projectList)
 	if err != nil {

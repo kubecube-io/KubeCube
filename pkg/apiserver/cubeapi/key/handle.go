@@ -60,10 +60,10 @@ func CreateKey(c *gin.Context) {
 	}
 
 	// max key num <= 5
-	pivotClient := clients.Interface().Kubernetes(constants.PivotCluster)
+	localClient := clients.Interface().Kubernetes(constants.LocalCluster)
 	ctx := context.Background()
 	keyList := key.KeyList{}
-	err = pivotClient.Cache().List(ctx, &keyList, client.MatchingLabels{UserLabel: userInfo.Username})
+	err = localClient.Cache().List(ctx, &keyList, client.MatchingLabels{UserLabel: userInfo.Username})
 	if err != nil {
 		clog.Warn("list key fail, %v", err)
 		response.FailReturn(c, errcode.ServerErr)
@@ -95,7 +95,7 @@ func CreateKey(c *gin.Context) {
 			User:      userInfo.Username,
 		},
 	}
-	err = pivotClient.Direct().Create(ctx, &keyInfo)
+	err = localClient.Direct().Create(ctx, &keyInfo)
 	if err != nil {
 		clog.Warn("create key fail, %v", err)
 		response.FailReturn(c, errcode.ServerErr)
@@ -129,10 +129,10 @@ func DeleteKey(c *gin.Context) {
 		return
 	}
 	// get key
-	pivotClient := clients.Interface().Kubernetes(constants.PivotCluster)
+	localClient := clients.Interface().Kubernetes(constants.LocalCluster)
 	ctx := context.Background()
 	keyInfo := key.Key{}
-	err = pivotClient.Cache().Get(ctx, types.NamespacedName{Name: accessKey}, &keyInfo)
+	err = localClient.Cache().Get(ctx, types.NamespacedName{Name: accessKey}, &keyInfo)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			response.FailReturn(c, errcode.KeyNotExistErr)
@@ -145,7 +145,7 @@ func DeleteKey(c *gin.Context) {
 		response.FailReturn(c, errcode.NotMatchErr)
 		return
 	}
-	err = pivotClient.Direct().Delete(ctx, &keyInfo)
+	err = localClient.Direct().Delete(ctx, &keyInfo)
 	if err != nil {
 		response.FailReturn(c, errcode.ServerErr)
 		return
@@ -171,10 +171,10 @@ func ListKey(c *gin.Context) {
 		return
 	}
 	// get key
-	pivotClient := clients.Interface().Kubernetes(constants.PivotCluster).Cache()
+	localClient := clients.Interface().Kubernetes(constants.LocalCluster).Cache()
 	ctx := context.Background()
 	keyList := key.KeyList{}
-	err = pivotClient.List(ctx, &keyList, client.MatchingLabels{UserLabel: userInfo.Username})
+	err = localClient.List(ctx, &keyList, client.MatchingLabels{UserLabel: userInfo.Username})
 	if err != nil {
 		response.FailReturn(c, errcode.ServerErr)
 		return
@@ -198,10 +198,10 @@ func GetTokenByKey(c *gin.Context) {
 	secretKey := c.Query("secretKey")
 
 	// get key
-	pivotClient := clients.Interface().Kubernetes(constants.PivotCluster).Direct()
+	localClient := clients.Interface().Kubernetes(constants.LocalCluster).Direct()
 	ctx := context.Background()
 	keyInfo := key.Key{}
-	err := pivotClient.Get(ctx, types.NamespacedName{Name: accessKey}, &keyInfo)
+	err := localClient.Get(ctx, types.NamespacedName{Name: accessKey}, &keyInfo)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			response.FailReturn(c, errcode.KeyNotExistErr)
@@ -217,7 +217,7 @@ func GetTokenByKey(c *gin.Context) {
 
 	// is user exist
 	user := key.User{}
-	err = pivotClient.Get(ctx, types.NamespacedName{Name: keyInfo.Spec.User}, &user)
+	err = localClient.Get(ctx, types.NamespacedName{Name: keyInfo.Spec.User}, &user)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			response.FailReturn(c, errcode.UserNotExistErr)

@@ -21,9 +21,9 @@ import (
 	"io/ioutil"
 
 	"github.com/gin-gonic/gin"
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
+	"github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
 	corev1 "k8s.io/api/core/v1"
@@ -132,7 +132,7 @@ func NewRestClient(config *rest.Config, gvk *schema.GroupVersionKind) (*rest.RES
 	return restClient, nil
 }
 
-func InitRestMapper(client kubernetes.Client, gvk *schema.GroupVersionKind) (*meta.RESTMapping, error) {
+func InitRestMapper(client client.Client, gvk *schema.GroupVersionKind) (*meta.RESTMapping, error) {
 
 	groupResources, err := restmapper.GetAPIGroupResources(client.ClientSet().Discovery())
 	if err != nil {

@@ -17,22 +17,21 @@ limitations under the License.
 package clients
 
 import (
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
-	"github.com/kubecube-io/kubecube/pkg/multicluster/manager"
+	"github.com/kubecube-io/kubecube/pkg/multicluster/client"
 )
 
 // Clients aggregates all clients of cube needed
 type Clients interface {
-	Kubernetes(cluster string) kubernetes.Client
+	Kubernetes(cluster string) client.Client
 }
 
 // genericClientSet is global cube cube client that must init at first
 var genericClientSet = &cubeClientSet{}
 
 type cubeClientSet struct {
-	k8s manager.MultiClustersManager
+	k8s multicluster.Manager
 }
 
 // InitCubeClientSetWithOpts initialize global clients with given config.
@@ -41,18 +40,18 @@ func InitCubeClientSetWithOpts(opts *Config) {
 }
 
 // Interface the entry for cube client
-func Interface() *cubeClientSet {
+func Interface() Clients {
 	return genericClientSet
 }
 
 // Kubernetes get the indicate client for cluster, we log error instead of return it
 // for convenience, caller needs to determine whether the return value is nil
-func (c *cubeClientSet) Kubernetes(cluster string) kubernetes.Client {
-	client, err := c.k8s.GetClient(cluster)
+func (c *cubeClientSet) Kubernetes(cluster string) client.Client {
+	cli, err := c.k8s.GetClient(cluster)
 	if err != nil {
 		clog.Warn(err.Error())
 		return nil
 	}
 
-	return client
+	return cli
 }

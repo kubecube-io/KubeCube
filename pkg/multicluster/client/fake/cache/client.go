@@ -27,7 +27,7 @@ import (
 
 var _ cache.Cache = &FakeClient{}
 
-// FakeClient implement cache.Cache
+// FakeClient implement cache.cache
 type FakeClient struct {
 	Client client.Client
 	Cache  *informertest.FakeInformers

@@ -50,20 +50,20 @@ type Scout struct {
 	// Cluster the cluster where the warden watch for
 	Cluster string
 
-	// ClusterState shows the real-time status for cluster
-	ClusterState v1.ClusterState
-
 	// Receiver receive warden info form api
 	Receiver chan WardenInfo
-
-	// Client k8s client
-	Client client.Client
 
 	// StopCh use to stop scout for
 	StopCh chan struct{}
 
 	// Once ensure scout for be called once
 	Once *sync.Once
+
+	// client k8s client
+	client client.Client
+
+	// clusterState shows the real-time status for cluster
+	clusterState v1.ClusterState
 }
 
 // WardenInfo contains intelligence within communication
@@ -85,15 +85,19 @@ func NewScout(cluster string, initialDelay, waitTimeoutSeconds int, cli client.C
 		Receiver:            make(chan WardenInfo),
 		InitialDelaySeconds: initialDelay,
 		WaitTimeoutSeconds:  waitTimeoutSeconds,
-		Client:              cli,
+		client:              cli,
 		StopCh:              stopCh,
 		Once:                &sync.Once{},
 	}
 
 	// cluster processing means all things ready wait for warden startup
-	s.ClusterState = v1.ClusterProcessing
+	s.clusterState = v1.ClusterProcessing
 
 	return s
+}
+
+func (s *Scout) ClusterHealth() v1.ClusterState {
+	return s.clusterState
 }
 
 // Collect will scout a specified warden of cluster
@@ -117,13 +121,13 @@ func (s *Scout) Collect(ctx context.Context) {
 // todo(weilaaa): populate network delay with watden info
 func (s *Scout) healthWarden(ctx context.Context, info WardenInfo) {
 	cluster := &v1.Cluster{}
-	err := s.Client.Get(ctx, types.NamespacedName{Name: s.Cluster}, cluster)
+	err := s.client.Get(ctx, types.NamespacedName{Name: s.Cluster}, cluster)
 	if err != nil {
 		clog.Error(err.Error())
 		return
 	}
 
-	if s.ClusterState != v1.ClusterNormal {
+	if s.clusterState != v1.ClusterNormal {
 		clog.Info("cluster %v connected", cluster.Name)
 	}
 
@@ -136,19 +140,19 @@ func (s *Scout) healthWarden(ctx context.Context, info WardenInfo) {
 		obj.Status.LastHeartbeat = &metav1.Time{Time: s.LastHeartbeat}
 	}
 
-	err = utils.UpdateClusterStatus(ctx, s.Client, cluster, updateFn)
+	err = utils.UpdateClusterStatus(ctx, s.client, cluster, updateFn)
 	if err != nil {
 		clog.Error(err.Error())
 		return
 	}
 
-	s.ClusterState = v1.ClusterNormal
+	s.clusterState = v1.ClusterNormal
 }
 
 // illWarden do callback when warden ill
 func (s *Scout) illWarden(ctx context.Context) {
 	cluster := &v1.Cluster{}
-	err := s.Client.Get(ctx, types.NamespacedName{Name: s.Cluster}, cluster)
+	err := s.client.Get(ctx, types.NamespacedName{Name: s.Cluster}, cluster)
 	if err != nil {
 		clog.Error(err.Error())
 	}
@@ -156,16 +160,16 @@ func (s *Scout) illWarden(ctx context.Context) {
 	if !isDisconnected(cluster, s.WaitTimeoutSeconds) {
 		// going here means cluster heartbeat is normal
 
-		if s.ClusterState != v1.ClusterNormal {
+		if s.clusterState != v1.ClusterNormal {
 			clog.Info("cluster %v connected", cluster.Name)
 		}
 
 		s.LastHeartbeat = cluster.Status.LastHeartbeat.Time
-		s.ClusterState = v1.ClusterNormal
+		s.clusterState = v1.ClusterNormal
 		return
 	}
 
-	if s.ClusterState == v1.ClusterNormal {
+	if s.clusterState == v1.ClusterNormal {
 		reason := fmt.Sprintf("cluster %s disconnected", s.Cluster)
 
 		updateFn := func(obj *v1.Cluster) {
@@ -177,16 +181,17 @@ func (s *Scout) illWarden(ctx context.Context) {
 
 		clog.Warn("%v, last heartbeat: %v", reason, s.LastHeartbeat)
 
-		err := utils.UpdateClusterStatus(ctx, s.Client, cluster, updateFn)
+		err := utils.UpdateClusterStatus(ctx, s.client, cluster, updateFn)
 		if err != nil {
 			clog.Error(err.Error())
 		}
 	}
 
-	s.ClusterState = v1.ClusterAbnormal
+	s.clusterState = v1.ClusterAbnormal
 }
 
 // isDisconnected determines the health of the cluster
+// todo: consider use release do that
 func isDisconnected(cluster *v1.Cluster, waitTimeoutSecond int) bool {
 	clog.Debug("cluster %v, status: %v, time now: %v", cluster.Name, *cluster.Status.State, time.Now().String())
 

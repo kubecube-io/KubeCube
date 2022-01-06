@@ -31,7 +31,7 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
+	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
@@ -46,13 +46,13 @@ const (
 
 type ExternalAccess struct {
 	ctx       context.Context
-	client    kubernetes.Client
+	client    mgrclient.Client
 	namespace string
 	name      string
 	filter    resources.Filter
 }
 
-func NewExternalAccess(client kubernetes.Client, namespace string, name string, filter resources.Filter) ExternalAccess {
+func NewExternalAccess(client mgrclient.Client, namespace string, name string, filter resources.Filter) ExternalAccess {
 	ctx := context.Background()
 	return ExternalAccess{
 		ctx:       ctx,

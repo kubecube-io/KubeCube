@@ -17,6 +17,9 @@ package service_test
 
 import (
 	"encoding/json"
+	"github.com/kubecube-io/kubecube/pkg/multicluster"
+	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -24,22 +27,19 @@ import (
 
 	"github.com/kubecube-io/kubecube/pkg/apis"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/service"
 	"github.com/kubecube-io/kubecube/pkg/clients"
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes/fake"
-	fakemgr "github.com/kubecube-io/kubecube/pkg/multicluster/fake"
+	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/service"
 )
 
 var _ = Describe("Externalaccess", func() {
 	var (
 		externalAccess service.ExternalAccess
-		cli            kubernetes.Client
+		cli            mgrclient.Client
 		ns             = "namespace-test"
 		serviceName    = "service-test"
 		serviceName2   = "service-test2"
@@ -104,9 +104,9 @@ var _ = Describe("Externalaccess", func() {
 			ClientSetRuntimeObjs: []runtime.Object{},
 			Lists:                []client.ObjectList{&podList},
 		}
-		fakemgr.InitFakeMultiClusterMgrWithOpts(opts)
+		multicluster.InitFakeMultiClusterMgrWithOpts(opts)
 		clients.InitCubeClientSetWithOpts(nil)
-		cli = clients.Interface().Kubernetes("pivot-cluster")
+		cli = clients.Interface().Kubernetes(constants.LocalCluster)
 		Expect(cli).NotTo(BeNil())
 		externalAccess = service.NewExternalAccess(cli, ns, serviceName, resources.Filter{Limit: 10})
 	})

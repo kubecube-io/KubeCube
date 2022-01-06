@@ -108,7 +108,7 @@ func CreateUser(c *gin.Context) {
 
 func CreateUserImpl(c *gin.Context, user *userv1.User) *errcode.ErrorInfo {
 
-	kClient := clients.Interface().Kubernetes(constants.PivotCluster).Direct()
+	kClient := clients.Interface().Kubernetes(constants.LocalCluster).Direct()
 	err := kClient.Create(c.Request.Context(), user)
 	if err != nil {
 		clog.Error("create user error: %s", err)
@@ -169,7 +169,7 @@ func UpdateUser(c *gin.Context) {
 }
 
 func UpdateUserSpecImpl(c *gin.Context, newUser *userv1.User) *errcode.ErrorInfo {
-	kClient := clients.Interface().Kubernetes(constants.PivotCluster).Direct()
+	kClient := clients.Interface().Kubernetes(constants.LocalCluster).Direct()
 	err := kClient.Update(c.Request.Context(), newUser)
 	if err != nil {
 		clog.Error("update user spec to k8s error: %s", err)
@@ -179,7 +179,7 @@ func UpdateUserSpecImpl(c *gin.Context, newUser *userv1.User) *errcode.ErrorInfo
 }
 
 func UpdateUserStatusImpl(c *gin.Context, newUser *userv1.User) *errcode.ErrorInfo {
-	kClient := clients.Interface().Kubernetes(constants.PivotCluster).Direct()
+	kClient := clients.Interface().Kubernetes(constants.LocalCluster).Direct()
 	err := kClient.Status().Update(c.Request.Context(), newUser, &client.UpdateOptions{})
 	if err != nil {
 		clog.Error("update user status to k8s error: %s", err)
@@ -202,7 +202,7 @@ func ListUsers(c *gin.Context) {
 	c.Set(constants.EventResourceType, "user")
 
 	// get all user
-	kClient := clients.Interface().Kubernetes(constants.PivotCluster).Cache()
+	kClient := clients.Interface().Kubernetes(constants.LocalCluster).Cache()
 	allUserList := &userv1.UserList{}
 	err := kClient.List(c.Request.Context(), allUserList)
 	if err != nil {
@@ -244,7 +244,7 @@ func ListUsers(c *gin.Context) {
 }
 
 func GetUserByName(c *gin.Context, name string) (*userv1.User, *errcode.ErrorInfo) {
-	kClient := clients.Interface().Kubernetes(constants.PivotCluster).Cache()
+	kClient := clients.Interface().Kubernetes(constants.LocalCluster).Cache()
 	user := &userv1.User{}
 	var userKey client.ObjectKey
 	userKey.Name = name
@@ -552,7 +552,7 @@ func GetMembersByNS(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	cli := clients.Interface().Kubernetes(constants.PivotCluster)
+	cli := clients.Interface().Kubernetes(constants.LocalCluster)
 
 	// list all roleBindings in namespace
 	roleBindingList := v1.RoleBindingList{}

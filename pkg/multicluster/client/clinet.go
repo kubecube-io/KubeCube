@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package kubernetes
+package client
 
 import (
 	"context"
@@ -42,7 +42,7 @@ var (
 
 func initScheme() *runtime.Scheme {
 	s := runtime.NewScheme()
-	// cache for all k8s and crd resource
+	// register for all k8s and crd resource
 	utilruntime.Must(clientgoscheme.AddToScheme(s))
 	utilruntime.Must(apis.AddToScheme(s))
 	utilruntime.Must(hnc.AddToScheme(s))
@@ -59,9 +59,8 @@ type Client interface {
 }
 
 type InternalClient struct {
-	client client.Client
-	cache  cache.Cache
-
+	client       client.Client
+	cache        cache.Cache
 	rawClientSet kubernetes.Interface
 	metrics      versioned.Interface
 }

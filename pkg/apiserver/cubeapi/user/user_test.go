@@ -25,8 +25,8 @@ import (
 	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/user"
 	"github.com/kubecube-io/kubecube/pkg/clients"
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes/fake"
-	fakemgr "github.com/kubecube-io/kubecube/pkg/multicluster/fake"
+	"github.com/kubecube-io/kubecube/pkg/multicluster"
+	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -90,7 +90,7 @@ var _ = Describe("User", func() {
 			ClientSetRuntimeObjs: []runtime.Object{},
 			Lists:                []client.ObjectList{&userv1.UserList{Items: []userv1.User{*admin}}},
 		}
-		fakemgr.InitFakeMultiClusterMgrWithOpts(opts)
+		multicluster.InitFakeMultiClusterMgrWithOpts(opts)
 		clients.InitCubeClientSetWithOpts(nil)
 	})
 
@@ -112,7 +112,7 @@ var _ = Describe("User", func() {
 		Expect(w.Code).To(Equal(http.StatusOK))
 
 		// get user and check
-		cli := clients.Interface().Kubernetes(constants.PivotCluster).Direct()
+		cli := clients.Interface().Kubernetes(constants.LocalCluster).Direct()
 		user := &userv1.User{}
 		err := cli.Get(context.Background(), client.ObjectKey{Name: "test123"}, user)
 		Expect(err).To(BeNil())
@@ -143,7 +143,7 @@ var _ = Describe("User", func() {
 		Expect(w.Code).To(Equal(http.StatusOK))
 
 		// get user and check
-		cli := clients.Interface().Kubernetes(constants.PivotCluster).Direct()
+		cli := clients.Interface().Kubernetes(constants.LocalCluster).Direct()
 		user := &userv1.User{}
 		err := cli.Get(context.Background(), client.ObjectKey{Name: "admin"}, user)
 		Expect(err).To(BeNil())

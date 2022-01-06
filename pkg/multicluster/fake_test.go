@@ -14,15 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package fake_test
+package multicluster_test
 
 import (
 	"context"
-
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes/fake"
-
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
-	"k8s.io/apimachinery/pkg/types"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -32,16 +27,21 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/kubecube-io/kubecube/pkg/clients"
+	"github.com/kubecube-io/kubecube/pkg/multicluster"
+	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
 const trackerAddResourceVersion = "999"
 
-var _ = Describe("Fake cube client", func() {
+var _ = Describe("Fake multi cluster manager", func() {
 	var dep *appsv1.Deployment
 	var dep2 *appsv1.Deployment
 	var cm *corev1.ConfigMap
-	var cli kubernetes.Client
 
 	BeforeEach(func() {
 		dep = &appsv1.Deployment{
@@ -86,7 +86,7 @@ var _ = Describe("Fake cube client", func() {
 	})
 
 	AssertClientBehavior := func() {
-		It("Direct() should able to create", func() {
+		It("Direct() of clients should able to create", func() {
 			By("Creating a new configmap")
 			newcm := &corev1.ConfigMap{
 				TypeMeta: metav1.TypeMeta{
@@ -98,6 +98,7 @@ var _ = Describe("Fake cube client", func() {
 					Namespace: "ns2",
 				},
 			}
+			cli := clients.Interface().Kubernetes(constants.LocalCluster)
 			err := cli.Direct().Create(context.Background(), newcm)
 			Expect(err).To(BeNil())
 
@@ -113,20 +114,30 @@ var _ = Describe("Fake cube client", func() {
 			Expect(obj.ObjectMeta.ResourceVersion).To(Equal("1"))
 		})
 
-		It("Cache() should be able to List", func() {
+		It("cache() of clients should be able to List", func() {
 			By("Listing all deployments in a namespace")
 			list := &appsv1.DeploymentList{}
+			cli := clients.Interface().Kubernetes(constants.LocalCluster)
 			err := cli.Cache().List(context.Background(), list, client.InNamespace("ns1"))
 			Expect(err).To(BeNil())
 			Expect(list.Items).To(HaveLen(2))
 			Expect(list.Items).To(ConsistOf(*dep, *dep2))
 		})
 
-		It("ClientSet() should be able to Get", func() {
+		It("ClientSet() of clients should be able to Get", func() {
 			By("Getting a deployment")
+			cli := clients.Interface().Kubernetes(constants.LocalCluster)
 			obj, err := cli.ClientSet().AppsV1().Deployments("ns1").Get(context.Background(), "test-deployment", metav1.GetOptions{})
 			Expect(err).To(BeNil())
 			Expect(obj).To(Equal(dep))
+		})
+
+		It("FuzzyCopy should get pivot cluster", func() {
+			By("Get pivot cluster")
+			clusters := multicluster.Interface().FuzzyCopy()
+			cluster, ok := clusters[constants.LocalCluster]
+			Expect(ok).To(BeTrue())
+			Expect(cluster.Name).To(Equal(constants.LocalCluster))
 		})
 	}
 
@@ -142,7 +153,8 @@ var _ = Describe("Fake cube client", func() {
 				ClientSetRuntimeObjs: []runtime.Object{dep},
 				Lists:                []client.ObjectList{&appsv1.DeploymentList{Items: []appsv1.Deployment{*dep, *dep2}}},
 			}
-			cli = fake.NewFakeClients(opts)
+			multicluster.InitFakeMultiClusterMgrWithOpts(opts)
+			clients.InitCubeClientSetWithOpts(nil)
 			close(done)
 		})
 		AssertClientBehavior()

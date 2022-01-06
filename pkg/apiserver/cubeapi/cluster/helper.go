@@ -33,9 +33,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
+	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/strproc"
 )
@@ -63,7 +63,7 @@ const (
 
 // makeClusterInfos make cluster info with clusters given
 // todo split metric and cluster info into two apis
-func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivotCli kubernetes.Client, statusFilter string) ([]clusterInfo, error) {
+func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivotCli mgrclient.Client, statusFilter string) ([]clusterInfo, error) {
 	// populate cluster info one by one
 	infos := make([]clusterInfo, 0)
 	for _, item := range clusters.Items {
@@ -285,7 +285,7 @@ func getClustersByNamespace(namespace string, ctx context.Context) ([]string, er
 	return clusterNames, nil
 }
 
-func getAssignedResource(cli kubernetes.Client, cluster string) (cpu resource.Quantity, mem resource.Quantity, gpu resource.Quantity, err error) {
+func getAssignedResource(cli mgrclient.Client, cluster string) (cpu resource.Quantity, mem resource.Quantity, gpu resource.Quantity, err error) {
 	labelSelector, err := labels.Parse(fmt.Sprintf("%v=%v", constants.ClusterLabel, cluster))
 	if err != nil {
 		return resource.Quantity{}, resource.Quantity{}, resource.Quantity{}, err

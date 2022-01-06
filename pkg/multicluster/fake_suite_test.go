@@ -14,15 +14,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package manager
+package multicluster_test
 
-import "github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
+import (
+	"testing"
 
-func (m *MultiClustersMgr) GetClient(cluster string) (kubernetes.Client, error) {
-	c, err := m.Get(cluster)
-	if err != nil {
-		return nil, err
-	}
+	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 
-	return c.Client, err
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+)
+
+func TestFakerMultiClusterMgr(t *testing.T) {
+	RegisterFailHandler(Fail)
+	suiteName := "Fake multi cluster manager"
+	RunSpecsWithDefaultAndCustomReporters(t, suiteName, []Reporter{printer.NewlineReporter{}, printer.NewProwReporter(suiteName)})
 }
+
+var _ = BeforeSuite(func(done Done) {
+	close(done)
+}, 60)

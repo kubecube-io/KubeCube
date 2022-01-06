@@ -13,30 +13,30 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package pod
 
 import (
 	"context"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	jsoniter "github.com/json-iterator/go"
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 type Pod struct {
 	ctx       context.Context
-	client    kubernetes.Client
+	client    mgrclient.Client
 	namespace string
 	filter    resources.Filter
 }
 
-func NewPod(client kubernetes.Client, namespace string, filter resources.Filter) Pod {
+func NewPod(client mgrclient.Client, namespace string, filter resources.Filter) Pod {
 	ctx := context.Background()
 	return Pod{
 		ctx:       ctx,

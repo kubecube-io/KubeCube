@@ -24,17 +24,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
+	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 )
 
 type Service struct {
 	ctx       context.Context
-	client    kubernetes.Client
+	client    mgrclient.Client
 	namespace string
 	filter    resources.Filter
 }
 
-func NewService(client kubernetes.Client, namespace string, filter resources.Filter) Service {
+func NewService(client mgrclient.Client, namespace string, filter resources.Filter) Service {
 	ctx := context.Background()
 	return Service{
 		ctx:       ctx,

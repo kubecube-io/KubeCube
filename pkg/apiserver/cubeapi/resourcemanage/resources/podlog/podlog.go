@@ -24,8 +24,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
-	mclient "github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
 	v1 "k8s.io/api/core/v1"
@@ -39,12 +39,12 @@ import (
 
 type PodLog struct {
 	ctx       context.Context
-	client    mclient.Client
+	client    client.Client
 	namespace string
 	filter    resources.Filter
 }
 
-func NewPodLog(client mclient.Client, namespace string, filter resources.Filter) PodLog {
+func NewPodLog(client client.Client, namespace string, filter resources.Filter) PodLog {
 	ctx := context.Background()
 	return PodLog{
 		ctx:       ctx,

@@ -17,6 +17,8 @@ package resourcemanage_test
 
 import (
 	"encoding/json"
+	"github.com/kubecube-io/kubecube/pkg/multicluster"
+	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -25,8 +27,6 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/apis"
 	proxy "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
 	"github.com/kubecube-io/kubecube/pkg/clients"
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes/fake"
-	fakemgr "github.com/kubecube-io/kubecube/pkg/multicluster/fake"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -89,7 +89,7 @@ var _ = Describe("Handle", func() {
 			ClientSetRuntimeObjs: []runtime.Object{},
 			Lists:                []client.ObjectList{&corev1.NamespaceList{Items: []corev1.Namespace{ns1, ns2, ns3}}},
 		}
-		fakemgr.InitFakeMultiClusterMgrWithOpts(opts)
+		multicluster.InitFakeMultiClusterMgrWithOpts(opts)
 		clients.InitCubeClientSetWithOpts(nil)
 
 	})

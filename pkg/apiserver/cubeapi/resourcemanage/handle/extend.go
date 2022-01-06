@@ -183,7 +183,7 @@ func ExtendHandle(c *gin.Context) {
 // GetFeatureConfig shows layout of integrated components
 // all users have read-only access ability
 func GetFeatureConfig(c *gin.Context) {
-	cli := clients.Interface().Kubernetes(constants.PivotCluster)
+	cli := clients.Interface().Kubernetes(constants.LocalCluster)
 	if cli == nil {
 		response.FailReturn(c, errcode.InternalServerError)
 		return
@@ -214,7 +214,7 @@ func GetConfigMap(c *gin.Context) {
 		return
 	}
 
-	cli := clients.Interface().Kubernetes(constants.PivotCluster)
+	cli := clients.Interface().Kubernetes(constants.LocalCluster)
 	if cli == nil {
 		response.FailReturn(c, errcode.InternalServerError)
 		return

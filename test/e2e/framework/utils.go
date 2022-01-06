@@ -35,7 +35,7 @@ import (
 
 // Create namespace
 func CreateNamespace(baseName string) (*v1.Namespace, error) {
-	cli := clients.Interface().Kubernetes(constants.PivotCluster)
+	cli := clients.Interface().Kubernetes(constants.LocalCluster)
 	labels := map[string]string{
 		"e2e-run":       string(uuid.NewUUID()),
 		"e2e-framework": baseName,
@@ -69,7 +69,7 @@ func CreateNamespace(baseName string) (*v1.Namespace, error) {
 
 // Delete Namespace
 func DeleteNamespace(ns *v1.Namespace) error {
-	cli := clients.Interface().Kubernetes(constants.PivotCluster)
+	cli := clients.Interface().Kubernetes(constants.LocalCluster)
 	err := cli.Direct().Delete(context.TODO(), ns)
 	if err != nil && !apierrors.IsNotFound(err) {
 		clog.Error("error deleting namespace %s: %v", ns.Name, err)

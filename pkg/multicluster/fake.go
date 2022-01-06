@@ -14,58 +14,55 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package fake
+package multicluster
 
 import (
 	"context"
 	"fmt"
 	"sync"
 
-	"github.com/kubecube-io/kubecube/pkg/multicluster/manager"
-
-	"k8s.io/client-go/rest"
-
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes/fake"
-	"github.com/kubecube-io/kubecube/pkg/clog"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
+	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/multicluster/client"
+	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
-var _ manager.MultiClustersManager = &FakerMultiClusterMgr{}
+var _ Manager = &FakerManagerImpl{}
 
-// FakerMultiClusterMgr implements multicluster.MultiClustersManager
-type FakerMultiClusterMgr struct {
+// FakerManagerImpl implements Manager
+type FakerManagerImpl struct {
 	sync.RWMutex
-	Clusters map[string]*manager.InternalCluster
+	Clusters map[string]*InternalCluster
 }
 
 var (
-	IsFake bool
+	isFake bool
 
-	FakeMultiClusterMgr manager.MultiClustersManager
+	fakeMultiClusterMgr Manager
 )
 
 // InitFakeMultiClusterMgrWithOpts must be called at first in testing
 func InitFakeMultiClusterMgrWithOpts(opts *fake.Options) {
-	m := &FakerMultiClusterMgr{Clusters: make(map[string]*manager.InternalCluster)}
+	m := &FakerManagerImpl{Clusters: make(map[string]*InternalCluster)}
 
-	c := new(manager.InternalCluster)
+	c := new(InternalCluster)
 	c.Client = fake.NewFakeClients(opts)
 	c.Config = &rest.Config{Host: "127.0.0.1", ContentConfig: rest.ContentConfig{GroupVersion: &v1.SchemeGroupVersion, NegotiatedSerializer: scheme.Codecs}}
 
-	err := m.Add(constants.PivotCluster, c)
+	err := m.Add(constants.LocalCluster, c)
 	if err != nil {
 		clog.Fatal("init multi cluster mgr failed: %v", err)
 	}
 
-	IsFake = true
-	FakeMultiClusterMgr = m
+	isFake = true
+	fakeMultiClusterMgr = m
 }
 
-func (m *FakerMultiClusterMgr) Add(cluster string, c *manager.InternalCluster) error {
+func (m *FakerManagerImpl) Add(cluster string, c *InternalCluster) error {
 	m.Lock()
 	defer m.Unlock()
 
@@ -83,7 +80,7 @@ func (m *FakerMultiClusterMgr) Add(cluster string, c *manager.InternalCluster) e
 	return nil
 }
 
-func (m *FakerMultiClusterMgr) Get(cluster string) (*manager.InternalCluster, error) {
+func (m *FakerManagerImpl) Get(cluster string) (*InternalCluster, error) {
 	m.RLock()
 	defer m.RUnlock()
 
@@ -95,7 +92,7 @@ func (m *FakerMultiClusterMgr) Get(cluster string) (*manager.InternalCluster, er
 	return c, nil
 }
 
-func (m *FakerMultiClusterMgr) Del(cluster string) error {
+func (m *FakerManagerImpl) Del(cluster string) error {
 	m.Lock()
 	defer m.Unlock()
 
@@ -109,13 +106,13 @@ func (m *FakerMultiClusterMgr) Del(cluster string) error {
 	return nil
 }
 
-func (m *FakerMultiClusterMgr) FuzzyCopy() map[string]*manager.FuzzyCluster {
+func (m *FakerManagerImpl) FuzzyCopy() map[string]*FuzzyCluster {
 	m.RLock()
 	defer m.RUnlock()
 
-	clusters := make(map[string]*manager.FuzzyCluster)
+	clusters := make(map[string]*FuzzyCluster)
 	for name, v := range m.Clusters {
-		clusters[name] = &manager.FuzzyCluster{
+		clusters[name] = &FuzzyCluster{
 			Name:   name,
 			Client: v.Client,
 		}
@@ -125,11 +122,11 @@ func (m *FakerMultiClusterMgr) FuzzyCopy() map[string]*manager.FuzzyCluster {
 }
 
 // ScoutFor do nothing in testing
-func (m *FakerMultiClusterMgr) ScoutFor(ctx context.Context, cluster string) error {
+func (m *FakerManagerImpl) ScoutFor(ctx context.Context, cluster string) error {
 	return nil
 }
 
-func (m *FakerMultiClusterMgr) GetClient(cluster string) (kubernetes.Client, error) {
+func (m *FakerManagerImpl) GetClient(cluster string) (client.Client, error) {
 	c, err := m.Get(cluster)
 	if err != nil {
 		return nil, err
@@ -138,6 +135,24 @@ func (m *FakerMultiClusterMgr) GetClient(cluster string) (kubernetes.Client, err
 	return c.Client, err
 }
 
-func Interface() manager.MultiClustersManager {
-	return FakeMultiClusterMgr
+func (m *FakerManagerImpl) ListClustersByType(t clusterType) []*InternalCluster {
+	m.RLock()
+	defer m.RUnlock()
+
+	var clusters []*InternalCluster
+	for _, v := range m.Clusters {
+		if v.Type == t {
+			clusters = append(clusters, v)
+		}
+	}
+
+	return clusters
+}
+
+func (m *FakerManagerImpl) PivotCluster() *InternalCluster {
+	clusters := m.ListClustersByType(PivotCluster)
+	if len(clusters) > 0 {
+		return clusters[0]
+	}
+	return nil
 }
