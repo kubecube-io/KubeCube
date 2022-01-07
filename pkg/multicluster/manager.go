@@ -134,7 +134,11 @@ func (m *MultiClustersMgr) Get(cluster string) (*InternalCluster, error) {
 		return nil, fmt.Errorf("get: internal cluster %s not found", cluster)
 	}
 
-	if c.Scout.ClusterHealth() == clusterv1.ClusterAbnormal && cluster != constants.LocalCluster {
+	if cluster == constants.LocalCluster {
+		return c, nil
+	}
+
+	if c.Scout.ClusterHealth() == clusterv1.ClusterAbnormal {
 		return c, fmt.Errorf("internal cluster %v is abnormal, wait for recover", cluster)
 	}
 
