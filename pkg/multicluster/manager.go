@@ -43,7 +43,7 @@ const (
 )
 
 // ManagerImpl instance implement interface,
-// init pivot cluster at first.
+// init local cluster at first.
 var ManagerImpl = newMultiClusterMgr()
 
 // newMultiClusterMgr init MultiClustersMgr with local cluster.
@@ -99,6 +99,35 @@ type InternalCluster struct {
 	Type clusterType
 }
 
+func NewInternalCluster(cluster clusterv1.Cluster) (*InternalCluster, error) {
+	config, err := kubeconfig.LoadKubeConfigFromBytes(cluster.Spec.KubeConfig)
+	if err != nil {
+		return nil, fmt.Errorf("load kubeconfig failed: %v", err)
+	}
+
+	// allocate mem address to avoid nil
+	cluster.Status.State = new(clusterv1.ClusterState)
+
+	var clusterType clusterType
+	if cluster.Spec.IsMemberCluster {
+		clusterType = MemberCluster
+	} else {
+		clusterType = PivotCluster
+	}
+
+	c := new(InternalCluster)
+	c.StopCh = make(chan struct{})
+	c.Config = config
+	c.Type = clusterType
+	c.RawConfig = cluster.Spec.KubeConfig
+	c.Client, err = client.NewClientFor(config, c.StopCh)
+	if err != nil {
+		return nil, err
+	}
+
+	return c, nil
+}
+
 // MultiClustersMgr a memory cache for runtime cluster.
 type MultiClustersMgr struct {
 	sync.RWMutex
@@ -108,10 +137,6 @@ type MultiClustersMgr struct {
 func (m *MultiClustersMgr) Add(cluster string, c *InternalCluster) error {
 	m.Lock()
 	defer m.Unlock()
-
-	if c.Scout == nil && cluster != constants.LocalCluster {
-		return fmt.Errorf("add: %s, scout should not be nil", cluster)
-	}
 
 	_, ok := m.Clusters[cluster]
 	if ok {
@@ -134,7 +159,8 @@ func (m *MultiClustersMgr) Get(cluster string) (*InternalCluster, error) {
 		return nil, fmt.Errorf("get: internal cluster %s not found", cluster)
 	}
 
-	if cluster == constants.LocalCluster {
+	// ignore cluster health if there is no scout
+	if c.Scout == nil {
 		return c, nil
 	}
 
@@ -176,6 +202,11 @@ func (m *MultiClustersMgr) ScoutFor(ctx context.Context, cluster string) error {
 	c, err := m.Get(cluster)
 	if err != nil {
 		return err
+	}
+
+	// internal cluster without scout will do nothing
+	if c.Scout == nil {
+		return nil
 	}
 
 	c.Scout.Once.Do(func() {
@@ -244,50 +275,41 @@ func (m *MultiClustersMgr) PivotCluster() *InternalCluster {
 	return nil
 }
 
+// AddInternalClusterWithScout build internal cluster of cluster and add it
+// to multi cluster manager with scout
+func AddInternalClusterWithScout(cluster clusterv1.Cluster) error {
+	return addInternalCluster(cluster, true)
+}
+
 // AddInternalCluster build internal cluster of cluster and add it
-// to multi cluster manager
+// to multi cluster manager without scout
 func AddInternalCluster(cluster clusterv1.Cluster) error {
+	return addInternalCluster(cluster, false)
+}
+
+func addInternalCluster(cluster clusterv1.Cluster, withScout bool) error {
 	_, err := ManagerImpl.Get(cluster.Name)
 	if err == nil {
 		// return Immediately if active internal cluster exist
 		return nil
-	} else {
-		// create internal cluster relate with cluster cr
-		config, err := kubeconfig.LoadKubeConfigFromBytes(cluster.Spec.KubeConfig)
-		if err != nil {
-			return fmt.Errorf("load kubeconfig failed: %v", err)
-		}
+	}
 
+	c, err := NewInternalCluster(cluster)
+	if err != nil {
+		return err
+	}
+
+	if withScout {
 		localCluster, err := ManagerImpl.Get(constants.LocalCluster)
 		if err != nil {
 			return err
 		}
-
-		// allocate mem address to avoid nil
-		cluster.Status.State = new(clusterv1.ClusterState)
-
-		var clusterType clusterType
-		if cluster.Spec.IsMemberCluster {
-			clusterType = MemberCluster
-		} else {
-			clusterType = PivotCluster
-		}
-
-		c := new(InternalCluster)
-		c.StopCh = make(chan struct{})
-		c.Config = config
-		c.Type = clusterType
-		c.RawConfig = cluster.Spec.KubeConfig
 		c.Scout = scout.NewScout(cluster.Name, 0, 0, localCluster.Client.Direct(), c.StopCh)
-		c.Client, err = client.NewClientFor(config, c.StopCh)
-		if err != nil {
-			return err
-		}
+	}
 
-		err = ManagerImpl.Add(cluster.Name, c)
-		if err != nil {
-			return fmt.Errorf("add internal cluster failed: %v", err)
-		}
+	err = ManagerImpl.Add(cluster.Name, c)
+	if err != nil {
+		return fmt.Errorf("add internal cluster failed: %v", err)
 	}
 
 	return nil

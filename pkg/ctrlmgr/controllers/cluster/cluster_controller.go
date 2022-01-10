@@ -142,7 +142,7 @@ func (r *ClusterReconciler) syncCluster(ctx context.Context, cluster clusterv1.C
 
 	// generate internal cluster for current cluster and add
 	// it to the cache of multi cluster manager
-	err = multicluster.AddInternalCluster(cluster)
+	err = multicluster.AddInternalClusterWithScout(cluster)
 	if err != nil {
 		log.Error(err.Error())
 		_ = utils.UpdateClusterStatusByState(ctx, r.Client, &cluster, clusterv1.ClusterInitFailed)

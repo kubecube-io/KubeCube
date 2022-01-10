@@ -33,7 +33,7 @@ const (
 	// Deprecated
 	PivotCluster = "pivot-cluster"
 
-	// LocalCluster the internal cluster where kubecube stand with
+	// LocalCluster the internal cluster where program stand with
 	LocalCluster = "_local_cluster"
 
 	// DefaultPivotCubeClusterIPSvc default pivot cube svc

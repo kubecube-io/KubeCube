@@ -133,7 +133,7 @@ func (m *SyncMgr) ReconcileCluster(key worker.QueueKey) error {
 		return err
 	}
 
-	err = AddInternalCluster(*cluster)
+	err = AddInternalClusterWithScout(*cluster)
 	if err != nil {
 		clog.Error("add internal cluster %v failed: %v", cluster.Name, err)
 		return err
