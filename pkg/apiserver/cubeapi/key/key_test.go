@@ -17,8 +17,6 @@ package key_test
 
 import (
 	"encoding/json"
-	"github.com/kubecube-io/kubecube/pkg/multicluster"
-	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -39,6 +37,8 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/key"
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
 	"github.com/kubecube-io/kubecube/pkg/clients"
+	"github.com/kubecube-io/kubecube/pkg/multicluster"
+	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 

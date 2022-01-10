@@ -16,22 +16,23 @@ limitations under the License.
 package deployment_test
 
 import (
-	"github.com/kubecube-io/kubecube/pkg/multicluster"
-	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/kubecube-io/kubecube/pkg/apis"
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/deployment"
-	"github.com/kubecube-io/kubecube/pkg/clients"
 	appsv1 "k8s.io/api/apps/v1"
 	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	"github.com/kubecube-io/kubecube/pkg/apis"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/deployment"
+	"github.com/kubecube-io/kubecube/pkg/clients"
+	"github.com/kubecube-io/kubecube/pkg/multicluster"
+	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
 var _ = Describe("Deployment", func() {

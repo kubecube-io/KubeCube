@@ -16,20 +16,20 @@ limitations under the License.
 package job_test
 
 import (
-	"github.com/kubecube-io/kubecube/pkg/multicluster"
-	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
-	"github.com/kubecube-io/kubecube/pkg/clients"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
 	job "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/pvc"
+	"github.com/kubecube-io/kubecube/pkg/clients"
+	"github.com/kubecube-io/kubecube/pkg/multicluster"
+	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
 var _ = Describe("Pvc", func() {

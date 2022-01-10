@@ -18,19 +18,20 @@ package resources
 import (
 	"bytes"
 	"fmt"
-	"github.com/kubecube-io/kubecube/pkg/multicluster"
-	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"testing"
 	"time"
 
-	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/kubecube-io/kubecube/pkg/clients"
+	"github.com/kubecube-io/kubecube/pkg/multicluster"
+	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
 func createList() map[string]interface{} {

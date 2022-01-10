@@ -13,20 +13,15 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package resourcemanage_test
 
 import (
-	"github.com/kubecube-io/kubecube/pkg/multicluster"
-	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 
 	"github.com/gin-gonic/gin"
-	"github.com/kubecube-io/kubecube/pkg/apis"
-	extend "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
-	"github.com/kubecube-io/kubecube/pkg/clients"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -34,6 +29,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/kubecube-io/kubecube/pkg/apis"
+	extend "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
+	"github.com/kubecube-io/kubecube/pkg/clients"
+	"github.com/kubecube-io/kubecube/pkg/multicluster"
+	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
 var _ = Describe("Handle", func() {

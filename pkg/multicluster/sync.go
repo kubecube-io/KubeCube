@@ -19,17 +19,19 @@ package multicluster
 import (
 	"context"
 	"fmt"
-	"github.com/kubecube-io/kubecube/pkg/apis"
+
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
-	"github.com/kubecube-io/kubecube/pkg/clog"
-	"github.com/kubecube-io/kubecube/pkg/utils/keys"
-	"github.com/kubecube-io/kubecube/pkg/utils/worker"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/kubecube-io/kubecube/pkg/apis"
+	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/keys"
+	"github.com/kubecube-io/kubecube/pkg/utils/worker"
 )
 
 // SyncMgr only running when process as subsidiary
