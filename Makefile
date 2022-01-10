@@ -36,6 +36,7 @@ help: ## Display this help.
 
 ##@ Tools
 
+# make manifests: if do any modify to crd api
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
@@ -77,6 +78,8 @@ run-warden:
 
 ##@ Build
 
+## build biniaries
+
 build-cube: #generate fmt vet
 ifeq ($(MULTI_ARCH),true)
 	CGO_ENABLED=0 GOOS=linux GO111MODULE=on go build -mod=vendor -a -o cube cmd/cube/main.go
@@ -91,17 +94,19 @@ else
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o warden cmd/warden/main.go
 endif
 
-docker-build-cube: vendor #test ## Build docker image with the manager.
+## build docker images
+
+docker-build-cube: vendor
 	docker build -f ./build/cube/Dockerfile -t ${IMG} .
 
-docker-build-cube-multi-arch: vendor #test
+docker-build-cube-multi-arch: vendor
 	MULTI_ARCH=true
 	docker buildx build -f ./build/cube/Dockerfile -t ${IMG} --platform=linux/arm,linux/arm64,linux/amd64 . --push
 
-docker-build-warden: vendor #test
+docker-build-warden: vendor
 	docker build -f ./build/warden/Dockerfile -t ${IMG} .
 
-docker-build-warden-multi-arch: vendor #test
+docker-build-warden-multi-arch: vendor
 	MULTI_ARCH=true
 	docker buildx build -f ./build/warden/Dockerfile -t ${IMG} --platform=linux/arm,linux/arm64,linux/amd64 . --push
 
@@ -113,18 +118,22 @@ docker-build-warden-init-multi-arch:
 
 ##@ Deployment
 
-install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
+## Install CRDs into the K8s cluster specified in ~/.kube/config.
+install: manifests kustomize
 	$(KUSTOMIZE) build config/crd | kubectl apply -f -
 
-uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
+## Uninstall CRDs from the K8s cluster specified in ~/.kube/config.
+uninstall: manifests kustomize
 	$(KUSTOMIZE) build config/crd | kubectl delete -f -
 
 CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
-controller-gen: ## Download controller-gen locally if necessary.
+## Download controller-gen locally if necessary.
+controller-gen:
 	$(call go-get-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.1)
 
 KUSTOMIZE = $(shell pwd)/bin/kustomize
-kustomize: ## Download kustomize locally if necessary.
+## Download kustomize locally if necessary.
+kustomize:
 	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v3@v3.8.7)
 
 # go-get-tool will 'go get' any package $2 and install it to $1.

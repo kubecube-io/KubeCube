@@ -13,29 +13,31 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package job
 
 import (
 	"context"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
-	"github.com/kubecube-io/kubecube/pkg/clog"
 	batchv1 "k8s.io/api/batch/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
+	"github.com/kubecube-io/kubecube/pkg/clog"
+	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 type Job struct {
 	ctx       context.Context
-	client    kubernetes.Client
+	client    mgrclient.Client
 	namespace string
 	filter    resources.Filter
 }
 
-func NewJob(client kubernetes.Client, namespace string, filter resources.Filter) Job {
+func NewJob(client mgrclient.Client, namespace string, filter resources.Filter) Job {
 	ctx := context.Background()
 	return Job{
 		ctx:       ctx,

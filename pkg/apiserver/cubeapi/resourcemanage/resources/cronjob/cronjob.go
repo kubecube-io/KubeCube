@@ -21,8 +21,8 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
 	jobRes "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/job"
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	batchv1 "k8s.io/api/batch/v1"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	"k8s.io/apimachinery/pkg/types"
@@ -33,12 +33,12 @@ var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 type CronJob struct {
 	ctx       context.Context
-	client    kubernetes.Client
+	client    mgrclient.Client
 	namespace string
 	filter    resources.Filter
 }
 
-func NewCronJob(client kubernetes.Client, namespace string, filter resources.Filter) CronJob {
+func NewCronJob(client mgrclient.Client, namespace string, filter resources.Filter) CronJob {
 	ctx := context.Background()
 	return CronJob{
 		ctx:       ctx,

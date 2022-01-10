@@ -20,8 +20,8 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -34,12 +34,12 @@ var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 type Deployment struct {
 	ctx       context.Context
-	client    kubernetes.Client
+	client    mgrclient.Client
 	namespace string
 	filter    resources.Filter
 }
 
-func NewDeployment(client kubernetes.Client, namespace string, filter resources.Filter) Deployment {
+func NewDeployment(client mgrclient.Client, namespace string, filter resources.Filter) Deployment {
 	ctx := context.Background()
 	return Deployment{
 		ctx:       ctx,

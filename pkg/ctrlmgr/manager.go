@@ -19,11 +19,12 @@ package ctrlmgr
 import (
 	"context"
 	"fmt"
+	"github.com/kubecube-io/kubecube/pkg/multicluster"
+	"github.com/kubecube-io/kubecube/pkg/utils/informer"
+	"github.com/kubecube-io/kubecube/pkg/utils/worker"
 	"time"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-
-	"github.com/kubecube-io/kubecube/pkg/multicluster/manager"
 
 	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/webhooks"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
@@ -45,22 +46,25 @@ var scheme = runtime.NewScheme()
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
 	utilruntime.Must(apis.AddToScheme(scheme))
-
 	utilruntime.Must(hnc.AddToScheme(scheme))
-
 	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
 }
 
 type ControllerManager struct {
 	*Config
 
+	// CtrlMgr manage all controllers that should be running when as leader
 	CtrlMgr ctrl.Manager
+
+	// SubsidiarySyncMgr manage all controllers that should be running as subsidiary
+	SubsidiarySyncMgr *multicluster.SyncMgr
 }
 
 func NewCtrlMgrWithOpts(options *Config) *ControllerManager {
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	cfg := ctrl.GetConfigOrDie()
+
+	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:                  scheme,
 		CertDir:                 options.WebhookCert,
 		Port:                    options.WebhookServerPort,
@@ -75,7 +79,15 @@ func NewCtrlMgrWithOpts(options *Config) *ControllerManager {
 		clog.Fatal("unable to set up controller manager: %v", err)
 	}
 
-	return &ControllerManager{Config: options, CtrlMgr: mgr}
+	syncMgr, err := multicluster.NewSyncMgr(cfg)
+	if err != nil {
+		clog.Fatal("unable to set up subsidiary sync manager: %v", err)
+	}
+
+	syncMgr.Informer.AddEventHandler(informer.NewHandlerOnEvents(syncMgr.OnClusterAdd, syncMgr.OnClusterUpdate, syncMgr.OnClusterDelete))
+	syncMgr.Worker = worker.New("cluster", 0, multicluster.ClusterWideKeyFunc, syncMgr.ReconcileCluster)
+
+	return &ControllerManager{Config: options, CtrlMgr: mgr, SubsidiarySyncMgr: syncMgr}
 }
 
 func (m *ControllerManager) Initialize() error {
@@ -119,7 +131,7 @@ func (m *ControllerManager) Run(stop <-chan struct{}) {
 		// exceed 10 seconds we thought current mgr is not leader.
 		// need cluster sync
 		clog.Info("kubecube run as subsidiary")
-		go manager.StartMultiClusterSync(ctx)
+		go m.SubsidiarySyncMgr.Start(ctx)
 		<-m.CtrlMgr.Elected()
 	}
 }

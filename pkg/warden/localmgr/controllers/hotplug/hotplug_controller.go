@@ -203,6 +203,7 @@ func (h *HotplugReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			phase = fail
 			continue
 		}
+		// todo: there must be another way to judgement if pivot cluster
 		if utils.Cluster == constants.PivotCluster {
 			updateConfigMap(ctx, h.Client, r)
 		}

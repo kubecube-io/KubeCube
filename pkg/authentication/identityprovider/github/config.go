@@ -33,7 +33,7 @@ const configMapName = "kubecube-auth-config"
 func getConfig() authentication.GitHubConfig {
 	var gitHubConfig authentication.GitHubConfig
 
-	kClient := clients.Interface().Kubernetes(constants.PivotCluster).Cache()
+	kClient := clients.Interface().Kubernetes(constants.LocalCluster).Cache()
 	if kClient == nil {
 		clog.Error("get pivot cluster client is nil")
 		return gitHubConfig

@@ -26,7 +26,7 @@ import (
 
 	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
 	"github.com/kubecube-io/kubecube/pkg/clients"
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
+	"github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/test/e2e/framework"
 	"github.com/onsi/ginkgo"
@@ -44,9 +44,9 @@ var _ = ginkgo.Describe("Test Tenant and Project", func() {
 		randnum := strconv.Itoa(rand.Intn(10000))
 		var tenantName = fmt.Sprintf("e2etest-tenant-%s", randnum)
 		var projectName = fmt.Sprintf("e2etest-project-%s", randnum)
-		var cli kubernetes.Client
+		var cli client.Client
 		ginkgo.BeforeEach(func() {
-			cli = clients.Interface().Kubernetes(constants.PivotCluster)
+			cli = clients.Interface().Kubernetes(constants.LocalCluster)
 		})
 
 		ginkgo.It("create tenant", func() {

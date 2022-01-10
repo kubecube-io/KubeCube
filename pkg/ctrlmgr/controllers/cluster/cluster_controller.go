@@ -23,7 +23,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -34,12 +33,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
-	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
-	multiclustermgr "github.com/kubecube-io/kubecube/pkg/multicluster/manager"
 	"github.com/kubecube-io/kubecube/pkg/utils"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
 )
 
@@ -55,8 +51,9 @@ const clusterFinalizer = "cluster.finalizers.kubecube.io"
 // when create event trigger
 type ClusterReconciler struct {
 	client.Client
-	Scheme       *runtime.Scheme
-	pivotCluster clusterv1.Cluster
+	Scheme *runtime.Scheme
+	// todo: remove this field in the future
+	pivotCluster *clusterv1.Cluster
 
 	// retryQueue holds all retrying cluster that has the way to stop retrying
 	retryQueue sync.Map
@@ -70,17 +67,10 @@ type ClusterReconciler struct {
 func newReconciler(mgr manager.Manager) (*ClusterReconciler, error) {
 	log = clog.WithName("cluster")
 
-	pivotCluster := clusterv1.Cluster{}
-	err := clients.Interface().Kubernetes(constants.PivotCluster).Direct().Get(context.Background(), types.NamespacedName{Name: constants.PivotCluster}, &pivotCluster)
-	if err != nil {
-		return nil, err
-	}
-
 	r := &ClusterReconciler{
-		Client:       mgr.GetClient(),
-		Scheme:       mgr.GetScheme(),
-		Affected:     make(chan event.GenericEvent),
-		pivotCluster: pivotCluster,
+		Client:   mgr.GetClient(),
+		Scheme:   mgr.GetScheme(),
+		Affected: make(chan event.GenericEvent),
 	}
 	return r, nil
 }
@@ -142,7 +132,7 @@ func (r *ClusterReconciler) syncCluster(ctx context.Context, cluster clusterv1.C
 	log.Info("Handshake with cluster %v success", cluster.Name)
 
 	// deploy resources to cluster
-	err = deployResources(ctx, tempClient, cluster, r.pivotCluster)
+	err = deployResources(ctx, tempClient, &cluster, r.pivotCluster)
 	if err != nil {
 		log.Error("deploy resource failed: %v", err)
 		_ = utils.UpdateClusterStatusByState(ctx, r.Client, &cluster, clusterv1.ClusterInitFailed)
@@ -152,7 +142,7 @@ func (r *ClusterReconciler) syncCluster(ctx context.Context, cluster clusterv1.C
 
 	// generate internal cluster for current cluster and add
 	// it to the cache of multi cluster manager
-	err = multiclustermgr.AddInternalCluster(cluster)
+	err = multicluster.AddInternalClusterWithScout(cluster)
 	if err != nil {
 		log.Error(err.Error())
 		_ = utils.UpdateClusterStatusByState(ctx, r.Client, &cluster, clusterv1.ClusterInitFailed)
@@ -162,6 +152,7 @@ func (r *ClusterReconciler) syncCluster(ctx context.Context, cluster clusterv1.C
 	log.Info("Ensure cluster %v in internal clusters success", cluster.Name)
 
 	// start to scout loop for memberCluster warden, non-block
+	// status convert to normal after receive birth cry from scout
 	err = multicluster.Interface().ScoutFor(context.Background(), cluster.Name)
 	if err != nil {
 		log.Error("start scout for cluster %v failed", cluster.Name)
@@ -169,7 +160,10 @@ func (r *ClusterReconciler) syncCluster(ctx context.Context, cluster clusterv1.C
 		return ctrl.Result{}, err
 	}
 
-	// status convert to normal after receive birth cry from scout
+	// no need lock cause write by one at same time
+	if !cluster.Spec.IsMemberCluster {
+		r.pivotCluster = &cluster
+	}
 
 	return ctrl.Result{}, nil
 }

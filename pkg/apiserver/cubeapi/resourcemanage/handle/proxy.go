@@ -91,7 +91,7 @@ func ProxyHandle(c *gin.Context) {
 // get cluster info by clusterName
 func getClusterInfo(clusterName string) (string, []byte, []byte, []byte) {
 
-	client := clients.Interface().Kubernetes(constants.PivotCluster)
+	client := clients.Interface().Kubernetes(constants.LocalCluster)
 	if client == nil {
 		return "", nil, nil, nil
 	}

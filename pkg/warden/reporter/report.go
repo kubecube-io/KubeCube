@@ -22,8 +22,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/kubecube-io/kubecube/pkg/scout"
 	"k8s.io/apimachinery/pkg/util/json"
+
+	"github.com/kubecube-io/kubecube/pkg/multicluster/scout"
 )
 
 // report do real report loop

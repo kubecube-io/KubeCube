@@ -24,12 +24,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kubecube-io/kubecube/pkg/clients"
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes/fake"
-	fakemgr "github.com/kubecube-io/kubecube/pkg/multicluster/fake"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/kubecube-io/kubecube/pkg/clients"
+	"github.com/kubecube-io/kubecube/pkg/multicluster"
+	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
 func createList() map[string]interface{} {
@@ -322,11 +324,11 @@ func TestAccessAllow(t *testing.T) {
 		ClientSetRuntimeObjs: []runtime.Object{},
 		Lists:                []client.ObjectList{},
 	}
-	fakemgr.InitFakeMultiClusterMgrWithOpts(opts)
+	multicluster.InitFakeMultiClusterMgrWithOpts(opts)
 	clients.InitCubeClientSetWithOpts(nil)
 
 	assert := assert.New(t)
-	access := NewSimpleAccess("pivot-cluster", "admin", "namespace-test")
+	access := NewSimpleAccess(constants.LocalCluster, "admin", "namespace-test")
 	allow := access.AccessAllow("", "pods", "list")
 	assert.Equal(allow, false)
 }

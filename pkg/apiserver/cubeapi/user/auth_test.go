@@ -23,8 +23,8 @@ import (
 	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/user"
 	"github.com/kubecube-io/kubecube/pkg/clients"
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes/fake"
-	fakemgr "github.com/kubecube-io/kubecube/pkg/multicluster/fake"
+	"github.com/kubecube-io/kubecube/pkg/multicluster"
+	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -67,7 +67,7 @@ var _ = Describe("Auth", func() {
 			ClientSetRuntimeObjs: []runtime.Object{},
 			Lists:                []client.ObjectList{&userv1.UserList{Items: []userv1.User{*test123}}},
 		}
-		fakemgr.InitFakeMultiClusterMgrWithOpts(opts)
+		multicluster.InitFakeMultiClusterMgrWithOpts(opts)
 		clients.InitCubeClientSetWithOpts(nil)
 	})
 

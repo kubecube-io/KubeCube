@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package resourcemanage_test
 
 import (
@@ -21,11 +22,6 @@ import (
 	"net/url"
 
 	"github.com/gin-gonic/gin"
-	"github.com/kubecube-io/kubecube/pkg/apis"
-	extend "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
-	"github.com/kubecube-io/kubecube/pkg/clients"
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes/fake"
-	fakemgr "github.com/kubecube-io/kubecube/pkg/multicluster/fake"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -33,6 +29,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/kubecube-io/kubecube/pkg/apis"
+	extend "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
+	"github.com/kubecube-io/kubecube/pkg/clients"
+	"github.com/kubecube-io/kubecube/pkg/multicluster"
+	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
 var _ = Describe("Handle", func() {
@@ -49,7 +52,7 @@ var _ = Describe("Handle", func() {
 			ClientSetRuntimeObjs: []runtime.Object{},
 			Lists:                []client.ObjectList{},
 		}
-		fakemgr.InitFakeMultiClusterMgrWithOpts(opts)
+		multicluster.InitFakeMultiClusterMgrWithOpts(opts)
 		clients.InitCubeClientSetWithOpts(nil)
 
 	})
@@ -64,7 +67,7 @@ var _ = Describe("Handle", func() {
 		}
 		c.Request = &request
 		var params []gin.Param
-		params = append(params, gin.Param{Key: "cluster", Value: "pivot-cluster"}, gin.Param{Key: "namespace", Value: "ns1"})
+		params = append(params, gin.Param{Key: "cluster", Value: constants.LocalCluster}, gin.Param{Key: "namespace", Value: "ns1"})
 		params = append(params, gin.Param{Key: "resourceType", Value: "deployments"}, gin.Param{Key: "resourceName", Value: "d1"})
 		c.Params = params
 		extend.ExtendHandle(c)
@@ -81,7 +84,7 @@ var _ = Describe("Handle", func() {
 		}
 		c.Request = &request
 		var params []gin.Param
-		params = append(params, gin.Param{Key: "cluster", Value: "pivot-cluster"}, gin.Param{Key: "namespace", Value: "ns1"})
+		params = append(params, gin.Param{Key: "cluster", Value: constants.LocalCluster}, gin.Param{Key: "namespace", Value: "ns1"})
 		params = append(params, gin.Param{Key: "resourceType", Value: "unknown"}, gin.Param{Key: "resourceName", Value: "c1"})
 		c.Params = params
 		extend.ExtendHandle(c)
@@ -98,7 +101,7 @@ var _ = Describe("Handle", func() {
 		}
 		c.Request = &request
 		var params []gin.Param
-		params = append(params, gin.Param{Key: "cluster", Value: "pivot-cluster"}, gin.Param{Key: "namespace", Value: "ns1"})
+		params = append(params, gin.Param{Key: "cluster", Value: constants.LocalCluster}, gin.Param{Key: "namespace", Value: "ns1"})
 		params = append(params, gin.Param{Key: "resourceType", Value: "externalAccess"}, gin.Param{Key: "resourceName", Value: "c1"})
 		c.Params = params
 		extend.ExtendHandle(c)

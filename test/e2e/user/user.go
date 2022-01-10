@@ -31,7 +31,7 @@ import (
 	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
 	userpkg "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/user"
 	"github.com/kubecube-io/kubecube/pkg/clients"
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
+	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/test/e2e/framework"
 )
@@ -48,9 +48,9 @@ var _ = ginkgo.Describe("Test user action", func() {
 	ctx := context.Background()
 
 	ginkgo.Context("user", func() {
-		var cli kubernetes.Client
+		var cli mgrclient.Client
 		ginkgo.BeforeEach(func() {
-			cli = clients.Interface().Kubernetes(constants.PivotCluster)
+			cli = clients.Interface().Kubernetes(constants.LocalCluster)
 		})
 
 		ginkgo.It("create user", func() {

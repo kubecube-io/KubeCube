@@ -38,9 +38,9 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
 	"github.com/kubecube-io/kubecube/pkg/authorizer/rbac"
 	"github.com/kubecube-io/kubecube/pkg/clients"
-	"github.com/kubecube-io/kubecube/pkg/clients/kubernetes"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
+	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	"github.com/kubecube-io/kubecube/pkg/quota"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
@@ -95,13 +95,13 @@ type clusterInfo struct {
 
 type handler struct {
 	rbac.Interface
-	kubernetes.Client
+	mgrclient.Client
 }
 
 func NewHandler() *handler {
 	h := new(handler)
-	h.Interface = rbac.NewDefaultResolver(constants.PivotCluster)
-	h.Client = clients.Interface().Kubernetes(constants.PivotCluster)
+	h.Interface = rbac.NewDefaultResolver(constants.LocalCluster)
+	h.Client = clients.Interface().Kubernetes(constants.LocalCluster)
 	return h
 }
 
@@ -304,7 +304,7 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 	ctx := c.Request.Context()
 	clusters := multicluster.Interface().FuzzyCopy()
 
-	listFunc := func(cli kubernetes.Client) (v1alpha2.SubnamespaceAnchorList, error) {
+	listFunc := func(cli mgrclient.Client) (v1alpha2.SubnamespaceAnchorList, error) {
 		anchors := v1alpha2.SubnamespaceAnchorList{}
 		err := cli.Cache().List(ctx, &anchors)
 		return anchors, err
@@ -317,7 +317,7 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 			response.FailReturn(c, errcode.CustomReturn(http.StatusInternalServerError, "label selector parse failed"))
 			return
 		}
-		listFunc = func(cli kubernetes.Client) (v1alpha2.SubnamespaceAnchorList, error) {
+		listFunc = func(cli mgrclient.Client) (v1alpha2.SubnamespaceAnchorList, error) {
 			anchors := v1alpha2.SubnamespaceAnchorList{}
 			err := cli.Cache().List(ctx, &anchors, &client.ListOptions{LabelSelector: labelSelector})
 			return anchors, err

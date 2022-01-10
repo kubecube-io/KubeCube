@@ -55,10 +55,9 @@ func Init() {
 	readEnvConfig()
 	// Create strong k8s client
 	clients.InitCubeClientSetWithOpts(nil)
-	clusters := multicluster.Interface().FuzzyCopy()
-	cluster, ok := clusters[constants.PivotCluster]
-	if !ok {
-		clog.Error("failed to get cluster info")
+	cluster, err := multicluster.Interface().Get(constants.LocalCluster)
+	if err != nil {
+		clog.Info("failed to get cluster info: %v", err)
 		return
 	}
 	groupResources, err := restmapper.GetAPIGroupResources(cluster.Client.ClientSet().Discovery())
@@ -126,10 +125,9 @@ func Init() {
 
 func Clean() {
 	clog.Info("clean basic data")
-	clusters := multicluster.Interface().FuzzyCopy()
-	cluster, ok := clusters[constants.PivotCluster]
-	if !ok {
-		clog.Info("failed to get cluster info")
+	cluster, err := multicluster.Interface().Get(constants.LocalCluster)
+	if err != nil {
+		clog.Info("failed to get cluster info: %v", err)
 		return
 	}
 	groupResources, err := restmapper.GetAPIGroupResources(cluster.Client.ClientSet().Discovery())
