@@ -25,7 +25,7 @@ type checkFunc func() bool
 
 var checkFuncs []checkFunc
 
-// RegisterCheckFunc should be used to register readyz check func
+// RegisterCheckFunc should be used to registerIfNeed readyz check func
 func RegisterCheckFunc(fn checkFunc) {
 	checkFuncs = append(checkFuncs, fn)
 }

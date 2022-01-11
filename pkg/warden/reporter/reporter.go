@@ -20,10 +20,12 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"time"
 
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	multiclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 )
 
 var log clog.CubeLogger
@@ -37,15 +39,32 @@ const (
 type Reporter struct {
 	// Cluster current cluster name
 	Cluster string
-	// PivotCubeHost the target warden to report
+
+	// IsMemberCluster indicate if current cluster is member cluster
+	IsMemberCluster bool
+
+	// PivotCubeHost the target warden to reporting
 	PivotCubeHost string
-	// PeriodSecond is interval time to report info
+
+	// PeriodSecond is interval time to reporting info
 	PeriodSecond int
+
 	// WaitSecond is readyz wait timeout
 	WaitSecond int
-	// PivotHealthy the pivot cluster healthy status
-	PivotHealthy bool
-	// PivotClient used to report heartbeat
+
+	// LocalClusterKubeConfig is used for register cluster
+	LocalClusterKubeConfig string
+
+	// PivotClient used to connect to pivot cluster k8s-apiserver
+	PivotClient multiclient.Client
+
+	// rawLocalKubeConfig is load from LocalClusterKubeConfig
+	rawLocalKubeConfig []byte
+
+	// pivotHealthy the pivot cluster healthy status
+	pivotHealthy bool
+
+	// http.Client used to reporting heartbeat
 	*http.Client
 }
 
@@ -60,6 +79,13 @@ func (r *Reporter) Initialize() error {
 		Timeout: 5 * time.Second,
 	}
 
+	b, err := ioutil.ReadFile(r.LocalClusterKubeConfig)
+	if err != nil {
+		return err
+	}
+
+	r.rawLocalKubeConfig = b
+
 	return nil
 }
 
@@ -72,7 +98,12 @@ func (r *Reporter) Run(stop <-chan struct{}) {
 
 	log.Info("all components ready, try to connect with pivot cluster")
 
-	r.report(stop)
+	err = r.registerIfNeed(context.Background())
+	if err != nil {
+		log.Fatal("warden registerIfNeed failed: %v", err)
+	}
+
+	r.reporting(stop)
 }
 
 // waitForReady wait all components of warden ready

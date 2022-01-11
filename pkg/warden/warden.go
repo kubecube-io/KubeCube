@@ -17,6 +17,12 @@ limitations under the License.
 package warden
 
 import (
+	"context"
+
+	"k8s.io/client-go/tools/clientcmd"
+
+	"github.com/kubecube-io/kubecube/pkg/clog"
+	multiclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	"github.com/kubecube-io/kubecube/pkg/warden/localmgr"
 	"github.com/kubecube-io/kubecube/pkg/warden/reporter"
 	"github.com/kubecube-io/kubecube/pkg/warden/server"
@@ -37,21 +43,30 @@ type Warden struct {
 }
 
 func NewWardenWithOpts(opts *Config) *Warden {
+	pivotClient, err := makePivotClient(opts.PivotClusterKubeConfig)
+	if err != nil {
+		clog.Fatal("init pivot client failed: %v", err)
+	}
+
 	w := new(Warden)
 
 	w.Server = &server.Server{
-		JwtSecret: opts.JwtSecret,
-		BindAddr:  opts.Addr,
-		Port:      opts.Port,
-		TlsKey:    opts.TlsKey,
-		TlsCert:   opts.TlsCert,
+		JwtSecret:   opts.JwtSecret,
+		BindAddr:    opts.Addr,
+		Port:        opts.Port,
+		TlsKey:      opts.TlsKey,
+		TlsCert:     opts.TlsCert,
+		PivotClient: pivotClient,
 	}
 
 	w.Reporter = &reporter.Reporter{
-		Cluster:       opts.Cluster,
-		PivotCubeHost: opts.PivotCubeHost,
-		PeriodSecond:  opts.PeriodSecond,
-		WaitSecond:    opts.WaitSecond,
+		Cluster:                opts.Cluster,
+		IsMemberCluster:        opts.InMemberCluster,
+		PivotCubeHost:          opts.PivotCubeHost,
+		PeriodSecond:           opts.PeriodSecond,
+		WaitSecond:             opts.WaitSecond,
+		LocalClusterKubeConfig: opts.LocalClusterKubeConfig,
+		PivotClient:            pivotClient,
 	}
 
 	w.LocalCtrl = &localmgr.LocalManager{
@@ -59,6 +74,7 @@ func NewWardenWithOpts(opts *Config) *Warden {
 		LeaderElect:       opts.LeaderElect,
 		WebhookCert:       opts.WebhookCert,
 		WebhookServerPort: opts.WebhookServerPort,
+		PivotClient:       pivotClient,
 	}
 
 	utils.Cluster = opts.Cluster
@@ -82,8 +98,6 @@ func (w Warden) Initialize() error {
 			return err
 		}
 	}
-
-	utils.InitPivotClient()
 
 	err = w.Server.Initialize()
 	if err != nil {
@@ -114,4 +128,19 @@ func (w *Warden) Run(stop <-chan struct{}) {
 	go w.Server.Run(stop)
 
 	w.Reporter.Run(stop)
+}
+
+// makePivotClient make client for pivot client
+func makePivotClient(kubeconfig string) (multiclient.Client, error) {
+	cfg, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	if err != nil {
+		return nil, err
+	}
+
+	cli, err := multiclient.NewClientFor(context.Background(), cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return cli, nil
 }

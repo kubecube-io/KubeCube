@@ -24,10 +24,23 @@ var (
 	WardenOpts = NewWardenOptions()
 
 	Flags = []cli.Flag{
-		// sync manager
+		// generic
+		&cli.BoolFlag{
+			Name:        "in-member-cluster",
+			Value:       true,
+			Destination: &WardenOpts.GenericWardenOpts.InMemberCluster,
+		},
+		&cli.StringFlag{
+			Name:        "local-cluster-kubeconfig",
+			Destination: &WardenOpts.GenericWardenOpts.LocalClusterKubeConfig,
+		},
 		&cli.StringFlag{
 			Name:        "pivot-cluster-kubeconfig",
 			Destination: &WardenOpts.GenericWardenOpts.PivotClusterKubeConfig,
+		},
+		&cli.StringFlag{
+			Name:        "cluster",
+			Destination: &WardenOpts.GenericWardenOpts.Cluster,
 		},
 
 		// api server
@@ -51,10 +64,6 @@ var (
 		},
 
 		// reporter
-		&cli.StringFlag{
-			Name:        "cluster",
-			Destination: &WardenOpts.GenericWardenOpts.Cluster,
-		},
 		&cli.StringFlag{
 			Name:        "pivot-cube-host",
 			Destination: &WardenOpts.GenericWardenOpts.PivotCubeHost,
@@ -134,13 +143,6 @@ var (
 			Name:        "stacktrace-level",
 			Value:       "error",
 			Destination: &WardenOpts.CubeLoggerOpts.StacktraceLevel,
-		},
-
-		// generic
-		&cli.BoolFlag{
-			Name:        "in-member-cluster",
-			Value:       true,
-			Destination: &WardenOpts.GenericWardenOpts.InMemberCluster,
 		},
 	}
 )

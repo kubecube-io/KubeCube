@@ -18,20 +18,19 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/kubecube-io/kubecube/pkg/clog"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers"
-	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/webhooks"
-	"github.com/kubecube-io/kubecube/pkg/warden/reporter"
-
-	"github.com/kubecube-io/kubecube/pkg/apis"
-	"github.com/kubecube-io/kubecube/pkg/utils/exit"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+
+	"github.com/kubecube-io/kubecube/pkg/apis"
+	"github.com/kubecube-io/kubecube/pkg/clog"
+	multiclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/exit"
+	"github.com/kubecube-io/kubecube/pkg/warden/reporter"
 )
 
 const healthProbeAddr = "0.0.0.0:9778"
@@ -57,6 +56,9 @@ type LocalManager struct {
 	LeaderElect       bool
 	WebhookCert       string
 	WebhookServerPort int
+	IsMemberCluster   bool
+	Cluster           string
+	PivotClient       multiclient.Client
 
 	ctrl.Manager
 }
@@ -81,12 +83,12 @@ func (m *LocalManager) Initialize() error {
 
 	m.Manager = mgr
 
-	err = controllers.SetupWithManager(m.Manager)
+	err = setupControllersWithManager(m)
 	if err != nil {
 		return err
 	}
 
-	webhooks.SetupWithWebhooks(m.Manager)
+	setupWithWebhooks(m)
 
 	err = m.Manager.AddReadyzCheck("readyz", healthz.Ping)
 	if err != nil {

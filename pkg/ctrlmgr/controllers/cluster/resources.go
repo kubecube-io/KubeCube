@@ -51,6 +51,11 @@ const (
 )
 
 func deployResources(ctx context.Context, cli client.Client, memberCluster, pivotCluster *clusterv1.Cluster) error {
+	// if target cluster is dating with KubeCube, return directly
+	if isDatingCluster(ctx, cli, memberCluster.Name) {
+		return nil
+	}
+
 	isMemberCluster := memberCluster.Spec.IsMemberCluster
 
 	// create resource below when cluster is member
