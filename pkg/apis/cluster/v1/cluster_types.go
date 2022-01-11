@@ -67,6 +67,10 @@ type ClusterSpec struct {
 	// CNI the cluster used
 	// +optional
 	NetworkType string `json:"networkType,omitempty"`
+
+	// let ingress gets a domain suffix
+	// +optional
+	IngressDomainSuffix string `json:"ingressDomainSuffix,omitempty"`
 }
 
 // ClusterStatus defines the observed state of Cluster

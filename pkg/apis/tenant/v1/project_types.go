@@ -31,6 +31,8 @@ type ProjectSpec struct {
 	Description string `json:"description,omitempty"`
 
 	Namespace string `json:"namespace,omitempty"`
+
+	IngressDomainSuffix []string `json:"ingressDomainSuffix,omitempty"`
 }
 
 // ProjectStatus defines the observed state of Project

@@ -17,6 +17,9 @@ limitations under the License.
 package resourcemanage
 
 import (
+	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
+	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
+	"github.com/kubecube-io/kubecube/pkg/clog"
 	"io/ioutil"
 	"net/http"
 
@@ -234,4 +237,48 @@ func GetConfigMap(c *gin.Context) {
 	}
 
 	response.SuccessReturn(c, cm.Data)
+}
+
+func IngressDomainSuffix(c *gin.Context) {
+	clusterName := c.Param("cluster")
+	projectName := c.Param("project")
+	client := clients.Interface().Kubernetes(constants.LocalCluster)
+	if client == nil {
+		clog.Error("get cluster failed")
+		response.FailReturn(c, errcode.ClusterNotFoundError(clusterName))
+		return
+	}
+	cluster := clusterv1.Cluster{}
+	err := client.Cache().Get(c, types.NamespacedName{Name: clusterName}, &cluster)
+	if err != nil {
+		clog.Error("get cluster failed: %v", err)
+		if errors.IsNotFound(err) {
+			response.FailReturn(c, errcode.ClusterNotFoundError(clusterName))
+			return
+		}
+		response.FailReturn(c, errcode.InternalServerError)
+		return
+	}
+
+	project := tenantv1.Project{}
+	err = client.Cache().Get(c, types.NamespacedName{Name: projectName}, &project)
+	if err != nil {
+		clog.Error("get project failed: %v", err)
+		if errors.IsNotFound(err) {
+			response.FailReturn(c, errcode.CustomReturn(http.StatusNotFound, "project(%v) not found", projectName))
+			return
+		}
+		response.FailReturn(c, errcode.InternalServerError)
+		return
+	}
+
+	res := make([]string, 0)
+	if len(cluster.Spec.IngressDomainSuffix) != 0 {
+		res = append(res, cluster.Spec.IngressDomainSuffix)
+	}
+
+	for _, suffix := range project.Spec.IngressDomainSuffix {
+		res = append(res, suffix)
+	}
+	response.SuccessReturn(c, res)
 }
