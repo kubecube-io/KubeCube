@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
 	"net/http"
 	"time"
 
@@ -31,6 +30,7 @@ import (
 
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
 	"github.com/kubecube-io/kubecube/pkg/multicluster/scout"
+	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
 )
 
 // reporting do real report loop
