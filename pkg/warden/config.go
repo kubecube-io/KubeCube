@@ -17,17 +17,17 @@ limitations under the License.
 package warden
 
 type Config struct {
-	InMemberCluster bool
+	// generic
+	Cluster                string
+	InMemberCluster        bool
+	LocalClusterKubeConfig string
+	PivotClusterKubeConfig string
 
 	// report
-	Cluster       string
 	PivotCubeHost string
 	PeriodSecond  int
 	WaitSecond    int
 	RetryCounts   int
-
-	// sync manager
-	PivotClusterKubeConfig string
 
 	// api server
 	JwtSecret string

@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	multiclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	"github.com/kubecube-io/kubecube/pkg/warden/reporter"
 	"github.com/kubecube-io/kubecube/pkg/warden/server/authproxy"
 )
@@ -30,12 +31,13 @@ import (
 var log clog.CubeLogger
 
 type Server struct {
-	Server    *http.Server
-	JwtSecret string
-	BindAddr  string
-	Port      int
-	TlsCert   string
-	TlsKey    string
+	Server      *http.Server
+	JwtSecret   string
+	BindAddr    string
+	Port        int
+	TlsCert     string
+	TlsKey      string
+	PivotClient multiclient.Client
 
 	ready bool
 }
@@ -49,7 +51,7 @@ func (s *Server) Initialize() error {
 }
 
 func (s *Server) Run(stop <-chan struct{}) {
-	authProxyHandler, err := authproxy.NewHandler()
+	authProxyHandler, err := authproxy.NewHandler(s.PivotClient)
 	if err != nil {
 		log.Fatal("new auth proxy handler failed: %v", err)
 	}

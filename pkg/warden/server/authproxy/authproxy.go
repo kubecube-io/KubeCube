@@ -31,6 +31,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	multiclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
 	"github.com/kubecube-io/kubecube/pkg/warden/server/authproxy/proxy"
@@ -50,13 +51,13 @@ type Handler struct {
 	proxy *proxy.UpgradeAwareHandler
 }
 
-func NewHandler() (*Handler, error) {
+func NewHandler(pivotClient multiclient.Client) (*Handler, error) {
 	h := &Handler{}
 	h.authMgr = jwt.GetAuthJwtImpl()
 
 	// get cluster info from rest config
 	cluster := v1.Cluster{}
-	err := utils.PivotClient.Get(context.Background(), types.NamespacedName{Name: utils.Cluster}, &cluster)
+	err := pivotClient.Direct().Get(context.Background(), types.NamespacedName{Name: utils.Cluster}, &cluster)
 	if err != nil {
 		return nil, err
 	}

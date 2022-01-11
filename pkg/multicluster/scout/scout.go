@@ -68,7 +68,10 @@ type Scout struct {
 
 // WardenInfo contains intelligence within communication
 type WardenInfo struct {
-	Cluster    string    `json:"cluster"`
+	// Cluster is cluster name the warden reported
+	Cluster string `json:"cluster"`
+
+	// ReportTime the time warden start to report
 	ReportTime time.Time `json:"reportTime"`
 }
 

@@ -62,7 +62,7 @@ func newMultiClusterMgr() *MultiClustersMgr {
 	c.StopCh = make(chan struct{})
 	c.Config = config
 	c.Type = LocalCluster
-	c.Client, err = client.NewClientFor(config, c.StopCh)
+	c.Client, err = client.NewClientFor(exit.SetupCtxWithStop(context.Background(), c.StopCh), config)
 	if err != nil {
 		// early exit when connect to the k8s apiserver of control plane failed
 		clog.Fatal("make client for local cluster failed: %v", err)
@@ -120,7 +120,7 @@ func NewInternalCluster(cluster clusterv1.Cluster) (*InternalCluster, error) {
 	c.Config = config
 	c.Type = clusterType
 	c.RawConfig = cluster.Spec.KubeConfig
-	c.Client, err = client.NewClientFor(config, c.StopCh)
+	c.Client, err = client.NewClientFor(exit.SetupCtxWithStop(context.Background(), c.StopCh), config)
 	if err != nil {
 		return nil, err
 	}
