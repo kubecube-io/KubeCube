@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
 	"net/http"
 	"time"
 
@@ -51,12 +52,19 @@ func (r *Reporter) reporting(stop <-chan struct{}) {
 
 // registerIfNeed register current cluster to pivot cluster if need
 func (r *Reporter) registerIfNeed(ctx context.Context) error {
+	// todo: remove it when we dont need KubernetesAPIEndpoint anymore
+	cfg, err := kubeconfig.LoadKubeConfigFromBytes(r.rawLocalKubeConfig)
+	if err != nil {
+		return err
+	}
+
 	return wait.Poll(3*time.Second, 15*time.Second, func() (done bool, err error) {
 		cluster := &clusterv1.Cluster{
 			ObjectMeta: metav1.ObjectMeta{Name: r.Cluster},
 			Spec: clusterv1.ClusterSpec{
-				KubeConfig:      r.rawLocalKubeConfig,
-				IsMemberCluster: r.IsMemberCluster,
+				KubeConfig:            r.rawLocalKubeConfig,
+				IsMemberCluster:       r.IsMemberCluster,
+				KubernetesAPIEndpoint: cfg.Host,
 			},
 		}
 		err = r.PivotClient.Direct().Create(ctx, cluster)
