@@ -20,12 +20,12 @@ import (
 	"fmt"
 	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/domain"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/validation"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -70,8 +70,8 @@ func (p *ProjectValidator) ValidateCreate() error {
 		return fmt.Errorf("the tenant is not exist")
 	}
 
-	if domainSuffixErr := validatorDomainSuffix(p, log); domainSuffixErr != nil {
-		return domainSuffixErr
+	if err := domain.ValidatorDomainSuffix(p.Spec.IngressDomainSuffix, log); err != nil {
+		return err
 	}
 
 	log.Debug("Create validate success")
@@ -96,8 +96,8 @@ func (p *ProjectValidator) ValidateUpdate(old runtime.Object) error {
 		return fmt.Errorf("the tenant is not exist")
 	}
 
-	if domainSuffixErr := validatorDomainSuffix(p, log); domainSuffixErr != nil {
-		return domainSuffixErr
+	if err := domain.ValidatorDomainSuffix(p.Spec.IngressDomainSuffix, log); err != nil {
+		return err
 	}
 
 	log.Debug("Update validate success")
@@ -130,18 +130,4 @@ func (p *ProjectValidator) ValidateDelete() error {
 	}
 
 	return fmt.Errorf("the namespace %s is still exist", p.Spec.Namespace)
-}
-
-func validatorDomainSuffix(p *ProjectValidator, log clog.CubeLogger) error {
-	domainSuffixList := p.Spec.IngressDomainSuffix
-	if domainSuffixList != nil && len(domainSuffixList) != 0 {
-		for _, domainSuffix := range domainSuffixList {
-			errs := validation.IsDNS1123Subdomain(domainSuffix)
-			if len(errs) > 0 {
-				log.Debug("Invalid value: %s ", domainSuffix)
-				return fmt.Errorf("Invalid value: %s : a lowercase RFC 1123 subdomain must consist of lower case alphanumeric characters, '-' or '.', and must start and end with an alphanumeric character (e.g. 'example.com', regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*')\n)", domainSuffix)
-			}
-		}
-	}
-	return nil
 }

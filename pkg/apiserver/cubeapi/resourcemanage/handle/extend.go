@@ -239,9 +239,10 @@ func GetConfigMap(c *gin.Context) {
 	response.SuccessReturn(c, cm.Data)
 }
 
+// IngressDomainSuffix Get Ingress Domain Suffix by cluster and project
 func IngressDomainSuffix(c *gin.Context) {
-	clusterName := c.Param("cluster")
-	projectName := c.Param("project")
+	clusterName := c.Query("cluster")
+	projectName := c.Query("project")
 	client := clients.Interface().Kubernetes(constants.LocalCluster)
 	if client == nil {
 		clog.Error("get cluster failed")

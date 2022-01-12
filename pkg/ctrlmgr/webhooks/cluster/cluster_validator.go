@@ -17,12 +17,11 @@ limitations under the License.
 package cluster
 
 import (
-	"fmt"
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/domain"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/validation"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -53,7 +52,7 @@ func (c *ClusterValidator) DeepCopyObject() runtime.Object {
 func (c *ClusterValidator) ValidateCreate() error {
 	log := clusterLog.WithValues("ValidateCreate", c.Name)
 	log.Debug("Create validate start")
-	if err := validatorDomainSuffix(c, log); err != nil {
+	if err := domain.ValidatorDomainSuffix([]string{c.Spec.IngressDomainSuffix}, log); err != nil {
 		return err
 	}
 	log.Debug("Create validate success")
@@ -63,7 +62,7 @@ func (c *ClusterValidator) ValidateCreate() error {
 func (c *ClusterValidator) ValidateUpdate(old runtime.Object) error {
 	log := clusterLog.WithValues("ValidateUpdate", c.Name)
 	log.Debug("Update validate start")
-	if err := validatorDomainSuffix(c, log); err != nil {
+	if err := domain.ValidatorDomainSuffix([]string{c.Spec.IngressDomainSuffix}, log); err != nil {
 		return err
 	}
 	log.Debug("Update validate success")
@@ -72,16 +71,5 @@ func (c *ClusterValidator) ValidateUpdate(old runtime.Object) error {
 
 func (c *ClusterValidator) ValidateDelete() error {
 
-	return nil
-}
-
-func validatorDomainSuffix(c *ClusterValidator, log clog.CubeLogger) error {
-	domainSuffix := c.Spec.IngressDomainSuffix
-	if len(domainSuffix) != 0 {
-		if errs := validation.IsDNS1123Subdomain(domainSuffix); len(errs) > 0 {
-			log.Debug("Invalid value: %s ", domainSuffix)
-			return fmt.Errorf("Invalid value: %s : a lowercase RFC 1123 subdomain must consist of lower case alphanumeric characters, '-' or '.', and must start and end with an alphanumeric character (e.g. 'example.com', regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*')\n)", domainSuffix)
-		}
-	}
 	return nil
 }
