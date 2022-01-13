@@ -77,7 +77,7 @@ type clusterInfo struct {
 	CreateTime          time.Time `json:"createTime"`
 	KubeApiServer       string    `json:"kubeApiServer"`
 	Status              string    `json:"status"`
-	IngressDomainSuffix string    `json:"IngressDomainSuffix,omitempty"`
+	IngressDomainSuffix string    `json:"ingressDomainSuffix,omitempty"`
 
 	// todo(weilaaa): move to monitor info
 	NodeCount             int `json:"nodeCount"`
