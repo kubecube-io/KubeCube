@@ -486,3 +486,7 @@ rules:
       - deletecollection
       - patch
       - update
+  - nonResourceURLs:
+      - '*'
+    verbs:
+      - '*'

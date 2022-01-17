@@ -48,7 +48,7 @@ var AuthWhiteList = map[string]string{
 	constants.ApiPathRoot + "/oauth/redirect":       get,
 }
 
-func withinWhiteList(url *url.URL, method string, whiteList map[string]string) bool {
+func WithinWhiteList(url *url.URL, method string, whiteList map[string]string) bool {
 	queryUrl := url.Path
 	for k, v := range whiteList {
 		match, err := regexp.MatchString(k, queryUrl)
@@ -61,7 +61,7 @@ func withinWhiteList(url *url.URL, method string, whiteList map[string]string) b
 
 func Auth() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if !withinWhiteList(c.Request.URL, c.Request.Method, AuthWhiteList) {
+		if !WithinWhiteList(c.Request.URL, c.Request.Method, AuthWhiteList) {
 			authJwtImpl := jwt.GetAuthJwtImpl()
 			if generic.Config.GenericAuthIsEnable {
 				h := generic.GetProvider()

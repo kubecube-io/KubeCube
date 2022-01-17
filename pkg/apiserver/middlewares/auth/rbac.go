@@ -18,26 +18,55 @@ package auth
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/kubecube-io/kubecube/pkg/authorizer/rbac"
-	"github.com/kubecube-io/kubecube/pkg/clog"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-	userinfo "k8s.io/apiserver/pkg/authentication/user"
+	"k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/apiserver/pkg/authorization/authorizer"
+
+	"github.com/kubecube-io/kubecube/pkg/authorizer/rbac"
+	"github.com/kubecube-io/kubecube/pkg/clients"
+	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/multicluster/client"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
+	"github.com/kubecube-io/kubecube/pkg/utils/response"
 )
 
-var (
-	i = rbac.NewDefaultResolver(constants.LocalCluster)
-)
+type handler struct {
+	rbac.Interface
+	client.Client
+}
+
+func NewHandler() *handler {
+	h := new(handler)
+	h.Interface = rbac.NewDefaultResolver(constants.LocalCluster)
+	h.Client = clients.Interface().Kubernetes(constants.LocalCluster)
+	return h
+}
 
 func Rbac() gin.HandlerFunc {
+	h := NewHandler()
 	return func(c *gin.Context) {
-		clog.Debug("start check rest api permission")
+		if WithinWhiteList(c.Request.URL, c.Request.Method, AuthWhiteList) {
+			c.Next()
+			return
+		}
+		clog.Info("user %v start check rest api permission, path: %v", c.GetString(constants.EventAccountId), c.Request.URL.Path)
 		record := &authorizer.AttributesRecord{
-			User: &userinfo.DefaultInfo{Name: ""},
+			User: &user.DefaultInfo{Name: c.GetString(constants.EventAccountId)},
 			Verb: c.Request.Method,
 			Path: c.Request.URL.Path,
 		}
-		i.Authorize(c.Request.Context(), record)
+		d, _, err := h.Authorize(c.Request.Context(), record)
+		if err != nil {
+			clog.Error(err.Error())
+			response.FailReturn(c, errcode.InternalServerError)
+			return
+		}
+		if d != authorizer.DecisionAllow {
+			clog.Error("user %v has no permission for the path: %v", c.GetString(constants.EventAccountId), c.Request.URL.Path)
+			response.FailReturn(c, errcode.AuthenticateError)
+			return
+		}
+		clog.Info("user %v check permission success, path %v")
 		c.Next()
 	}
 }
