@@ -17,17 +17,20 @@ limitations under the License.
 package yamldeploy
 
 import (
-	"fmt"
+	"context"
 	"io/ioutil"
 
 	"github.com/gin-gonic/gin"
+	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	"github.com/kubecube-io/kubecube/pkg/multicluster/client"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -92,8 +95,10 @@ func Deploy(c *gin.Context) {
 		return
 	}
 
+	userInfo, err := token.GetUserFromReq(c.Request)
+
 	// create
-	result, err := Create(restClient, restMapping, namespace, dryRun, obj)
+	result, err := CreateByRestClient(restClient, restMapping, namespace, dryRun, obj, userInfo.Username)
 	if err != nil {
 		response.FailReturn(c, errcode.DeployYamlError(err.Error()))
 		return
@@ -101,13 +106,19 @@ func Deploy(c *gin.Context) {
 	response.SuccessReturn(c, result)
 }
 
-func Create(restClient *rest.RESTClient, mapping *meta.RESTMapping, namespace string, dryRun string, obj runtime.Object) (runtime.Object, error) {
-	restHelper := resource.NewHelper(restClient, mapping)
-	result, err := restHelper.DryRun(dryRun == "true").Create(namespace, true, obj)
-	if err != nil {
-		return nil, fmt.Errorf("%v", err)
+func CreateByRestClient(restClient *rest.RESTClient, mapping *meta.RESTMapping, namespace string, dryRun string, obj runtime.Object, username string) (runtime.Object, error) {
+	options := &metav1.CreateOptions{}
+	if dryRun == "true" {
+		options.DryRun = []string{metav1.DryRunAll}
 	}
-	return result, nil
+	return restClient.Post().
+		SetHeader(constants.ImpersonateUserKey, username).
+		NamespaceIfScoped(namespace, mapping.Scope.Name() == meta.RESTScopeNameNamespace).
+		Resource(mapping.Resource.Resource).
+		VersionedParams(options, metav1.ParameterCodec).
+		Body(obj).
+		Do(context.TODO()).
+		Get()
 }
 
 func NewRestClient(config *rest.Config, gvk *schema.GroupVersionKind) (*rest.RESTClient, error) {
