@@ -21,14 +21,17 @@ import (
 	"fmt"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/metrics/pkg/client/clientset/versioned"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	hnc "sigs.k8s.io/multi-tenancy/incubator/hnc/api/v1alpha2"
 
 	"github.com/kubecube-io/kubecube/pkg/apis"
@@ -54,8 +57,14 @@ func initScheme() *runtime.Scheme {
 type Client interface {
 	Cache() cache.Cache
 	Direct() client.Client
+
+	// todo: aggregate to versioned
 	Metrics() versioned.Interface
 	ClientSet() kubernetes.Interface
+
+	Discovery() discovery.DiscoveryInterface
+	RESTClient() rest.Interface
+	RESTMapper() meta.RESTMapper
 }
 
 type InternalClient struct {
@@ -63,9 +72,15 @@ type InternalClient struct {
 	cache        cache.Cache
 	rawClientSet kubernetes.Interface
 	metrics      versioned.Interface
+	discovery    discovery.DiscoveryInterface
+	restful      rest.Interface
+
+	// restMapper map GroupVersionKinds to Resources
+	restMapper meta.RESTMapper
 }
 
 // NewClientFor generate client by config
+// todo: with options
 func NewClientFor(cfg *rest.Config, stopCh chan struct{}) (Client, error) {
 	var err error
 	c := new(InternalClient)
@@ -85,9 +100,24 @@ func NewClientFor(cfg *rest.Config, stopCh chan struct{}) (Client, error) {
 		return nil, fmt.Errorf("new metrics client failed: %v", err)
 	}
 
+	c.restful, err = rest.RESTClientFor(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("new rest client failed: %v", err)
+	}
+
 	c.rawClientSet, err = kubernetes.NewForConfig(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("new raw k8s clientSet failed: %v", err)
+	}
+
+	c.discovery, err = discovery.NewDiscoveryClientForConfig(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("new discovery client failed: %v", err)
+	}
+
+	c.restMapper, err = apiutil.NewDynamicRESTMapper(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("new rest mapper failed: %v", err)
 	}
 
 	ctx := exit.SetupCtxWithStop(context.Background(), stopCh)
@@ -118,6 +148,18 @@ func (c *InternalClient) Metrics() versioned.Interface {
 
 func (c *InternalClient) ClientSet() kubernetes.Interface {
 	return c.rawClientSet
+}
+
+func (c *InternalClient) RESTMapper() meta.RESTMapper {
+	return c.restMapper
+}
+
+func (c *InternalClient) Discovery() discovery.DiscoveryInterface {
+	return c.discovery
+}
+
+func (c *InternalClient) RESTClient() rest.Interface {
+	return c.restful
 }
 
 // WithSchemes allow add extensions scheme to client
