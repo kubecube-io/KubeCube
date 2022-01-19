@@ -93,8 +93,8 @@ func deployResources(ctx context.Context, cli client.Client, memberCluster, pivo
 		}
 
 		// create tls secret to target cluster
-		secret := makeTLSSecret()
-		err = createResource(ctx, secret, cli, memberCluster.Name, "secret")
+		tlsSecret := makeTLSSecret()
+		err = createResource(ctx, tlsSecret, cli, memberCluster.Name, "secret")
 		if err != nil {
 			return err
 		}
@@ -120,9 +120,16 @@ func deployResources(ctx context.Context, cli client.Client, memberCluster, pivo
 		}
 	}
 
+	// create kubeConfig secret to target cluster
+	secret := makeKubeConfigSecret(pivotCluster, memberCluster)
+	err := createResource(ctx, secret, cli, memberCluster.Name, "secret")
+	if err != nil {
+		return err
+	}
+
 	// create warden deployment to target cluster
 	deployment := makeDeployment(memberCluster.Name, isMemberCluster)
-	err := createResource(ctx, deployment, cli, memberCluster.Name, "deployment")
+	err = createResource(ctx, deployment, cli, memberCluster.Name, "deployment")
 	if err != nil {
 		return err
 	}
@@ -150,9 +157,11 @@ func makeDeployment(cluster string, isMemberCluster bool) *appsv1.Deployment {
 		label = map[string]string{appKey: constants.Warden}
 
 		args = []string{
-			"-pivot-cluster-kubeconfig=/etc/config/kubeconfig",
+			"-pivot-cluster-kubeconfig=/etc/kubeconfigs/pivot-kubeconfig",
+			"-local-cluster-kubeconfig=/etc/kubeconfigs/local-kubeconfig",
 			"-tls-cert=/etc/tls/tls.crt",
 			"-tls-key=/etc/tls/tls.key",
+			fmt.Sprintf("-in-member-cluster=%v", isMemberCluster),
 			fmt.Sprintf("-cluster=%s", cluster),
 			fmt.Sprintf("-pivot-cube-host=%s", env.PivotCubeHost()),
 		}
@@ -223,6 +232,8 @@ func makeDeployment(cluster string, isMemberCluster bool) *appsv1.Deployment {
 		volumeMounts = []corev1.VolumeMount{tlsVolumeMount, helmVolumeMount, timeZoneVolumeMount}
 		volumes = []corev1.Volume{tlsVolume, helmVolume, timeZoneVolume}
 		args = []string{
+			"-pivot-cluster-kubeconfig=/etc/kubeconfigs/pivot-kubeconfig",
+			"-local-cluster-kubeconfig=/etc/kubeconfigs/local-kubeconfig",
 			"-in-member-cluster=false",
 			"-tls-cert=/etc/tls/tls.crt",
 			"-tls-key=/etc/tls/tls.key",
@@ -309,6 +320,20 @@ func makeKubeConfigCM(pivotCluster *clusterv1.Cluster) *corev1.ConfigMap {
 	}
 
 	return cm
+}
+
+func makeKubeConfigSecret(pivotCluster, targetCluster *clusterv1.Cluster) *corev1.Secret {
+	s := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{
+		Name:      "kubeconfigs",
+		Namespace: constants.CubeNamespace,
+	},
+		Data: map[string][]byte{
+			"localCluster": targetCluster.Spec.KubeConfig,
+			"pivotCluster": pivotCluster.Spec.KubeConfig,
+		},
+	}
+
+	return s
 }
 
 // makePrevJob make prev job that used to install dependence into target cluster
