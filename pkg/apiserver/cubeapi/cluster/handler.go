@@ -19,7 +19,6 @@ package cluster
 import (
 	"encoding/base64"
 	"fmt"
-	"github.com/kubecube-io/kubecube/pkg/utils/access"
 	"net/http"
 	"time"
 
@@ -43,6 +42,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	"github.com/kubecube-io/kubecube/pkg/quota"
+	"github.com/kubecube-io/kubecube/pkg/utils/access"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"

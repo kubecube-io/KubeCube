@@ -78,10 +78,16 @@ func AllowAccess(cluster string, c *gin.Context, operator string,object client.O
 	return d == authorizer.DecisionAllow
 }
 
-func GetClusterRole(username string,cluster string) []string{
-	r:=rbac.NewDefaultResolver(cluster)
+func CheckClusterRole(username string, cluster string, accessMap map[string]string) bool {
+	r := rbac.NewDefaultResolver(cluster)
 	user := &userinfo.DefaultInfo{Name: username}
-	return r.User2UserRole(user)
+	roleList := r.User2UserRole(user)
+	for _, role := range roleList {
+		if _, ok := accessMap[role]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 func IsSelf(c *gin.Context, username string) bool{
