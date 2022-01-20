@@ -17,6 +17,7 @@ limitations under the License.
 package resourcemanage
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
 
@@ -35,6 +36,7 @@ import (
 	serviceRes "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/service"
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
 	"github.com/kubecube-io/kubecube/pkg/clients"
+	"github.com/kubecube-io/kubecube/pkg/utils/audit"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
@@ -111,6 +113,7 @@ func ExtendHandle(c *gin.Context) {
 				response.FailReturn(c, errcode.ForbiddenErr)
 				return
 			}
+			c = audit.SetAuditInfo(c, audit.ExteranlAccess, fmt.Sprintf("%s/%s", namespace, resourceName))
 			body, err := ioutil.ReadAll(c.Request.Body)
 			if err != nil {
 				response.FailReturn(c, errcode.InvalidBodyFormat)
