@@ -79,6 +79,7 @@ func Auth() gin.HandlerFunc {
 				}
 				b := jwt.BearerTokenPrefix + " " + newToken
 				c.Request.Header.Set(constants.AuthorizationHeader, b)
+				c.SetCookie(constants.AuthorizationHeader, b, int(authJwtImpl.TokenExpireDuration), "/", "", false, true)
 				c.Request.Header.Set(constants.ImpersonateUserKey, user.GetUserName())
 				for k, v := range user.GetRespHeader() {
 					if k == "Cookie" {
