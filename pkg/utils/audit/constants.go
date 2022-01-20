@@ -45,4 +45,9 @@ var (
 	UpdateUser = &EventInfo{"updateUser", "updateUser", "user"}
 
 	DeleteKey = &EventInfo{"deleteKey", "deleteKey", "key"}
+	CreateKey = &EventInfo{"createKey", "createKey", "key"}
+
+	ExteranlAccess = &EventInfo{"exteranlAccess", "createExternalAccessPort", "service"}
+
+	YamlDeploy = &EventInfo{"yamlDeploy", "yamlDeploy", "yamlDeploy"}
 )

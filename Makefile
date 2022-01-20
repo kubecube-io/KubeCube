@@ -97,6 +97,7 @@ endif
 ## build docker images
 
 docker-build-cube: vendor
+	MULTI_ARCH=false
 	docker build -f ./build/cube/Dockerfile -t ${IMG} .
 
 docker-build-cube-multi-arch: vendor
