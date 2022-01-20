@@ -20,12 +20,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kubecube-io/kubecube/pkg/authorizer/rbac/helper"
+	rbacv1 "k8s.io/api/rbac/v1"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apiserver/pkg/authentication/user"
-
-	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apiserver/pkg/authorization/authorizer"
+
+	"github.com/kubecube-io/kubecube/pkg/authorizer/rbac/helper"
 )
 
 // Authorizer makes an authorization decision based on information gained by making
@@ -215,4 +215,20 @@ func User2UserInfo(u string) user.Info {
 	return &user.DefaultInfo{
 		Name: u,
 	}
+}
+
+func (r *DefaultResolver) User2UserRole(user user.Info) []string {
+	roles := make([]string, 0)
+	clusterRoleBindings, err := r.ListClusterRoleBindings()
+	if err != nil {
+		return nil
+	}
+	for _, clusterRoleBinding := range clusterRoleBindings {
+		_, applies := appliesTo(user, clusterRoleBinding.Subjects, "")
+		if !applies {
+			continue
+		}
+		roles = append(roles, clusterRoleBinding.RoleRef.Name)
+	}
+	return roles
 }
