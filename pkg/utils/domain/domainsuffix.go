@@ -18,8 +18,10 @@ package domain
 
 import (
 	"fmt"
-	"github.com/kubecube-io/kubecube/pkg/clog"
+
 	"k8s.io/apimachinery/pkg/util/validation"
+	
+	"github.com/kubecube-io/kubecube/pkg/clog"
 )
 
 func ValidatorDomainSuffix(domainSuffixList []string, log clog.CubeLogger) error {

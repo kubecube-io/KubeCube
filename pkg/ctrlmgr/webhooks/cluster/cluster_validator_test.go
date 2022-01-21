@@ -17,13 +17,15 @@ limitations under the License.
 package cluster
 
 import (
-	"github.com/kubecube-io/kubecube/pkg/apis"
-	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	"testing"
+
+	"github.com/kubecube-io/kubecube/pkg/apis"
+	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
 )
 
 func clusterTemplate(name string) clusterv1.Cluster {
