@@ -449,7 +449,7 @@ func (h *handler) addCluster(c *gin.Context) {
 
 	if access := access.AllowAccess(constants.LocalCluster, c, "create", cluster); !access {
 		clog.Debug("permission check fail")
-		response.FailReturn(c, errcode.AuthenticateError)
+		response.FailReturn(c, errcode.ForbiddenErr)
 		return
 	}
 
@@ -517,13 +517,13 @@ func (h *handler) createNsAndQuota(c *gin.Context) {
 
 	if access := access.AllowAccess(data.Cluster, c, "create", data.SubNamespaceAnchor); !access {
 		clog.Debug("permission check fail")
-		response.FailReturn(c, errcode.AuthenticateError)
+		response.FailReturn(c, errcode.ForbiddenErr)
 		return
 	}
 
 	if access := access.AllowAccess(data.Cluster, c, "create", data.ResourceQuota); !access {
 		clog.Debug("permission check fail")
-		response.FailReturn(c, errcode.AuthenticateError)
+		response.FailReturn(c, errcode.ForbiddenErr)
 		return
 	}
 	userInfo, err := token.GetUserFromReq(c.Request)

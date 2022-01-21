@@ -62,11 +62,11 @@ func Rbac() gin.HandlerFunc {
 			return
 		}
 		if d != authorizer.DecisionAllow {
-			clog.Error("user %v has no permission for the path: %v", c.GetString(constants.EventAccountId), c.Request.URL.Path)
-			response.FailReturn(c, errcode.AuthenticateError)
+			clog.Debug("user %v has no permission for the path: %v", c.GetString(constants.EventAccountId), c.Request.URL.Path)
+			response.FailReturn(c, errcode.ForbiddenErr)
 			return
 		}
-		clog.Info("user %v check permission success, path %v")
+		clog.Info("user %v check permission success, path %v", c.GetString(constants.EventAccountId), c.Request.URL.Path)
 		c.Next()
 	}
 }

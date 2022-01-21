@@ -303,12 +303,12 @@ func (h *handler) createBinds(c *gin.Context) {
 
 	if access := access.AllowAccess(constants.LocalCluster, c, "create", clusterRoleBinding); !access {
 		clog.Debug("permission check fail")
-		response.FailReturn(c, errcode.AuthenticateError)
+		response.FailReturn(c, errcode.ForbiddenErr)
 		return
 	}
 	if access := access.AllowAccess(constants.LocalCluster, c, "create", roleBinding); !access {
 		clog.Debug("permission check fail")
-		response.FailReturn(c, errcode.AuthenticateError)
+		response.FailReturn(c, errcode.ForbiddenErr)
 		return
 	}
 	// we should create specified ClusterRoleBinding for different RoleRef
@@ -381,7 +381,7 @@ func (h *handler) deleteBinds(c *gin.Context) {
 
 	if access := access.AllowAccess(constants.LocalCluster, c, "delete", &roleBinding); !access {
 		clog.Debug("permission check fail")
-		response.FailReturn(c, errcode.AuthenticateError)
+		response.FailReturn(c, errcode.ForbiddenErr)
 		return
 	}
 	if roleBinding.RoleRef.Kind == constants.K8sKindClusterRole {
@@ -398,7 +398,7 @@ func (h *handler) deleteBinds(c *gin.Context) {
 		} else {
 			if access := access.AllowAccess(constants.LocalCluster, c, "delete", crb); !access {
 				clog.Debug("permission check fail")
-				response.FailReturn(c, errcode.AuthenticateError)
+				response.FailReturn(c, errcode.ForbiddenErr)
 				return
 			}
 		}

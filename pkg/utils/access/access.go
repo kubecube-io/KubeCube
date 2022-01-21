@@ -33,23 +33,23 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
-var(
-	cli mgrclient.Client
-	once=&sync.Once{}
+var (
+	cli  mgrclient.Client
+	once = &sync.Once{}
 )
 
-func getMgrCli() mgrclient.Client{
-	if cli==nil{
+func getMgrCli() mgrclient.Client {
+	if cli == nil {
 		once.Do(func() {
-			cli=clients.Interface().Kubernetes(constants.LocalCluster)
+			cli = clients.Interface().Kubernetes(constants.LocalCluster)
 		})
 	}
 	return cli
 }
 
-func AllowAccess(cluster string, c *gin.Context, operator string,object client.Object) bool{
-	mapping,err:=getMgrCli().RESTMapper().RESTMapping(object.GetObjectKind().GroupVersionKind().GroupKind(),object.GetObjectKind().GroupVersionKind().Version)
-	if err!=nil{
+func AllowAccess(cluster string, c *gin.Context, operator string, object client.Object) bool {
+	mapping, err := getMgrCli().RESTMapper().RESTMapping(object.GetObjectKind().GroupVersionKind().GroupKind(), object.GetObjectKind().GroupVersionKind().Version)
+	if err != nil {
 		clog.Error(err.Error())
 		return false
 	}
@@ -90,7 +90,7 @@ func CheckClusterRole(username string, cluster string, accessMap map[string]stri
 	return false
 }
 
-func IsSelf(c *gin.Context, username string) bool{
+func IsSelf(c *gin.Context, username string) bool {
 	requestUser, err := token.GetUserFromReq(c.Request)
 	if err != nil {
 		return false

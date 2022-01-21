@@ -100,7 +100,7 @@ func CreateUser(c *gin.Context) {
 	}
 	if access := access.AllowAccess(constants.LocalCluster, c, "create", user); !access {
 		clog.Debug("permission check fail")
-		response.FailReturn(c, errcode.AuthenticateError)
+		response.FailReturn(c, errcode.ForbiddenErr)
 		return
 	}
 	// create user
@@ -160,7 +160,7 @@ func UpdateUser(c *gin.Context) {
 	if !access.IsSelf(c, name) {
 		if access := access.AllowAccess(constants.LocalCluster, c, "list", originUser); !access {
 			clog.Debug("permission check fail")
-			response.FailReturn(c, errcode.AuthenticateError)
+			response.FailReturn(c, errcode.ForbiddenErr)
 			return
 		}
 	}
@@ -221,7 +221,7 @@ func ListUsers(c *gin.Context) {
 	}
 	accessMap := map[string]string{"platform-admin": "", "tenant-admin": "", "tenant-admin-cluster": "", "project-admin": "", "project-admin-cluster": ""}
 	if !access.CheckClusterRole(requestUser.Username, constants.LocalCluster, accessMap) {
-		response.FailReturn(c, errcode.AuthenticateError)
+		response.FailReturn(c, errcode.ForbiddenErr)
 		return
 	}
 	// get all user
@@ -475,7 +475,7 @@ func BatchCreateUser(c *gin.Context) {
 	check.SetGroupVersionKind(schema.FromAPIVersionAndKind("user.kubecube.io/v1", "User"))
 	if access := access.AllowAccess(constants.LocalCluster, c, "create", check); !access {
 		clog.Debug("permission check fail")
-		response.FailReturn(c, errcode.AuthenticateError)
+		response.FailReturn(c, errcode.ForbiddenErr)
 		return
 	}
 
@@ -551,7 +551,7 @@ func GetKubeConfig(c *gin.Context) {
 	}
 
 	if !access.IsSelf(c, user) {
-		response.FailReturn(c, errcode.AuthenticateError)
+		response.FailReturn(c, errcode.ForbiddenErr)
 		return
 	}
 	clusters := multicluster.Interface().FuzzyCopy()
