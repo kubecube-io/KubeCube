@@ -63,7 +63,6 @@ type Client interface {
 	ClientSet() kubernetes.Interface
 
 	Discovery() discovery.DiscoveryInterface
-	RESTClient() rest.Interface
 	RESTMapper() meta.RESTMapper
 }
 
@@ -73,7 +72,6 @@ type InternalClient struct {
 	rawClientSet kubernetes.Interface
 	metrics      versioned.Interface
 	discovery    discovery.DiscoveryInterface
-	restful      rest.Interface
 
 	// restMapper map GroupVersionKinds to Resources
 	restMapper meta.RESTMapper
@@ -98,11 +96,6 @@ func NewClientFor(cfg *rest.Config, stopCh chan struct{}) (Client, error) {
 	c.metrics, err = versioned.NewForConfig(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("new metrics client failed: %v", err)
-	}
-
-	c.restful, err = rest.RESTClientFor(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("new rest client failed: %v", err)
 	}
 
 	c.rawClientSet, err = kubernetes.NewForConfig(cfg)
@@ -156,10 +149,6 @@ func (c *InternalClient) RESTMapper() meta.RESTMapper {
 
 func (c *InternalClient) Discovery() discovery.DiscoveryInterface {
 	return c.discovery
-}
-
-func (c *InternalClient) RESTClient() rest.Interface {
-	return c.restful
 }
 
 // WithSchemes allow add extensions scheme to client
