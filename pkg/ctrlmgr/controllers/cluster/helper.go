@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -41,6 +42,10 @@ import (
 )
 
 func createResource(ctx context.Context, obj client.Object, c client.Client, cluster string, objKind string) error {
+	if reflect.ValueOf(obj).IsNil() {
+		return fmt.Errorf("object can not be nil")
+	}
+
 	err := c.Create(ctx, obj, &client.CreateOptions{})
 	if err != nil {
 		if errors.IsAlreadyExists(err) {
