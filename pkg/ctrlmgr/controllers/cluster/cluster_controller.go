@@ -94,6 +94,11 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 
+	// no need lock cause write by one at same time
+	if !cluster.Spec.IsMemberCluster {
+		r.pivotCluster = &cluster
+	}
+
 	// examine DeletionTimestamp to determine if object is under deletion
 	if cluster.ObjectMeta.DeletionTimestamp == nil {
 		// ensure finalizer
@@ -158,11 +163,6 @@ func (r *ClusterReconciler) syncCluster(ctx context.Context, cluster clusterv1.C
 		log.Error("start scout for cluster %v failed", cluster.Name)
 		_ = utils.UpdateClusterStatusByState(ctx, r.Client, &cluster, clusterv1.ClusterInitFailed)
 		return ctrl.Result{}, err
-	}
-
-	// no need lock cause write by one at same time
-	if !cluster.Spec.IsMemberCluster {
-		r.pivotCluster = &cluster
 	}
 
 	return ctrl.Result{}, nil
