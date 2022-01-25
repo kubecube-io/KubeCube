@@ -51,12 +51,12 @@ func NewWardenWithOpts(opts *Config) *Warden {
 	w := new(Warden)
 
 	w.Server = &server.Server{
-		JwtSecret:   opts.JwtSecret,
-		BindAddr:    opts.Addr,
-		Port:        opts.Port,
-		TlsKey:      opts.TlsKey,
-		TlsCert:     opts.TlsCert,
-		PivotClient: pivotClient,
+		JwtSecret:              opts.JwtSecret,
+		BindAddr:               opts.Addr,
+		Port:                   opts.Port,
+		TlsKey:                 opts.TlsKey,
+		TlsCert:                opts.TlsCert,
+		LocalClusterKubeConfig: opts.LocalClusterKubeConfig,
 	}
 
 	w.Reporter = &reporter.Reporter{
@@ -118,14 +118,13 @@ func (w Warden) Initialize() error {
 }
 
 func (w *Warden) Run(stop <-chan struct{}) {
-	if w.SyncCtrl != nil {
-		// wait for cache synced
-		w.SyncCtrl.Run(stop)
-	}
-
 	go w.LocalCtrl.Run(stop)
 
 	go w.Server.Run(stop)
+
+	if w.SyncCtrl != nil {
+		go w.SyncCtrl.Run(stop)
+	}
 
 	w.Reporter.Run(stop)
 }

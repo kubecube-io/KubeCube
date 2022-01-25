@@ -36,7 +36,6 @@ import (
 
 	"github.com/kubecube-io/kubecube/pkg/apis"
 	"github.com/kubecube-io/kubecube/pkg/clog"
-	"github.com/kubecube-io/kubecube/pkg/utils/exit"
 )
 
 var (
@@ -79,7 +78,7 @@ type InternalClient struct {
 
 // NewClientFor generate client by config
 // todo: with options
-func NewClientFor(cfg *rest.Config, stopCh chan struct{}) (Client, error) {
+func NewClientFor(ctx context.Context, cfg *rest.Config) (Client, error) {
 	var err error
 	c := new(InternalClient)
 
@@ -112,8 +111,6 @@ func NewClientFor(cfg *rest.Config, stopCh chan struct{}) (Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("new rest mapper failed: %v", err)
 	}
-
-	ctx := exit.SetupCtxWithStop(context.Background(), stopCh)
 
 	go func() {
 		err = c.cache.Start(ctx)
