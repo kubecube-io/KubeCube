@@ -17,25 +17,20 @@ limitations under the License.
 package authproxy
 
 import (
-	"context"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 
-	v1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators"
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
 	"github.com/kubecube-io/kubecube/pkg/clog"
-	multiclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
 	"github.com/kubecube-io/kubecube/pkg/warden/server/authproxy/proxy"
-	"github.com/kubecube-io/kubecube/pkg/warden/utils"
 )
 
 // Handler forwards all the requests to specified k8s-apiserver
@@ -51,18 +46,12 @@ type Handler struct {
 	proxy *proxy.UpgradeAwareHandler
 }
 
-func NewHandler(pivotClient multiclient.Client) (*Handler, error) {
+func NewHandler(localClusterKubeConfig string) (*Handler, error) {
 	h := &Handler{}
 	h.authMgr = jwt.GetAuthJwtImpl()
 
 	// get cluster info from rest config
-	cluster := v1.Cluster{}
-	err := pivotClient.Direct().Get(context.Background(), types.NamespacedName{Name: utils.Cluster}, &cluster)
-	if err != nil {
-		return nil, err
-	}
-
-	restConfig, err := kubeconfig.LoadKubeConfigFromBytes(cluster.Spec.KubeConfig)
+	restConfig, err := clientcmd.BuildConfigFromFlags("", localClusterKubeConfig)
 	if err != nil {
 		return nil, err
 	}

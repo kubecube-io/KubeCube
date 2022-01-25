@@ -102,6 +102,7 @@ func (r *Reporter) Run(stop <-chan struct{}) {
 	if err != nil {
 		log.Fatal("warden registerIfNeed failed: %v", err)
 	}
+	log.Info("ensure cluster %v in control plane success", r.Cluster)
 
 	r.reporting(stop)
 }

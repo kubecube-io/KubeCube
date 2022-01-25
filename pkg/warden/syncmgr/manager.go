@@ -118,14 +118,12 @@ func (s *SyncManager) readyzCheck() bool {
 func (s *SyncManager) Run(stop <-chan struct{}) {
 	ctx := exit.SetupCtxWithStop(context.Background(), stop)
 
-	go func() {
-		err := s.Manager.Start(ctx)
-		if err != nil {
-			log.Fatal("start sync manager failed: %s", err)
-		}
-	}()
-
-	if !s.Manager.GetCache().WaitForCacheSync(ctx) {
-		log.Fatal("wait for cache sync failed")
+	err := s.Manager.Start(ctx)
+	if err != nil {
+		log.Fatal("start sync manager failed: %s", err)
 	}
+
+	//if !s.Manager.GetCache().WaitForCacheSync(ctx) {
+	//	log.Fatal("wait for cache sync failed")
+	//}
 }
