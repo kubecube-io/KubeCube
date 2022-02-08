@@ -41,7 +41,7 @@ type Config struct {
 
 func InitGi18nManagers() (*Gi18nManagers, error) {
 	// read kubecube-language-config
-	kClient := clients.Interface().Kubernetes(constants.PivotCluster).Direct()
+	kClient := clients.Interface().Kubernetes(constants.LocalCluster).Direct()
 	if kClient == nil {
 		return nil, errors.New("get pivot cluster client is nil")
 	}
