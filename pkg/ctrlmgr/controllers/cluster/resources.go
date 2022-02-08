@@ -517,6 +517,7 @@ func makeWardenWebhook() *v1.ValidatingWebhookConfiguration {
 	err := pClient.Get(context.Background(), key, &wh)
 	if err != nil {
 		log.Error(err.Error())
+		return nil
 	}
 
 	return &v1.ValidatingWebhookConfiguration{
