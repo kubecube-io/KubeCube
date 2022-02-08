@@ -48,7 +48,13 @@ func getMgrCli() mgrclient.Client {
 }
 
 func AllowAccess(cluster string, c *gin.Context, operator string, object client.Object) bool {
-	mapping, err := getMgrCli().RESTMapper().RESTMapping(object.GetObjectKind().GroupVersionKind().GroupKind(), object.GetObjectKind().GroupVersionKind().Version)
+	gvk := object.GetObjectKind().GroupVersionKind()
+	groupKind := gvk.GroupKind()
+	version := gvk.Version
+	if getMgrCli().RESTMapper() == nil {
+		return true
+	}
+	mapping, err := getMgrCli().RESTMapper().RESTMapping(groupKind, version)
 	if err != nil {
 		clog.Error(err.Error())
 		return false
