@@ -95,57 +95,63 @@ func (h *Handler) Audit() gin.HandlerFunc {
 
 		if !withinWhiteList(c.Request.URL, c.Request.Method, auditWhiteList) &&
 			!withinWhiteList(c.Request.URL, c.Request.Method, auth.AuthWhiteList) && c.Request.Method != http.MethodGet {
-			clog.Debug("[audit] get event information")
-			e := &Event{
-				EventTime:         time.Now().UnixNano() / int64(time.Millisecond),
-				EventVersion:      "V1",
-				SourceIpAddress:   c.ClientIP(),
-				RequestMethod:     c.Request.Method,
-				ResponseStatus:    c.Writer.Status(),
-				Url:               c.Request.URL.String(),
-				UserAgent:         "HTTP",
-				RequestParameters: getParameters(c),
-				EventType:         constants.EventTypeUserWrite,
-				RequestId:         uuid.New().String(),
-				ResponseElements:  w.body.String(),
-				EventSource:       env.AuditEventSource(),
-				UserIdentity:      getUserIdentity(c),
-			}
-
-			// get response
-			resp, isExist := c.Get(eventRespBody)
-			if isExist == true {
-				e.ResponseElements = resp.(string)
-			}
-
-			// if request failed, set errCode and ErrorMessage
-			if e.ResponseStatus != http.StatusOK {
-				e.ErrorCode = strconv.Itoa(c.Writer.Status())
-				e.ErrorMessage = e.ResponseElements
-			}
-
-			// get event name and description
-			t := h.EnvInstance
-			if t == nil {
-				t = h.EnInstance
-			}
-			ctx := context.Background()
-			eventName, isExist := c.Get(constants.EventName)
-			if isExist == true {
-				e.EventName = eventName.(string)
-				e.Description = t.Translate(ctx, eventName.(string))
-				e.ResourceReports = []Resource{{
-					ResourceType: t.Translate(ctx, c.GetString(audit.EventResourceType)),
-					ResourceName: c.GetString(audit.EventResourceName),
-				}}
-			} else {
-				e = h.handleProxyApi(ctx, c, *e)
-			}
-
-			go sendEvent(e)
+			clog.Debug("[audit] handle audit info")
+			go h.handle(c, w)
 		}
 	}
 
+}
+
+func (h *Handler) handle(c *gin.Context, w *responseBodyWriter) {
+	e := &Event{
+		EventTime:         time.Now().UnixNano() / int64(time.Millisecond),
+		EventVersion:      "V1",
+		SourceIpAddress:   c.ClientIP(),
+		RequestMethod:     c.Request.Method,
+		ResponseStatus:    c.Writer.Status(),
+		Url:               c.Request.URL.String(),
+		UserAgent:         "HTTP",
+		RequestParameters: getParameters(c),
+		EventType:         constants.EventTypeUserWrite,
+		RequestId:         uuid.New().String(),
+		ResponseElements:  w.body.String(),
+		EventSource:       env.AuditEventSource(),
+		UserIdentity:      getUserIdentity(c),
+	}
+
+	// get response
+	resp, isExist := c.Get(eventRespBody)
+	if isExist == true {
+		e.ResponseElements = resp.(string)
+	}
+
+	// if request failed, set errCode and ErrorMessage
+	if e.ResponseStatus != http.StatusOK {
+		e.ErrorCode = strconv.Itoa(c.Writer.Status())
+		e.ErrorMessage = e.ResponseElements
+	}
+
+	// get event name and description
+	t := h.EnvInstance
+	if t == nil {
+		t = h.EnInstance
+	}
+	ctx := context.Background()
+	eventName, isExist := c.Get(constants.EventName)
+	if isExist == true {
+		e.EventName = eventName.(string)
+		e.Description = t.Translate(ctx, eventName.(string))
+		e.ResourceReports = []Resource{{
+			ResourceType: t.Translate(ctx, c.GetString(audit.EventResourceType)),
+			ResourceName: c.GetString(audit.EventResourceName),
+		}}
+	} else {
+		e = h.handleProxyApi(ctx, c, *e)
+	}
+
+	if e.EventName != "" {
+		sendEvent(e)
+	}
 }
 
 func sendEvent(e *Event) {
@@ -194,8 +200,7 @@ func (h *Handler) handleProxyApi(ctx context.Context, c *gin.Context, e Event) *
 	)
 
 	requestURI := c.Request.RequestURI
-	if !strings.HasPrefix(requestURI, "/api/v1/cube/proxy") &&
-		!strings.HasPrefix(requestURI, "/api/v1/cube/extend") {
+	if !isProxyApi(requestURI) {
 		return &e
 	}
 
@@ -245,6 +250,13 @@ func (h *Handler) handleProxyApi(ctx context.Context, c *gin.Context, e Event) *
 		ResourceName: objectName,
 	}}
 	return &e
+}
+
+func isProxyApi(requestURI string) bool {
+	if strings.HasPrefix(requestURI, "/api/v1/cube/proxy") {
+		return true
+	}
+	return false
 }
 
 // get user name from token

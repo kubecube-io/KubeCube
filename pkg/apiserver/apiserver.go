@@ -89,7 +89,7 @@ func registerCubeAPI(cfg *Config) http.Handler {
 	keyManage := router.Group(constants.ApiPathRoot + "/key")
 	{
 		keyManage.GET("/token", key.GetTokenByKey)
-		keyManage.GET("/create", key.CreateKey)
+		keyManage.POST("/create", key.CreateKey)
 		keyManage.DELETE("", key.DeleteKey)
 		keyManage.GET("", key.ListKey)
 	}

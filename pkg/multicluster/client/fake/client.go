@@ -17,8 +17,11 @@ limitations under the License.
 package fake
 
 import (
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/metrics/pkg/client/clientset/versioned"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/cache/informertest"
@@ -35,11 +38,15 @@ var _ mgrclient.Client = &FakerClient{}
 
 // FakerClient implement kubernetes.client
 type FakerClient struct {
-	client client.Client
-	cache  cache.Cache
-
+	client       client.Client
+	cache        cache.Cache
 	rawClientSet kubernetes.Interface
 	metrics      versioned.Interface
+	discovery    discovery.DiscoveryInterface
+	restful      rest.Interface
+
+	// restMapper map GroupVersionKinds to Resources
+	restMapper meta.RESTMapper
 }
 
 // Options used to generate fake client
@@ -90,4 +97,16 @@ func (c *FakerClient) Metrics() versioned.Interface {
 
 func (c *FakerClient) ClientSet() kubernetes.Interface {
 	return c.rawClientSet
+}
+
+func (c *FakerClient) RESTMapper() meta.RESTMapper {
+	return c.restMapper
+}
+
+func (c *FakerClient) Discovery() discovery.DiscoveryInterface {
+	return c.discovery
+}
+
+func (c *FakerClient) RESTClient() rest.Interface {
+	return c.restful
 }

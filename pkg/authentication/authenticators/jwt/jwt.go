@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/golang-jwt/jwt"
 	"k8s.io/api/authentication/v1beta1"
 
 	"github.com/kubecube-io/kubecube/pkg/authentication"
