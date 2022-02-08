@@ -57,6 +57,7 @@ func CreateKey(c *gin.Context) {
 		response.FailReturn(c, errcode.AuthenticateError)
 		return
 	}
+	c = audit.SetAuditInfo(c, audit.CreateKey, userInfo.Username)
 
 	// max key num <= 5
 	localClient := clients.Interface().Kubernetes(constants.LocalCluster)

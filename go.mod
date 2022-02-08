@@ -4,13 +4,13 @@ go 1.16
 
 require (
 	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/gin-gonic/gin v1.7.1
 	github.com/go-ldap/ldap v3.0.3+incompatible
 	github.com/go-logr/logr v0.4.0
 	github.com/go-openapi/swag v0.19.15 // indirect
 	github.com/go-playground/validator/v10 v10.5.0 // indirect
 	github.com/gogf/gf/v2 v2.0.0-beta
+	github.com/golang-jwt/jwt v3.2.1+incompatible
 	github.com/google/uuid v1.1.2
 	github.com/json-iterator/go v1.1.11
 	github.com/leodido/go-urn v1.2.1 // indirect

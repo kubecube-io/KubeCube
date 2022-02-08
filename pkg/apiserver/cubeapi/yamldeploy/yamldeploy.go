@@ -18,6 +18,7 @@ package yamldeploy
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 
 	"github.com/gin-gonic/gin"
@@ -37,6 +38,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	"github.com/kubecube-io/kubecube/pkg/multicluster/client"
+	"github.com/kubecube-io/kubecube/pkg/utils/audit"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
@@ -95,7 +97,13 @@ func Deploy(c *gin.Context) {
 		return
 	}
 
+	c = audit.SetAuditInfo(c, audit.YamlDeploy, fmt.Sprintf("%s/%s", namespace, restMapping.Resource.String()))
+
 	userInfo, err := token.GetUserFromReq(c.Request)
+	if err != nil {
+		response.FailReturn(c, errcode.InternalServerError)
+		return
+	}
 
 	// create
 	result, err := CreateByRestClient(restClient, restMapping, namespace, dryRun, obj, userInfo.Username)
@@ -103,6 +111,7 @@ func Deploy(c *gin.Context) {
 		response.FailReturn(c, errcode.DeployYamlError(err.Error()))
 		return
 	}
+
 	response.SuccessReturn(c, result)
 }
 
