@@ -36,7 +36,6 @@ func GetTokenFromReq(req *http.Request) (string, error) {
 		// get token from cookie
 		cookie, err := req.Cookie(constants.AuthorizationHeader)
 		if err != nil {
-			clog.Error("err: %v", err.Error())
 			return "", err
 		}
 		bearerToken = cookie.Value

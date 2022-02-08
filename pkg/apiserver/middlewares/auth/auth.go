@@ -46,6 +46,7 @@ var AuthWhiteList = map[string]string{
 	constants.ApiPathRoot + "/key/token":            get,
 	constants.ApiPathRoot + "/authorization/access": post,
 	constants.ApiPathRoot + "/oauth/redirect":       get,
+	constants.ApiPathRoot + "/clusters/register":    post,
 }
 
 func withinWhiteList(url *url.URL, method string, whiteList map[string]string) bool {
@@ -66,7 +67,7 @@ func Auth() gin.HandlerFunc {
 			if generic.Config.GenericAuthIsEnable {
 				h := generic.GetProvider()
 				user, err := h.Authenticate(c.Request.Header)
-				if err != nil || user == nil {
+				if err != nil {
 					clog.Warn("generic auth error: %v", err)
 					response.FailReturn(c, errcode.AuthenticateError)
 					return
@@ -93,7 +94,7 @@ func Auth() gin.HandlerFunc {
 			} else {
 				userToken, err := token.GetTokenFromReq(c.Request)
 				if err != nil {
-					clog.Warn(err.Error())
+					clog.Warn("request api %v auth failed: %v", c.Request.URL, err)
 					response.FailReturn(c, errcode.AuthenticateError)
 					return
 				}

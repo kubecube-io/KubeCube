@@ -19,6 +19,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -78,8 +79,7 @@ func (h HeaderProvider) Authenticate(headers map[string][]string) (identityprovi
 
 	req, err := http.NewRequest(h.Method, h.URL, nil)
 	if err != nil {
-		clog.Error("new http request err: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("new http request (%v/%v) err: %v", h.URL, h.Method, err)
 	}
 	req.Header = headers
 	tr := &http.Transport{}
@@ -91,8 +91,7 @@ func (h HeaderProvider) Authenticate(headers map[string][]string) (identityprovi
 			}
 		} else {
 			if h.TLSCert == "" || h.TLSKey == "" {
-				clog.Error("generic auth cert is %s, key is %s", h.TLSCert, h.TLSKey)
-				return nil, errors.New("generic auth cert or key is empty")
+				return nil, fmt.Errorf("generic auth cert is %s, key is %s", h.TLSCert, h.TLSKey)
 			}
 			certBytes := []byte(h.TLSCert)
 			ketBytes := []byte(h.TLSKey)
@@ -112,25 +111,21 @@ func (h HeaderProvider) Authenticate(headers map[string][]string) (identityprovi
 	client := &http.Client{Timeout: 30 * time.Second, Transport: tr}
 	resp, err := client.Do(req)
 	if err != nil {
-		clog.Error("request to generic auth error: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("request to generic auth error: %v", err)
 	}
 
 	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		clog.Error("read response error: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("read response error: %v", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		clog.Error("response from the third party is not ok, response is %s", string(respBody))
-		return nil, errors.New("response code from the third party is not 200")
+		return nil, fmt.Errorf("response from the third party is not ok, response is %s", string(respBody))
 	}
 
 	var respMap map[string]interface{}
 	if err = json.Unmarshal(respBody, &respMap); err != nil {
-		clog.Error("json unmarshal error: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("json unmarshal error: %v", err)
 	}
 
 	name := ""
