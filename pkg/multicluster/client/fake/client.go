@@ -106,7 +106,3 @@ func (c *FakerClient) RESTMapper() meta.RESTMapper {
 func (c *FakerClient) Discovery() discovery.DiscoveryInterface {
 	return c.discovery
 }
-
-func (c *FakerClient) RESTClient() rest.Interface {
-	return c.restful
-}

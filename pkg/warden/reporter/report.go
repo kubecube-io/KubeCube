@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
+	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/multicluster/scout"
 	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
 )
@@ -57,6 +58,8 @@ func (r *Reporter) registerIfNeed(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	clog.Info("pivot cluster address is %v", cfg.Host)
 
 	return wait.Poll(3*time.Second, 15*time.Second, func() (done bool, err error) {
 		cluster := &clusterv1.Cluster{
