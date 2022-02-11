@@ -24,6 +24,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/apis"
 	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/user"
+	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
@@ -32,8 +33,10 @@ import (
 	. "github.com/onsi/gomega"
 	"io/ioutil"
 	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/api/authentication/v1beta1"
 	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"net/http"
@@ -62,6 +65,8 @@ func performRequest(r http.Handler, method, path string, body []byte, headers ..
 var _ = Describe("User", func() {
 
 	var admin *userv1.User
+	var platformAdmin *rbacv1.ClusterRole
+	var platformAdminRoleBinding *rbacv1.ClusterRoleBinding
 
 	BeforeEach(func() {
 		admin = &userv1.User{
@@ -76,6 +81,39 @@ var _ = Describe("User", func() {
 				Password: "admin",
 			},
 		}
+		platformAdmin = &rbacv1.ClusterRole{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "rbac.authorization.k8s.io/v1",
+				Kind:       "ClusterRole",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "platform-admin",
+			},
+			Rules: []rbacv1.PolicyRule{{
+				APIGroups: []string{"*"},
+				Resources: []string{"*"},
+				Verbs:     []string{"*"},
+			}},
+		}
+		platformAdminRoleBinding = &rbacv1.ClusterRoleBinding{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "rbac.authorization.k8s.io/v1",
+				Kind:       "ClusterRoleBinding",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "admin-in-cluster",
+			},
+			RoleRef: rbacv1.RoleRef{
+				APIGroup: "rbac.authorization.k8s.io",
+				Kind:     "ClusterRole",
+				Name:     "platform-admin",
+			},
+			Subjects: []rbacv1.Subject{{
+				APIGroup: "rbac.authorization.k8s.io",
+				Kind:     "User",
+				Name:     "admin",
+			}},
+		}
 	})
 
 	JustBeforeEach(func() {
@@ -84,12 +122,18 @@ var _ = Describe("User", func() {
 		corev1.AddToScheme(scheme)
 		appsv1.AddToScheme(scheme)
 		coordinationv1.AddToScheme(scheme)
+		rbacv1.AddToScheme(scheme)
 		opts := &fake.Options{
 			Scheme:               scheme,
 			Objs:                 []client.Object{},
 			ClientSetRuntimeObjs: []runtime.Object{},
-			Lists:                []client.ObjectList{&userv1.UserList{Items: []userv1.User{*admin}}},
+			Lists: []client.ObjectList{
+				&userv1.UserList{Items: []userv1.User{*admin}},
+				&rbacv1.ClusterRoleList{Items: []rbacv1.ClusterRole{*platformAdmin}},
+				&rbacv1.ClusterRoleBindingList{Items: []rbacv1.ClusterRoleBinding{*platformAdminRoleBinding}},
+			},
 		}
+
 		multicluster.InitFakeMultiClusterMgrWithOpts(opts)
 		clients.InitCubeClientSetWithOpts(nil)
 	})
@@ -122,7 +166,12 @@ var _ = Describe("User", func() {
 	It("list user", func() {
 		router := gin.New()
 		router.GET("/api/v1/cube/user", user.ListUsers)
-		w := performRequest(router, http.MethodGet, "/api/v1/cube/user", []byte(""))
+		authJwtImpl := jwt.GetAuthJwtImpl()
+		token, err := authJwtImpl.GenerateToken(&v1beta1.UserInfo{Username: "admin"})
+		Expect(err).To(BeNil())
+		b := jwt.BearerTokenPrefix + " " + token
+		auth := header{Key: constants.AuthorizationHeader, Value: b}
+		w := performRequest(router, http.MethodGet, "/api/v1/cube/user", []byte(""), auth)
 		userList := &userv1.UserList{}
 		_ = json.Unmarshal(w.Body.Bytes(), userList)
 		Expect(w.Code).To(Equal(http.StatusOK))
