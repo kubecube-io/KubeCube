@@ -100,10 +100,10 @@ func NewClientFor(cfg *rest.Config, stopCh chan struct{}) (Client, error) {
 		return nil, fmt.Errorf("new metrics client failed: %v", err)
 	}
 
-	//c.restful, err = rest.RESTClientFor(cfg)
-	//if err != nil {
-	//	return nil, fmt.Errorf("new rest client failed: %v", err)
-	//}
+	c.restful, err = rest.RESTClientFor(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("new rest client failed: %v", err)
+	}
 
 	c.rawClientSet, err = kubernetes.NewForConfig(cfg)
 	if err != nil {

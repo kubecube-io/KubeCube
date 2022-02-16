@@ -447,7 +447,7 @@ func (h *handler) addCluster(c *gin.Context) {
 		cluster.Spec.HarborAddr = d.HarborAddr
 	}
 
-	if access := access.AllowAccess(constants.LocalCluster, c, "create", cluster); !access {
+	if access := access.AllowAccess(constants.LocalCluster, c.Request, "create", cluster); !access {
 		clog.Debug("permission check fail")
 		response.FailReturn(c, errcode.ForbiddenErr)
 		return
@@ -515,13 +515,13 @@ func (h *handler) createNsAndQuota(c *gin.Context) {
 		return
 	}
 
-	if access := access.AllowAccess(data.Cluster, c, "create", data.SubNamespaceAnchor); !access {
+	if access := access.AllowAccess(data.Cluster, c.Request, "create", data.SubNamespaceAnchor); !access {
 		clog.Debug("permission check fail")
 		response.FailReturn(c, errcode.ForbiddenErr)
 		return
 	}
 
-	if access := access.AllowAccess(data.Cluster, c, "create", data.ResourceQuota); !access {
+	if access := access.AllowAccess(data.Cluster, c.Request, "create", data.ResourceQuota); !access {
 		clog.Debug("permission check fail")
 		response.FailReturn(c, errcode.ForbiddenErr)
 		return

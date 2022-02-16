@@ -98,7 +98,7 @@ func CreateUser(c *gin.Context) {
 		response.FailReturn(c, errInfo)
 		return
 	}
-	if access := access.AllowAccess(constants.LocalCluster, c, "create", user); !access {
+	if access := access.AllowAccess(constants.LocalCluster, c.Request, "create", user); !access {
 		clog.Debug("permission check fail")
 		response.FailReturn(c, errcode.ForbiddenErr)
 		return
@@ -157,8 +157,8 @@ func UpdateUser(c *gin.Context) {
 	}
 
 	// if user want to update the other people`s info,need to check permission
-	if !access.IsSelf(c, name) {
-		if access := access.AllowAccess(constants.LocalCluster, c, "list", originUser); !access {
+	if !access.IsSelf(c.Request, name) {
+		if access := access.AllowAccess(constants.LocalCluster, c.Request, "list", originUser); !access {
 			clog.Debug("permission check fail")
 			response.FailReturn(c, errcode.ForbiddenErr)
 			return
@@ -473,7 +473,7 @@ func BatchCreateUser(c *gin.Context) {
 	c.Set(constants.EventResourceType, "user")
 	check := &userv1.User{}
 	check.SetGroupVersionKind(schema.FromAPIVersionAndKind("user.kubecube.io/v1", "User"))
-	if access := access.AllowAccess(constants.LocalCluster, c, "create", check); !access {
+	if access := access.AllowAccess(constants.LocalCluster, c.Request, "create", check); !access {
 		clog.Debug("permission check fail")
 		response.FailReturn(c, errcode.ForbiddenErr)
 		return
@@ -550,7 +550,7 @@ func GetKubeConfig(c *gin.Context) {
 		return
 	}
 
-	if !access.IsSelf(c, user) {
+	if !access.IsSelf(c.Request, user) {
 		response.FailReturn(c, errcode.ForbiddenErr)
 		return
 	}
