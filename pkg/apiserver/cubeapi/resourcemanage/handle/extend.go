@@ -27,6 +27,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 
+	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
+	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
 	cronjobRes "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/cronjob"
 	deploymentRes "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/deployment"
 	jobRes "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/job"
@@ -36,6 +38,7 @@ import (
 	serviceRes "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/service"
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
 	"github.com/kubecube-io/kubecube/pkg/clients"
+	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/audit"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
@@ -237,4 +240,49 @@ func GetConfigMap(c *gin.Context) {
 	}
 
 	response.SuccessReturn(c, cm.Data)
+}
+
+// IngressDomainSuffix Get Ingress Domain Suffix by cluster and project
+func IngressDomainSuffix(c *gin.Context) {
+	clusterName := c.Query("cluster")
+	projectName := c.Query("project")
+	client := clients.Interface().Kubernetes(constants.LocalCluster)
+	if client == nil {
+		clog.Error("get cluster failed")
+		response.FailReturn(c, errcode.ClusterNotFoundError(clusterName))
+		return
+	}
+	cluster := clusterv1.Cluster{}
+	err := client.Cache().Get(c, types.NamespacedName{Name: clusterName}, &cluster)
+	if err != nil {
+		clog.Error("get cluster failed: %v", err)
+		if errors.IsNotFound(err) {
+			response.FailReturn(c, errcode.ClusterNotFoundError(clusterName))
+			return
+		}
+		response.FailReturn(c, errcode.InternalServerError)
+		return
+	}
+
+	project := tenantv1.Project{}
+	err = client.Cache().Get(c, types.NamespacedName{Name: projectName}, &project)
+	if err != nil {
+		clog.Error("get project failed: %v", err)
+		if errors.IsNotFound(err) {
+			response.FailReturn(c, errcode.CustomReturn(http.StatusNotFound, "project(%v) not found", projectName))
+			return
+		}
+		response.FailReturn(c, errcode.InternalServerError)
+		return
+	}
+
+	res := make([]string, 0)
+	if len(cluster.Spec.IngressDomainSuffix) != 0 {
+		res = append(res, cluster.Spec.IngressDomainSuffix)
+	}
+
+	for _, suffix := range project.Spec.IngressDomainSuffix {
+		res = append(res, suffix)
+	}
+	response.SuccessReturn(c, res)
 }

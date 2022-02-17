@@ -59,6 +59,10 @@ spec:
                 maxLength: 100
                 minLength: 1
                 type: string
+              ingressDomainSuffix:
+                items:
+                  type: string
+                type: array
               namespace:
                 type: string
             type: object

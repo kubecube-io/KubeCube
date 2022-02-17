@@ -18,10 +18,9 @@ package project
 import (
 	"context"
 	"fmt"
-
-	"github.com/kubecube-io/kubecube/pkg/clog"
-
 	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
+	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/domain"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -71,6 +70,10 @@ func (p *ProjectValidator) ValidateCreate() error {
 		return fmt.Errorf("the tenant is not exist")
 	}
 
+	if err := domain.ValidatorDomainSuffix(p.Spec.IngressDomainSuffix, log); err != nil {
+		return err
+	}
+
 	log.Debug("Create validate success")
 
 	return nil
@@ -91,6 +94,10 @@ func (p *ProjectValidator) ValidateUpdate(old runtime.Object) error {
 	if err := projectClient.Get(ctx, types.NamespacedName{Name: tenantName}, &tenant); err != nil {
 		log.Info("The tenant %s is not exist", tenantName)
 		return fmt.Errorf("the tenant is not exist")
+	}
+
+	if err := domain.ValidatorDomainSuffix(p.Spec.IngressDomainSuffix, log); err != nil {
+		return err
 	}
 
 	log.Debug("Update validate success")

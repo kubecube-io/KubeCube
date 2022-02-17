@@ -17,6 +17,7 @@ limitations under the License.
 package webhooks
 
 import (
+	clusterWebhook "github.com/kubecube-io/kubecube/pkg/ctrlmgr/webhooks/cluster"
 	hotplugWebhook "github.com/kubecube-io/kubecube/pkg/ctrlmgr/webhooks/hotplug"
 	projectWebhook "github.com/kubecube-io/kubecube/pkg/ctrlmgr/webhooks/project"
 	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/webhooks/quota"
@@ -35,6 +36,7 @@ func SetupWithWebhooks(mgr manager.Manager) {
 
 	client := mgr.GetClient()
 
+	hookServer.Register("/validate-cluster-kubecube-io-v1-cluster", admisson.ValidatingWebhookFor(clusterWebhook.NewClusterValidator(client)))
 	hookServer.Register("/validate-tenant-kubecube-io-v1-tenant", admisson.ValidatingWebhookFor(tenantWebhook.NewTenantValidator(client)))
 	hookServer.Register("/validate-tenant-kubecube-io-v1-project", admisson.ValidatingWebhookFor(projectWebhook.NewProjectValidator(client)))
 	hookServer.Register("/validate-hotplug-kubecube-io-v1-hotplug", admisson.ValidatingWebhookFor(hotplugWebhook.NewHotplugValidator(client)))

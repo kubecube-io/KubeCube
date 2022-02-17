@@ -87,6 +87,27 @@ func TestValidateCreate(t *testing.T) {
 	projectValidate.Labels = map[string]string{"kubecube.io/tenant": "test-tenant-no-exist"}
 	err = projectValidate.ValidateCreate()
 	assert.NotNil(err)
+
+	// check false ingress domain suffix
+	projectValidate.Labels = map[string]string{"kubecube.io/tenant": "test-tenant"}
+	projectValidate.Spec.IngressDomainSuffix = []string{"test.com."}
+	err = projectValidate.ValidateCreate()
+	assert.NotNil(err)
+
+	// check false ingress domain suffix
+	projectValidate.Spec.IngressDomainSuffix = []string{"*^.com"}
+	err = projectValidate.ValidateCreate()
+	assert.NotNil(err)
+
+	//check true ingress domain suffix
+	projectValidate.Spec.IngressDomainSuffix = []string{".com"}
+	err = projectValidate.ValidateCreate()
+	assert.NotNil(err)
+
+	//check true ingress domain suffix
+	projectValidate.Spec.IngressDomainSuffix = []string{"test.com", "test", "com"}
+	err = projectValidate.ValidateCreate()
+	assert.Nil(err)
 }
 
 func TestValidateUpdate(t *testing.T) {
@@ -116,6 +137,27 @@ func TestValidateUpdate(t *testing.T) {
 	projectValidate.Labels = map[string]string{"kubecube.io/tenant": "test-tenant-no-exist"}
 	err = projectValidate.ValidateUpdate(nil)
 	assert.NotNil(err)
+
+	// check false ingress domain suffix
+	projectValidate.Labels = map[string]string{"kubecube.io/tenant": "test-tenant"}
+	projectValidate.Spec.IngressDomainSuffix = []string{"test.com."}
+	err = projectValidate.ValidateUpdate(nil)
+	assert.NotNil(err)
+
+	// check false ingress domain suffix
+	projectValidate.Spec.IngressDomainSuffix = []string{"*^.com"}
+	err = projectValidate.ValidateUpdate(nil)
+	assert.NotNil(err)
+
+	//check true ingress domain suffix
+	projectValidate.Spec.IngressDomainSuffix = []string{".com"}
+	err = projectValidate.ValidateUpdate(nil)
+	assert.NotNil(err)
+
+	//check true ingress domain suffix
+	projectValidate.Spec.IngressDomainSuffix = []string{"test.com", "test", "com"}
+	err = projectValidate.ValidateUpdate(nil)
+	assert.Nil(err)
 }
 
 func TestValidateDelete(t *testing.T) {
