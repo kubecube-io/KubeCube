@@ -301,12 +301,12 @@ func (h *handler) createBinds(c *gin.Context) {
 		},
 	}
 
-	if access := access.AllowAccess(constants.LocalCluster, c.Request, "create", clusterRoleBinding); !access {
+	if access := access.AllowAccess(constants.LocalCluster, c.Request, constants.CreateVerb, clusterRoleBinding); !access {
 		clog.Debug("permission check fail")
 		response.FailReturn(c, errcode.ForbiddenErr)
 		return
 	}
-	if access := access.AllowAccess(constants.LocalCluster, c.Request, "create", roleBinding); !access {
+	if access := access.AllowAccess(constants.LocalCluster, c.Request, constants.CreateVerb, roleBinding); !access {
 		clog.Debug("permission check fail")
 		response.FailReturn(c, errcode.ForbiddenErr)
 		return
@@ -379,7 +379,7 @@ func (h *handler) deleteBinds(c *gin.Context) {
 		return
 	}
 
-	if access := access.AllowAccess(constants.LocalCluster, c.Request, "delete", &roleBinding); !access {
+	if access := access.AllowAccess(constants.LocalCluster, c.Request, constants.DeleteVerb, &roleBinding); !access {
 		clog.Debug("permission check fail")
 		response.FailReturn(c, errcode.ForbiddenErr)
 		return
@@ -396,7 +396,7 @@ func (h *handler) deleteBinds(c *gin.Context) {
 				return
 			}
 		} else {
-			if access := access.AllowAccess(constants.LocalCluster, c.Request, "delete", crb); !access {
+			if access := access.AllowAccess(constants.LocalCluster, c.Request, constants.DeleteVerb, crb); !access {
 				clog.Debug("permission check fail")
 				response.FailReturn(c, errcode.ForbiddenErr)
 				return
