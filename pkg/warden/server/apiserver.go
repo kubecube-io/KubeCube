@@ -30,12 +30,13 @@ import (
 var log clog.CubeLogger
 
 type Server struct {
-	Server    *http.Server
-	JwtSecret string
-	BindAddr  string
-	Port      int
-	TlsCert   string
-	TlsKey    string
+	Server                 *http.Server
+	JwtSecret              string
+	BindAddr               string
+	Port                   int
+	TlsCert                string
+	TlsKey                 string
+	LocalClusterKubeConfig string
 
 	ready bool
 }
@@ -49,7 +50,7 @@ func (s *Server) Initialize() error {
 }
 
 func (s *Server) Run(stop <-chan struct{}) {
-	authProxyHandler, err := authproxy.NewHandler()
+	authProxyHandler, err := authproxy.NewHandler(s.LocalClusterKubeConfig)
 	if err != nil {
 		log.Fatal("new auth proxy handler failed: %v", err)
 	}

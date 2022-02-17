@@ -19,25 +19,16 @@ import (
 	"net/http"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/multi-tenancy/incubator/hnc/api/v1alpha2"
 
-	"github.com/kubecube-io/kubecube/pkg/warden/utils"
-
-	"github.com/kubecube-io/kubecube/pkg/clog"
-
-	"github.com/kubecube-io/kubecube/pkg/warden/reporter"
-	"sigs.k8s.io/controller-runtime/pkg/healthz"
-
-	//v1 "k8s.io/api/rbac/v1"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
-
-	ctrl "sigs.k8s.io/controller-runtime"
-
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	"github.com/kubecube-io/kubecube/pkg/apis"
+	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/exit"
+	"github.com/kubecube-io/kubecube/pkg/warden/reporter"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -81,9 +72,6 @@ func (s *SyncManager) Initialize() error {
 	if err != nil {
 		return fmt.Errorf("error new sync mgr: %s", err.Error())
 	}
-
-	// todo(weilaaa): init pivot client here is not elegant
-	utils.PivotClient = s.Manager.GetClient()
 
 	s.LocalClient, err = client.New(ctrl.GetConfigOrDie(), client.Options{Scheme: scheme})
 	if err != nil {
@@ -130,14 +118,12 @@ func (s *SyncManager) readyzCheck() bool {
 func (s *SyncManager) Run(stop <-chan struct{}) {
 	ctx := exit.SetupCtxWithStop(context.Background(), stop)
 
-	go func() {
-		err := s.Manager.Start(ctx)
-		if err != nil {
-			log.Fatal("start sync manager failed: %s", err)
-		}
-	}()
-
-	if !s.Manager.GetCache().WaitForCacheSync(ctx) {
-		log.Fatal("wait for cache sync failed")
+	err := s.Manager.Start(ctx)
+	if err != nil {
+		log.Fatal("start sync manager failed: %s", err)
 	}
+
+	//if !s.Manager.GetCache().WaitForCacheSync(ctx) {
+	//	log.Fatal("wait for cache sync failed")
+	//}
 }

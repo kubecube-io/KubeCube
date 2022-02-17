@@ -36,7 +36,6 @@ import (
 
 	"github.com/kubecube-io/kubecube/pkg/apis"
 	"github.com/kubecube-io/kubecube/pkg/clog"
-	"github.com/kubecube-io/kubecube/pkg/utils/exit"
 )
 
 var (
@@ -63,7 +62,6 @@ type Client interface {
 	ClientSet() kubernetes.Interface
 
 	Discovery() discovery.DiscoveryInterface
-	RESTClient() rest.Interface
 	RESTMapper() meta.RESTMapper
 }
 
@@ -73,7 +71,6 @@ type InternalClient struct {
 	rawClientSet kubernetes.Interface
 	metrics      versioned.Interface
 	discovery    discovery.DiscoveryInterface
-	restful      rest.Interface
 
 	// restMapper map GroupVersionKinds to Resources
 	restMapper meta.RESTMapper
@@ -81,7 +78,7 @@ type InternalClient struct {
 
 // NewClientFor generate client by config
 // todo: with options
-func NewClientFor(cfg *rest.Config, stopCh chan struct{}) (Client, error) {
+func NewClientFor(ctx context.Context, cfg *rest.Config) (Client, error) {
 	var err error
 	c := new(InternalClient)
 
@@ -100,11 +97,6 @@ func NewClientFor(cfg *rest.Config, stopCh chan struct{}) (Client, error) {
 		return nil, fmt.Errorf("new metrics client failed: %v", err)
 	}
 
-	c.restful, err = rest.RESTClientFor(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("new rest client failed: %v", err)
-	}
-
 	c.rawClientSet, err = kubernetes.NewForConfig(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("new raw k8s clientSet failed: %v", err)
@@ -119,8 +111,6 @@ func NewClientFor(cfg *rest.Config, stopCh chan struct{}) (Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("new rest mapper failed: %v", err)
 	}
-
-	ctx := exit.SetupCtxWithStop(context.Background(), stopCh)
 
 	go func() {
 		err = c.cache.Start(ctx)
@@ -156,10 +146,6 @@ func (c *InternalClient) RESTMapper() meta.RESTMapper {
 
 func (c *InternalClient) Discovery() discovery.DiscoveryInterface {
 	return c.discovery
-}
-
-func (c *InternalClient) RESTClient() rest.Interface {
-	return c.restful
 }
 
 // WithSchemes allow add extensions scheme to client

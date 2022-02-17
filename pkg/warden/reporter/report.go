@@ -18,24 +18,32 @@ package reporter
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/http"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/json"
+	"k8s.io/apimachinery/pkg/util/wait"
 
+	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
+	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/multicluster/scout"
+	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
 )
 
-// report do real report loop
-func (r *Reporter) report(stop <-chan struct{}) {
+// reporting do real report loop
+func (r *Reporter) reporting(stop <-chan struct{}) {
 	for {
 		select {
 		case <-time.Tick(time.Duration(r.PeriodSecond) * time.Second):
-			if !r.do() {
-				r.illPivotCluster()
-			} else {
+			healthy := r.report()
+			if healthy {
 				r.healPivotCluster()
+			} else {
+				r.illPivotCluster()
 			}
 		case <-stop:
 			return
@@ -43,26 +51,46 @@ func (r *Reporter) report(stop <-chan struct{}) {
 	}
 }
 
-func (r *Reporter) do() bool {
+// registerIfNeed register current cluster to pivot cluster if need
+func (r *Reporter) registerIfNeed(ctx context.Context) error {
+	// todo: remove it when we dont need KubernetesAPIEndpoint anymore
+	cfg, err := kubeconfig.LoadKubeConfigFromBytes(r.rawLocalKubeConfig)
+	if err != nil {
+		return err
+	}
+
+	clog.Info("pivot cluster address is %v", cfg.Host)
+
+	return wait.Poll(3*time.Second, 15*time.Second, func() (done bool, err error) {
+		cluster := &clusterv1.Cluster{
+			ObjectMeta: metav1.ObjectMeta{Name: r.Cluster},
+			Spec: clusterv1.ClusterSpec{
+				KubeConfig:            r.rawLocalKubeConfig,
+				IsMemberCluster:       r.IsMemberCluster,
+				KubernetesAPIEndpoint: cfg.Host,
+			},
+		}
+		err = r.PivotClient.Direct().Create(ctx, cluster)
+		if err != nil {
+			if errors.IsAlreadyExists(err) {
+				log.Debug("cluster cr %v is already exist", cluster.Name)
+				return true, nil
+			}
+			log.Warn("create cluster %v failed: %v", err)
+			return false, nil
+		}
+		return true, nil
+	})
+}
+
+func (r *Reporter) report() bool {
 	w := scout.WardenInfo{Cluster: r.Cluster, ReportTime: time.Now()}
 
-	data, err := json.Marshal(w)
+	resp, err := r.do(w)
 	if err != nil {
-		log.Error("json marshal failed: %v", err)
+		log.Debug("warden report failed: %v", err)
 		return false
 	}
-
-	reader := bytes.NewReader(data)
-
-	url := fmt.Sprintf("https://%s%s", r.PivotCubeHost, "/api/v1/cube/scout/heartbeat")
-
-	resp, err := r.Client.Post(url, "application/json", reader)
-	if err != nil {
-		log.Debug("post heartbeat to pivot cluster failed: %v", err)
-		return false
-	}
-
-	_ = resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return false
@@ -71,18 +99,38 @@ func (r *Reporter) do() bool {
 	return true
 }
 
+func (r *Reporter) do(info scout.WardenInfo) (*http.Response, error) {
+	data, err := json.Marshal(info)
+	if err != nil {
+		return nil, err
+	}
+
+	reader := bytes.NewReader(data)
+
+	url := fmt.Sprintf("https://%s%s", r.PivotCubeHost, "/api/v1/cube/scout/heartbeat")
+
+	resp, err := r.Client.Post(url, "application/json", reader)
+	if err != nil {
+		return nil, err
+	}
+
+	_ = resp.Body.Close()
+
+	return resp, nil
+}
+
 // illPivotCluster logs when pivot cluster ill
 func (r *Reporter) illPivotCluster() {
-	if r.PivotHealthy {
+	if r.pivotHealthy {
 		log.Info("disconnect with pivot cluster")
 	}
-	r.PivotHealthy = false
+	r.pivotHealthy = false
 }
 
 // healPivotCluster logs when reconnected
 func (r *Reporter) healPivotCluster() {
-	if !r.PivotHealthy {
+	if !r.pivotHealthy {
 		log.Info("connected with pivot cluster")
 	}
-	r.PivotHealthy = true
+	r.pivotHealthy = true
 }

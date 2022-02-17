@@ -19,8 +19,10 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,6 +42,10 @@ import (
 )
 
 func createResource(ctx context.Context, obj client.Object, c client.Client, cluster string, objKind string) error {
+	if reflect.ValueOf(obj).IsNil() {
+		return fmt.Errorf("object can not be nil")
+	}
+
 	err := c.Create(ctx, obj, &client.CreateOptions{})
 	if err != nil {
 		if errors.IsAlreadyExists(err) {
@@ -93,6 +99,23 @@ func tryConnectCluster(cluster clusterv1.Cluster) (client.Client, error) {
 	}
 
 	return cli, nil
+}
+
+// isDatingCluster tells if the cluster is dating with KubeCube
+func isDatingCluster(ctx context.Context, cli client.Client, cluster string) bool {
+	warden := appsv1.Deployment{}
+	err := cli.Get(ctx, client.ObjectKey{Name: constants.Warden, Namespace: constants.CubeNamespace}, &warden)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			log.Debug("warden not found in cluster %v", cluster)
+			return false
+		}
+		clog.Warn("confirm warden in cluster %v failed, try redeploy", cluster)
+		return false
+	}
+
+	clog.Info("warden of cluster %v is dating with kubecube", cluster)
+	return true
 }
 
 // deleteExternalResources delete external dependency of cluster

@@ -91,6 +91,7 @@ func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivot
 		info.HarborAddr = cluster.Spec.HarborAddr
 		info.KubeApiServer = cluster.Spec.KubernetesAPIEndpoint
 		info.NetworkType = cluster.Spec.NetworkType
+		info.IngressDomainSuffix = cluster.Spec.IngressDomainSuffix
 
 		internalCluster, err := multicluster.Interface().Get(v)
 		if internalCluster != nil && err != nil {

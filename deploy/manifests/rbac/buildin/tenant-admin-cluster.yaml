@@ -1,0 +1,13 @@
+# tenant admin has limited privileges under of
+# tenant namespace used of RoleBinding.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: tenant-admin-cluster
+  annotations:
+    kubecube.io/sync: "true"
+aggregationRule:
+  clusterRoleSelectors:
+    - matchLabels:
+        rbac.authorization.k8s.io/aggregate-to-tenant-admin-cluster: "true"
+rules: []

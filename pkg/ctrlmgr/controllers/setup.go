@@ -27,6 +27,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
+// todo: change set func if need
+
 var setupFns []func(manager manager.Manager) error
 
 func init() {

@@ -48,6 +48,9 @@ spec:
               harborAddr:
                 description: harbor address for cluster
                 type: string
+              ingressDomainSuffix:
+                description: let ingress gets a domain suffix
+                type: string
               isMemberCluster:
                 description: cluster is member or not
                 type: boolean

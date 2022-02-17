@@ -49,13 +49,17 @@ var _ reconcile.Reconciler = &HotplugReconciler{}
 // HotplugReconciler reconciles a Hotplug object
 type HotplugReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme          *runtime.Scheme
+	isMemberCluster bool
+	clusterName     string
 }
 
-func newReconciler(mgr manager.Manager) (*HotplugReconciler, error) {
+func newReconciler(mgr manager.Manager, isMemberCluster bool, clusterName string) (*HotplugReconciler, error) {
 	r := &HotplugReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:          mgr.GetClient(),
+		Scheme:          mgr.GetScheme(),
+		isMemberCluster: isMemberCluster,
+		clusterName:     clusterName,
 	}
 	return r, nil
 }
@@ -243,8 +247,8 @@ func addFailResult(result *hotplugv1.DeployResult, message string) {
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func SetupWithManager(mgr ctrl.Manager) error {
-	r, err := newReconciler(mgr)
+func SetupWithManager(mgr ctrl.Manager, isMemberCluster bool, clusterName string) error {
+	r, err := newReconciler(mgr, isMemberCluster, clusterName)
 	if err != nil {
 		return err
 	}

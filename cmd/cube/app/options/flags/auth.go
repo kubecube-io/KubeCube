@@ -26,7 +26,7 @@ import (
 
 func init() {
 	Flags = append(Flags, []cli.Flag{
-		// Ldap PivotClient
+		// Ldap pivotClient
 		&cli.BoolFlag{
 			Name:        "ldap-is-enable",
 			Value:       false,

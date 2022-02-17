@@ -1,16 +1,16 @@
-# ordinary only has read authority under of
-# bottom layer namespace used of RoleBinding.
+# tenant admin has limited privileges under of
+# tenant namespace used of RoleBinding.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: reviewer
+  name: tenant-admin
   labels:
     kubecube.io/rbac: "true"
-    kubecube.io/role: "reviewer"
+    kubecube.io/role: "tenant"
   annotations:
     kubecube.io/sync: "true"
 aggregationRule:
   clusterRoleSelectors:
     - matchLabels:
-        rbac.authorization.k8s.io/aggregate-to-reviewer: "true"
+        rbac.authorization.k8s.io/aggregate-to-tenant-admin: "true"
 rules: []

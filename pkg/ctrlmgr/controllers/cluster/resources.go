@@ -40,17 +40,23 @@ import (
 )
 
 const (
-	configMapName = "kubeconfig-pivot-cluster"
-	secretName    = "cube-tls-secret"
-	webhookName   = "warden-validating-webhook-configuration"
-	appKey        = "kubecube.io/app"
-	masterMark    = "node-role.kubernetes.io/master"
-	existsOp      = "Exists"
-	mountPki      = "/etc/kubernetes/pki"
-	mountName     = "pki-mount"
+	configMapName        = "kubeconfig-pivot-cluster"
+	kubeConfigSecretName = "kubeconfigs"
+	tlsSecretName        = "cube-tls-secret"
+	webhookName          = "warden-validating-webhook-configuration"
+	appKey               = "kubecube.io/app"
+	masterMark           = "node-role.kubernetes.io/master"
+	existsOp             = "Exists"
+	mountPki             = "/etc/kubernetes/pki"
+	mountName            = "pki-mount"
 )
 
 func deployResources(ctx context.Context, cli client.Client, memberCluster, pivotCluster *clusterv1.Cluster) error {
+	// if target cluster is dating with KubeCube, return directly
+	if isDatingCluster(ctx, cli, memberCluster.Name) {
+		return nil
+	}
+
 	isMemberCluster := memberCluster.Spec.IsMemberCluster
 
 	// create resource below when cluster is member
@@ -88,8 +94,8 @@ func deployResources(ctx context.Context, cli client.Client, memberCluster, pivo
 		}
 
 		// create tls secret to target cluster
-		secret := makeTLSSecret()
-		err = createResource(ctx, secret, cli, memberCluster.Name, "secret")
+		tlsSecret := makeTLSSecret()
+		err = createResource(ctx, tlsSecret, cli, memberCluster.Name, "secret")
 		if err != nil {
 			return err
 		}
@@ -115,9 +121,16 @@ func deployResources(ctx context.Context, cli client.Client, memberCluster, pivo
 		}
 	}
 
+	// create kubeConfig secret to target cluster
+	secret := makeKubeConfigSecret(pivotCluster, memberCluster)
+	err := createResource(ctx, secret, cli, memberCluster.Name, "secret")
+	if err != nil {
+		return err
+	}
+
 	// create warden deployment to target cluster
 	deployment := makeDeployment(memberCluster.Name, isMemberCluster)
-	err := createResource(ctx, deployment, cli, memberCluster.Name, "deployment")
+	err = createResource(ctx, deployment, cli, memberCluster.Name, "deployment")
 	if err != nil {
 		return err
 	}
@@ -145,18 +158,39 @@ func makeDeployment(cluster string, isMemberCluster bool) *appsv1.Deployment {
 		label = map[string]string{appKey: constants.Warden}
 
 		args = []string{
-			"-pivot-cluster-kubeconfig=/etc/config/kubeconfig",
+			"-pivot-cluster-kubeconfig=/etc/kubeconfigs/pivot-kubeconfig",
+			"-local-cluster-kubeconfig=/etc/kubeconfigs/local-kubeconfig",
 			"-tls-cert=/etc/tls/tls.crt",
 			"-tls-key=/etc/tls/tls.key",
+			fmt.Sprintf("-in-member-cluster=%v", isMemberCluster),
 			fmt.Sprintf("-cluster=%s", cluster),
 			fmt.Sprintf("-pivot-cube-host=%s", env.PivotCubeHost()),
 		}
 
-		tlsVolume = corev1.Volume{
-			Name: secretName,
+		kubeConfigVolume = corev1.Volume{
+			Name: kubeConfigSecretName,
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
-					SecretName: secretName,
+					SecretName: kubeConfigSecretName,
+					Items: []corev1.KeyToPath{
+						{
+							Key:  "pivotCluster",
+							Path: "pivot-kubeconfig",
+						},
+						{
+							Key:  "localCluster",
+							Path: "local-kubeconfig",
+						},
+					},
+				},
+			},
+		}
+
+		tlsVolume = corev1.Volume{
+			Name: tlsSecretName,
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: tlsSecretName,
 				},
 			},
 		}
@@ -177,37 +211,40 @@ func makeDeployment(cluster string, isMemberCluster bool) *appsv1.Deployment {
 			},
 		}
 
-		configVolume = corev1.Volume{
-			Name: "config-volume",
-			VolumeSource: corev1.VolumeSource{
-				ConfigMap: &corev1.ConfigMapVolumeSource{
-					LocalObjectReference: corev1.LocalObjectReference{
-						Name: configMapName,
-					},
-					Items: []corev1.KeyToPath{
-						{
-							Key:  "config",
-							Path: "kubeconfig",
-						},
-					},
-				},
-			},
-		}
+		//configVolume = corev1.Volume{
+		//	Name: "config-volume",
+		//	VolumeSource: corev1.VolumeSource{
+		//		ConfigMap: &corev1.ConfigMapVolumeSource{
+		//			LocalObjectReference: corev1.LocalObjectReference{
+		//				Name: configMapName,
+		//			},
+		//			Items: []corev1.KeyToPath{
+		//				{
+		//					Key:  "config",
+		//					Path: "kubeconfig",
+		//				},
+		//			},
+		//		},
+		//	},
+		//}
 
-		tlsVolumeMount      = corev1.VolumeMount{Name: secretName, MountPath: "/etc/tls", ReadOnly: true}
-		helmVolumeMount     = corev1.VolumeMount{Name: "helm-pkg", MountPath: "/root/helmchartpkg"}
-		timeZoneVolumeMount = corev1.VolumeMount{Name: "localtime", MountPath: "/etc/localtime"}
-		configVolumeMount   = corev1.VolumeMount{Name: "config-volume", MountPath: "/etc/config", ReadOnly: true}
+		kubeConfigVolumeMount = corev1.VolumeMount{Name: kubeConfigSecretName, MountPath: "/etc/kubeconfigs", ReadOnly: true}
+		tlsVolumeMount        = corev1.VolumeMount{Name: tlsSecretName, MountPath: "/etc/tls", ReadOnly: true}
+		helmVolumeMount       = corev1.VolumeMount{Name: "helm-pkg", MountPath: "/root/helmchartpkg"}
+		timeZoneVolumeMount   = corev1.VolumeMount{Name: "localtime", MountPath: "/etc/localtime"}
+		//configVolumeMount     = corev1.VolumeMount{Name: "config-volume", MountPath: "/etc/config", ReadOnly: true}
 
 		volumeMounts = []corev1.VolumeMount{
-			configVolumeMount,
+			//configVolumeMount,
+			kubeConfigVolumeMount,
 			timeZoneVolumeMount,
 			helmVolumeMount,
 			tlsVolumeMount,
 		}
 
 		volumes = []corev1.Volume{
-			configVolume,
+			//configVolume,
+			kubeConfigVolume,
 			helmVolume,
 			tlsVolume,
 			timeZoneVolume,
@@ -215,9 +252,11 @@ func makeDeployment(cluster string, isMemberCluster bool) *appsv1.Deployment {
 	)
 
 	if !isMemberCluster {
-		volumeMounts = []corev1.VolumeMount{tlsVolumeMount, helmVolumeMount, timeZoneVolumeMount}
-		volumes = []corev1.Volume{tlsVolume, helmVolume, timeZoneVolume}
+		volumeMounts = []corev1.VolumeMount{kubeConfigVolumeMount, tlsVolumeMount, helmVolumeMount, timeZoneVolumeMount}
+		volumes = []corev1.Volume{kubeConfigVolume, tlsVolume, helmVolume, timeZoneVolume}
 		args = []string{
+			"-pivot-cluster-kubeconfig=/etc/kubeconfigs/pivot-kubeconfig",
+			"-local-cluster-kubeconfig=/etc/kubeconfigs/local-kubeconfig",
 			"-in-member-cluster=false",
 			"-tls-cert=/etc/tls/tls.crt",
 			"-tls-key=/etc/tls/tls.key",
@@ -304,6 +343,24 @@ func makeKubeConfigCM(pivotCluster *clusterv1.Cluster) *corev1.ConfigMap {
 	}
 
 	return cm
+}
+
+func makeKubeConfigSecret(pivotCluster, targetCluster *clusterv1.Cluster) *corev1.Secret {
+	if pivotCluster == nil || targetCluster == nil {
+		return nil
+	}
+
+	s := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{
+		Name:      "kubeconfigs",
+		Namespace: constants.CubeNamespace,
+	},
+		Data: map[string][]byte{
+			"localCluster": targetCluster.Spec.KubeConfig,
+			"pivotCluster": pivotCluster.Spec.KubeConfig,
+		},
+	}
+
+	return s
 }
 
 // makePrevJob make prev job that used to install dependence into target cluster
@@ -460,6 +517,7 @@ func makeWardenWebhook() *v1.ValidatingWebhookConfiguration {
 	err := pClient.Get(context.Background(), key, &wh)
 	if err != nil {
 		log.Error(err.Error())
+		return nil
 	}
 
 	return &v1.ValidatingWebhookConfiguration{
@@ -474,7 +532,7 @@ func makeTLSSecret() *corev1.Secret {
 	pClient := clients.Interface().Kubernetes(constants.LocalCluster).Cache()
 	secret := corev1.Secret{}
 	key := types.NamespacedName{
-		Name:      secretName,
+		Name:      tlsSecretName,
 		Namespace: constants.CubeNamespace,
 	}
 	err := pClient.Get(context.Background(), key, &secret)
