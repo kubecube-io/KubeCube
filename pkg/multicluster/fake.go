@@ -19,6 +19,7 @@ package multicluster
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/version"
 	"sync"
 
 	v1 "k8s.io/api/core/v1"
@@ -155,4 +156,8 @@ func (m *FakerManagerImpl) PivotCluster() *InternalCluster {
 		return clusters[0]
 	}
 	return nil
+}
+
+func (m *FakerManagerImpl) Version(cluster string) (*version.Info, error) {
+	return nil, nil
 }

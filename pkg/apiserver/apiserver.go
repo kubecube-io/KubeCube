@@ -32,7 +32,6 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/scout"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/user"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/yamldeploy"
-	"github.com/kubecube-io/kubecube/pkg/apiserver/middlewares"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	_ "github.com/kubecube-io/kubecube/pkg/utils/errcode"
@@ -62,7 +61,7 @@ func registerCubeAPI(cfg *Config) http.Handler {
 	apisOutsideMiddlewares(router)
 
 	// set middlewares for apis below
-	middlewares.SetUpMiddlewares(router, cfg.Gi18nManagers)
+	//middlewares.SetUpMiddlewares(router, cfg.Gi18nManagers)
 
 	// clusters apis handler
 	cluster.NewHandler().AddApisTo(router)
@@ -96,7 +95,9 @@ func registerCubeAPI(cfg *Config) http.Handler {
 
 	k8sApiProxy := router.Group(constants.ApiPathRoot + "/proxy")
 	{
-		k8sApiProxy.Any("/clusters/:cluster/*url", resourcemanage.ProxyHandle)
+		proxyHandler := resourcemanage.NewProxyHandler(cfg.EnableVersionConversion)
+		k8sApiProxy.Any("/clusters/:cluster/*url", proxyHandler.ProxyHandle)
+		k8sApiProxy.Any("/groups/:group/versions/:version/*url", proxyHandler.ConvertDemo)
 	}
 
 	k8sApiExtend := router.Group(constants.ApiPathRoot + "/extend")

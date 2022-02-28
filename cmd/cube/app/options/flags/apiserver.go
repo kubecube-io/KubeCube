@@ -57,5 +57,10 @@ func init() {
 			Name:        "ca-key",
 			Destination: &CubeOpts.APIServerOpts.CaKey,
 		},
+		&cli.BoolFlag{
+			Name:        "enable-version-conversion",
+			Value:       true,
+			Destination: &CubeOpts.APIServerOpts.EnableVersionConversion,
+		},
 	}...)
 }

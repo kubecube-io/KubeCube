@@ -50,7 +50,8 @@ type Filter struct {
 type K8sJson = map[string]interface{}
 type K8sJsonArr = []interface{}
 
-// modify the response
+// ModifyResponse modify the response
+// todo: do response convert here
 func (f *Filter) ModifyResponse(r *http.Response) error {
 	// get info from response
 	var body []byte

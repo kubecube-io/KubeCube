@@ -19,6 +19,7 @@ package multicluster
 import (
 	"context"
 	"github.com/kubecube-io/kubecube/pkg/multicluster/client"
+	"k8s.io/apimachinery/pkg/version"
 )
 
 // Manager access to internal cluster
@@ -27,6 +28,9 @@ type Manager interface {
 	Add(cluster string, internalCluster *InternalCluster) error
 	Get(cluster string) (*InternalCluster, error)
 	Del(cluster string) error
+
+	// Version the k8s version about cluster
+	Version(cluster string) (*version.Info, error)
 
 	// FuzzyCopy return fuzzy cluster of raw
 	FuzzyCopy() map[string]*FuzzyCluster
