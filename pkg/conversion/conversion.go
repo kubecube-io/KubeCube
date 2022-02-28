@@ -19,112 +19,87 @@ package conversion
 import (
 	"errors"
 	"fmt"
-	"github.com/kubecube-io/kubecube/pkg/multicluster"
+	"strconv"
+	"strings"
+
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/version"
-	"strconv"
-	"strings"
+	"k8s.io/client-go/discovery"
 )
 
+// VersionConverter knows how to convert object to specified version
 type VersionConverter struct {
-	// Scheme hold full versions k8s api
-	Scheme *runtime.Scheme
+	// scheme hold full versions k8s api
+	scheme *runtime.Scheme
 
-	// CF the codec factory had methods of encode and decode
-	CF serializer.CodecFactory
+	// cf the codec factory had methods of encode and decode
+	cf serializer.CodecFactory
 
-	// MultiClusterMgr has methods that can communicate
-	// with cluster it take over
-	MultiClusterMgr multicluster.Manager
+	// discovery is response to communicate with k8s
+	discovery discovery.DiscoveryInterface
+
+	// restMapper is response to map gvk and gvr
+	restMapper meta.RESTMapper
+
+	// clusterInfo hold the version info of target cluster
+	clusterInfo *version.Info
 }
 
-func NewVersionConvertor(mgr multicluster.Manager, installFuncs ...InstallFunc) *VersionConverter {
+func NewVersionConvertor(discovery discovery.DiscoveryInterface, restMapper meta.RESTMapper, installFuncs ...InstallFunc) (*VersionConverter, error) {
 	scheme := runtime.NewScheme()
 	install(scheme, installFuncs...)
 
-	return &VersionConverter{
-		Scheme:          scheme,
-		MultiClusterMgr: mgr,
-		CF:              serializer.NewCodecFactory(scheme),
+	info, err := discovery.ServerVersion()
+	if err != nil {
+		return nil, err
 	}
+
+	return &VersionConverter{
+		scheme:      scheme,
+		discovery:   discovery,
+		restMapper:  restMapper,
+		clusterInfo: info,
+		cf:          serializer.NewCodecFactory(scheme),
+	}, nil
 }
 
 // Convert do real conversion action
 func (c *VersionConverter) Convert(in runtime.Object, target runtime.GroupVersioner) (runtime.Object, error) {
-	return c.Scheme.ConvertToVersion(in, target)
-}
-
-// Gvr2Gvk convert gvr to gvk by specified cluster
-func (c *VersionConverter) Gvr2Gvk(gvr *schema.GroupVersionResource, targetCluster string) (*schema.GroupVersionKind, error) {
-	cluster, err := c.MultiClusterMgr.Get(targetCluster)
-	if err != nil {
-		return nil, err
-	}
-
-	kinds, err := cluster.Client.RESTMapper().KindsFor(*gvr)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(kinds) == 0 {
-		return nil, fmt.Errorf("%v is not supportted in cluster %v", gvr.String(), targetCluster)
-	}
-
-	// use best priority
-	return &kinds[0], nil
-}
-
-// Gvk2Gvr convert gvk to gvr by specified cluster
-func (c *VersionConverter) Gvk2Gvr(gvk *schema.GroupVersionKind, targetCluster string) (*schema.GroupVersionResource, error) {
-	cluster, err := c.MultiClusterMgr.Get(targetCluster)
-	if err != nil {
-		return nil, err
-	}
-
-	m, err := cluster.Client.RESTMapper().RESTMapping(gvk.GroupKind(), gvk.Version)
-	if err != nil {
-		return nil, err
-	}
-
-	return &m.Resource, nil
+	return c.scheme.ConvertToVersion(in, target)
 }
 
 // IsObjectAvailable describes if given object is available in target cluster.
 // a replacement group version kind will return if the result is unavailable.
-func (c *VersionConverter) IsObjectAvailable(obj runtime.Object, targetCluster string) (bool, *schema.GroupVersionKind, error) {
+func (c *VersionConverter) IsObjectAvailable(obj runtime.Object) (bool, *schema.GroupVersionKind, error) {
 	gvk := obj.GetObjectKind().GroupVersionKind()
-	return c.IsGvkAvailable(&gvk, targetCluster)
+	return c.IsGvkAvailable(&gvk)
 }
 
 // IsGvrAvailable describes if given gvr is available in target cluster.
 // a replacement group version kind will return if the result is unavailable.
-func (c *VersionConverter) IsGvrAvailable(gvr *schema.GroupVersionResource, targetCluster string) (bool, *schema.GroupVersionKind, error) {
-	gvk, err := c.Gvr2Gvk(gvr, targetCluster)
+func (c *VersionConverter) IsGvrAvailable(gvr *schema.GroupVersionResource) (bool, *schema.GroupVersionKind, error) {
+	gvk, err := Gvr2Gvk(c.restMapper, gvr)
 	if err != nil {
 		return false, nil, err
 	}
 
 	// use best priority
-	return c.IsGvkAvailable(gvk, targetCluster)
+	return c.IsGvkAvailable(gvk)
 }
 
 // IsGvkAvailable describes if given gvk is available in target cluster.
 // a replacement group version kind will return if the result is unavailable.
-func (c *VersionConverter) IsGvkAvailable(gvk *schema.GroupVersionKind, targetCluster string) (bool, *schema.GroupVersionKind, error) {
-	cluster, err := c.MultiClusterMgr.Get(targetCluster)
-	if err != nil {
-		return false, nil, err
-	}
-
-	clusterVersion := Version(cluster.Version)
+func (c *VersionConverter) IsGvkAvailable(gvk *schema.GroupVersionKind) (bool, *schema.GroupVersionKind, error) {
+	clusterVersion := Version(c.clusterInfo)
 
 	// todo: optimize it with api lifecycle
 
 	// to find gv through discovery client
-	groupList, err := cluster.Client.Discovery().ServerGroups()
+	groupList, err := c.discovery.ServerGroups()
 	if err != nil {
 		return false, nil, err
 	}
@@ -150,7 +125,7 @@ func (c *VersionConverter) IsGvkAvailable(gvk *schema.GroupVersionKind, targetCl
 	// going here means the groups about object kind may be different.
 	// example: extensions/v1beta1 <--> networking/v1
 	// so we should fetch preferred version by object kind.
-	_, allResources, err := cluster.Client.Discovery().ServerGroupsAndResources()
+	_, allResources, err := c.discovery.ServerGroupsAndResources()
 	if err != nil {
 		return false, nil, err
 	}
@@ -167,19 +142,19 @@ func (c *VersionConverter) IsGvkAvailable(gvk *schema.GroupVersionKind, targetCl
 		}
 	}
 
-	notSupportError := fmt.Errorf("%v is not support in target cluster %v with version %v", gvk.String(), targetCluster, clusterVersion)
+	notSupportError := fmt.Errorf("%v is not support in target cluster %v", gvk.String(), clusterVersion)
 
 	return false, nil, notSupportError
 }
 
 // Encode encodes given obj
 func (c *VersionConverter) Encode(obj runtime.Object, gv runtime.GroupVersioner) ([]byte, error) {
-	info, ok := runtime.SerializerInfoForMediaType(c.CF.SupportedMediaTypes(), runtime.ContentTypeJSON)
+	info, ok := runtime.SerializerInfoForMediaType(c.cf.SupportedMediaTypes(), runtime.ContentTypeJSON)
 	if !ok {
 		return nil, errors.New("no media type match for serializer")
 	}
 	encoder := info.Serializer
-	codec := c.CF.EncoderForVersion(encoder, gv)
+	codec := c.cf.EncoderForVersion(encoder, gv)
 	out, err := runtime.Encode(codec, obj)
 	if err != nil {
 		return nil, err
@@ -189,8 +164,33 @@ func (c *VersionConverter) Encode(obj runtime.Object, gv runtime.GroupVersioner)
 
 // Decode decodes data to object
 func (c *VersionConverter) Decode(data []byte, defaults *schema.GroupVersionKind, into runtime.Object, versions ...schema.GroupVersion) (runtime.Object, *schema.GroupVersionKind, error) {
-	decoder := c.CF.UniversalDecoder(versions...)
+	decoder := c.cf.UniversalDecoder(versions...)
 	return decoder.Decode(data, defaults, into)
+}
+
+// Gvr2Gvk convert gvr to gvk by specified cluster
+func Gvr2Gvk(mapper meta.RESTMapper, gvr *schema.GroupVersionResource) (*schema.GroupVersionKind, error) {
+	kinds, err := mapper.KindsFor(*gvr)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(kinds) == 0 {
+		return nil, fmt.Errorf("%v is not supportted target cluster %v", gvr.String())
+	}
+
+	// use best priority
+	return &kinds[0], nil
+}
+
+// Gvk2Gvr convert gvk to gvr by specified cluster
+func Gvk2Gvr(mapper meta.RESTMapper, gvk *schema.GroupVersionKind) (*schema.GroupVersionResource, error) {
+	m, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
+	if err != nil {
+		return nil, err
+	}
+
+	return &m.Resource, nil
 }
 
 // ConvertURL convert url by given gvr
@@ -282,6 +282,7 @@ func ParseURL(url string) (bool, bool, *schema.GroupVersionResource, error) {
 	return isCoreApi, isNamespaced, gvr, nil
 }
 
+// IsStableVersion tells if given gv is stable
 func IsStableVersion(gv schema.GroupVersion) bool {
 	// todo: is that all stable version
 	stableVersions := []string{"v1", "v2", "v3", "v4"}
@@ -293,6 +294,7 @@ func IsStableVersion(gv schema.GroupVersion) bool {
 	return false
 }
 
+// Version print cluster version info
 func Version(info *version.Info) string {
 	return fmt.Sprintf("%v.%v", info.Major, info.Minor)
 }
