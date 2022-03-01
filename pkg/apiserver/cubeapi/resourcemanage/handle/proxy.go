@@ -48,13 +48,13 @@ type ProxyHandler struct {
 	// enableConvert means proxy handler will convert resources
 	enableConvert bool
 	// converter the version converter for doing resources convert
-	converter *conversion.VersionConverter
+	converter conversion.MultiVersionConverter
 }
 
 func NewProxyHandler(enableConvert bool) *ProxyHandler {
 	return &ProxyHandler{
 		enableConvert: enableConvert,
-		converter:     conversion.NewVersionConvertor(multicluster.Interface()),
+		converter:     multicluster.NewDefaultMultiVersionConverter(multicluster.Interface()),
 	}
 }
 
@@ -68,7 +68,11 @@ func (h *ProxyHandler) tryVersionConvert(cluster, url string, req *http.Request)
 	if err != nil {
 		return false, nil, "", err
 	}
-	isAvailable, recommendVersion, err := h.converter.IsGvrAvailable(gvr, cluster)
+	converter, err := h.converter.GetVersionConvert(cluster)
+	if err != nil {
+		return false, nil, "", err
+	}
+	isAvailable, recommendVersion, err := converter.IsGvrAvailable(gvr)
 	if err != nil {
 		return false, nil, "", err
 	}
@@ -93,7 +97,7 @@ func (h *ProxyHandler) tryVersionConvert(cluster, url string, req *http.Request)
 		return false, nil, "", err
 	}
 	// decode data into internal version of object
-	raw, rawGvr, err := h.converter.Decode(data, nil, nil)
+	raw, rawGvr, err := converter.Decode(data, nil, nil)
 	if err != nil {
 		return false, nil, "", err
 	}
@@ -101,12 +105,12 @@ func (h *ProxyHandler) tryVersionConvert(cluster, url string, req *http.Request)
 		return false, nil, "", fmt.Errorf("gv parse failed with pair(%v~%v)", rawGvr.GroupVersion().String(), gvr.GroupVersion().String())
 	}
 	// covert internal version object int recommend version object
-	out, err := h.converter.Convert(raw, recommendVersion.GroupVersion())
+	out, err := converter.Convert(raw, recommendVersion.GroupVersion())
 	if err != nil {
 		return false, nil, "", err
 	}
 	// encode concerted object
-	convertedObj, err := h.converter.Encode(out, recommendVersion.GroupVersion())
+	convertedObj, err := converter.Encode(out, recommendVersion.GroupVersion())
 	if err != nil {
 		return false, nil, "", err
 	}
@@ -114,82 +118,6 @@ func (h *ProxyHandler) tryVersionConvert(cluster, url string, req *http.Request)
 	clog.Info("resource converted with (%v~%v) when visit cluster %v", gvr.String(), recommendVersion.GroupVersion().WithResource(gvr.Resource), cluster)
 
 	return true, convertedObj, convertedUrl, nil
-}
-
-// ConvertDemo do demo
-// curl -k -H "Content-type: application/json"  -X POST -d '{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"name":"nginx-pythia","labels":{"app":"nginx-pythia"}},"spec":{"replicas":1,"selector":{"matchLabels":{"app":"nginx-pythia"}},"template":{"metadata":{"labels":{"app":"nginx-pythia"}},"spec":{"containers":[{"image":"nginx","name":"nginx"}]}}}}'   https://0.0.0.0:7443/api/v1/cube/proxy/groups/extensions/versions/v1beta1/apis/apps/v1/namespaces/default/deployments
-func (h *ProxyHandler) ConvertDemo(c *gin.Context) {
-	recommendVersion := schema.GroupVersionKind{
-		Group:   c.Param("group"),
-		Version: c.Param("version"),
-	}
-
-	url := c.Param("url")
-
-	_, _, gvr, err := conversion.ParseURL(url)
-	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.InternalServerError)
-		return
-	}
-
-	// convert url according to specified gvr at first
-	convertedUrl, err := conversion.ConvertURL(url, &schema.GroupVersionResource{Group: recommendVersion.Group, Version: recommendVersion.Version, Resource: gvr.Resource})
-	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.InternalServerError)
-		return
-	}
-
-	// we do not need convert body if request without body
-	if c.Request.Body == nil {
-		return
-	}
-
-	data, err := ioutil.ReadAll(c.Request.Body)
-	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.InternalServerError)
-		return
-	}
-	// decode data into internal version of object
-	raw, rawGvr, err := h.converter.Decode(data, nil, nil)
-	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.InternalServerError)
-		return
-	}
-	if rawGvr.GroupVersion().String() != gvr.GroupVersion().String() {
-		clog.Error("gv parse failed with pair(%v~%v)", rawGvr.GroupVersion().String(), gvr.GroupVersion().String())
-		response.FailReturn(c, errcode.InternalServerError)
-		return
-	}
-	// covert internal version object int recommend version object
-	out, err := h.converter.Convert(raw, recommendVersion.GroupVersion())
-	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.InternalServerError)
-		return
-	}
-	// encode concerted object
-	convertedObj, err := h.converter.Encode(out, recommendVersion.GroupVersion())
-	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.InternalServerError)
-		return
-	}
-
-	clog.Info("resource converted with (%v~%v)", gvr.String(), recommendVersion.GroupVersion().WithResource(gvr.Resource))
-
-	clog.Info(string(convertedObj))
-
-	m := map[string]interface{}{
-		"convertedUrl": convertedUrl,
-		"convertedObj": out,
-	}
-
-	response.SuccessReturn(c, m)
-	return
 }
 
 // ProxyHandle proxy all requests access to k8s, request uri format like below
@@ -209,6 +137,13 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 	}
 
 	ts, err := ctls.MakeMTlsTransportByPem(caData, certData, keyData)
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.InternalServerError)
+		return
+	}
+
+	_, _, gvr, err := conversion.ParseURL(url)
 	if err != nil {
 		clog.Error(err.Error())
 		response.FailReturn(c, errcode.InternalServerError)
@@ -252,7 +187,14 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 		requestProxy.ServeHTTP(c.Writer, c.Request)
 		return
 	}
-	//todo: do something with response
+
+	if needConvert {
+		// open response filter convert
+		filter.EnableConvert = true
+		filter.Converter, _ = h.converter.GetVersionConvert(cluster)
+		filter.RawGvr = gvr
+	}
+
 	requestProxy := &httputil.ReverseProxy{Director: director, Transport: ts, ModifyResponse: filter.ModifyResponse, ErrorHandler: errorHandler}
 
 	// trim auth token here
@@ -302,7 +244,6 @@ func FilterToMap(c *gin.Context, result []byte) resources.K8sJson {
 
 // parse request params, include selector, sort and page
 func parseQueryParams(c *gin.Context) resources.Filter {
-
 	exact, fuzzy := parseSelector(c.Query("selector"))
 	limit, offset := parsePage(c.Query("pageSize"), c.Query("pageNum"))
 	sortName, sortOrder, sortFunc := parseSort(c.Query("sortName"), c.Query("sortOrder"), c.Query("sortFunc"))
@@ -316,6 +257,7 @@ func parseQueryParams(c *gin.Context) resources.Filter {
 		SortOrder: sortOrder,
 		SortFunc:  sortFunc,
 	}
+
 	return filter
 }
 

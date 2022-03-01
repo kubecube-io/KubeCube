@@ -19,6 +19,7 @@ package resources
 import (
 	"bytes"
 	"compress/gzip"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -28,6 +29,10 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/conversion"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 const (
@@ -37,6 +42,7 @@ const (
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
+// Filter is the filter condition
 type Filter struct {
 	Exact     map[string]string
 	Fuzzy     map[string]string
@@ -45,13 +51,21 @@ type Filter struct {
 	SortName  string
 	SortOrder string
 	SortFunc  string
+
+	// ConverterContext holds methods to convert objects
+	ConverterContext
+}
+
+type ConverterContext struct {
+	EnableConvert bool
+	RawGvr        *schema.GroupVersionResource
+	Converter     *conversion.VersionConverter
 }
 
 type K8sJson = map[string]interface{}
 type K8sJsonArr = []interface{}
 
 // ModifyResponse modify the response
-// todo: do response convert here
 func (f *Filter) ModifyResponse(r *http.Response) error {
 	// get info from response
 	var body []byte
@@ -94,7 +108,7 @@ func (f *Filter) ModifyResponse(r *http.Response) error {
 	return nil
 }
 
-// filter result by exact/fuzzy match, sort, page
+// FilterResult filter result by exact/fuzzy match, sort, page
 func (f *Filter) FilterResult(body []byte) []byte {
 	var result K8sJson
 	err := json.Unmarshal(body, &result)
@@ -103,9 +117,12 @@ func (f *Filter) FilterResult(body []byte) []byte {
 		return nil
 	}
 
-	// list type
-	if result["items"] != nil {
+	// k8s status response do not need filter and convert
+	if !isStatusResp(result) {
 		if items, ok := result["items"].(K8sJsonArr); ok {
+			// entry here means k8s response is object list.
+			// we do filter, sort and page action here.
+
 			// match selector
 			items = f.exactMatch(items)
 			items = f.fuzzyMatch(items)
@@ -114,7 +131,25 @@ func (f *Filter) FilterResult(body []byte) []byte {
 			items = f.sort(items)
 			// page
 			items = f.page(items)
+
+			if f.EnableConvert {
+				var err error
+				items, err = f.ConvertItems(items...)
+				if err != nil {
+					clog.Info("convert items failed: %v", err)
+				}
+			}
+
 			result["items"] = items
+		} else {
+			if f.EnableConvert {
+				item, err := f.ConvertItems(result)
+				if err != nil {
+					clog.Info("convert object failed: %v", err)
+				}
+				// fixme: this is bug
+				result = item[0].(K8sJson)
+			}
 		}
 	}
 
@@ -126,7 +161,41 @@ func (f *Filter) FilterResult(body []byte) []byte {
 	return resultJson
 }
 
-// filter result by exact/fuzzy match, sort, page
+// ConvertItems converts items by given version
+func (f *Filter) ConvertItems(items ...interface{}) ([]interface{}, error) {
+	res := make([]interface{}, 0, len(items))
+	// todo: optimize it
+	for _, item := range items {
+		m, ok := item.(map[string]interface{})
+		if !ok {
+			return items, errors.New("object is not map[string]interface{}")
+		}
+		u := &unstructured.Unstructured{Object: m}
+		out, err := f.Converter.Convert(u, f.RawGvr.GroupVersion())
+		if err != nil {
+			return items, err
+		}
+		res = append(res, out)
+	}
+	return res, nil
+}
+
+// isStatusResp tells if k8s response is just only status
+func isStatusResp(r K8sJson) bool {
+	if kind, ok := r["kind"].(string); ok {
+		if kind != "Status" {
+			return false
+		}
+	}
+	if apiVersion, ok := r["apiVersion"].(v1.StatusReason); ok {
+		if apiVersion != "v1" {
+			return false
+		}
+	}
+	return true
+}
+
+// FilterResultToMap filter result by exact/fuzzy match, sort, page
 func (f *Filter) FilterResultToMap(body []byte) K8sJson {
 	var result K8sJson
 	err := json.Unmarshal(body, &result)
@@ -277,7 +346,7 @@ func (f *Filter) page(items K8sJsonArr) K8sJsonArr {
 	return items[f.Offset:end]
 }
 
-// get value by metadata.xx.xx.xx, multi level key
+// GetDeepValue get value by metadata.xx.xx.xx, multi level key
 func GetDeepValue(item interface{}, keyStr string) (value string) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -308,7 +377,7 @@ func GetDeepValue(item interface{}, keyStr string) (value string) {
 	return
 }
 
-// get float64 value by metadata.xx.xx.xx, multi level key
+// GetDeepFloat64 get float64 value by metadata.xx.xx.xx, multi level key
 func GetDeepFloat64(item interface{}, keyStr string) (value float64) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -334,7 +403,7 @@ func GetDeepFloat64(item interface{}, keyStr string) (value float64) {
 	return
 }
 
-// get map by spec.selector.matchLabels={xx= xx}
+// GetDeepMap get map by spec.selector.matchLabels={xx= xx}
 func GetDeepMap(item interface{}, keyStr string) (value K8sJson) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -360,7 +429,7 @@ func GetDeepMap(item interface{}, keyStr string) (value K8sJson) {
 	return
 }
 
-// get metadata.ownerReference[0]
+// GetDeepArray get metadata.ownerReference[0]
 func GetDeepArray(item interface{}, keyStr string) (value K8sJsonArr) {
 	defer func() {
 		if err := recover(); err != nil {

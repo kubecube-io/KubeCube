@@ -97,7 +97,6 @@ func registerCubeAPI(cfg *Config) http.Handler {
 	{
 		proxyHandler := resourcemanage.NewProxyHandler(cfg.EnableVersionConversion)
 		k8sApiProxy.Any("/clusters/:cluster/*url", proxyHandler.ProxyHandle)
-		k8sApiProxy.Any("/groups/:group/versions/:version/*url", proxyHandler.ConvertDemo)
 	}
 
 	k8sApiExtend := router.Group(constants.ApiPathRoot + "/extend")

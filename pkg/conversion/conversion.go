@@ -40,6 +40,7 @@ type VersionConverter struct {
 	cf serializer.CodecFactory
 
 	// discovery is response to communicate with k8s
+	// todo: use cache client
 	discovery discovery.DiscoveryInterface
 
 	// restMapper is response to map gvk and gvr
