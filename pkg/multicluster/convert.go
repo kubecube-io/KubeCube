@@ -51,7 +51,7 @@ func (m *DefaultMultiVersionConverter) GetVersionConvert(cluster string) (*conve
 		return nil, err
 	}
 
-	newc, err := conversion.NewVersionConvertor(ic.Client.Discovery(), ic.Client.RESTMapper())
+	newc, err := conversion.NewVersionConvertor(ic.Client.Discovery(), nil)
 	if err != nil {
 		return nil, err
 	}

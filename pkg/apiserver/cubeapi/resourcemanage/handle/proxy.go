@@ -20,23 +20,24 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/kubecube-io/kubecube/pkg/conversion"
-	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	"io"
 	"io/ioutil"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"net/http"
 	"net/http/httputil"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/conversion"
+	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/ctls"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
@@ -64,7 +65,7 @@ func (h *ProxyHandler) tryVersionConvert(cluster, url string, req *http.Request)
 		return false, nil, "", nil
 	}
 
-	_, _, gvr, err := conversion.ParseURL(url)
+	_, isNamespaced, gvr, err := conversion.ParseURL(url)
 	if err != nil {
 		return false, nil, "", err
 	}
@@ -72,7 +73,7 @@ func (h *ProxyHandler) tryVersionConvert(cluster, url string, req *http.Request)
 	if err != nil {
 		return false, nil, "", err
 	}
-	isAvailable, recommendVersion, err := converter.IsGvrAvailable(gvr)
+	isAvailable, _, recommendVersion, err := converter.IsGvrAvailable(gvr)
 	if err != nil {
 		return false, nil, "", err
 	}
@@ -87,8 +88,8 @@ func (h *ProxyHandler) tryVersionConvert(cluster, url string, req *http.Request)
 		return false, nil, "", err
 	}
 
-	// we do not need convert body if request without body
-	if req.Body == nil {
+	// we do not need convert body if request not create and update
+	if req.Method != http.MethodPost && req.Method != http.MethodPut {
 		return true, nil, convertedUrl, nil
 	}
 
@@ -105,7 +106,7 @@ func (h *ProxyHandler) tryVersionConvert(cluster, url string, req *http.Request)
 		return false, nil, "", fmt.Errorf("gv parse failed with pair(%v~%v)", rawGvr.GroupVersion().String(), gvr.GroupVersion().String())
 	}
 	// covert internal version object int recommend version object
-	out, err := converter.Convert(raw, recommendVersion.GroupVersion())
+	out, err := converter.Convert(raw, nil, recommendVersion.GroupVersion())
 	if err != nil {
 		return false, nil, "", err
 	}
@@ -115,7 +116,16 @@ func (h *ProxyHandler) tryVersionConvert(cluster, url string, req *http.Request)
 		return false, nil, "", err
 	}
 
-	clog.Info("resource converted with (%v~%v) when visit cluster %v", gvr.String(), recommendVersion.GroupVersion().WithResource(gvr.Resource), cluster)
+	objMeta, err := meta.Accessor(out)
+	if err != nil {
+		return false, nil, "", err
+	}
+
+	if isNamespaced {
+		clog.Info("resource (%v/%v) converted with (%v~%v) when visit cluster %v", objMeta.GetNamespace(), objMeta.GetName(), gvr.String(), recommendVersion.GroupVersion().WithResource(gvr.Resource), cluster)
+	} else {
+		clog.Info("resource (%v) converted with (%v~%v) when visit cluster %v", objMeta.GetName(), gvr.String(), recommendVersion.GroupVersion().WithResource(gvr.Resource), cluster)
+	}
 
 	return true, convertedObj, convertedUrl, nil
 }
@@ -128,6 +138,8 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 	url := c.Param("url")
 	filter := parseQueryParams(c)
 	isFilter := c.Query("isFilter")
+
+	c.Request.Header.Set(constants.ImpersonateUserKey, "admin")
 
 	// get cluster info by cluster name
 	host, certData, keyData, caData := getClusterInfo(cluster)
@@ -170,6 +182,7 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 				r := bytes.NewReader(convertedObj)
 				body := io.NopCloser(r)
 				req.Body = body
+				req.ContentLength = int64(r.Len())
 			}
 			req.URL.Path = convertedUrl
 		}
@@ -190,6 +203,14 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 
 	if needConvert {
 		// open response filter convert
+		_, _, convertedGvr, err := conversion.ParseURL(convertedUrl)
+		if err != nil {
+			clog.Error(err.Error())
+			response.FailReturn(c, errcode.InternalServerError)
+			return
+		}
+
+		filter.ConvertedGvr = convertedGvr
 		filter.EnableConvert = true
 		filter.Converter, _ = h.converter.GetVersionConvert(cluster)
 		filter.RawGvr = gvr

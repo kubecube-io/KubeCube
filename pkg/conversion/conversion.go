@@ -43,13 +43,14 @@ type VersionConverter struct {
 	// todo: use cache client
 	discovery discovery.DiscoveryInterface
 
-	// restMapper is response to map gvk and gvr
-	restMapper meta.RESTMapper
-
 	// clusterInfo hold the version info of target cluster
 	clusterInfo *version.Info
+
+	// RestMapper is response to map gvk and gvr
+	RestMapper meta.RESTMapper
 }
 
+// NewVersionConvertor create a version convert for a target cluster
 func NewVersionConvertor(discovery discovery.DiscoveryInterface, restMapper meta.RESTMapper, installFuncs ...InstallFunc) (*VersionConverter, error) {
 	scheme := runtime.NewScheme()
 	install(scheme, installFuncs...)
@@ -59,33 +60,71 @@ func NewVersionConvertor(discovery discovery.DiscoveryInterface, restMapper meta
 		return nil, err
 	}
 
+	if restMapper == nil {
+		m := meta.NewDefaultRESTMapper(scheme.PrioritizedVersionsAllGroups())
+		for gvk := range scheme.AllKnownTypes() {
+			m.Add(gvk, nil)
+		}
+		restMapper = m
+	}
+
 	return &VersionConverter{
 		scheme:      scheme,
 		discovery:   discovery,
-		restMapper:  restMapper,
+		RestMapper:  restMapper,
 		clusterInfo: info,
 		cf:          serializer.NewCodecFactory(scheme),
 	}, nil
 }
 
-// Convert do real conversion action
-func (c *VersionConverter) Convert(in runtime.Object, target runtime.GroupVersioner) (runtime.Object, error) {
+// Convert converts an Object to another, generally the conversion is internalVersion <-> versioned.
+// if out was set, the converted result would be set into.
+func (c *VersionConverter) Convert(in runtime.Object, out runtime.Object, target runtime.GroupVersioner) (runtime.Object, error) {
+	if out != nil {
+		if err := c.scheme.Convert(in, out, target); err != nil {
+			return nil, err
+		}
+		return out, nil
+	}
 	return c.scheme.ConvertToVersion(in, target)
 }
 
+// DirectConvert converts a versioned Object to another version with given target gv.
+// if out was set, the converted result would be set into.
+func (c *VersionConverter) DirectConvert(in runtime.Object, out runtime.Object, target runtime.GroupVersioner) (runtime.Object, error) {
+	internalObject, err := c.Convert(in, nil, runtime.InternalGroupVersioner)
+	if err != nil {
+		return nil, err
+	}
+	if out != nil {
+		if err := c.scheme.Convert(internalObject, out, target); err != nil {
+			return nil, err
+		}
+		return out, nil
+	}
+	return c.Convert(internalObject, nil, target)
+}
+
 // IsObjectAvailable describes if given object is available in target cluster.
-// a replacement group version kind will return if the result is unavailable.
-func (c *VersionConverter) IsObjectAvailable(obj runtime.Object) (bool, *schema.GroupVersionKind, error) {
+// a recommend group version kind will return if it cloud not pass through.
+func (c *VersionConverter) IsObjectAvailable(obj runtime.Object) (isPassThrough bool, rawGvk *schema.GroupVersionKind, recommendGvk *schema.GroupVersionKind, err error) {
 	gvk := obj.GetObjectKind().GroupVersionKind()
+	if gvk.Empty() {
+		gvks, _, err := c.scheme.ObjectKinds(obj)
+		if err != nil {
+			return false, nil, nil, err
+		}
+		gvk = gvks[0]
+	}
 	return c.IsGvkAvailable(&gvk)
 }
 
 // IsGvrAvailable describes if given gvr is available in target cluster.
-// a replacement group version kind will return if the result is unavailable.
-func (c *VersionConverter) IsGvrAvailable(gvr *schema.GroupVersionResource) (bool, *schema.GroupVersionKind, error) {
-	gvk, err := Gvr2Gvk(c.restMapper, gvr)
+// a recommend group version kind will return if it cloud not pass through.
+func (c *VersionConverter) IsGvrAvailable(gvr *schema.GroupVersionResource) (isPassThrough bool, rawGvk *schema.GroupVersionKind, recommendGvk *schema.GroupVersionKind, err error) {
+	gvk, err := Gvr2Gvk(c.RestMapper, gvr)
 	if err != nil {
-		return false, nil, err
+		return false, gvk, nil, err
 	}
 
 	// use best priority
@@ -93,8 +132,8 @@ func (c *VersionConverter) IsGvrAvailable(gvr *schema.GroupVersionResource) (boo
 }
 
 // IsGvkAvailable describes if given gvk is available in target cluster.
-// a replacement group version kind will return if the result is unavailable.
-func (c *VersionConverter) IsGvkAvailable(gvk *schema.GroupVersionKind) (bool, *schema.GroupVersionKind, error) {
+// a recommend group version kind will return if it cloud not pass through.
+func (c *VersionConverter) IsGvkAvailable(gvk *schema.GroupVersionKind) (isPassThrough bool, rawGvk *schema.GroupVersionKind, recommendGvk *schema.GroupVersionKind, err error) {
 	clusterVersion := Version(c.clusterInfo)
 
 	// todo: optimize it with api lifecycle
@@ -102,7 +141,7 @@ func (c *VersionConverter) IsGvkAvailable(gvk *schema.GroupVersionKind) (bool, *
 	// to find gv through discovery client
 	groupList, err := c.discovery.ServerGroups()
 	if err != nil {
-		return false, nil, err
+		return false, gvk, nil, err
 	}
 	if groupList != nil {
 		for _, group := range groupList.Groups {
@@ -112,13 +151,13 @@ func (c *VersionConverter) IsGvkAvailable(gvk *schema.GroupVersionKind) (bool, *
 					if ver.GroupVersion == gvk.GroupVersion().String() {
 						// found match group/version in target cluster.
 						// so the object is available in target cluster.
-						return true, nil, nil
+						return true, gvk, nil, nil
 					}
 				}
 				// group version in target cluster not match object group version.
 				// example: apps/v1beta1 <--> apps/v1
 				// we fetch preferred version in that group.
-				return false, &schema.GroupVersionKind{Group: group.Name, Version: group.PreferredVersion.Version, Kind: gvk.Kind}, nil
+				return false, gvk, &schema.GroupVersionKind{Group: group.Name, Version: group.PreferredVersion.Version, Kind: gvk.Kind}, nil
 			}
 		}
 	}
@@ -128,7 +167,7 @@ func (c *VersionConverter) IsGvkAvailable(gvk *schema.GroupVersionKind) (bool, *
 	// so we should fetch preferred version by object kind.
 	_, allResources, err := c.discovery.ServerGroupsAndResources()
 	if err != nil {
-		return false, nil, err
+		return false, gvk, nil, err
 	}
 	if allResources != nil {
 		for _, gvs := range allResources {
@@ -137,7 +176,7 @@ func (c *VersionConverter) IsGvkAvailable(gvk *schema.GroupVersionKind) (bool, *
 					// found object kind in target cluster.
 					// Attention: if we had crd which kind is same with k8s kind
 					// might cause problem, example: foo/bar.pod <--> apps/v1.pod
-					return false, &schema.GroupVersionKind{Group: resource.Group, Version: resource.Version, Kind: gvk.Kind}, nil
+					return false, gvk, &schema.GroupVersionKind{Group: resource.Group, Version: resource.Version, Kind: gvk.Kind}, nil
 				}
 			}
 		}
@@ -145,10 +184,10 @@ func (c *VersionConverter) IsGvkAvailable(gvk *schema.GroupVersionKind) (bool, *
 
 	notSupportError := fmt.Errorf("%v is not support in target cluster %v", gvk.String(), clusterVersion)
 
-	return false, nil, notSupportError
+	return false, gvk, nil, notSupportError
 }
 
-// Encode encodes given obj
+// Encode encodes given obj, generally the gv should match Object
 func (c *VersionConverter) Encode(obj runtime.Object, gv runtime.GroupVersioner) ([]byte, error) {
 	info, ok := runtime.SerializerInfoForMediaType(c.cf.SupportedMediaTypes(), runtime.ContentTypeJSON)
 	if !ok {
@@ -163,7 +202,7 @@ func (c *VersionConverter) Encode(obj runtime.Object, gv runtime.GroupVersioner)
 	return out, nil
 }
 
-// Decode decodes data to object
+// Decode decodes data to object, if defaults was not set, the internalVersion would be used.
 func (c *VersionConverter) Decode(data []byte, defaults *schema.GroupVersionKind, into runtime.Object, versions ...schema.GroupVersion) (runtime.Object, *schema.GroupVersionKind, error) {
 	decoder := c.cf.UniversalDecoder(versions...)
 	return decoder.Decode(data, defaults, into)
@@ -370,20 +409,4 @@ func UnmarshalJSON(b []byte) (*unstructured.Unstructured, error) {
 		return nil, err
 	}
 	return u, nil
-}
-
-type apiLifecycleDeprecated interface {
-	APILifecycleDeprecated() (major, minor int)
-}
-
-type apiLifecycleRemoved interface {
-	APILifecycleRemoved() (major, minor int)
-}
-
-type apiLifecycleReplacement interface {
-	APILifecycleReplacement() schema.GroupVersionKind
-}
-
-type apiLifecycleIntroduced interface {
-	APILifecycleIntroduced() (major, minor int)
 }

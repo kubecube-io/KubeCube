@@ -32,6 +32,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/scout"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/user"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/yamldeploy"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/middlewares"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	_ "github.com/kubecube-io/kubecube/pkg/utils/errcode"
@@ -61,7 +62,7 @@ func registerCubeAPI(cfg *Config) http.Handler {
 	apisOutsideMiddlewares(router)
 
 	// set middlewares for apis below
-	//middlewares.SetUpMiddlewares(router, cfg.Gi18nManagers)
+	middlewares.SetUpMiddlewares(router, cfg.Gi18nManagers)
 
 	// clusters apis handler
 	cluster.NewHandler().AddApisTo(router)

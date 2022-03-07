@@ -3,7 +3,6 @@ package conversion
 import (
 	"k8s.io/apimachinery/pkg/runtime"
 
-	// install apis which wanna be converted
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/install"
 	admission "k8s.io/kubernetes/pkg/apis/admission/install"
 	admissionregistration "k8s.io/kubernetes/pkg/apis/admissionregistration/install"
@@ -35,6 +34,8 @@ func install(scheme *runtime.Scheme, installFuncs ...InstallFunc) {
 	for _, fn := range installFuncs {
 		fn(scheme)
 	}
+
+	// install apis which wanna be converted
 
 	admission.Install(scheme)
 	admissionregistration.Install(scheme)

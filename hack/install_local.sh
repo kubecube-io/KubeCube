@@ -45,8 +45,16 @@ make_manifests
 
 make install
 
-kubectl apply -f deploy/manifests/rbac/buildin
+kubectl create ns kubecube-system || true
+kubectl apply -f deploy/manifests/pivotCluster.yaml
+kubectl apply -f deploy/manifests/cubeLocalSvc.yaml
+kubectl apply -f deploy/manifests/caSecret.yaml
+kubectl apply -f deploy/manifests/tlsSecret.yaml
+kubectl apply -f deploy/manifests/cubeWebhook.yaml
+kubectl apply -f deploy/manifests/wardenNodePort.yaml
+kubectl apply -f deploy/manifests/wardenWebhook.yaml
+kubectl apply -f deploy/manifests/featureConfigmap.yaml
+kubectl apply -f deploy/manifests/languageConfig.yaml
 kubectl apply -f deploy/manifests/rbac
-kubectl apply -f deploy/manifests
 kubectl apply -f deploy/metrics-server.yaml
 kubectl apply -f deploy/hnc.yaml

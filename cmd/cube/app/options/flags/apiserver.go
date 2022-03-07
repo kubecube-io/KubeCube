@@ -59,7 +59,7 @@ func init() {
 		},
 		&cli.BoolFlag{
 			Name:        "enable-version-conversion",
-			Value:       true,
+			Value:       false,
 			Destination: &CubeOpts.APIServerOpts.EnableVersionConversion,
 		},
 	}...)

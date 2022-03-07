@@ -59,6 +59,7 @@ type Filter struct {
 type ConverterContext struct {
 	EnableConvert bool
 	RawGvr        *schema.GroupVersionResource
+	ConvertedGvr  *schema.GroupVersionResource
 	Converter     *conversion.VersionConverter
 }
 
@@ -147,8 +148,12 @@ func (f *Filter) FilterResult(body []byte) []byte {
 				if err != nil {
 					clog.Info("convert object failed: %v", err)
 				}
-				// fixme: this is bug
-				result = item[0].(K8sJson)
+				res, err := json.Marshal(item[0])
+				if err != nil {
+					clog.Info("translate modify response result to json fail, %v", err)
+					return nil
+				}
+				return res
 			}
 		}
 	}
@@ -171,7 +176,17 @@ func (f *Filter) ConvertItems(items ...interface{}) ([]interface{}, error) {
 			return items, errors.New("object is not map[string]interface{}")
 		}
 		u := &unstructured.Unstructured{Object: m}
-		out, err := f.Converter.Convert(u, f.RawGvr.GroupVersion())
+		if u.GetAPIVersion() == "" {
+			u.SetAPIVersion(f.ConvertedGvr.GroupVersion().String())
+		}
+		if u.GetKind() == "" {
+			gvk, err := conversion.Gvr2Gvk(f.Converter.RestMapper, f.ConvertedGvr)
+			if err != nil {
+				return nil, err
+			}
+			u.SetKind(gvk.Kind)
+		}
+		out, err := f.Converter.DirectConvert(u, nil, f.RawGvr.GroupVersion())
 		if err != nil {
 			return items, err
 		}
