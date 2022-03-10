@@ -142,7 +142,10 @@ func (o *QuotaOperator) UpdateParentStatus(flush bool) error {
 	}
 
 	// refresh new used of parent quota
-	refreshed := refreshUsedResource(currentQuota, oldQuota, parentQuota, o.LocalClient)
+	refreshed, err := refreshUsedResource(currentQuota, oldQuota, parentQuota, o.LocalClient)
+	if err != nil {
+		return err
+	}
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		err = o.PivotClient.Status().Update(o.Context, refreshed)

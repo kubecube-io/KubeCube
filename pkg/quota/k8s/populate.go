@@ -22,13 +22,14 @@ import (
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	quotav1 "github.com/kubecube-io/kubecube/pkg/apis/quota/v1"
-	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/quota"
+	"github.com/kubecube-io/kubecube/pkg/utils/strslice"
 )
 
 func isExceedParent(current, old *v1.ResourceQuota, parent *quotav1.CubeResourceQuota) (bool, string) {
@@ -77,19 +78,25 @@ func isExceedParent(current, old *v1.ResourceQuota, parent *quotav1.CubeResource
 	return false, ""
 }
 
-func refreshUsedResource(current, old *v1.ResourceQuota, parent *quotav1.CubeResourceQuota, cli client.Client) *quotav1.CubeResourceQuota {
+func refreshUsedResource(current, old *v1.ResourceQuota, parent *quotav1.CubeResourceQuota, cli client.Client) (*quotav1.CubeResourceQuota, error) {
 	newParentUsed := quota.ClearQuotas(parent.Status.Used)
 
 	for _, sub := range parent.Status.SubResourceQuotas {
 		subResourceQuota, err := getResourceQuota(cli, sub)
 		if err != nil {
-			clog.Error(err.Error())
-			// any error occurred return directly
-			return parent
+			if errors.IsNotFound(err) {
+				// remove not found subResourceQuota
+				parent.Status.SubResourceQuotas = strslice.RemoveString(parent.Status.SubResourceQuotas, sub)
+				continue
+			} else {
+				return parent, err
+			}
 		}
 		// use new ResourceQuota if present
-		if subResourceQuota.Name == current.Name && subResourceQuota.Namespace == current.Namespace {
-			subResourceQuota = current
+		if current != nil {
+			if subResourceQuota.Name == current.Name && subResourceQuota.Namespace == current.Namespace {
+				subResourceQuota = current
+			}
 		}
 		for _, rs := range quota.ResourceNames {
 			// continue if parent used quota had no that resource
@@ -109,7 +116,7 @@ func refreshUsedResource(current, old *v1.ResourceQuota, parent *quotav1.CubeRes
 
 	parent.Status.Used = newParentUsed
 
-	return parent
+	return parent, nil
 }
 
 func getResourceQuota(cli client.Client, s string) (*v1.ResourceQuota, error) {
