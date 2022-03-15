@@ -21,6 +21,11 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	userinfo "k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/apiserver/pkg/authorization/authorizer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -29,14 +34,10 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
+	"github.com/kubecube-io/kubecube/pkg/utils/access"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
-	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 const subPath = "/authorization"
@@ -300,6 +301,16 @@ func (h *handler) createBinds(c *gin.Context) {
 		},
 	}
 
+	if access := access.AllowAccess(constants.LocalCluster, c.Request, constants.CreateVerb, clusterRoleBinding); !access {
+		clog.Debug("permission check fail")
+		response.FailReturn(c, errcode.ForbiddenErr)
+		return
+	}
+	if access := access.AllowAccess(constants.LocalCluster, c.Request, constants.CreateVerb, roleBinding); !access {
+		clog.Debug("permission check fail")
+		response.FailReturn(c, errcode.ForbiddenErr)
+		return
+	}
 	// we should create specified ClusterRoleBinding for different RoleRef
 	if roleBinding.RoleRef.Kind == constants.K8sKindClusterRole && roleBinding.RoleRef.Name != constants.ReviewerCluster {
 		if _, ok := roleBinding.Labels[constants.TenantLabel]; ok {
@@ -368,8 +379,29 @@ func (h *handler) deleteBinds(c *gin.Context) {
 		return
 	}
 
+	if access := access.AllowAccess(constants.LocalCluster, c.Request, constants.DeleteVerb, &roleBinding); !access {
+		clog.Debug("permission check fail")
+		response.FailReturn(c, errcode.ForbiddenErr)
+		return
+	}
 	if roleBinding.RoleRef.Kind == constants.K8sKindClusterRole {
 		clusterRoleBindingName := "gen-" + roleBinding.Name
+		crb := &rbacv1.ClusterRoleBinding{}
+		if err := cli.Cache().Get(ctx, types.NamespacedName{Name: clusterRoleBindingName}, crb); err != nil {
+			if errors.IsNotFound(err) {
+				clog.Warn(err.Error())
+			} else {
+				clog.Error(err.Error())
+				response.FailReturn(c, errcode.InternalServerError)
+				return
+			}
+		} else {
+			if access := access.AllowAccess(constants.LocalCluster, c.Request, constants.DeleteVerb, crb); !access {
+				clog.Debug("permission check fail")
+				response.FailReturn(c, errcode.ForbiddenErr)
+				return
+			}
+		}
 		err = cli.ClientSet().RbacV1().ClusterRoleBindings().Delete(ctx, clusterRoleBindingName, v1.DeleteOptions{})
 		if err != nil {
 			if errors.IsNotFound(err) {

@@ -56,15 +56,6 @@ rules:
       - get
       - patch
       - update
-  # project has read authority of user
-  - apiGroups:
-      - user.kubecube.io
-    resources:
-      - users
-    verbs:
-      - get
-      - list
-      - watch
   - apiGroups:
       - user.kubecube.io
     resources:

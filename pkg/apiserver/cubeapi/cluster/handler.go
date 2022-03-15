@@ -42,6 +42,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	"github.com/kubecube-io/kubecube/pkg/quota"
+	"github.com/kubecube-io/kubecube/pkg/utils/access"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
@@ -447,6 +448,12 @@ func (h *handler) addCluster(c *gin.Context) {
 		cluster.Spec.HarborAddr = d.HarborAddr
 	}
 
+	if access := access.AllowAccess(constants.LocalCluster, c.Request, constants.CreateVerb, cluster); !access {
+		clog.Debug("permission check fail")
+		response.FailReturn(c, errcode.ForbiddenErr)
+		return
+	}
+
 	err = h.Direct().Create(c.Request.Context(), cluster)
 	if err != nil {
 		if errors.IsAlreadyExists(err) {
@@ -509,6 +516,17 @@ func (h *handler) createNsAndQuota(c *gin.Context) {
 		return
 	}
 
+	if access := access.AllowAccess(data.Cluster, c.Request, constants.CreateVerb, data.SubNamespaceAnchor); !access {
+		clog.Debug("permission check fail")
+		response.FailReturn(c, errcode.ForbiddenErr)
+		return
+	}
+
+	if access := access.AllowAccess(data.Cluster, c.Request, constants.CreateVerb, data.ResourceQuota); !access {
+		clog.Debug("permission check fail")
+		response.FailReturn(c, errcode.ForbiddenErr)
+		return
+	}
 	userInfo, err := token.GetUserFromReq(c.Request)
 	if err != nil {
 		response.FailReturn(c, errcode.AuthenticateError)

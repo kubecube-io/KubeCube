@@ -83,15 +83,6 @@ rules:
       - get
       - patch
       - update
-  # tenant has read authority of user
-  - apiGroups:
-      - user.kubecube.io
-    resources:
-      - users
-    verbs:
-      - get
-      - list
-      - watch
   - apiGroups:
       - user.kubecube.io
     resources:

@@ -33,15 +33,18 @@ import (
 	v1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
 	proxy "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
+	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
+	"github.com/kubecube-io/kubecube/pkg/utils/access"
 	"github.com/kubecube-io/kubecube/pkg/utils/audit"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
@@ -95,7 +98,11 @@ func CreateUser(c *gin.Context) {
 		response.FailReturn(c, errInfo)
 		return
 	}
-
+	if access := access.AllowAccess(constants.LocalCluster, c.Request, constants.CreateVerb, user); !access {
+		clog.Debug("permission check fail")
+		response.FailReturn(c, errcode.ForbiddenErr)
+		return
+	}
 	// create user
 	if errInfo := CreateUserImpl(c, user); errInfo != nil {
 		response.FailReturn(c, errInfo)
@@ -149,6 +156,15 @@ func UpdateUser(c *gin.Context) {
 		return
 	}
 
+	// if user want to update the other people`s info,need to check permission
+	if !access.IsSelf(c.Request, name) {
+		if access := access.AllowAccess(constants.LocalCluster, c.Request, constants.ListVerb, originUser); !access {
+			clog.Debug("permission check fail")
+			response.FailReturn(c, errcode.ForbiddenErr)
+			return
+		}
+	}
+
 	//check param
 	user, errInfo := CheckUpdateParam(newUser, originUser)
 	if errInfo != nil {
@@ -197,10 +213,20 @@ func UpdateUserStatusImpl(c *gin.Context, newUser *userv1.User) *errcode.ErrorIn
 // @Failure 500 {object} errcode.ErrorInfo
 // @Router /api/v1/cube/user  [get]
 func ListUsers(c *gin.Context) {
-	// get all user
 	kClient := clients.Interface().Kubernetes(constants.LocalCluster).Cache()
+	requestUser, err := token.GetUserFromReq(c.Request)
+	if err != nil {
+		response.FailReturn(c, errcode.AuthenticateError)
+		return
+	}
+	accessMap := map[string]string{"platform-admin": "", "tenant-admin": "", "tenant-admin-cluster": "", "project-admin": "", "project-admin-cluster": ""}
+	if !access.CheckClusterRole(requestUser.Username, constants.LocalCluster, accessMap) {
+		response.FailReturn(c, errcode.ForbiddenErr)
+		return
+	}
+	// get all user
 	allUserList := &userv1.UserList{}
-	err := kClient.List(c.Request.Context(), allUserList)
+	err = kClient.List(c.Request.Context(), allUserList)
 	if err != nil {
 		clog.Error("list all users from k8s error: %s", err)
 		response.FailReturn(c, errcode.GetResourceError(resourceTypeUser))
@@ -214,6 +240,7 @@ func ListUsers(c *gin.Context) {
 		if query == "" || strings.Contains(user.Spec.DisplayName, query) || strings.Contains(user.Name, query) {
 			var userResp UserItem
 			userResp.Spec = user.Spec
+			userResp.Spec.Password = ""
 			userResp.Status = user.Status
 			userResp.Name = user.Name
 			filterList.Items = append(filterList.Items, userResp)
@@ -261,6 +288,7 @@ func CheckAndCompleteCreateParam(c *gin.Context) (*userv1.User, *errcode.ErrorIn
 
 	// check struct
 	user := &userv1.User{}
+	user.SetGroupVersionKind(schema.FromAPIVersionAndKind("user.kubecube.io/v1", "User"))
 	if err := c.ShouldBindJSON(&user); err != nil {
 		clog.Error("parse create user body error: %s", err)
 		return user, errcode.InvalidBodyFormat
@@ -443,6 +471,13 @@ func DownloadTemplate(c *gin.Context) {
 func BatchCreateUser(c *gin.Context) {
 	c.Set(constants.EventName, "batch create user")
 	c.Set(constants.EventResourceType, "user")
+	check := &userv1.User{}
+	check.SetGroupVersionKind(schema.FromAPIVersionAndKind("user.kubecube.io/v1", "User"))
+	if access := access.AllowAccess(constants.LocalCluster, c.Request, constants.CreateVerb, check); !access {
+		clog.Debug("permission check fail")
+		response.FailReturn(c, errcode.ForbiddenErr)
+		return
+	}
 
 	rFile, err := c.FormFile(uploadUserFileParamName)
 	if rFile == nil || err != nil {
@@ -512,8 +547,13 @@ func GetKubeConfig(c *gin.Context) {
 	token, errInfo := authJwtImpl.GenerateTokenWithExpired(&v1beta1.UserInfo{Username: user}, tokenExpiredTime)
 	if errInfo != nil {
 		response.FailReturn(c, errcode.AuthenticateError)
+		return
 	}
 
+	if !access.IsSelf(c.Request, user) {
+		response.FailReturn(c, errcode.ForbiddenErr)
+		return
+	}
 	clusters := multicluster.Interface().FuzzyCopy()
 	cms := make([]*kubeconfig.ConfigMeta, 0, len(clusters))
 

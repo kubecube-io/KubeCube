@@ -46,10 +46,12 @@ var AuthWhiteList = map[string]string{
 	constants.ApiPathRoot + "/key/token":            get,
 	constants.ApiPathRoot + "/authorization/access": post,
 	constants.ApiPathRoot + "/oauth/redirect":       get,
+	constants.ApiPathRoot + "/user/pwd":             put,
+	constants.ApiPathRoot + "/user/valid/:username": get,
 	constants.ApiPathRoot + "/clusters/register":    post,
 }
 
-func withinWhiteList(url *url.URL, method string, whiteList map[string]string) bool {
+func WithinWhiteList(url *url.URL, method string, whiteList map[string]string) bool {
 	queryUrl := url.Path
 	for k, v := range whiteList {
 		match, err := regexp.MatchString(k, queryUrl)
@@ -62,7 +64,7 @@ func withinWhiteList(url *url.URL, method string, whiteList map[string]string) b
 
 func Auth() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if !withinWhiteList(c.Request.URL, c.Request.Method, AuthWhiteList) {
+		if !WithinWhiteList(c.Request.URL, c.Request.Method, AuthWhiteList) {
 			authJwtImpl := jwt.GetAuthJwtImpl()
 			if generic.Config.GenericAuthIsEnable {
 				h := generic.GetProvider()

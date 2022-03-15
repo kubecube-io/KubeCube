@@ -128,3 +128,15 @@ const (
 	// HncInherited means resource is inherited form upon namespace by hnc
 	HncInherited = "hnc.x-k8s.io/inherited-from"
 )
+
+// rbac role verbs
+const (
+	// AllVerb all verbs
+	AllVerb = "*"
+	// CreateVerb create resource
+	CreateVerb = "create"
+	// DeleteVerb delete resource
+	DeleteVerb = "delete"
+	// ListVerb list resource
+	ListVerb = "list"
+)
