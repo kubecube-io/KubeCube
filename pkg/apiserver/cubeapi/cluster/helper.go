@@ -147,7 +147,7 @@ func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivot
 
 		info.NamespaceCount = len(ns.Items)
 
-		clusterNonTerminatedPodsList, err := getPodsInChunks(cli)
+		clusterNonTerminatedPodsList, err := getPodsInCluster(cli)
 		if err != nil {
 			return nil, err
 		}
@@ -224,7 +224,7 @@ func maxResourceList(list, new corev1.ResourceList) {
 	}
 }
 
-func getPodsInChunks(cli mgrclient.Client) (*corev1.PodList, error) {
+func getPodsInCluster(cli mgrclient.Client) (*corev1.PodList, error) {
 	fieldSelector, err := fields.ParseSelector("status.phase!=" + string(corev1.PodSucceeded) + ",status.phase!=" + string(corev1.PodFailed))
 	if err != nil {
 		return nil, err
