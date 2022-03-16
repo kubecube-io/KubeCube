@@ -87,10 +87,10 @@ func (r *ClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	// get cr ensure current cluster cr exist
 	if err := r.Get(ctx, req.NamespacedName, &cluster); err != nil {
 		if errors.IsNotFound(err) {
-			log.Debug("current cluster %v has deleted, skip", cluster.Name)
+			log.Debug("current cluster %v has deleted, skip", req.Name)
 			return ctrl.Result{}, nil
 		}
-		log.Error("get current cluster %v cr failed: %v", cluster.Name, err)
+		log.Error("get current cluster %v cr failed: %v", req.Name, err)
 		return ctrl.Result{}, err
 	}
 
