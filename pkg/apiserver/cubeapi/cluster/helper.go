@@ -147,12 +147,12 @@ func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivot
 
 		info.NamespaceCount = len(ns.Items)
 
-		nodeNonTerminatedPodsList, err := getPodsInChunks(cli)
+		clusterNonTerminatedPodsList, err := getPodsInChunks(cli)
 		if err != nil {
 			return nil, err
 		}
 
-		for _, pod := range nodeNonTerminatedPodsList.Items {
+		for _, pod := range clusterNonTerminatedPodsList.Items {
 			req, limit := podRequestsAndLimits(&pod)
 			cpuReq, cpuLimit, memoryReq, memoryLimit := req[corev1.ResourceCPU], limit[corev1.ResourceCPU], req[corev1.ResourceMemory], limit[corev1.ResourceMemory]
 			info.UsedCPURequest += int(cpuReq.MilliValue())                  // 1000 m
