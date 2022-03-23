@@ -19,6 +19,7 @@ package conversion
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -173,10 +174,20 @@ func (c *VersionConverter) IsGvkAvailable(gvk *schema.GroupVersionKind) (isPassT
 		for _, gvs := range allResources {
 			for _, resource := range gvs.APIResources {
 				if resource.Kind == gvk.Kind {
+					preferredGroup := resource.Group
+					preferredVersion := resource.Version
+					if preferredGroup == "" || preferredVersion == "" {
+						gv, err := schema.ParseGroupVersion(gvs.GroupVersion)
+						if err != nil {
+							return false, gvk, nil, fmt.Errorf("parse group version %v failed: %v", gvs.GroupVersion, err)
+						}
+						preferredGroup = gv.Group
+						preferredVersion = gv.Version
+					}
 					// found object kind in target cluster.
 					// Attention: if we had crd which kind is same with k8s kind
 					// might cause problem, example: foo/bar.pod <--> apps/v1.pod
-					return false, gvk, &schema.GroupVersionKind{Group: resource.Group, Version: resource.Version, Kind: gvk.Kind}, nil
+					return false, gvk, &schema.GroupVersionKind{Group: preferredGroup, Version: preferredVersion, Kind: gvk.Kind}, nil
 				}
 			}
 		}
@@ -216,7 +227,7 @@ func Gvr2Gvk(mapper meta.RESTMapper, gvr *schema.GroupVersionResource) (*schema.
 	}
 
 	if len(kinds) == 0 {
-		return nil, fmt.Errorf("%v is not supportted target cluster %v", gvr.String())
+		return nil, fmt.Errorf("%v is not supportted", gvr.String())
 	}
 
 	// use best priority
@@ -322,14 +333,12 @@ func ParseURL(url string) (bool, bool, *schema.GroupVersionResource, error) {
 	return isCoreApi, isNamespaced, gvr, nil
 }
 
+var stableVersionRegexp = regexp.MustCompile(`^[v]+[0-9]*$`)
+
 // IsStableVersion tells if given gv is stable
 func IsStableVersion(gv schema.GroupVersion) bool {
-	// todo: is that all stable version
-	stableVersions := []string{"v1", "v2", "v3", "v4"}
-	for _, v := range stableVersions {
-		if v == gv.Version {
-			return true
-		}
+	if stableVersionRegexp.MatchString(gv.Version) && gv.Group == "" {
+		return true
 	}
 	return false
 }
