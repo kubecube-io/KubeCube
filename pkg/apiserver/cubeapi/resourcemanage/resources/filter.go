@@ -52,6 +52,8 @@ type Filter struct {
 	SortOrder string
 	SortFunc  string
 
+	EnableFilter bool
+
 	// ConverterContext holds methods to convert objects
 	ConverterContext
 }
@@ -119,12 +121,12 @@ func (f *Filter) FilterResult(body []byte) []byte {
 	}
 
 	// k8s status response do not need filter and convert
-	if !isStatusResp(result) {
-		if items, ok := result["items"].(K8sJsonArr); ok {
-			// entry here means k8s response is object list.
-			// we do filter, sort and page action here.
+	if items, ok := result["items"].(K8sJsonArr); ok {
+		// entry here means k8s response is object list.
+		// we do filter, sort and page action here.
 
-			// match selector
+		// match selector
+		if f.EnableFilter {
 			items = f.exactMatch(items)
 			items = f.fuzzyMatch(items)
 			result["total"] = len(items)
@@ -132,30 +134,28 @@ func (f *Filter) FilterResult(body []byte) []byte {
 			items = f.sort(items)
 			// page
 			items = f.page(items)
+		}
 
-			if f.EnableConvert {
-				var err error
-				items, err = f.ConvertItems(items...)
-				if err != nil {
-					clog.Info("convert items failed: %v", err)
-				}
-			}
-
-			result["items"] = items
-		} else {
-			if f.EnableConvert {
-				item, err := f.ConvertItems(result)
-				if err != nil {
-					clog.Info("convert object failed: %v", err)
-				}
-				res, err := json.Marshal(item[0])
-				if err != nil {
-					clog.Info("translate modify response result to json fail, %v", err)
-					return nil
-				}
-				return res
+		if f.EnableConvert {
+			var err error
+			items, err = f.ConvertItems(items...)
+			if err != nil {
+				clog.Info("convert items failed: %v", err)
 			}
 		}
+
+		result["items"] = items
+	} else if !isStatusResp(result) && f.EnableConvert {
+		item, err := f.ConvertItems(result)
+		if err != nil {
+			clog.Info("convert object failed: %v", err)
+		}
+		res, err := json.Marshal(item[0])
+		if err != nil {
+			clog.Info("translate modify response result to json fail, %v", err)
+			return nil
+		}
+		return res
 	}
 
 	resultJson, err := json.Marshal(result)
@@ -197,17 +197,19 @@ func (f *Filter) ConvertItems(items ...interface{}) ([]interface{}, error) {
 
 // isStatusResp tells if k8s response is just only status
 func isStatusResp(r K8sJson) bool {
+	ok1 := false
+	ok2 := false
 	if kind, ok := r["kind"].(string); ok {
-		if kind != "Status" {
-			return false
+		if kind == "Status" {
+			ok1 = true
 		}
 	}
 	if apiVersion, ok := r["apiVersion"].(v1.StatusReason); ok {
-		if apiVersion != "v1" {
-			return false
+		if apiVersion == "v1" {
+			ok2 = true
 		}
 	}
-	return true
+	return ok1 && ok2
 }
 
 // FilterResultToMap filter result by exact/fuzzy match, sort, page

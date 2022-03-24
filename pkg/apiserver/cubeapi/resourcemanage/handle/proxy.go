@@ -137,7 +137,6 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 	cluster := c.Param("cluster")
 	url := c.Param("url")
 	filter := parseQueryParams(c)
-	isFilter := c.Query("isFilter")
 
 	c.Request.Header.Set(constants.ImpersonateUserKey, "admin")
 
@@ -194,11 +193,6 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 			response.FailReturn(c, errcode.ServerErr)
 			return
 		}
-	}
-	if isFilter == "false" {
-		requestProxy := &httputil.ReverseProxy{Director: director, Transport: ts, ErrorHandler: errorHandler}
-		requestProxy.ServeHTTP(c.Writer, c.Request)
-		return
 	}
 
 	if needConvert {
@@ -270,16 +264,22 @@ func parseQueryParams(c *gin.Context) resources.Filter {
 	sortName, sortOrder, sortFunc := parseSort(c.Query("sortName"), c.Query("sortOrder"), c.Query("sortFunc"))
 
 	filter := resources.Filter{
-		Exact:     exact,
-		Fuzzy:     fuzzy,
-		Limit:     limit,
-		Offset:    offset,
-		SortName:  sortName,
-		SortOrder: sortOrder,
-		SortFunc:  sortFunc,
+		EnableFilter: needFilter(c),
+		Exact:        exact,
+		Fuzzy:        fuzzy,
+		Limit:        limit,
+		Offset:       offset,
+		SortName:     sortName,
+		SortOrder:    sortOrder,
+		SortFunc:     sortFunc,
 	}
 
 	return filter
+}
+
+func needFilter(c *gin.Context) bool {
+	return c.Query("selector")+c.Query("pageSize")+c.Query("pageNum")+
+		c.Query("sortName")+c.Query("sortOrder")+c.Query("sortFunc") != ""
 }
 
 // filter selector
