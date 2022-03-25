@@ -233,11 +233,11 @@ func (w *wrapperStatusWriter) Patch(ctx context.Context, obj client.Object, patc
 // tryConvert do nothing if given Object can pass through
 // otherwise it would try to convert it to recommend version.
 func tryConvert(obj runtime.Object, c SingleVersionConverter) (client.Object, *schema.GroupVersionKind, bool, error) {
-	isPassThrough, rawGvk, recommendGvk, err := c.IsObjectAvailable(obj)
+	greetBack, rawGvk, recommendGvk, err := c.ObjectGreeting(obj)
 	if err != nil {
 		return nil, rawGvk, false, err
 	}
-	if isPassThrough {
+	if greetBack == IsPassThrough || greetBack == IsNotSupport {
 		return nil, rawGvk, true, nil
 	}
 
@@ -257,11 +257,11 @@ func tryConvert(obj runtime.Object, c SingleVersionConverter) (client.Object, *s
 // tryConvertList do nothing if given ObjectList can pass through
 // otherwise it would try to convert it to recommend version.
 func tryConvertList(obj runtime.Object, c SingleVersionConverter) (client.ObjectList, *schema.GroupVersionKind, bool, error) {
-	isAvailable, rawGvk, recommendGvk, err := c.IsObjectAvailable(obj)
+	greetBack, rawGvk, recommendGvk, err := c.ObjectGreeting(obj)
 	if err != nil {
 		return nil, rawGvk, false, err
 	}
-	if isAvailable {
+	if greetBack == IsPassThrough || greetBack == IsNotSupport {
 		return nil, rawGvk, true, nil
 	}
 

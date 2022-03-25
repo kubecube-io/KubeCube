@@ -73,11 +73,11 @@ func (h *ProxyHandler) tryVersionConvert(cluster, url string, req *http.Request)
 	if err != nil {
 		return false, nil, "", err
 	}
-	isAvailable, _, recommendVersion, err := converter.IsGvrAvailable(gvr)
+	greetBack, _, recommendVersion, err := converter.GvrGreeting(gvr)
 	if err != nil {
 		return false, nil, "", err
 	}
-	if isAvailable {
+	if greetBack == conversion.IsPassThrough {
 		// gvr is available in target cluster, we do not need version convert
 		clog.Debug("%v is available in target cluster %v pass through", gvr.String(), cluster)
 		return false, nil, "", nil

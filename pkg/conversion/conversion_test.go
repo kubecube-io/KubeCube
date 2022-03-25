@@ -555,70 +555,70 @@ func TestVersionConverter_DirectConvert(t *testing.T) {
 
 func TestVersionConverter_IsGvkAvailable(t *testing.T) {
 	tests := []struct {
-		name              string
-		gvk               *schema.GroupVersionKind
-		wantIsPassThrough bool
-		wantRawGvk        *schema.GroupVersionKind
-		wantRecommendGvk  *schema.GroupVersionKind
-		wantErr           bool
+		name             string
+		gvk              *schema.GroupVersionKind
+		wantGreetBack    GreetBackType
+		wantRawGvk       *schema.GroupVersionKind
+		wantRecommendGvk *schema.GroupVersionKind
+		wantErr          bool
 	}{
 		{
-			name:              "pass through",
-			gvk:               &schema.GroupVersionKind{Group: "apps", Version: "v1beta1", Kind: "Deployment"},
-			wantIsPassThrough: true,
-			wantRawGvk:        &schema.GroupVersionKind{Group: "apps", Version: "v1beta1", Kind: "Deployment"},
-			wantRecommendGvk:  nil,
-			wantErr:           false,
+			name:             "pass through",
+			gvk:              &schema.GroupVersionKind{Group: "apps", Version: "v1beta1", Kind: "Deployment"},
+			wantGreetBack:    IsPassThrough,
+			wantRawGvk:       &schema.GroupVersionKind{Group: "apps", Version: "v1beta1", Kind: "Deployment"},
+			wantRecommendGvk: nil,
+			wantErr:          false,
 		},
 		{
-			name:              "had recommend version",
-			gvk:               &schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"},
-			wantIsPassThrough: false,
-			wantRawGvk:        &schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"},
-			wantRecommendGvk:  &schema.GroupVersionKind{Group: "apps", Version: "v1beta1", Kind: "Deployment"},
-			wantErr:           false,
+			name:             "had recommend version",
+			gvk:              &schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"},
+			wantGreetBack:    IsNeedConvert,
+			wantRawGvk:       &schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"},
+			wantRecommendGvk: &schema.GroupVersionKind{Group: "apps", Version: "v1beta1", Kind: "Deployment"},
+			wantErr:          false,
 		},
 		{
-			name:              "unavailable group",
-			gvk:               &schema.GroupVersionKind{Group: "unknown", Version: "v1", Kind: "Deployment"},
-			wantIsPassThrough: false,
-			wantRawGvk:        &schema.GroupVersionKind{Group: "unknown", Version: "v1", Kind: "Deployment"},
-			wantRecommendGvk:  &schema.GroupVersionKind{Group: "apps", Version: "v1beta1", Kind: "Deployment"},
-			wantErr:           false,
+			name:             "unavailable group",
+			gvk:              &schema.GroupVersionKind{Group: "unknown", Version: "v1", Kind: "Deployment"},
+			wantGreetBack:    IsNeedConvert,
+			wantRawGvk:       &schema.GroupVersionKind{Group: "unknown", Version: "v1", Kind: "Deployment"},
+			wantRecommendGvk: &schema.GroupVersionKind{Group: "apps", Version: "v1beta1", Kind: "Deployment"},
+			wantErr:          false,
 		},
 		{
-			name:              "unavailable version",
-			gvk:               &schema.GroupVersionKind{Group: "apps", Version: "unknown", Kind: "Deployment"},
-			wantIsPassThrough: false,
-			wantRawGvk:        &schema.GroupVersionKind{Group: "apps", Version: "unknown", Kind: "Deployment"},
-			wantRecommendGvk:  &schema.GroupVersionKind{Group: "apps", Version: "v1beta1", Kind: "Deployment"},
-			wantErr:           false,
+			name:             "unavailable version",
+			gvk:              &schema.GroupVersionKind{Group: "apps", Version: "unknown", Kind: "Deployment"},
+			wantGreetBack:    IsNeedConvert,
+			wantRawGvk:       &schema.GroupVersionKind{Group: "apps", Version: "unknown", Kind: "Deployment"},
+			wantRecommendGvk: &schema.GroupVersionKind{Group: "apps", Version: "v1beta1", Kind: "Deployment"},
+			wantErr:          false,
 		},
 		{
-			name:              "unavailable kind",
-			gvk:               &schema.GroupVersionKind{Group: "unknown", Version: "unknown", Kind: "unknown"},
-			wantIsPassThrough: false,
-			wantRawGvk:        &schema.GroupVersionKind{Group: "unknown", Version: "unknown", Kind: "unknown"},
-			wantRecommendGvk:  nil,
-			wantErr:           true,
+			name:             "unavailable kind",
+			gvk:              &schema.GroupVersionKind{Group: "unknown", Version: "unknown", Kind: "unknown"},
+			wantGreetBack:    IsNotSupport,
+			wantRawGvk:       &schema.GroupVersionKind{Group: "unknown", Version: "unknown", Kind: "unknown"},
+			wantRecommendGvk: nil,
+			wantErr:          false,
 		},
 	}
 	c := newFakeVersionConvert(t)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotIsPassThrough, gotRawGvk, gotRecommendGvk, err := c.IsGvkAvailable(tt.gvk)
+			gotIsPassThrough, gotRawGvk, gotRecommendGvk, err := c.GvkGreeting(tt.gvk)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("IsGvkAvailable() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("GvkGreeting() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if gotIsPassThrough != tt.wantIsPassThrough {
-				t.Errorf("IsGvkAvailable() gotIsPassThrough = %v, want %v", gotIsPassThrough, tt.wantIsPassThrough)
+			if gotIsPassThrough != tt.wantGreetBack {
+				t.Errorf("GvkGreeting() gotIsPassThrough = %v, want %v", gotIsPassThrough, tt.wantGreetBack)
 			}
 			if !reflect.DeepEqual(gotRawGvk, tt.wantRawGvk) {
-				t.Errorf("IsGvkAvailable() gotRawGvk = %v, want %v", gotRawGvk, tt.wantRawGvk)
+				t.Errorf("GvkGreeting() gotRawGvk = %v, want %v", gotRawGvk, tt.wantRawGvk)
 			}
 			if !reflect.DeepEqual(gotRecommendGvk, tt.wantRecommendGvk) {
-				t.Errorf("IsGvkAvailable() gotRecommendGvk = %v, want %v", gotRecommendGvk, tt.wantRecommendGvk)
+				t.Errorf("GvkGreeting() gotRecommendGvk = %v, want %v", gotRecommendGvk, tt.wantRecommendGvk)
 			}
 		})
 	}

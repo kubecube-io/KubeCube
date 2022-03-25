@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/kubecube-io/kubecube/pkg/clog"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -106,43 +107,51 @@ func (c *VersionConverter) DirectConvert(in runtime.Object, out runtime.Object, 
 	return c.Convert(internalObject, nil, target)
 }
 
-// IsObjectAvailable describes if given object is available in target cluster.
+// GreetBackType will tell what the way that obj can access cluster
+type GreetBackType int
+
+const (
+	IsPassThrough GreetBackType = iota
+	IsNotSupport
+	IsNeedConvert
+	IsUnknown
+)
+
+// ObjectGreeting describes if given object is available in target cluster.
 // a recommend group version kind will return if it cloud not pass through.
-func (c *VersionConverter) IsObjectAvailable(obj runtime.Object) (isPassThrough bool, rawGvk *schema.GroupVersionKind, recommendGvk *schema.GroupVersionKind, err error) {
+func (c *VersionConverter) ObjectGreeting(obj runtime.Object) (greetBack GreetBackType, rawGvk *schema.GroupVersionKind, recommendGvk *schema.GroupVersionKind, err error) {
 	gvk := obj.GetObjectKind().GroupVersionKind()
 	if gvk.Empty() {
 		gvks, _, err := c.scheme.ObjectKinds(obj)
 		if err != nil {
-			return false, nil, nil, err
+			return IsUnknown, nil, nil, err
 		}
 		gvk = gvks[0]
 	}
-	return c.IsGvkAvailable(&gvk)
+	return c.GvkGreeting(&gvk)
 }
 
-// IsGvrAvailable describes if given gvr is available in target cluster.
+// GvrGreeting describes if given gvr is available in target cluster.
 // a recommend group version kind will return if it cloud not pass through.
-func (c *VersionConverter) IsGvrAvailable(gvr *schema.GroupVersionResource) (isPassThrough bool, rawGvk *schema.GroupVersionKind, recommendGvk *schema.GroupVersionKind, err error) {
+func (c *VersionConverter) GvrGreeting(gvr *schema.GroupVersionResource) (greetBack GreetBackType, rawGvk *schema.GroupVersionKind, recommendGvk *schema.GroupVersionKind, err error) {
 	gvk, err := Gvr2Gvk(c.RestMapper, gvr)
 	if err != nil {
-		return false, gvk, nil, err
+		return IsUnknown, gvk, nil, err
 	}
 
 	// use best priority
-	return c.IsGvkAvailable(gvk)
+	return c.GvkGreeting(gvk)
 }
 
-// IsGvkAvailable describes if given gvk is available in target cluster.
+// GvkGreeting describes if given gvk is available in target cluster.
 // a recommend group version kind will return if it cloud not pass through.
-func (c *VersionConverter) IsGvkAvailable(gvk *schema.GroupVersionKind) (isPassThrough bool, rawGvk *schema.GroupVersionKind, recommendGvk *schema.GroupVersionKind, err error) {
+func (c *VersionConverter) GvkGreeting(gvk *schema.GroupVersionKind) (greetBack GreetBackType, rawGvk *schema.GroupVersionKind, recommendGvk *schema.GroupVersionKind, err error) {
 	clusterVersion := Version(c.clusterInfo)
-
-	// todo: optimize it with api lifecycle
 
 	// to find gv through discovery client
 	groupList, err := c.discovery.ServerGroups()
 	if err != nil {
-		return false, gvk, nil, err
+		return IsUnknown, gvk, nil, err
 	}
 	if groupList != nil {
 		for _, group := range groupList.Groups {
@@ -152,13 +161,13 @@ func (c *VersionConverter) IsGvkAvailable(gvk *schema.GroupVersionKind) (isPassT
 					if ver.GroupVersion == gvk.GroupVersion().String() {
 						// found match group/version in target cluster.
 						// so the object is available in target cluster.
-						return true, gvk, nil, nil
+						return IsPassThrough, gvk, nil, nil
 					}
 				}
 				// group version in target cluster not match object group version.
 				// example: apps/v1beta1 <--> apps/v1
 				// we fetch preferred version in that group.
-				return false, gvk, &schema.GroupVersionKind{Group: group.Name, Version: group.PreferredVersion.Version, Kind: gvk.Kind}, nil
+				return IsNeedConvert, gvk, &schema.GroupVersionKind{Group: group.Name, Version: group.PreferredVersion.Version, Kind: gvk.Kind}, nil
 			}
 		}
 	}
@@ -168,7 +177,7 @@ func (c *VersionConverter) IsGvkAvailable(gvk *schema.GroupVersionKind) (isPassT
 	// so we should fetch preferred version by object kind.
 	_, allResources, err := c.discovery.ServerGroupsAndResources()
 	if err != nil {
-		return false, gvk, nil, err
+		return IsUnknown, gvk, nil, err
 	}
 	if allResources != nil {
 		for _, gvs := range allResources {
@@ -179,7 +188,7 @@ func (c *VersionConverter) IsGvkAvailable(gvk *schema.GroupVersionKind) (isPassT
 					if preferredGroup == "" || preferredVersion == "" {
 						gv, err := schema.ParseGroupVersion(gvs.GroupVersion)
 						if err != nil {
-							return false, gvk, nil, fmt.Errorf("parse group version %v failed: %v", gvs.GroupVersion, err)
+							return IsUnknown, gvk, nil, fmt.Errorf("parse group version %v failed: %v", gvs.GroupVersion, err)
 						}
 						preferredGroup = gv.Group
 						preferredVersion = gv.Version
@@ -187,15 +196,15 @@ func (c *VersionConverter) IsGvkAvailable(gvk *schema.GroupVersionKind) (isPassT
 					// found object kind in target cluster.
 					// Attention: if we had crd which kind is same with k8s kind
 					// might cause problem, example: foo/bar.pod <--> apps/v1.pod
-					return false, gvk, &schema.GroupVersionKind{Group: preferredGroup, Version: preferredVersion, Kind: gvk.Kind}, nil
+					return IsNeedConvert, gvk, &schema.GroupVersionKind{Group: preferredGroup, Version: preferredVersion, Kind: gvk.Kind}, nil
 				}
 			}
 		}
 	}
 
-	notSupportError := fmt.Errorf("%v is not support in target cluster %v", gvk.String(), clusterVersion)
+	clog.Debug("%v is not support in target cluster %v", gvk.String(), clusterVersion)
 
-	return false, gvk, nil, notSupportError
+	return IsNotSupport, gvk, nil, nil
 }
 
 // Encode encodes given obj, generally the gv should match Object
