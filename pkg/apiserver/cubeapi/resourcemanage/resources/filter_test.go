@@ -89,6 +89,7 @@ func TestModifyResponse(t *testing.T) {
 		SortName:  "metadata.creationTimestamp",
 		SortOrder: "asc",
 		SortFunc:  "time",
+		EnableFilter: true,
 	}
 
 	filter.ModifyResponse(&r)
@@ -128,6 +129,7 @@ func TestFilterResult(t *testing.T) {
 		SortName:  "metadata.creationTimestamp",
 		SortOrder: "asc",
 		SortFunc:  "time",
+		EnableFilter: true,
 	}
 
 	resultJson := filter.FilterResult(listJson)
