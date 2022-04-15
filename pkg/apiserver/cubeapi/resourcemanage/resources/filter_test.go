@@ -82,13 +82,13 @@ func TestModifyResponse(t *testing.T) {
 	fuzzy["metadata.name"] = "a-name"
 
 	filter := Filter{
-		Exact:     exact,
-		Fuzzy:     fuzzy,
-		Limit:     5,
-		Offset:    5,
-		SortName:  "metadata.creationTimestamp",
-		SortOrder: "asc",
-		SortFunc:  "time",
+		Exact:        exact,
+		Fuzzy:        fuzzy,
+		Limit:        5,
+		Offset:       5,
+		SortName:     "metadata.creationTimestamp",
+		SortOrder:    "asc",
+		SortFunc:     "time",
 		EnableFilter: true,
 	}
 
@@ -122,13 +122,13 @@ func TestFilterResult(t *testing.T) {
 	fuzzy["metadata.name"] = "a-name"
 
 	filter := Filter{
-		Exact:     exact,
-		Fuzzy:     fuzzy,
-		Limit:     5,
-		Offset:    5,
-		SortName:  "metadata.creationTimestamp",
-		SortOrder: "asc",
-		SortFunc:  "time",
+		Exact:        exact,
+		Fuzzy:        fuzzy,
+		Limit:        5,
+		Offset:       5,
+		SortName:     "metadata.creationTimestamp",
+		SortOrder:    "asc",
+		SortFunc:     "time",
 		EnableFilter: true,
 	}
 
