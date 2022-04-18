@@ -17,10 +17,9 @@
 REPO_ROOT=$(git rev-parse --show-toplevel)
 cd "${REPO_ROOT}"
 
-kubectl delete -f deploy/manifests/rbac/buildin
-kubectl delete -f deploy/manifests/rbac
 kubectl delete -f deploy/manifests
 kubectl delete -f deploy/metrics-server.yaml
 kubectl delete -f deploy/hnc.yaml
+kubectl delete ns kubecube-system
 
 make uninstall

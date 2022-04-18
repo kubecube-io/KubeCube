@@ -22,6 +22,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	"github.com/kubecube-io/kubecube/pkg/multicluster/scout"
 	"github.com/kubecube-io/kubecube/pkg/utils/exit"
+	"k8s.io/apimachinery/pkg/version"
 	"sync"
 	"time"
 
@@ -67,6 +68,10 @@ func newMultiClusterMgr() *MultiClustersMgr {
 		// early exit when connect to the k8s apiserver of control plane failed
 		clog.Fatal("make client for local cluster failed: %v", err)
 	}
+	c.Version, err = c.Client.Discovery().ServerVersion()
+	if err != nil {
+		clog.Fatal("discovery cluster version failed: %v", err)
+	}
 
 	err = m.Add(constants.LocalCluster, c)
 	if err != nil {
@@ -87,6 +92,9 @@ type InternalCluster struct {
 
 	// Config bind to a real cluster
 	Config *rest.Config
+
+	// Version the k8s Version about internal cluster
+	Version *version.Info
 
 	// RawConfig holds raw kubeconfig
 	RawConfig []byte
@@ -121,6 +129,10 @@ func NewInternalCluster(cluster clusterv1.Cluster) (*InternalCluster, error) {
 	c.Type = clusterType
 	c.RawConfig = cluster.Spec.KubeConfig
 	c.Client, err = client.NewClientFor(exit.SetupCtxWithStop(context.Background(), c.StopCh), config)
+	if err != nil {
+		return nil, err
+	}
+	c.Version, err = c.Client.Discovery().ServerVersion()
 	if err != nil {
 		return nil, err
 	}
@@ -195,6 +207,15 @@ func (m *MultiClustersMgr) GetClient(cluster string) (client.Client, error) {
 	}
 
 	return c.Client, err
+}
+
+func (m *MultiClustersMgr) Version(cluster string) (*version.Info, error) {
+	c, err := m.Get(cluster)
+	if err != nil {
+		return nil, err
+	}
+
+	return c.Version, nil
 }
 
 // ScoutFor starts watch for warden intelligence
