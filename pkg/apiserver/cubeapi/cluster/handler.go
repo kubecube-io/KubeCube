@@ -93,6 +93,11 @@ type clusterInfo struct {
 	UsedStorageEphemeral  int `json:"usedStorageEphemeral"`
 	TotalGpu              int `json:"totalGpu"`
 	UsedGpu               int `json:"usedGpu"`
+
+	UsedCPURequest int `json:"usedCpuRequest"`
+	UsedCPULimit   int `json:"usedCpuLimit"`
+	UsedMemRequest int `json:"usedMemRequest"`
+	UsedMemLimit   int `json:"usedMemLimit"`
 }
 
 type handler struct {

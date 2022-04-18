@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -116,10 +117,10 @@ func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivot
 			clog.Warn("get cluster %v nodes metrics failed: %v", v, err)
 		} else {
 			for _, m := range nodesMc.Items {
-				info.UsedCPU += strproc.Str2int(m.Usage.Cpu().String())/1000000 + 1
-				info.UsedMem += strproc.Str2int(m.Usage.Memory().String()) / 1024
-				info.UsedStorage += (strproc.Str2int(m.Usage.Storage().String()) + 1) / 1024
-				info.UsedStorageEphemeral += (strproc.Str2int(m.Usage.StorageEphemeral().String()) + 1) / 1024
+				info.UsedCPU += int(m.Usage.Cpu().MilliValue())                                         // 1000 m
+				info.UsedMem += int(m.Usage.Memory().ScaledValue(resource.Mega))                        // 1024 Mi
+				info.UsedStorage += int(m.Usage.Storage().ScaledValue(resource.Mega))                   // 1024 Mi
+				info.UsedStorageEphemeral += int(m.Usage.StorageEphemeral().ScaledValue(resource.Mega)) // 1024 Mi
 			}
 		}
 
@@ -132,10 +133,10 @@ func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivot
 		info.NodeCount = len(nodes.Items)
 
 		for _, n := range nodes.Items {
-			info.TotalCPU += strproc.Str2int(n.Status.Capacity.Cpu().String()) * 1000
-			info.TotalMem += strproc.Str2int(n.Status.Capacity.Memory().String()) / 1024
-			info.TotalStorage += (strproc.Str2int(n.Status.Capacity.Storage().String()) + 1) / 1024
-			info.TotalStorageEphemeral += (strproc.Str2int(n.Status.Capacity.StorageEphemeral().String()) + 1) / 1024
+			info.TotalCPU += int(n.Status.Capacity.Cpu().MilliValue())                                         // 1000 m
+			info.TotalMem += int(n.Status.Capacity.Memory().ScaledValue(resource.Mega))                        // 1024 Mi
+			info.TotalStorage += int(n.Status.Capacity.Storage().ScaledValue(resource.Mega))                   // 1024 Mi
+			info.TotalStorageEphemeral += int(n.Status.Capacity.StorageEphemeral().ScaledValue(resource.Mega)) // 1024 Mi
 		}
 
 		ns := corev1.NamespaceList{}
@@ -146,6 +147,20 @@ func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivot
 
 		info.NamespaceCount = len(ns.Items)
 
+		clusterNonTerminatedPodsList, err := getPodsInCluster(cli)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, pod := range clusterNonTerminatedPodsList.Items {
+			req, limit := podRequestsAndLimits(&pod)
+			cpuReq, cpuLimit, memoryReq, memoryLimit := req[corev1.ResourceCPU], limit[corev1.ResourceCPU], req[corev1.ResourceMemory], limit[corev1.ResourceMemory]
+			info.UsedCPURequest += int(cpuReq.MilliValue())                  // 1000 m
+			info.UsedCPULimit += int(cpuLimit.MilliValue())                  // 1000 m
+			info.UsedMemRequest += int(memoryReq.ScaledValue(resource.Mega)) // 1024 Mi
+			info.UsedMemLimit += int(memoryLimit.ScaledValue(resource.Mega)) // 1024 Mi
+		}
+
 		if len(statusFilter) == 0 {
 			infos = append(infos, info)
 		} else if info.Status == statusFilter {
@@ -154,6 +169,73 @@ func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivot
 	}
 
 	return infos, nil
+}
+
+func podRequestsAndLimits(pod *corev1.Pod) (reqs, limits corev1.ResourceList) {
+	reqs, limits = corev1.ResourceList{}, corev1.ResourceList{}
+	for _, container := range pod.Spec.Containers {
+		addResourceList(reqs, container.Resources.Requests)
+		addResourceList(limits, container.Resources.Limits)
+	}
+	// init containers define the minimum of any resource
+	for _, container := range pod.Spec.InitContainers {
+		maxResourceList(reqs, container.Resources.Requests)
+		maxResourceList(limits, container.Resources.Limits)
+	}
+
+	// Add overhead for running a pod to the sum of requests and to non-zero limits:
+	if pod.Spec.Overhead != nil {
+		addResourceList(reqs, pod.Spec.Overhead)
+
+		for name, quantity := range pod.Spec.Overhead {
+			if value, ok := limits[name]; ok && !value.IsZero() {
+				value.Add(quantity)
+				limits[name] = value
+			}
+		}
+	}
+	return
+}
+
+// addResourceList adds the resources in newList to list
+func addResourceList(list, new corev1.ResourceList) {
+	for name, quantity := range new {
+		if value, ok := list[name]; !ok {
+			list[name] = quantity.DeepCopy()
+		} else {
+			value.Add(quantity)
+			list[name] = value
+		}
+	}
+}
+
+// maxResourceList sets list to the greater of list/newList for every resource
+// either list
+func maxResourceList(list, new corev1.ResourceList) {
+	for name, quantity := range new {
+		if value, ok := list[name]; !ok {
+			list[name] = quantity.DeepCopy()
+			continue
+		} else {
+			if quantity.Cmp(value) > 0 {
+				list[name] = quantity.DeepCopy()
+			}
+		}
+	}
+}
+
+func getPodsInCluster(cli mgrclient.Client) (*corev1.PodList, error) {
+	fieldSelector, err := fields.ParseSelector("status.phase!=" + string(corev1.PodSucceeded) + ",status.phase!=" + string(corev1.PodFailed))
+	if err != nil {
+		return nil, err
+	}
+	podList := &corev1.PodList{}
+	// todo: use cache as soon as cache support for complicated field selector
+	err = cli.Direct().List(context.TODO(), podList, &client.ListOptions{FieldSelector: fieldSelector})
+	if err != nil {
+		return nil, err
+	}
+	return podList, nil
 }
 
 func makeMonitorInfo(ctx context.Context, cluster string) (*monitorInfo, error) {
