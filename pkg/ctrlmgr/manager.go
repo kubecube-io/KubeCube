@@ -39,7 +39,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	hnc "sigs.k8s.io/multi-tenancy/incubator/hnc/api/v1alpha2"
+	hnc "sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
 )
 
 var scheme = runtime.NewScheme()

@@ -32,7 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
-	hnc "sigs.k8s.io/multi-tenancy/incubator/hnc/api/v1alpha2"
+	hnc "sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
 
 	"github.com/kubecube-io/kubecube/pkg/apis"
 	"github.com/kubecube-io/kubecube/pkg/clog"

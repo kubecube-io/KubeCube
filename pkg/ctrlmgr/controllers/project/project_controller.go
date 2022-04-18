@@ -32,7 +32,7 @@ import (
 	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	hnc "sigs.k8s.io/multi-tenancy/incubator/hnc/api/v1alpha2"
+	hnc "sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
 )
 
 var _ reconcile.Reconciler = &ProjectReconciler{}
