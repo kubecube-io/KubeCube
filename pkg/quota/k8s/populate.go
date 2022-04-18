@@ -19,15 +19,17 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/strslice"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	quotav1 "github.com/kubecube-io/kubecube/pkg/apis/quota/v1"
-	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/quota"
 )
 
@@ -77,20 +79,34 @@ func isExceedParent(current, old *v1.ResourceQuota, parent *quotav1.CubeResource
 	return false, ""
 }
 
-func refreshUsedResource(current, old *v1.ResourceQuota, parent *quotav1.CubeResourceQuota, cli client.Client) *quotav1.CubeResourceQuota {
+func refreshUsedResource(current, old *v1.ResourceQuota, parent *quotav1.CubeResourceQuota, cli client.Client) (*quotav1.CubeResourceQuota, error) {
 	newParentUsed := quota.ClearQuotas(parent.Status.Used)
 
 	for _, sub := range parent.Status.SubResourceQuotas {
-		subResourceQuota, err := getResourceQuota(cli, sub)
+		subResourceQuota, name, ns, err := getResourceQuota(cli, sub)
 		if err != nil {
-			clog.Error(err.Error())
-			// any error occurred return directly
-			return parent
+			if !errors.IsNotFound(err) {
+				return parent, err
+			}
+			needRemoveSub := true
+			// use new ResourceQuota if present
+			if current != nil {
+				if name == current.Name && ns == current.Namespace {
+					clog.Debug("handle current subResourceQuota %v", sub)
+					subResourceQuota = current
+					needRemoveSub = false
+				}
+			}
+			if needRemoveSub {
+				// remove not found subResourceQuota
+				clog.Info("remove not exist subResourceQuota %v", sub)
+				parent.Status.SubResourceQuotas = strslice.RemoveString(parent.Status.SubResourceQuotas, sub)
+				continue
+			}
 		}
-		// use new ResourceQuota if present
-		if subResourceQuota.Name == current.Name && subResourceQuota.Namespace == current.Namespace {
-			subResourceQuota = current
-		}
+
+		clog.Info("populate used of CubeResourceQuota %v with subResourceQuota %v", parent.Name, sub)
+
 		for _, rs := range quota.ResourceNames {
 			// continue if parent used quota had no that resource
 			newUsed, ok := newParentUsed[rs]
@@ -108,15 +124,16 @@ func refreshUsedResource(current, old *v1.ResourceQuota, parent *quotav1.CubeRes
 	}
 
 	parent.Status.Used = newParentUsed
+	clog.Debug("refreshed used of CubeResourceQuota %v is %v", parent, newParentUsed)
 
-	return parent
+	return parent, nil
 }
 
-func getResourceQuota(cli client.Client, s string) (*v1.ResourceQuota, error) {
+func getResourceQuota(cli client.Client, s string) (*v1.ResourceQuota, string, string, error) {
 	splitS := strings.Split(s, ".")
 	splitSLen := len(splitS)
 	if splitSLen < 3 {
-		return nil, fmt.Errorf("subResourceQuota name invilde: %v", s)
+		return nil, "", "", fmt.Errorf("subResourceQuota name invilde: %v", s)
 	}
 
 	ns := splitS[splitSLen-2]
@@ -133,10 +150,10 @@ func getResourceQuota(cli client.Client, s string) (*v1.ResourceQuota, error) {
 	rq := &v1.ResourceQuota{}
 	err := cli.Get(context.Background(), types.NamespacedName{Name: name, Namespace: ns}, rq)
 	if err != nil {
-		return nil, err
+		return nil, name, ns, err
 	}
 
-	return rq, nil
+	return rq, name, ns, nil
 }
 
 func ensureValue(c *v1.ResourceQuota, key v1.ResourceName) resource.Quantity {

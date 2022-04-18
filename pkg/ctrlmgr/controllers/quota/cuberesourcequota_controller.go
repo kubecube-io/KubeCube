@@ -18,6 +18,8 @@ package quota
 
 import (
 	"context"
+	"github.com/kubecube-io/kubecube/pkg/quota"
+	v1 "k8s.io/api/core/v1"
 	"reflect"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -63,28 +65,39 @@ func newReconciler(mgr manager.Manager) (reconcile.Reconciler, error) {
 
 // Reconcile of cube resource quota only used for initializing status of cube resource quota
 func (r *CubeResourceQuotaReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	quota := quotav1.CubeResourceQuota{}
-	err := r.Get(ctx, req.NamespacedName, &quota)
+	cubeQuota := quotav1.CubeResourceQuota{}
+	err := r.Get(ctx, req.NamespacedName, &cubeQuota)
 	if err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// init status of cube resource quota when create
-	if quota.Status.Used == nil && quota.Status.Hard == nil {
-		log.Info("initialize status of cube resource quota: %v, target: %+v", quota.Name, quota.Spec.Target)
-		err = r.initQuotaStatus(ctx, &quota)
+	// init status of cube resource cubeQuota when create
+	if cubeQuota.Status.Used == nil && cubeQuota.Status.Hard == nil {
+		log.Info("initialize status of cube resource cubeQuota: %v, target: %+v", cubeQuota.Name, cubeQuota.Spec.Target)
+		err = r.initQuotaStatus(ctx, &cubeQuota)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
 	}
 
-	if !reflect.DeepEqual(quota.Spec.Hard, quota.Status.Hard) {
-		quotaCopy := quota.DeepCopy()
+	needUpdate := false
 
-		quotaCopy.Status.Hard = quotaCopy.Spec.Hard
+	// ensure used field
+	used, updateUsed := r.ifUpdateUsed(cubeQuota.Spec.Hard, cubeQuota.Status.Used)
+	if updateUsed {
+		cubeQuota.Status.Used = used
+		needUpdate = true
+	}
 
+	// ensure status hard
+	if !reflect.DeepEqual(cubeQuota.Spec.Hard, cubeQuota.Status.Hard) {
+		cubeQuota.Status.Hard = cubeQuota.Spec.Hard
+		needUpdate = true
+	}
+
+	if needUpdate {
 		err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			err := r.Status().Update(ctx, quotaCopy, &client.UpdateOptions{})
+			err := r.Status().Update(ctx, cubeQuota.DeepCopy(), &client.UpdateOptions{})
 			if !errors.IsConflict(err) {
 				return err
 			}
@@ -110,6 +123,18 @@ func (r *CubeResourceQuotaReconciler) initQuotaStatus(ctx context.Context, quota
 		}
 		return nil
 	})
+}
+
+// ifUpdateUsed keep resource of hard and used same
+func (r *CubeResourceQuotaReconciler) ifUpdateUsed(hard, used v1.ResourceList) (v1.ResourceList, bool) {
+	needUpdate := false
+	for rsName := range hard {
+		if _, ok := used[rsName]; !ok {
+			needUpdate = true
+			used[rsName] = quota.ZeroQ()
+		}
+	}
+	return used, needUpdate
 }
 
 // SetupWithManager sets up the controller with the Manager.
