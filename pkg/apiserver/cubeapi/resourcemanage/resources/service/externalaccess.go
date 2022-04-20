@@ -49,8 +49,8 @@ type ExternalAccess struct {
 	ctx       context.Context
 	client    mgrclient.Client
 	namespace string
-	name   string
-	filter filter.Filter
+	name      string
+	filter    filter.Filter
 }
 
 func NewExternalAccess(client mgrclient.Client, namespace string, name string, filter filter.Filter) ExternalAccess {
