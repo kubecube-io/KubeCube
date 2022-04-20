@@ -18,7 +18,6 @@ package job
 
 import (
 	"context"
-	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 
 	jsoniter "github.com/json-iterator/go"
 	batchv1 "k8s.io/api/batch/v1"
@@ -26,6 +25,7 @@ import (
 
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
+	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
