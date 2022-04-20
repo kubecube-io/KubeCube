@@ -18,12 +18,12 @@ package podlog
 
 import (
 	"context"
+	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 	"io"
 	"io/ioutil"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
@@ -41,10 +41,10 @@ type PodLog struct {
 	ctx       context.Context
 	client    client.Client
 	namespace string
-	filter    resources.Filter
+	filter    filter.Filter
 }
 
-func NewPodLog(client client.Client, namespace string, filter resources.Filter) PodLog {
+func NewPodLog(client client.Client, namespace string, filter filter.Filter) PodLog {
 	ctx := context.Background()
 	return PodLog{
 		ctx:       ctx,

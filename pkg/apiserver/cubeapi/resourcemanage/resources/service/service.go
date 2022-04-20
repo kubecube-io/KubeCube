@@ -17,13 +17,13 @@ package service
 
 import (
 	"context"
+	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
 	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 )
 
@@ -31,10 +31,10 @@ type Service struct {
 	ctx       context.Context
 	client    mgrclient.Client
 	namespace string
-	filter    resources.Filter
+	filter    filter.Filter
 }
 
-func NewService(client mgrclient.Client, namespace string, filter resources.Filter) Service {
+func NewService(client mgrclient.Client, namespace string, filter filter.Filter) Service {
 	ctx := context.Background()
 	return Service{
 		ctx:       ctx,
@@ -44,8 +44,8 @@ func NewService(client mgrclient.Client, namespace string, filter resources.Filt
 	}
 }
 
-func (s *Service) GetExtendServices() resources.K8sJson {
-	resultMap := make(resources.K8sJson)
+func (s *Service) GetExtendServices() filter.K8sJson {
+	resultMap := make(filter.K8sJson)
 	// get service list from k8s cluster
 	var serviceList corev1.ServiceList
 	err := s.client.Cache().List(s.ctx, &serviceList, client.InNamespace(s.namespace))
@@ -77,8 +77,8 @@ func (s *Service) GetExtendServices() resources.K8sJson {
 }
 
 // get external ips
-func (s *Service) addExtendInfo(serviceList corev1.ServiceList) resources.K8sJsonArr {
-	resultList := make(resources.K8sJsonArr, 0)
+func (s *Service) addExtendInfo(serviceList corev1.ServiceList) filter.K8sJsonArr {
+	resultList := make(filter.K8sJsonArr, 0)
 
 	for _, service := range serviceList.Items {
 		ips := make([]string, 0)
@@ -137,7 +137,7 @@ func (s *Service) addExtendInfo(serviceList corev1.ServiceList) resources.K8sJso
 		}
 
 		// create result map
-		result := make(resources.K8sJson)
+		result := make(filter.K8sJson)
 		result["metadata"] = service.ObjectMeta
 		result["spec"] = service.Spec
 		result["status"] = service.Status

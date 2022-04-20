@@ -18,9 +18,9 @@ package pod
 
 import (
 	"context"
+	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	corev1 "k8s.io/api/core/v1"
@@ -33,10 +33,10 @@ type Pod struct {
 	ctx       context.Context
 	client    mgrclient.Client
 	namespace string
-	filter    resources.Filter
+	filter    filter.Filter
 }
 
-func NewPod(client mgrclient.Client, namespace string, filter resources.Filter) Pod {
+func NewPod(client mgrclient.Client, namespace string, filter filter.Filter) Pod {
 	ctx := context.Background()
 	return Pod{
 		ctx:       ctx,
@@ -47,7 +47,7 @@ func NewPod(client mgrclient.Client, namespace string, filter resources.Filter) 
 }
 
 // get pods
-func (d *Pod) GetPods() resources.K8sJson {
+func (d *Pod) GetPods() filter.K8sJson {
 
 	//resultMap := make(resources.K8sJson)
 	// get pod list from k8s cluster

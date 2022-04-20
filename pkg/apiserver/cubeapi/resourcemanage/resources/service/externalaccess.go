@@ -18,6 +18,7 @@ package service
 
 import (
 	"fmt"
+	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 	"strconv"
 	"strings"
 
@@ -31,7 +32,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
 	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 )
 
@@ -49,11 +49,11 @@ type ExternalAccess struct {
 	ctx       context.Context
 	client    mgrclient.Client
 	namespace string
-	name      string
-	filter    resources.Filter
+	name   string
+	filter filter.Filter
 }
 
-func NewExternalAccess(client mgrclient.Client, namespace string, name string, filter resources.Filter) ExternalAccess {
+func NewExternalAccess(client mgrclient.Client, namespace string, name string, filter filter.Filter) ExternalAccess {
 	ctx := context.Background()
 	return ExternalAccess{
 		ctx:       ctx,

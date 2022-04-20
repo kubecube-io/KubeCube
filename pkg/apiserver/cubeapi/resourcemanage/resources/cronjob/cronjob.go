@@ -17,9 +17,9 @@ package cronjob
 
 import (
 	"context"
+	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
 	jobRes "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/job"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
@@ -35,10 +35,10 @@ type CronJob struct {
 	ctx       context.Context
 	client    mgrclient.Client
 	namespace string
-	filter    resources.Filter
+	filter    filter.Filter
 }
 
-func NewCronJob(client mgrclient.Client, namespace string, filter resources.Filter) CronJob {
+func NewCronJob(client mgrclient.Client, namespace string, filter filter.Filter) CronJob {
 	ctx := context.Background()
 	return CronJob{
 		ctx:       ctx,
@@ -49,8 +49,8 @@ func NewCronJob(client mgrclient.Client, namespace string, filter resources.Filt
 }
 
 // get extend deployments
-func (c *CronJob) GetExtendCronJobs() resources.K8sJson {
-	resultMap := make(resources.K8sJson)
+func (c *CronJob) GetExtendCronJobs() filter.K8sJson {
+	resultMap := make(filter.K8sJson)
 
 	// get deployment list from k8s cluster
 	var cronJobList batchv1beta1.CronJobList
@@ -83,7 +83,7 @@ func (c *CronJob) GetExtendCronJobs() resources.K8sJson {
 }
 
 // get extend deployments
-func (c *CronJob) GetExtendCronJob(name string) resources.K8sJson {
+func (c *CronJob) GetExtendCronJob(name string) filter.K8sJson {
 
 	// get deployment list from k8s cluster
 	var cronJob batchv1beta1.CronJob
@@ -101,11 +101,11 @@ func (c *CronJob) GetExtendCronJob(name string) resources.K8sJson {
 		return nil
 	}
 
-	return resultList[0].(resources.K8sJson)
+	return resultList[0].(filter.K8sJson)
 }
 
-func (c *CronJob) addExtendInfo(cronJobList batchv1beta1.CronJobList) resources.K8sJsonArr {
-	resultList := make(resources.K8sJsonArr, 0)
+func (c *CronJob) addExtendInfo(cronJobList batchv1beta1.CronJobList) filter.K8sJsonArr {
+	resultList := make(filter.K8sJsonArr, 0)
 	jobArrMap := c.getOwnerJobs()
 	for _, cronJob := range cronJobList.Items {
 		// parse job status
@@ -114,21 +114,21 @@ func (c *CronJob) addExtendInfo(cronJobList batchv1beta1.CronJobList) resources.
 		runningJobCount := 0
 		if ok {
 			for _, job := range jobArr {
-				extendInfo := job.(resources.K8sJson)["extendInfo"]
-				extendInfoStatus := extendInfo.(resources.K8sJson)["status"].(string)
+				extendInfo := job.(filter.K8sJson)["extendInfo"]
+				extendInfoStatus := extendInfo.(filter.K8sJson)["status"].(string)
 				if extendInfoStatus == "Running" {
 					runningJobCount++
 				}
 			}
 		}
-		extendInfo := make(resources.K8sJson)
+		extendInfo := make(filter.K8sJson)
 		extendInfo["status"] = status
 		extendInfo["runningJobCount"] = runningJobCount
 		extendInfo["jobCount"] = len(jobArr)
 		extendInfo["jobs"] = jobArr
 
 		// create result map
-		result := make(resources.K8sJson)
+		result := make(filter.K8sJson)
 		result["metadata"] = cronJob.ObjectMeta
 		result["spec"] = cronJob.Spec
 		result["status"] = cronJob.Status
@@ -139,8 +139,8 @@ func (c *CronJob) addExtendInfo(cronJobList batchv1beta1.CronJobList) resources.
 	return resultList
 }
 
-func (c *CronJob) getOwnerJobs() map[string]resources.K8sJsonArr {
-	result := make(map[string]resources.K8sJsonArr)
+func (c *CronJob) getOwnerJobs() map[string]filter.K8sJsonArr {
+	result := make(map[string]filter.K8sJsonArr)
 	var jobList batchv1.JobList
 	err := c.client.Cache().List(c.ctx, &jobList, client.InNamespace(c.namespace))
 	if err != nil {
@@ -155,10 +155,10 @@ func (c *CronJob) getOwnerJobs() map[string]resources.K8sJsonArr {
 		uid := string(job.OwnerReferences[0].UID)
 
 		status := jobRes.ParseJobStatus(job)
-		extendInfo := make(resources.K8sJson)
+		extendInfo := make(filter.K8sJson)
 		extendInfo["status"] = status
 		// create result map
-		jobMap := make(resources.K8sJson)
+		jobMap := make(filter.K8sJson)
 		jobMap["metadata"] = job.ObjectMeta
 		jobMap["spec"] = job.Spec
 		jobMap["status"] = job.Status
@@ -168,7 +168,7 @@ func (c *CronJob) getOwnerJobs() map[string]resources.K8sJsonArr {
 			jobArr = append(jobArr, jobMap)
 			result[uid] = jobArr
 		} else {
-			var jobArrTemp resources.K8sJsonArr
+			var jobArrTemp filter.K8sJsonArr
 			jobArrTemp = append(jobArrTemp, jobMap)
 			result[uid] = jobArrTemp
 		}

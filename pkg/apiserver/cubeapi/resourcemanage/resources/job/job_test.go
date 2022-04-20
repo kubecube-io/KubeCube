@@ -16,6 +16,7 @@ limitations under the License.
 package job_test
 
 import (
+	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -25,7 +26,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/job"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
@@ -74,7 +74,7 @@ var _ = Describe("Job", func() {
 	It("test get job extend info", func() {
 		client := clients.Interface().Kubernetes(constants.LocalCluster)
 		Expect(client).NotTo(BeNil())
-		job := job.NewJob(client, ns, resources.Filter{Limit: 10})
+		job := job.NewJob(client, ns, filter.Filter{Limit: 10})
 		ret := job.GetExtendJobs()
 		Expect(ret["total"]).To(Equal(2))
 		items := ret["items"].([]interface{})

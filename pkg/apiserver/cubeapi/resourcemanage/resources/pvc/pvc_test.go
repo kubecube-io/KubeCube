@@ -16,6 +16,7 @@ limitations under the License.
 package job_test
 
 import (
+	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -24,7 +25,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
 	job "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/pvc"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
@@ -78,7 +78,7 @@ var _ = Describe("Pvc", func() {
 	It("test get pvc workloads (pod which used this pvc)", func() {
 		client := clients.Interface().Kubernetes(constants.LocalCluster)
 		Expect(client).NotTo(BeNil())
-		pvc := job.NewPvc(client, ns, resources.Filter{Limit: 10})
+		pvc := job.NewPvc(client, ns, filter.Filter{Limit: 10})
 		ret := pvc.GetPvcWorkloads(pvcName)
 		Expect(ret["total"]).To(Equal(1))
 		pods := ret["pods"].([]corev1.Pod)

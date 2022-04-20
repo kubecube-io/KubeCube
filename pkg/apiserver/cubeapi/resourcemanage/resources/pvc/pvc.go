@@ -17,8 +17,8 @@ package job
 
 import (
 	"context"
+	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
 	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -28,10 +28,10 @@ type Pvc struct {
 	ctx       context.Context
 	client    mgrclient.Client
 	namespace string
-	filter    resources.Filter
+	filter    filter.Filter
 }
 
-func NewPvc(client mgrclient.Client, namespace string, filter resources.Filter) Pvc {
+func NewPvc(client mgrclient.Client, namespace string, filter filter.Filter) Pvc {
 	ctx := context.Background()
 	return Pvc{
 		ctx:       ctx,
@@ -42,8 +42,8 @@ func NewPvc(client mgrclient.Client, namespace string, filter resources.Filter) 
 }
 
 // get extend deployments
-func (p *Pvc) GetPvcWorkloads(pvcName string) resources.K8sJson {
-	result := make(resources.K8sJson)
+func (p *Pvc) GetPvcWorkloads(pvcName string) filter.K8sJson {
+	result := make(filter.K8sJson)
 	var pods []corev1.Pod
 	var podList corev1.PodList
 	err := p.client.Cache().List(p.ctx, &podList, client.InNamespace(p.namespace))
