@@ -138,6 +138,18 @@ func (r *ProjectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 					"kubecube.io/sync": "1",
 				},
 			},
+			Spec: hnc.SubnamespaceAnchorSpec{
+				Labels: []hnc.MetaKVP{
+					{
+						Key:   "kubecube.hnc.x-k8s.io/tenant",
+						Value: tenant.Name,
+					},
+					{
+						Key:   "kubecube.hnc.x-k8s.io/project",
+						Value: project.Name,
+					},
+				},
+			},
 		}
 		err = r.Client.Create(ctx, &subnamesapceAchor)
 		if err != nil {
