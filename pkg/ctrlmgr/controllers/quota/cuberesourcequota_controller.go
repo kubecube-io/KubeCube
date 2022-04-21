@@ -72,7 +72,7 @@ func (r *CubeResourceQuotaReconciler) Reconcile(ctx context.Context, req ctrl.Re
 	}
 
 	// init status of cube resource cubeQuota when create
-	if cubeQuota.Status.Used == nil && cubeQuota.Status.Hard == nil {
+	if cubeQuota.Status.Used == nil || cubeQuota.Status.Hard == nil {
 		log.Info("initialize status of cube resource cubeQuota: %v, target: %+v", cubeQuota.Name, cubeQuota.Spec.Target)
 		err = r.initQuotaStatus(ctx, &cubeQuota)
 		if err != nil {
@@ -112,12 +112,10 @@ func (r *CubeResourceQuotaReconciler) Reconcile(ctx context.Context, req ctrl.Re
 }
 
 func (r *CubeResourceQuotaReconciler) initQuotaStatus(ctx context.Context, quota *quotav1.CubeResourceQuota) error {
-	quotaCopy := quota.DeepCopy()
-
-	cube.InitStatus(quotaCopy)
+	cube.InitStatus(quota)
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		err := r.Status().Update(ctx, quotaCopy, &client.UpdateOptions{})
+		err := r.Status().Update(ctx, quota, &client.UpdateOptions{})
 		if !errors.IsConflict(err) {
 			return err
 		}
