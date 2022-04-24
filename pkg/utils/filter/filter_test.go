@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package resources
+package filter
 
 import (
 	"bytes"
@@ -25,13 +25,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/kubecube-io/kubecube/pkg/clients"
-	"github.com/kubecube-io/kubecube/pkg/multicluster"
-	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
 func createList() map[string]interface{} {
@@ -316,21 +309,4 @@ func TestGetDeepFloat64(t *testing.T) {
 	assert.Equal(float64(5), number)
 	number = GetDeepFloat64(items[0], "metadata.labels.number1")
 	assert.Equal(float64(0), number)
-}
-
-func TestAccessAllow(t *testing.T) {
-	scheme := runtime.NewScheme()
-	opts := &fake.Options{
-		Scheme:               scheme,
-		Objs:                 []client.Object{},
-		ClientSetRuntimeObjs: []runtime.Object{},
-		Lists:                []client.ObjectList{},
-	}
-	multicluster.InitFakeMultiClusterMgrWithOpts(opts)
-	clients.InitCubeClientSetWithOpts(nil)
-
-	assert := assert.New(t)
-	access := NewSimpleAccess(constants.LocalCluster, "admin", "namespace-test")
-	allow := access.AccessAllow("", "pods", "list")
-	assert.Equal(allow, false)
 }

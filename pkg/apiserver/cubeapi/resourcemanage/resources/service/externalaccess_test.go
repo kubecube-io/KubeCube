@@ -21,21 +21,20 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kubecube-io/kubecube/pkg/apis"
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/service"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 )
 
 var _ = Describe("Externalaccess", func() {
@@ -110,7 +109,7 @@ var _ = Describe("Externalaccess", func() {
 		clients.InitCubeClientSetWithOpts(nil)
 		cli = clients.Interface().Kubernetes(constants.LocalCluster)
 		Expect(cli).NotTo(BeNil())
-		externalAccess = service.NewExternalAccess(cli, ns, serviceName, resources.Filter{Limit: 10})
+		externalAccess = service.NewExternalAccess(cli, ns, serviceName, filter.Filter{Limit: 10})
 	})
 
 	It("test get external address", func() {
@@ -176,7 +175,7 @@ var _ = Describe("Externalaccess", func() {
 	})
 
 	It("test get external access", func() {
-		ea := service.NewExternalAccess(cli, ns, serviceName2, resources.Filter{Limit: 10})
+		ea := service.NewExternalAccess(cli, ns, serviceName2, filter.Filter{Limit: 10})
 		ret, err := ea.GetExternalAccess()
 		Expect(err).To(BeNil())
 		for _, item := range ret {

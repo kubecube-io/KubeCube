@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package job_test
 
 import (
@@ -25,12 +26,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/job"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 )
 
 var _ = Describe("Job", func() {
@@ -74,7 +75,7 @@ var _ = Describe("Job", func() {
 	It("test get job extend info", func() {
 		client := clients.Interface().Kubernetes(constants.LocalCluster)
 		Expect(client).NotTo(BeNil())
-		job := job.NewJob(client, ns, resources.Filter{Limit: 10})
+		job := job.NewJob(client, ns, filter.Filter{Limit: 10})
 		ret := job.GetExtendJobs()
 		Expect(ret["total"]).To(Equal(2))
 		items := ret["items"].([]interface{})

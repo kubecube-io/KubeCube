@@ -24,7 +24,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
-	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -33,7 +32,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/conversion"
@@ -41,8 +39,12 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/ctls"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
+	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
+	"github.com/kubecube-io/kubecube/pkg/utils/page"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
+	"github.com/kubecube-io/kubecube/pkg/utils/selector"
+	"github.com/kubecube-io/kubecube/pkg/utils/sort"
 )
 
 type ProxyHandler struct {
@@ -252,18 +254,18 @@ func Filter(c *gin.Context, result []byte) []byte {
 }
 
 // product match/sort/page to other function
-func FilterToMap(c *gin.Context, result []byte) resources.K8sJson {
+func FilterToMap(c *gin.Context, result []byte) filter.K8sJson {
 	resources := parseQueryParams(c)
 	return resources.FilterResultToMap(result)
 }
 
 // parse request params, include selector, sort and page
-func parseQueryParams(c *gin.Context) resources.Filter {
-	exact, fuzzy := parseSelector(c.Query("selector"))
-	limit, offset := parsePage(c.Query("pageSize"), c.Query("pageNum"))
-	sortName, sortOrder, sortFunc := parseSort(c.Query("sortName"), c.Query("sortOrder"), c.Query("sortFunc"))
+func parseQueryParams(c *gin.Context) filter.Filter {
+	exact, fuzzy := selector.ParseSelector(c.Query("selector"))
+	limit, offset := page.ParsePage(c.Query("pageSize"), c.Query("pageNum"))
+	sortName, sortOrder, sortFunc := sort.ParseSort(c.Query("sortName"), c.Query("sortOrder"), c.Query("sortFunc"))
 
-	filter := resources.Filter{
+	filter := filter.Filter{
 		EnableFilter: needFilter(c),
 		Exact:        exact,
 		Fuzzy:        fuzzy,
@@ -280,73 +282,4 @@ func parseQueryParams(c *gin.Context) resources.Filter {
 func needFilter(c *gin.Context) bool {
 	return c.Query("selector")+c.Query("pageSize")+c.Query("pageNum")+
 		c.Query("sortName")+c.Query("sortOrder")+c.Query("sortFunc") != ""
-}
-
-// filter selector
-// exact query：selector=key1=value1,key2=value2,key3=value3
-// fuzzy query：selector=key1~value1,key2~value2,key3~value3
-// support mixed query：selector=key1~value1,key2=value2,key3=value3
-func parseSelector(selectorStr string) (exact, fuzzy map[string]string) {
-	if selectorStr == "" {
-		return nil, nil
-	}
-
-	exact = make(map[string]string, 0)
-	fuzzy = make(map[string]string, 0)
-
-	labels := strings.Split(selectorStr, ",")
-	for _, label := range labels {
-		if i := strings.IndexAny(label, "~="); i > 0 {
-			if label[i] == '=' {
-				exact[label[:i]] = label[i+1:]
-			} else {
-				fuzzy[label[:i]] = label[i+1:]
-			}
-		}
-	}
-
-	return
-}
-
-// page=10,1, means limit=10&page=1, default 10,1
-// offset=(page-1)*limit
-func parsePage(pageSize string, pageNum string) (limit, offset int) {
-	limit = 10
-	offset = 0
-
-	limit, err := strconv.Atoi(pageSize)
-	if err != nil {
-		limit = 10
-	}
-
-	page, err := strconv.Atoi(pageNum)
-	if err != nil || page < 1 {
-		offset = 0
-	} else {
-		offset = (page - 1) * limit
-	}
-
-	return
-}
-
-// sortName=creationTimestamp, sortOrder=asc
-func parseSort(name string, order string, sFunc string) (sortName, sortOrder, sortFunc string) {
-	sortName = "metadata.name"
-	sortOrder = "asc"
-	sortFunc = "string"
-
-	if name == "" {
-		return
-	}
-	sortName = name
-
-	if strings.EqualFold(order, "desc") {
-		sortOrder = "desc"
-	}
-
-	if sFunc != "" {
-		sortFunc = sFunc
-	}
-
-	return
 }
