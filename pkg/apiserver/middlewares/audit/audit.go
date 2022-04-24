@@ -82,7 +82,7 @@ func (h *Handler) Audit() gin.HandlerFunc {
 		if !withinWhiteList(c.Request.URL, c.Request.Method, auditWhiteList) &&
 			!withinWhiteList(c.Request.URL, c.Request.Method, auth.AuthWhiteList) && c.Request.Method != http.MethodGet {
 			// can not get resource name from url when create resource, so handle specially
-			if c.Request.Method == http.MethodPost && strings.HasPrefix(c.Request.URL.Path, constants.ApiPathRoot+"/proxy") {
+			if c.Request.Method == http.MethodPost && isProxyApi(c.Request.RequestURI) {
 				c.Set(constants.EventObjectName, getPostObjectName(c))
 			}
 			w := &responseBodyWriter{body: &bytes.Buffer{}, ResponseWriter: c.Writer}
@@ -249,7 +249,7 @@ func (h *Handler) handleProxyApi(ctx context.Context, c *gin.Context, e Event) *
 }
 
 func isProxyApi(requestURI string) bool {
-	if strings.HasPrefix(requestURI, "/api/v1/cube/proxy") {
+	if strings.HasPrefix(requestURI, constants.ApiPathRoot+"/proxy") {
 		return true
 	}
 	return false
