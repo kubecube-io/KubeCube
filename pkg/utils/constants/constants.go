@@ -58,6 +58,8 @@ const (
 	EventTypeUserWrite = "userwrite"
 	EventResourceType  = "resourceType"
 	EventAccountId     = "accountId"
+	EventObjectName    = "objectName"
+	EventRespBody      = "responseBody"
 
 	AuthorizationHeader        = "Authorization"
 	DefaultTokenExpireDuration = 3600 // 1 hour

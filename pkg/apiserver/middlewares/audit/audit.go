@@ -50,11 +50,6 @@ var (
 	auditSvc env.AuditSvcApi
 )
 
-const (
-	eventRespBody   = "responseBody"
-	eventObjectName = "objectName"
-)
-
 type Handler struct {
 	EnInstance  *gi18n.Manager
 	EnvInstance *gi18n.Manager
@@ -84,19 +79,20 @@ func withinWhiteList(url *url.URL, method string, whiteList map[string]string) b
 
 func (h *Handler) Audit() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// can not get resource name from url when create resource, so handle specially
-		if c.Request.Method == http.MethodPost {
-			c.Set(eventObjectName, getPostObjectName(c))
-		}
-		w := &responseBodyWriter{body: &bytes.Buffer{}, ResponseWriter: c.Writer}
-		c.Writer = w
-
-		c.Next()
-
 		if !withinWhiteList(c.Request.URL, c.Request.Method, auditWhiteList) &&
 			!withinWhiteList(c.Request.URL, c.Request.Method, auth.AuthWhiteList) && c.Request.Method != http.MethodGet {
-			clog.Debug("[audit] handle audit info")
+			// can not get resource name from url when create resource, so handle specially
+			if c.Request.Method == http.MethodPost && strings.HasPrefix(c.Request.URL.Path, constants.ApiPathRoot+"/proxy") {
+				c.Set(constants.EventObjectName, getPostObjectName(c))
+			}
+			w := &responseBodyWriter{body: &bytes.Buffer{}, ResponseWriter: c.Writer}
+			c.Writer = w
+
+			c.Next()
+
 			go h.handle(c, w)
+		} else {
+			c.Next()
 		}
 	}
 
@@ -104,7 +100,7 @@ func (h *Handler) Audit() gin.HandlerFunc {
 
 func (h *Handler) handle(c *gin.Context, w *responseBodyWriter) {
 	e := &Event{
-		EventTime:         time.Now().UnixNano() / int64(time.Millisecond),
+		EventTime:         time.Now().UnixNano() / int64(time.Second),
 		EventVersion:      "V1",
 		SourceIpAddress:   c.ClientIP(),
 		RequestMethod:     c.Request.Method,
@@ -120,7 +116,7 @@ func (h *Handler) handle(c *gin.Context, w *responseBodyWriter) {
 	}
 
 	// get response
-	resp, isExist := c.Get(eventRespBody)
+	resp, isExist := c.Get(constants.EventRespBody)
 	if isExist == true {
 		e.ResponseElements = resp.(string)
 	}
@@ -243,7 +239,7 @@ func (h *Handler) handleProxyApi(ctx context.Context, c *gin.Context, e Event) *
 	e.Description = t.Translate(ctx, method) + t.Translate(ctx, objectType)
 
 	if http.MethodPost == method && objectName == "" {
-		objectName = c.GetString(eventObjectName)
+		objectName = c.GetString(constants.EventObjectName)
 	}
 	e.ResourceReports = []Resource{{
 		ResourceType: objectType[:len(objectType)-1],
@@ -340,27 +336,27 @@ func getPostObjectName(c *gin.Context) string {
 	body := make(map[string]interface{})
 	err = json.Unmarshal(data, &body)
 	if err != nil {
-		clog.Error("[audit] unmarshal request body err: %s", err.Error())
+		clog.Warn("[audit] unmarshal request body err: %s", err.Error())
 		return ""
 	}
 	metadata, exist := body["metadata"]
 	if !exist {
-		clog.Error("[audit] the resource metadata is nil")
+		clog.Warn("[audit] the resource metadata is nil")
 		return ""
 	}
 	metadataMap, ok := metadata.(map[string]interface{})
 	if !ok {
-		clog.Error("[audit] convert metadata to map failed")
+		clog.Warn("[audit] convert metadata to map failed")
 		return ""
 	}
 	name, exist := metadataMap["name"]
 	if !exist {
-		clog.Error("[audit] the resource metadata.name is nil")
+		clog.Warn("[audit] the resource metadata.name is nil")
 		return ""
 	}
 	nameStr, ok := name.(string)
 	if !ok {
-		clog.Error("[audit] convert name to string failed")
+		clog.Warn("[audit] convert name to string failed")
 		return ""
 	}
 	return nameStr
