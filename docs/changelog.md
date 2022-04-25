@@ -1,27 +1,27 @@
 # v1.2.0
 
 ## Feature
-- make audit report international [#80](https://github.com/kubecube-io/KubeCube/pull/80)
-- update local up script [#81](https://github.com/kubecube-io/KubeCube/pull/81)
-- enhance multi cluster manager pkg [#82](https://github.com/kubecube-io/KubeCube/pull/82)
-- Support warden register [#83](https://github.com/kubecube-io/KubeCube/pull/83)
-- support set ingress domain suffix [#84](https://github.com/kubecube-io/KubeCube/pull/84)
-- yaml deploy change to restclient and use username to auth [#85](https://github.com/kubecube-io/KubeCube/pull/85)
-- kubecube client interface add restful, restmappper, discovery clients [#87](https://github.com/kubecube-io/KubeCube/pull/87)
-- add audit to yamldeploy, create key, service extend external access[#89](https://github.com/kubecube-io/KubeCube/pull/89)
-- add the access to restapi [#92](https://github.com/kubecube-io/KubeCube/pull/92)
-- cluster info add cpu and mem used quota [#96](https://github.com/kubecube-io/KubeCube/pull/96)
-- k8s version adaptive convert [#97](https://github.com/kubecube-io/KubeCube/pull/97)
-- adapt hnc ga and use labels spread feature [#98](https://github.com/kubecube-io/KubeCube/pull/98)
 - move resource filter to util [#99](https://github.com/kubecube-io/KubeCube/pull/99)
+- adapt hnc ga and use labels spread feature [#98](https://github.com/kubecube-io/KubeCube/pull/98)
+- k8s version adaptive convert [#97](https://github.com/kubecube-io/KubeCube/pull/97)
+- cluster info add cpu and mem used quota [#96](https://github.com/kubecube-io/KubeCube/pull/96)
+- add the access to restapi [#92](https://github.com/kubecube-io/KubeCube/pull/92)
+- add audit to yamldeploy, create key, service extend external access[#89](https://github.com/kubecube-io/KubeCube/pull/89)
+- kubecube client interface add restful, restmappper, discovery clients [#87](https://github.com/kubecube-io/KubeCube/pull/87)
+- yaml deploy change to restclient and use username to auth [#85](https://github.com/kubecube-io/KubeCube/pull/85)
+- support set ingress domain suffix [#84](https://github.com/kubecube-io/KubeCube/pull/84)
+- Support warden register [#83](https://github.com/kubecube-io/KubeCube/pull/83)
+- enhance multi cluster manager pkg [#82](https://github.com/kubecube-io/KubeCube/pull/82)
+- update local up script [#81](https://github.com/kubecube-io/KubeCube/pull/81)
+- make audit report international [#80](https://github.com/kubecube-io/KubeCube/pull/80)
 
 ## BugFix
-- fix audit middleware to a goroutine [#90](https://github.com/kubecube-io/KubeCube/pull/90)
-- update jwt version to dodge attack [#91](https://github.com/kubecube-io/KubeCube/pull/91)
-- remove not exist subResourceQuota [#94](https://github.com/kubecube-io/KubeCube/pull/94)
-- Rename clinet.go to client.go [#95](https://github.com/kubecube-io/KubeCube/pull/95)
-- request to login makes error logs in audit middleware [#100](https://github.com/kubecube-io/KubeCube/pull/100)
 - Fix version conversion [#101](https://github.com/kubecube-io/KubeCube/pull/101)
+- request to login makes error logs in audit middleware [#100](https://github.com/kubecube-io/KubeCube/pull/100)
+- Rename clinet.go to client.go [#95](https://github.com/kubecube-io/KubeCube/pull/95)
+- remove not exist subResourceQuota [#94](https://github.com/kubecube-io/KubeCube/pull/94)
+- update jwt version to dodge attack [#91](https://github.com/kubecube-io/KubeCube/pull/91)
+- fix audit middleware to a goroutine [#90](https://github.com/kubecube-io/KubeCube/pull/90)
 
 ## Dependencies
 
