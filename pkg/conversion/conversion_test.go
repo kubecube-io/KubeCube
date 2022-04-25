@@ -38,7 +38,7 @@ func newFakeVersionConvert(t *testing.T) *VersionConverter {
 	stable := metav1.APIResourceList{
 		GroupVersion: "v1",
 		APIResources: []metav1.APIResource{
-			{Name: "pods", Namespaced: true, Kind: "Pod", Group: ""},
+			{Name: "pods", Namespaced: true, Kind: "Pod"},
 		},
 	}
 
