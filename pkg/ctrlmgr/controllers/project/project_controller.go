@@ -32,7 +32,7 @@ import (
 	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	hnc "sigs.k8s.io/multi-tenancy/incubator/hnc/api/v1alpha2"
+	hnc "sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
 )
 
 var _ reconcile.Reconciler = &ProjectReconciler{}
@@ -136,6 +136,18 @@ func (r *ProjectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 				Namespace: tenant.Spec.Namespace,
 				Annotations: map[string]string{
 					"kubecube.io/sync": "1",
+				},
+			},
+			Spec: hnc.SubnamespaceAnchorSpec{
+				Labels: []hnc.MetaKVP{
+					{
+						Key:   "kubecube.hnc.x-k8s.io/tenant",
+						Value: tenant.Name,
+					},
+					{
+						Key:   "kubecube.hnc.x-k8s.io/project",
+						Value: project.Name,
+					},
 				},
 			},
 		}

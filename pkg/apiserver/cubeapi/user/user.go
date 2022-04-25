@@ -33,7 +33,6 @@ import (
 	v1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -288,7 +287,6 @@ func CheckAndCompleteCreateParam(c *gin.Context) (*userv1.User, *errcode.ErrorIn
 
 	// check struct
 	user := &userv1.User{}
-	user.SetGroupVersionKind(schema.FromAPIVersionAndKind("user.kubecube.io/v1", "User"))
 	if err := c.ShouldBindJSON(&user); err != nil {
 		clog.Error("parse create user body error: %s", err)
 		return user, errcode.InvalidBodyFormat
@@ -472,7 +470,6 @@ func BatchCreateUser(c *gin.Context) {
 	c.Set(constants.EventName, "batch create user")
 	c.Set(constants.EventResourceType, "user")
 	check := &userv1.User{}
-	check.SetGroupVersionKind(schema.FromAPIVersionAndKind("user.kubecube.io/v1", "User"))
 	if access := access.AllowAccess(constants.LocalCluster, c.Request, constants.CreateVerb, check); !access {
 		clog.Debug("permission check fail")
 		response.FailReturn(c, errcode.ForbiddenErr)

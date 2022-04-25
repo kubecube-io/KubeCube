@@ -23,6 +23,7 @@ import (
 	userinfo "k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/apiserver/pkg/authorization/authorizer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
 	"github.com/kubecube-io/kubecube/pkg/authorizer/rbac"
@@ -33,7 +34,11 @@ import (
 
 func AllowAccess(cluster string, r *http.Request, operator string, object client.Object) bool {
 	client := clients.Interface().Kubernetes(constants.LocalCluster)
-	gvk := object.GetObjectKind().GroupVersionKind()
+	gvk, err := apiutil.GVKForObject(object, client.Direct().Scheme())
+	if err != nil {
+		clog.Error(err.Error())
+		return false
+	}
 	groupKind := gvk.GroupKind()
 	version := gvk.Version
 	if client.RESTMapper() == nil {

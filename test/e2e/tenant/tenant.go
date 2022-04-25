@@ -35,7 +35,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
-	hnc "sigs.k8s.io/multi-tenancy/incubator/hnc/api/v1alpha2"
+	hnc "sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
 )
 
 var _ = ginkgo.Describe("Test Tenant and Project", func() {
