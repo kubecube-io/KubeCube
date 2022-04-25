@@ -148,38 +148,27 @@ func (c *VersionConverter) GvrGreeting(gvr *schema.GroupVersionResource) (greetB
 func (c *VersionConverter) GvkGreeting(gvk *schema.GroupVersionKind) (greetBack GreetBackType, rawGvk *schema.GroupVersionKind, recommendGvk *schema.GroupVersionKind, err error) {
 	clusterVersion := Version(c.clusterInfo)
 
-	// to find gv through discovery client
-	groupList, err := c.discovery.ServerGroups()
-	if err != nil {
-		return IsUnknown, gvk, nil, err
-	}
-	if groupList != nil {
-		for _, group := range groupList.Groups {
-			if group.Name == gvk.Group {
-				// found object group in target cluster
-				for _, ver := range group.Versions {
-					if ver.GroupVersion == gvk.GroupVersion().String() {
-						// found match group/version in target cluster.
-						// so the object is available in target cluster.
-						return IsPassThrough, gvk, nil, nil
-					}
-				}
-				// group version in target cluster not match object group version.
-				// example: apps/v1beta1 <--> apps/v1
-				// we fetch preferred version in that group.
-				return IsNeedConvert, gvk, &schema.GroupVersionKind{Group: group.Name, Version: group.PreferredVersion.Version, Kind: gvk.Kind}, nil
-			}
-		}
-	}
-
-	// going here means the groups about object kind may be different.
-	// example: extensions/v1beta1 <--> networking/v1
-	// so we should fetch preferred version by object kind.
 	_, allResources, err := c.discovery.ServerGroupsAndResources()
 	if err != nil {
 		return IsUnknown, gvk, nil, err
 	}
 	if allResources != nil {
+		for _, gvs := range allResources {
+			for _, resource := range gvs.APIResources {
+				if resource.Group == "" || resource.Version == "" {
+					gv, err := schema.ParseGroupVersion(gvs.GroupVersion)
+					if err != nil {
+						return IsUnknown, gvk, nil, fmt.Errorf("parse group version %v failed: %v", gvs.GroupVersion, err)
+					}
+					resource.Group, resource.Version = gv.Group, gv.Version
+				}
+				if resource.Group == gvk.Group && resource.Version == gvk.Version && resource.Kind == gvk.Kind {
+					// found match group/version/kind in target cluster.
+					// so the object is available in target cluster.
+					return IsPassThrough, gvk, nil, nil
+				}
+			}
+		}
 		for _, gvs := range allResources {
 			for _, resource := range gvs.APIResources {
 				if resource.Kind == gvk.Kind {
@@ -190,8 +179,7 @@ func (c *VersionConverter) GvkGreeting(gvk *schema.GroupVersionKind) (greetBack 
 						if err != nil {
 							return IsUnknown, gvk, nil, fmt.Errorf("parse group version %v failed: %v", gvs.GroupVersion, err)
 						}
-						preferredGroup = gv.Group
-						preferredVersion = gv.Version
+						preferredGroup, preferredVersion = gv.Group, gv.Version
 					}
 					// found object kind in target cluster.
 					// Attention: if we had crd which kind is same with k8s kind
