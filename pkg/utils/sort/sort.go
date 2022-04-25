@@ -1,5 +1,5 @@
 /*
-Copyright 2021 KubeCube Authors
+Copyright 2022 KubeCube Authors
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,16 +14,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package deployment_test
+package sort
 
-import (
-	"testing"
+import "strings"
 
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-)
+// ParseSort sortName=creationTimestamp, sortOrder=asc
+func ParseSort(name string, order string, sFunc string) (sortName, sortOrder, sortFunc string) {
+	sortName = "metadata.name"
+	sortOrder = "asc"
+	sortFunc = "string"
 
-func TestDeployment(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Deployment Suite")
+	if name == "" {
+		return
+	}
+	sortName = name
+
+	if strings.EqualFold(order, "desc") {
+		sortOrder = "desc"
+	}
+
+	if sFunc != "" {
+		sortFunc = sFunc
+	}
+
+	return
 }

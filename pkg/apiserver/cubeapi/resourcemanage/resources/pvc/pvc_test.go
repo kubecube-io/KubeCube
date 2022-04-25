@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package job_test
 
 import (
@@ -24,12 +25,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
 	job "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/pvc"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 )
 
 var _ = Describe("Pvc", func() {
@@ -78,7 +79,7 @@ var _ = Describe("Pvc", func() {
 	It("test get pvc workloads (pod which used this pvc)", func() {
 		client := clients.Interface().Kubernetes(constants.LocalCluster)
 		Expect(client).NotTo(BeNil())
-		pvc := job.NewPvc(client, ns, resources.Filter{Limit: 10})
+		pvc := job.NewPvc(client, ns, filter.Filter{Limit: 10})
 		ret := pvc.GetPvcWorkloads(pvcName)
 		Expect(ret["total"]).To(Equal(1))
 		pods := ret["pods"].([]corev1.Pod)

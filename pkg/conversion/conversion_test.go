@@ -63,6 +63,20 @@ func newFakeVersionConvert(t *testing.T) *VersionConverter {
 		},
 	}
 
+	cronjobV1beta1 := metav1.APIResourceList{
+		GroupVersion: "batch/v1beta1",
+		APIResources: []metav1.APIResource{
+			{Name: "cronjobs", Namespaced: true, Kind: "CronJob"},
+		},
+	}
+
+	jobV1 := metav1.APIResourceList{
+		GroupVersion: "batch/v1",
+		APIResources: []metav1.APIResource{
+			{Name: "Job", Namespaced: true, Kind: "Job"},
+		},
+	}
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		var list interface{}
 		switch req.URL.Path {
@@ -90,6 +104,17 @@ func newFakeVersionConvert(t *testing.T) *VersionConverter {
 							Version:      "v1beta1",
 						},
 					},
+					{
+						Name: "batch",
+						Versions: []metav1.GroupVersionForDiscovery{
+							{GroupVersion: "batch/v1beta1", Version: "v1beta1"},
+							{GroupVersion: "batch/v1", Version: "v1"},
+						},
+						PreferredVersion: metav1.GroupVersionForDiscovery{
+							GroupVersion: "batch/v1",
+							Version:      "v1",
+						},
+					},
 				},
 			}
 		case "/api":
@@ -106,6 +131,10 @@ func newFakeVersionConvert(t *testing.T) *VersionConverter {
 			list = &beta1
 		case "/apis/apps/v1beta2":
 			list = &beta2
+		case "/apis/batch/v1beta1":
+			list = &cronjobV1beta1
+		case "/apis/batch/v1":
+			list = &jobV1
 		case "/version":
 			list = &version.Info{}
 		default:
@@ -553,7 +582,7 @@ func TestVersionConverter_DirectConvert(t *testing.T) {
 	}
 }
 
-func TestVersionConverter_IsGvkAvailable(t *testing.T) {
+func TestVersionConverter_GvkGreeting(t *testing.T) {
 	tests := []struct {
 		name             string
 		gvk              *schema.GroupVersionKind
@@ -602,17 +631,25 @@ func TestVersionConverter_IsGvkAvailable(t *testing.T) {
 			wantRecommendGvk: nil,
 			wantErr:          false,
 		},
+		{
+			name:             "not pass through",
+			gvk:              &schema.GroupVersionKind{Group: "batch", Version: "v1", Kind: "CronJob"},
+			wantGreetBack:    IsNeedConvert,
+			wantRawGvk:       &schema.GroupVersionKind{Group: "batch", Version: "v1", Kind: "CronJob"},
+			wantRecommendGvk: &schema.GroupVersionKind{Group: "batch", Version: "v1beta1", Kind: "CronJob"},
+			wantErr:          false,
+		},
 	}
 	c := newFakeVersionConvert(t)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotIsPassThrough, gotRawGvk, gotRecommendGvk, err := c.GvkGreeting(tt.gvk)
+			greetBack, gotRawGvk, gotRecommendGvk, err := c.GvkGreeting(tt.gvk)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GvkGreeting() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if gotIsPassThrough != tt.wantGreetBack {
-				t.Errorf("GvkGreeting() gotIsPassThrough = %v, want %v", gotIsPassThrough, tt.wantGreetBack)
+			if greetBack != tt.wantGreetBack {
+				t.Errorf("GvkGreeting() greetBack = %v, want %v", greetBack, tt.wantGreetBack)
 			}
 			if !reflect.DeepEqual(gotRawGvk, tt.wantRawGvk) {
 				t.Errorf("GvkGreeting() gotRawGvk = %v, want %v", gotRawGvk, tt.wantRawGvk)

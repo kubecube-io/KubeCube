@@ -23,9 +23,9 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
+	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
@@ -34,10 +34,10 @@ type Job struct {
 	ctx       context.Context
 	client    mgrclient.Client
 	namespace string
-	filter    resources.Filter
+	filter    filter.Filter
 }
 
-func NewJob(client mgrclient.Client, namespace string, filter resources.Filter) Job {
+func NewJob(client mgrclient.Client, namespace string, filter filter.Filter) Job {
 	ctx := context.Background()
 	return Job{
 		ctx:       ctx,
@@ -48,8 +48,8 @@ func NewJob(client mgrclient.Client, namespace string, filter resources.Filter) 
 }
 
 // get extend deployments
-func (j *Job) GetExtendJobs() resources.K8sJson {
-	resultMap := make(resources.K8sJson)
+func (j *Job) GetExtendJobs() filter.K8sJson {
+	resultMap := make(filter.K8sJson)
 
 	// get deployment list from k8s cluster
 	var jobList batchv1.JobList
@@ -81,18 +81,18 @@ func (j *Job) GetExtendJobs() resources.K8sJson {
 	return resultMap
 }
 
-func (j *Job) addExtendInfo(jobList batchv1.JobList) resources.K8sJsonArr {
-	resultList := make(resources.K8sJsonArr, 0)
+func (j *Job) addExtendInfo(jobList batchv1.JobList) filter.K8sJsonArr {
+	resultList := make(filter.K8sJsonArr, 0)
 
 	for _, job := range jobList.Items {
 		// parse job status
 		status := ParseJobStatus(job)
 
-		extendInfo := make(resources.K8sJson)
+		extendInfo := make(filter.K8sJson)
 		extendInfo["status"] = status
 
 		// create result map
-		result := make(resources.K8sJson)
+		result := make(filter.K8sJson)
 		result["metadata"] = job.ObjectMeta
 		result["spec"] = job.Spec
 		result["status"] = job.Status

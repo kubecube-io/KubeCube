@@ -23,16 +23,16 @@ import (
 
 	"context"
 
-	"github.com/kubecube-io/kubecube/pkg/clog"
+	jsoniter "github.com/json-iterator/go"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	jsoniter "github.com/json-iterator/go"
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
+	"github.com/kubecube-io/kubecube/pkg/clog"
 	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
+	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
@@ -50,10 +50,10 @@ type ExternalAccess struct {
 	client    mgrclient.Client
 	namespace string
 	name      string
-	filter    resources.Filter
+	filter    filter.Filter
 }
 
-func NewExternalAccess(client mgrclient.Client, namespace string, name string, filter resources.Filter) ExternalAccess {
+func NewExternalAccess(client mgrclient.Client, namespace string, name string, filter filter.Filter) ExternalAccess {
 	ctx := context.Background()
 	return ExternalAccess{
 		ctx:       ctx,

@@ -1,5 +1,5 @@
 /*
-Copyright 2021 KubeCube Authors
+Copyright 2022 KubeCube Authors
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,16 +14,27 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package deployment_test
+package page
 
-import (
-	"testing"
+import "strconv"
 
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-)
+// ParsePage page=10,1, means limit=10&page=1, default 10,1
+// offset=(page-1)*limit
+func ParsePage(pageSize string, pageNum string) (limit, offset int) {
+	limit = 10
+	offset = 0
 
-func TestDeployment(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Deployment Suite")
+	limit, err := strconv.Atoi(pageSize)
+	if err != nil {
+		limit = 10
+	}
+
+	page, err := strconv.Atoi(pageNum)
+	if err != nil || page < 1 {
+		offset = 0
+	} else {
+		offset = (page - 1) * limit
+	}
+
+	return
 }
