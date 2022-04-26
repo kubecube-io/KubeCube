@@ -34,7 +34,8 @@
 - thanos 3.18.0
 - logseer v1.0.0
 - logagent v1.0.0
-- kubecube-audit 1.2.0
+- kubecube-audit v1.2.0
+- kubecube-webconsole v1.2.0
 
 # v1.1.0
 
