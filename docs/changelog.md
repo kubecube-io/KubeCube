@@ -25,13 +25,17 @@
 
 ## Dependencies
 
-- github.com/gogf/gf/v2 v2.0.0-beta
-- github.com/golang-jwt/jwt v3.2.1+incompatible
-- golang.org/x/net v0.0.0-20210520170846-37e1c6afe023
-- k8s.io/apiserver v0.20.6
-- k8s.io/cli-runtime v0.20.6
-- k8s.io/kubernetes v1.20.6
-- k8s.io/metrics v0.20.6
+- hnc v1.0
+- nginx-ingress v0.46.0
+- helm 3.x
+- metrics-server v0.4.1
+- elasticsearch 7.8
+- kubecube-monitoring 15.4.8
+- thanos 3.18.0
+- logseer v1.0.0
+- logagent v1.0.0
+- kubecube-audit v1.2.0
+- kubecube-webconsole v1.2.0
 
 # v1.1.0
 
