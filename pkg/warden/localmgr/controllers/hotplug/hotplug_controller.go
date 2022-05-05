@@ -24,7 +24,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	hotplugv1 "github.com/kubecube-io/kubecube/pkg/apis/hotplug/v1"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/warden/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -207,8 +206,7 @@ func (h *HotplugReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			phase = fail
 			continue
 		}
-		// todo: there must be another way to judgement if pivot cluster
-		if utils.Cluster == constants.PivotCluster {
+		if !h.isMemberCluster {
 			updateConfigMap(ctx, h.Client, r)
 		}
 	}

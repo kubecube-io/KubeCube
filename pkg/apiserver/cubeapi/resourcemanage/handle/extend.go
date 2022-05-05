@@ -41,6 +41,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/audit"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/env"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
 )
@@ -196,7 +197,7 @@ func GetFeatureConfig(c *gin.Context) {
 	}
 
 	cm := &corev1.ConfigMap{}
-	key := types.NamespacedName{Name: "kubecube-feature-config", Namespace: constants.CubeNamespace}
+	key := types.NamespacedName{Name: "kubecube-feature-config", Namespace: env.CubeNamespace()}
 
 	err := cli.Cache().Get(c.Request.Context(), key, cm)
 	if err != nil {
@@ -227,7 +228,7 @@ func GetConfigMap(c *gin.Context) {
 	}
 
 	cm := &corev1.ConfigMap{}
-	key := types.NamespacedName{Name: cmName, Namespace: constants.CubeNamespace}
+	key := types.NamespacedName{Name: cmName, Namespace: env.CubeNamespace()}
 
 	err := cli.Cache().Get(c.Request.Context(), key, cm)
 	if err != nil {

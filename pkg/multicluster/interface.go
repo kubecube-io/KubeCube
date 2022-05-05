@@ -44,8 +44,8 @@ type Manager interface {
 	// ListClustersByType list clusters by given type
 	ListClustersByType(t clusterType) []*InternalCluster
 
-	// PivotCluster get pivot cluster
-	PivotCluster() *InternalCluster
+	// ListClustersNameByType list cluster names by given type
+	ListClustersNameByType(t clusterType) []string
 }
 
 // Interface the way to be used outside for multi cluster manager

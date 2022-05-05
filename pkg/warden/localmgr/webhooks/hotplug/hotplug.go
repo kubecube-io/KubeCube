@@ -20,18 +20,17 @@ import (
 	"fmt"
 
 	hotplugv1 "github.com/kubecube-io/kubecube/pkg/apis/hotplug/v1"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-	"github.com/kubecube-io/kubecube/pkg/warden/utils"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 type HotplugValidator struct {
 	hotplugv1.Hotplug
+	isMemberCluster bool
 }
 
-func NewHotplugValidator() *HotplugValidator {
-	return &HotplugValidator{}
+func NewHotplugValidator(isMemberCluster bool) *HotplugValidator {
+	return &HotplugValidator{isMemberCluster: isMemberCluster}
 }
 
 func (t *HotplugValidator) GetObjectKind() schema.ObjectKind {
@@ -53,7 +52,7 @@ func (t *HotplugValidator) ValidateCreate() error {
 		}
 	}
 	// member cluster do not allow change the config
-	if utils.Cluster != constants.PivotCluster {
+	if t.isMemberCluster {
 		return fmt.Errorf("there is not allow change hotplug config in the member cluster, please do it in the pivot cluster")
 	}
 	return nil
@@ -66,7 +65,7 @@ func (t *HotplugValidator) ValidateUpdate(old runtime.Object) error {
 
 func (t *HotplugValidator) ValidateDelete() error {
 	// member cluster do not allow change the config
-	if utils.Cluster != constants.PivotCluster {
+	if t.isMemberCluster {
 		return fmt.Errorf("there is not allow change hotplug config in the member cluster, please do it in the pivot cluster")
 	}
 	return nil

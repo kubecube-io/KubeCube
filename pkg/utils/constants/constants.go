@@ -26,13 +26,6 @@ const (
 	// ApiPathRoot the root api route
 	ApiPathRoot = "/api/v1/cube"
 
-	// CubeNamespace kubecube default namespace
-	CubeNamespace = "kubecube-system"
-
-	// PivotCluster pivot cluster name
-	// Deprecated
-	PivotCluster = "pivot-cluster"
-
 	// LocalCluster the internal cluster where program stand with
 	LocalCluster = "_local_cluster"
 
