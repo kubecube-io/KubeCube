@@ -111,7 +111,7 @@ func (p *ProjectValidator) ValidateUpdate(old runtime.Object) error {
 
 func (p *ProjectValidator) ValidateDelete() error {
 	log := projectLog.WithValues("ValidateDelete", p.Name)
-	// 管辖的工作命名空间是否已经删除
+	// check the namespace we take over has been already deleted
 	ctx := context.Background()
 	namespaceList := v1.NamespaceList{}
 	if err := projectClient.List(ctx, &namespaceList, client.MatchingLabels{constants.ProjectLabel: p.Name}); err != nil {
@@ -124,8 +124,7 @@ func (p *ProjectValidator) ValidateDelete() error {
 		return childResExistErr
 	}
 
-	// 关联的命名空间是否已经删除
-	// 检查关联的命名空间是否已经删除
+	// check related namespace has been deleted
 	ns := v1.Namespace{}
 	err := projectClient.Get(ctx, types.NamespacedName{Name: p.Spec.Namespace}, &ns)
 	if errors.IsNotFound(err) {
