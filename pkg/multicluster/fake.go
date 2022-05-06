@@ -150,12 +150,18 @@ func (m *FakerManagerImpl) ListClustersByType(t clusterType) []*InternalCluster 
 	return clusters
 }
 
-func (m *FakerManagerImpl) PivotCluster() *InternalCluster {
-	clusters := m.ListClustersByType(PivotCluster)
-	if len(clusters) > 0 {
-		return clusters[0]
+func (m *FakerManagerImpl) ListClustersNameByType(t clusterType) []string {
+	m.RLock()
+	defer m.RUnlock()
+
+	var clusterNames []string
+	for _, v := range m.Clusters {
+		if v.Type == t {
+			clusterNames = append(clusterNames, v.Name)
+		}
 	}
-	return nil
+
+	return clusterNames
 }
 
 func (m *FakerManagerImpl) Version(cluster string) (*version.Info, error) {

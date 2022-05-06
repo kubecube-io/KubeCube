@@ -84,6 +84,12 @@ func newMultiClusterMgr() *MultiClustersMgr {
 // InternalCluster represent a cluster runtime contains
 // client and internal warden.
 type InternalCluster struct {
+	// Name the cluster name
+	Name string
+
+	// Type of cluster
+	Type clusterType
+
 	// Client holds all the clients needed
 	Client client.Client
 
@@ -96,15 +102,12 @@ type InternalCluster struct {
 	// Version the k8s Version about internal cluster
 	Version *version.Info
 
-	// RawConfig holds raw kubeconfig
-	RawConfig []byte
+	// RawCluster holds raw cluster
+	RawCluster *clusterv1.Cluster
 
 	// StopCh for closing channel when delete cluster, goroutine
 	// of cache and scout will exit gracefully.
 	StopCh chan struct{}
-
-	// Type of cluster
-	Type clusterType
 }
 
 func NewInternalCluster(cluster clusterv1.Cluster) (*InternalCluster, error) {
@@ -124,10 +127,11 @@ func NewInternalCluster(cluster clusterv1.Cluster) (*InternalCluster, error) {
 	}
 
 	c := new(InternalCluster)
+	c.Name = cluster.Name
 	c.StopCh = make(chan struct{})
 	c.Config = config
 	c.Type = clusterType
-	c.RawConfig = cluster.Spec.KubeConfig
+	c.RawCluster = cluster.DeepCopy()
 	c.Client, err = client.NewClientFor(exit.SetupCtxWithStop(context.Background(), c.StopCh), config)
 	if err != nil {
 		return nil, err
@@ -259,6 +263,22 @@ func (m *MultiClustersMgr) ListClustersByType(t clusterType) []*InternalCluster 
 	return clusters
 }
 
+// ListClustersNameByType get cluster names by given type
+// return nil if found no clusters with type.
+func (m *MultiClustersMgr) ListClustersNameByType(t clusterType) []string {
+	m.RLock()
+	defer m.RUnlock()
+
+	var clusterNames []string
+	for _, v := range m.Clusters {
+		if v.Type == t {
+			clusterNames = append(clusterNames, v.Name)
+		}
+	}
+
+	return clusterNames
+}
+
 // FuzzyCluster be exported for test
 type FuzzyCluster struct {
 	Name   string
@@ -277,7 +297,7 @@ func (m *MultiClustersMgr) FuzzyCopy() map[string]*FuzzyCluster {
 			continue
 		}
 		// we must new *rest.Config just like deep copy
-		cfg, _ := kubeconfig.LoadKubeConfigFromBytes(v.RawConfig)
+		cfg, _ := kubeconfig.LoadKubeConfigFromBytes(v.RawCluster.Spec.KubeConfig)
 		clusters[name] = &FuzzyCluster{
 			Name:   name,
 			Config: cfg,
@@ -286,14 +306,6 @@ func (m *MultiClustersMgr) FuzzyCopy() map[string]*FuzzyCluster {
 	}
 
 	return clusters
-}
-
-func (m *MultiClustersMgr) PivotCluster() *InternalCluster {
-	clusters := m.ListClustersByType(PivotCluster)
-	if len(clusters) > 0 {
-		return clusters[0]
-	}
-	return nil
 }
 
 // AddInternalClusterWithScout build internal cluster of cluster and add it
