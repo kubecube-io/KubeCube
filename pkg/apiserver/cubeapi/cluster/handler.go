@@ -129,8 +129,11 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 
 	clusterName := c.Query("cluster")
 	clusterStatus := c.Query("status")
+	projectName := c.Query("project")
 
-	if len(clusterName) > 0 {
+	switch {
+	// find cluster by given name
+	case len(clusterName) > 0:
 		key := types.NamespacedName{Name: clusterName}
 		cluster := clusterv1.Cluster{}
 		err := cli.Cache().Get(ctx, key, &cluster)
@@ -140,7 +143,17 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 			return
 		}
 		clusterList = clusterv1.ClusterList{Items: []clusterv1.Cluster{cluster}}
-	} else {
+	// find related clusters by given project name
+	case len(projectName) > 0:
+		clusters, err := getClustersByProject(ctx, projectName)
+		if err != nil {
+			clog.Error("get clusters by given project %v failed: %v", projectName, err)
+			response.FailReturn(c, errcode.InternalServerError)
+			return
+		}
+		clusterList = *clusters
+	// give back all clusters by default
+	default:
 		clusters := clusterv1.ClusterList{}
 		err := cli.Cache().List(ctx, &clusters)
 		if err != nil {

@@ -20,9 +20,6 @@ import (
 	"context"
 	"fmt"
 
-	v1 "github.com/kubecube-io/kubecube/pkg/apis/quota/v1"
-	"github.com/kubecube-io/kubecube/pkg/clients"
-	"github.com/kubecube-io/kubecube/pkg/quota"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -34,32 +31,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
+	v1 "github.com/kubecube-io/kubecube/pkg/apis/quota/v1"
+	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
+	"github.com/kubecube-io/kubecube/pkg/quota"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/strproc"
-)
-
-const (
-	// Namespace depth is relative to current namespace depth.
-	// Example:
-	// tenant-1
-	// └── [s] project-1
-	//	   └── [s] ns-1
-	// ns-1 namespace has three depth label:
-	// 1. ns-1.tree.hnc.x-k8s.io/depth: "0"
-	// 2. project-1.tree.hnc.x-k8s.io/depth: "1"
-	// 3. tenant-1.tree.hnc.x-k8s.io/depth: "2"
-	currentDepth = "0"
-	projectDepth = "1"
-	tenantDepth  = "2"
-
-	// hncSuffix record depth of namespace in HNC
-	hncSuffix = ".tree.hnc.x-k8s.io/depth"
-
-	// hncAnnotation must exist in sub namespace
-	hncAnnotation = "hnc.x-k8s.io/subnamespace-of"
 )
 
 // makeClusterInfos make cluster info with clusters given
@@ -285,11 +264,11 @@ func makeMonitorInfo(ctx context.Context, cluster string) (*monitorInfo, error) 
 
 // isRelateWith return true if third level namespace exist under of ancestor namespace
 func isRelateWith(namespace string, cli cache.Cache, depth string, ctx context.Context) (bool, error) {
-	if depth == currentDepth {
+	if depth == constants.HncCurrentDepth {
 		return true, nil
 	}
 
-	hncLabel := namespace + hncSuffix
+	hncLabel := namespace + constants.HncSuffix
 	nsList := corev1.NamespaceList{}
 
 	err := cli.List(ctx, &nsList)
@@ -343,7 +322,7 @@ func getClustersByNamespace(namespace string, ctx context.Context) ([]string, er
 
 		// if namespace is tenant hnc
 		if t, ok := ns.Labels[constants.TenantLabel]; ok {
-			isRelated, err = isRelateWith(t, cli, tenantDepth, ctx)
+			isRelated, err = isRelateWith(t, cli, constants.HncTenantDepth, ctx)
 			if err != nil {
 				clog.Error("judge relationship of cluster % v and namespace %v failed: %v", cluster.Name, key.Name, err)
 				return nil, err
@@ -352,7 +331,7 @@ func getClustersByNamespace(namespace string, ctx context.Context) ([]string, er
 
 		// if namespace is project hnc
 		if p, ok := ns.Labels[constants.ProjectLabel]; ok {
-			isRelated, err = isRelateWith(p, cli, projectDepth, ctx)
+			isRelated, err = isRelateWith(p, cli, constants.HncProjectDepth, ctx)
 			if err != nil {
 				clog.Error("judge relationship of cluster % v and namespace %v failed: %v", cluster.Name, key.Name, err)
 				return nil, err
@@ -366,6 +345,33 @@ func getClustersByNamespace(namespace string, ctx context.Context) ([]string, er
 	}
 
 	return clusterNames, nil
+}
+
+// getClustersByProject get related clusters by given project
+func getClustersByProject(ctx context.Context, project string) (*clusterv1.ClusterList, error) {
+	var clusterItem []clusterv1.Cluster
+
+	projectLabel := constants.ProjectNsPrefix + project + constants.HncSuffix
+	labelSelector, err := labels.Parse(fmt.Sprintf("%v=%v", projectLabel, "1"))
+	if err != nil {
+		return nil, err
+	}
+
+	clusters := multicluster.Interface().FuzzyCopy()
+	for _, cluster := range clusters {
+		cli := cluster.Client.Cache()
+		nsList := corev1.NamespaceList{}
+		err := cli.List(ctx, &nsList, &client.ListOptions{LabelSelector: labelSelector})
+		if err != nil {
+			return nil, err
+		}
+		// this cluster is related with project if we found any namespaces under given project
+		if len(nsList.Items) > 0 {
+			clusterItem = append(clusterItem, *cluster.RawCluster)
+		}
+	}
+
+	return &clusterv1.ClusterList{Items: clusterItem}, nil
 }
 
 func getAssignedResource(cli mgrclient.Client, cluster string) (cpu resource.Quantity, mem resource.Quantity, gpu resource.Quantity, err error) {

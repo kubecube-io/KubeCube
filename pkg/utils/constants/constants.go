@@ -98,6 +98,12 @@ const (
 	// ProjectLabel represent which project resource relate with
 	ProjectLabel = "kubecube.io/project"
 
+	// TenantNsPrefix represent the namespace which relate with tenant
+	TenantNsPrefix = "kubecube-tenant-"
+
+	// ProjectNsPrefix represent the namespace which relate with project
+	ProjectNsPrefix = "kubecube-project-"
+
 	// CubeQuotaLabel point to CubeResourceQuota
 	CubeQuotaLabel = "kubecube.io/quota"
 
@@ -118,10 +124,35 @@ const (
 	CubeNodeTaint = "node.kubecube.io"
 )
 
-// hnc related conest
+// hnc related const
 const (
 	// HncInherited means resource is inherited form upon namespace by hnc
 	HncInherited = "hnc.x-k8s.io/inherited-from"
+
+	HncTenantLabel = "kubecube.hnc.x-k8s.io/tenant"
+
+	HncProjectLabel = "kubecube.hnc.x-k8s.io/project"
+
+	/*
+		Namespace depth is relative to current namespace depth.
+		Example:
+		tenant-1
+		└── [s] project-1
+			   └── [s] ns-1
+		ns-1 namespace has three depth label:
+		1. ns-1.tree.hnc.x-k8s.io/depth: "0"
+		2. project-1.tree.hnc.x-k8s.io/depth: "1"
+		3. tenant-1.tree.hnc.x-k8s.io/depth: "2"
+	*/
+	HncCurrentDepth = "0"
+	HncProjectDepth = "1"
+	HncTenantDepth  = "2"
+
+	// HncSuffix record depth of namespace in HNC
+	HncSuffix = ".tree.hnc.x-k8s.io/depth"
+
+	// HncAnnotation must exist in sub namespace
+	HncAnnotation = "hnc.x-k8s.io/subnamespace-of"
 )
 
 // rbac role verbs
