@@ -239,7 +239,7 @@ func addSuccessResult(result *hotplugv1.DeployResult, message string) {
 }
 
 func addFailResult(result *hotplugv1.DeployResult, message string) {
-	clog.Error("component:%s, message:%s", result.Name, message)
+	clog.Warn("component:%s, message:%s", result.Name, message)
 	result.Result = fail
 	result.Message = message
 }
