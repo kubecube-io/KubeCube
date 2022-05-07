@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/kubecube-io/kubecube/pkg/clog"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -319,9 +320,12 @@ func (w *wrapperStatusWriter) Patch(ctx context.Context, obj client.Object, patc
 func tryConvert(obj runtime.Object, c SingleVersionConverter) (client.Object, *schema.GroupVersionKind, bool, error) {
 	greetBack, rawGvk, recommendGvk, err := c.ObjectGreeting(obj)
 	if err != nil {
-		return nil, rawGvk, false, err
+		clog.Warn(err.Error())
 	}
-	if greetBack == IsPassThrough || greetBack == IsNotSupport {
+	if greetBack != IsNeedConvert {
+		return nil, rawGvk, true, nil
+	}
+	if recommendGvk == nil {
 		return nil, rawGvk, true, nil
 	}
 
@@ -343,9 +347,12 @@ func tryConvert(obj runtime.Object, c SingleVersionConverter) (client.Object, *s
 func tryConvertList(obj runtime.Object, c SingleVersionConverter) (client.ObjectList, *schema.GroupVersionKind, bool, error) {
 	greetBack, rawGvk, recommendGvk, err := c.ObjectGreeting(obj)
 	if err != nil {
-		return nil, rawGvk, false, err
+		clog.Warn(err.Error())
 	}
-	if greetBack == IsPassThrough || greetBack == IsNotSupport {
+	if greetBack != IsNeedConvert {
+		return nil, rawGvk, true, nil
+	}
+	if recommendGvk == nil {
 		return nil, rawGvk, true, nil
 	}
 

@@ -116,6 +116,23 @@ const (
 	IsUnknown
 )
 
+func (g GreetBackType) String() string {
+	var greetBack string
+
+	switch g {
+	case 0:
+		greetBack = "paas through"
+	case 1:
+		greetBack = "not support"
+	case 2:
+		greetBack = "need convert"
+	case 3:
+		greetBack = "unknown"
+	}
+
+	return greetBack
+}
+
 // ObjectGreeting describes if given object is available in target cluster.
 // a recommend group version kind will return if it cloud not pass through.
 func (c *VersionConverter) ObjectGreeting(obj runtime.Object) (greetBack GreetBackType, rawGvk *schema.GroupVersionKind, recommendGvk *schema.GroupVersionKind, err error) {
