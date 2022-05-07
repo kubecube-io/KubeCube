@@ -17,7 +17,6 @@ limitations under the License.
 package conversion
 
 import (
-	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -45,18 +44,6 @@ type SingleVersionConverter interface {
 	// GvkGreeting describes if given gvk is available in target cluster.
 	// a recommend group version kind will return if it cloud not pass through.
 	GvkGreeting(gvk *schema.GroupVersionKind) (isPassThrough GreetBackType, rawGvk *schema.GroupVersionKind, recommendGvk *schema.GroupVersionKind, err error)
-}
-
-// ClientWithConverter wrap a Client with given VersionConverter
-type ClientWithConverter interface {
-	SingleVersionConverter
-	client.Reader
-	client.Writer
-	client.StatusClient
-	// Scheme returns the scheme this client is using.
-	Scheme() *runtime.Scheme
-	// RESTMapper returns the rest this client is using.
-	RESTMapper() meta.RESTMapper
 }
 
 // ReaderWithConverter wrap a Reader with given VersionConverter

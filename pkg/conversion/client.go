@@ -20,11 +20,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kubecube-io/kubecube/pkg/clog"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/kubecube-io/kubecube/pkg/clog"
 )
 
 type wrapperClient struct {
@@ -32,21 +33,17 @@ type wrapperClient struct {
 	// to convert action result back to user
 	convertBack bool
 
-	// SingleVersionConverter the real version converter
-	SingleVersionConverter
-
 	client.Client
 	WriterWithConverter
 	ReaderWithConverter
 	StatusWriterWithConverter
 }
 
-var _ ClientWithConverter = &wrapperClient{}
+var _ client.Client = &wrapperClient{}
 
-func WrapClient(cli client.Client, c SingleVersionConverter, convertBack bool) ClientWithConverter {
+func WrapClient(cli client.Client, c SingleVersionConverter, convertBack bool) client.Client {
 	return &wrapperClient{
 		convertBack:               convertBack,
-		SingleVersionConverter:    c,
 		Client:                    cli,
 		WriterWithConverter:       WrapWriter(cli, c, convertBack),
 		ReaderWithConverter:       WrapReader(cli, c),
