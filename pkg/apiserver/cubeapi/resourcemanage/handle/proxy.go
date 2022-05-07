@@ -84,6 +84,10 @@ func (h *ProxyHandler) tryVersionConvert(cluster, url string, req *http.Request)
 		clog.Debug("%v is available in target cluster %v pass through", gvr.String(), cluster)
 		return false, nil, "", nil
 	}
+	if greetBack == conversion.IsUnknown {
+		clog.Info("%v is not found in converter scheme, pass though to cluster %v", gvr.String(), cluster)
+		return false, nil, "", nil
+	}
 	// convert url according to specified gvr at first
 	convertedUrl, err := conversion.ConvertURL(url, &schema.GroupVersionResource{Group: recommendVersion.Group, Version: recommendVersion.Version, Resource: gvr.Resource})
 	if err != nil {
