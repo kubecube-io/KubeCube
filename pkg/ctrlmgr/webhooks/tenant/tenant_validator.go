@@ -13,21 +13,23 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package tenant
 
 import (
 	"context"
 	"fmt"
 
-	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
-	"github.com/kubecube-io/kubecube/pkg/clog"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	corev1 "k8s.io/api/core/v1"
+	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
+	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
 var (
@@ -69,9 +71,9 @@ func (t *TenantValidator) ValidateDelete() error {
 	log := tenantLog.WithValues("ValidateDelete", t.Name)
 	ctx := context.Background()
 
-	// 通过标签检查是否还有项目关联
+	// check if exist related project
 	projectList := tenantv1.ProjectList{}
-	if err := tenantClient.List(ctx, &projectList, client.MatchingLabels{"kubecube.io/tenant": t.Name}); err != nil {
+	if err := tenantClient.List(ctx, &projectList, client.MatchingLabels{constants.TenantLabel: t.Name}); err != nil {
 		log.Error("Can not list projects under this tenant: %v", err.Error())
 		return fmt.Errorf("can not list projects under this tenant")
 	}
@@ -81,7 +83,7 @@ func (t *TenantValidator) ValidateDelete() error {
 		return childResExistErr
 	}
 
-	// 检查关联的命名空间是否已经删除
+	// check related namespace was already deleted
 	ns := corev1.Namespace{}
 	err := tenantClient.Get(ctx, types.NamespacedName{Name: t.Spec.Namespace}, &ns)
 	if errors.IsNotFound(err) {

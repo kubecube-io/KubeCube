@@ -24,11 +24,6 @@ import (
 	"math/rand"
 	"strconv"
 
-	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
-	"github.com/kubecube-io/kubecube/pkg/clients"
-	"github.com/kubecube-io/kubecube/pkg/multicluster/client"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-	"github.com/kubecube-io/kubecube/test/e2e/framework"
 	"github.com/onsi/ginkgo"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -36,6 +31,12 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	hnc "sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
+
+	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
+	"github.com/kubecube-io/kubecube/pkg/clients"
+	"github.com/kubecube-io/kubecube/pkg/multicluster/client"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/test/e2e/framework"
 )
 
 var _ = ginkgo.Describe("Test Tenant and Project", func() {
@@ -90,7 +91,7 @@ var _ = ginkgo.Describe("Test Tenant and Project", func() {
 					if err != nil {
 						return false, nil
 					} else {
-						framework.ExpectEqual("kubecube-tenant-"+tenantName, tenant.Spec.Namespace)
+						framework.ExpectEqual(constants.TenantNsPrefix+tenantName, tenant.Spec.Namespace)
 						return true, nil
 					}
 				})
@@ -103,7 +104,7 @@ var _ = ginkgo.Describe("Test Tenant and Project", func() {
 					if err != nil {
 						return false, nil
 					} else {
-						framework.ExpectEqual("kubecube-project-"+projectName, project.Spec.Namespace)
+						framework.ExpectEqual(constants.ProjectNsPrefix+projectName, project.Spec.Namespace)
 						return true, nil
 					}
 				})
@@ -126,7 +127,7 @@ var _ = ginkgo.Describe("Test Tenant and Project", func() {
 
 		ginkgo.It("delete project after delete .spec.namespace", func() {
 			// delete subnamespace
-			url := fmt.Sprintf("/proxy/clusters/pivot-cluster/apis/hnc.x-k8s.io/v1alpha2/namespaces/%s/subnamespaceanchors/%s", "kubecube-tenant-"+tenantName, "kubecube-project-"+projectName)
+			url := fmt.Sprintf("/proxy/clusters/pivot-cluster/apis/hnc.x-k8s.io/v1alpha2/namespaces/%s/subnamespaceanchors/%s", constants.TenantNsPrefix+tenantName, constants.ProjectNsPrefix+projectName)
 			req := f.HttpHelper.Delete(f.HttpHelper.FormatUrl(url))
 			r, err := f.HttpHelper.Client.Do(&req)
 			framework.ExpectNoError(err)
@@ -135,11 +136,11 @@ var _ = ginkgo.Describe("Test Tenant and Project", func() {
 			var subns hnc.SubnamespaceAnchor
 			err = json.Unmarshal(b, &subns)
 			framework.ExpectNoError(err)
-			framework.ExpectEqual("kubecube-project-"+projectName, subns.Name)
+			framework.ExpectEqual(constants.ProjectNsPrefix+projectName, subns.Name)
 			// wait namespace deleted
 			err = wait.Poll(f.Timeouts.WaitInterval, f.Timeouts.WaitTimeout, func() (bool, error) {
 				var ns v1.Namespace
-				err := cli.Direct().Get(context.TODO(), types.NamespacedName{Name: "kubecube-project-" + projectName}, &ns)
+				err := cli.Direct().Get(context.TODO(), types.NamespacedName{Name: constants.ProjectNsPrefix + projectName}, &ns)
 				if err != nil && apierrors.IsNotFound(err) {
 					return true, nil
 				}
@@ -175,7 +176,7 @@ var _ = ginkgo.Describe("Test Tenant and Project", func() {
 
 		ginkgo.It("delete tenant after delete .spec.namespace", func() {
 			var ns v1.Namespace
-			err := cli.Direct().Get(context.TODO(), types.NamespacedName{Name: "kubecube-tenant-" + tenantName}, &ns)
+			err := cli.Direct().Get(context.TODO(), types.NamespacedName{Name: constants.TenantNsPrefix + tenantName}, &ns)
 			framework.ExpectNoError(err)
 			err = framework.DeleteNamespace(&ns)
 			framework.ExpectNoError(err)

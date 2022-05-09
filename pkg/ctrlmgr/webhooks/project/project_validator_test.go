@@ -18,14 +18,14 @@ package project
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
-	"github.com/stretchr/testify/assert"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
 // tenant template
@@ -44,7 +44,7 @@ func tenantTemplate(name string) tenantv1.Tenant {
 func projectTemplate(tenant string, name string) tenantv1.Project {
 	return tenantv1.Project{
 		TypeMeta:   metav1.TypeMeta{Kind: "project", APIVersion: "tenant.kubecube.io/v1"},
-		ObjectMeta: metav1.ObjectMeta{Namespace: "", Name: name, Labels: map[string]string{"kubecube.io/tenant": tenant}},
+		ObjectMeta: metav1.ObjectMeta{Namespace: "", Name: name, Labels: map[string]string{constants.TenantLabel: tenant}},
 		Spec: tenantv1.ProjectSpec{
 			DisplayName: "test-project",
 			Description: "test project",
@@ -56,7 +56,7 @@ func projectTemplate(tenant string, name string) tenantv1.Project {
 func namespaceTemplate(project string, name string) v1.Namespace {
 	return v1.Namespace{
 		TypeMeta:   metav1.TypeMeta{Kind: "Namespace", APIVersion: "v1"},
-		ObjectMeta: metav1.ObjectMeta{Namespace: "", Name: name, Labels: map[string]string{"kubecube.io/project": project}},
+		ObjectMeta: metav1.ObjectMeta{Namespace: "", Name: name, Labels: map[string]string{constants.ProjectLabel: project}},
 	}
 }
 
@@ -79,17 +79,17 @@ func TestValidateCreate(t *testing.T) {
 	assert.NotNil(err)
 
 	// add true label to project
-	projectValidate.Labels = map[string]string{"kubecube.io/tenant": "test-tenant"}
+	projectValidate.Labels = map[string]string{constants.TenantLabel: "test-tenant"}
 	err = projectValidate.ValidateCreate()
 	assert.Nil(err)
 
 	// add tenat label, bug tenant no exist
-	projectValidate.Labels = map[string]string{"kubecube.io/tenant": "test-tenant-no-exist"}
+	projectValidate.Labels = map[string]string{constants.TenantLabel: "test-tenant-no-exist"}
 	err = projectValidate.ValidateCreate()
 	assert.NotNil(err)
 
 	// check false ingress domain suffix
-	projectValidate.Labels = map[string]string{"kubecube.io/tenant": "test-tenant"}
+	projectValidate.Labels = map[string]string{constants.TenantLabel: "test-tenant"}
 	projectValidate.Spec.IngressDomainSuffix = []string{"test.com."}
 	err = projectValidate.ValidateCreate()
 	assert.NotNil(err)
@@ -129,17 +129,17 @@ func TestValidateUpdate(t *testing.T) {
 	assert.NotNil(err)
 
 	// add true label to project
-	projectValidate.Labels = map[string]string{"kubecube.io/tenant": "test-tenant"}
+	projectValidate.Labels = map[string]string{constants.TenantLabel: "test-tenant"}
 	err = projectValidate.ValidateUpdate(nil)
 	assert.Nil(err)
 
 	// add tenat label, bug tenant no exist
-	projectValidate.Labels = map[string]string{"kubecube.io/tenant": "test-tenant-no-exist"}
+	projectValidate.Labels = map[string]string{constants.TenantLabel: "test-tenant-no-exist"}
 	err = projectValidate.ValidateUpdate(nil)
 	assert.NotNil(err)
 
 	// check false ingress domain suffix
-	projectValidate.Labels = map[string]string{"kubecube.io/tenant": "test-tenant"}
+	projectValidate.Labels = map[string]string{constants.TenantLabel: "test-tenant"}
 	projectValidate.Spec.IngressDomainSuffix = []string{"test.com."}
 	err = projectValidate.ValidateUpdate(nil)
 	assert.NotNil(err)

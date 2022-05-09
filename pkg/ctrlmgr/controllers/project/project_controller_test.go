@@ -19,7 +19,6 @@ import (
 	"context"
 	"testing"
 
-	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,7 +28,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	hnc "sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
 
+	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
 	tenantctrl "github.com/kubecube-io/kubecube/pkg/ctrlmgr/controllers/tenant"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
 // tenant template
@@ -48,7 +49,7 @@ func tenantTemplate(name string) tenantv1.Tenant {
 func projectTemplate(tenant string, name string) tenantv1.Project {
 	return tenantv1.Project{
 		TypeMeta:   metav1.TypeMeta{Kind: "project", APIVersion: "tenant.kubecube.io/v1"},
-		ObjectMeta: metav1.ObjectMeta{Namespace: "", Name: name, Labels: map[string]string{"kubecube.io/tenant": tenant}},
+		ObjectMeta: metav1.ObjectMeta{Namespace: "", Name: name, Labels: map[string]string{constants.TenantLabel: tenant}},
 		Spec: tenantv1.ProjectSpec{
 			DisplayName: "test-project",
 			Description: "test project",

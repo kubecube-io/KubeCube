@@ -20,17 +20,17 @@ import (
 	"context"
 	"fmt"
 
-	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	hnc "sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
 )
@@ -75,7 +75,7 @@ func (r *ProjectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	// if .spec.namespace is nil, add .spec.namespace
-	nsName := "kubecube-project-" + req.Name
+	nsName := constants.ProjectNsPrefix + req.Name
 	if project.Spec.Namespace != nsName {
 		project.Spec.Namespace = nsName
 		err = r.Client.Update(ctx, &project)
@@ -90,8 +90,8 @@ func (r *ProjectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if ano == nil {
 		ano = make(map[string]string)
 	}
-	if _, ok := ano["kubecube.io/sync"]; !ok {
-		ano["kubecube.io/sync"] = "1"
+	if _, ok := ano[constants.SyncAnnotation]; !ok {
+		ano[constants.SyncAnnotation] = "1"
 		project.Annotations = ano
 		err = r.Client.Update(ctx, &project)
 		if err != nil {
@@ -102,7 +102,7 @@ func (r *ProjectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 	// according to kubecube.io/tenant label get user
 	labels := project.ObjectMeta.Labels
-	tenantName, ok := labels["kubecube.io/tenant"]
+	tenantName, ok := labels[constants.TenantLabel]
 	if !ok {
 		log.Error("this project do not content tenant label .metadata.labels.kubecube.io/tenant")
 		return ctrl.Result{}, fmt.Errorf("this project %s do not content tenant label", req.NamespacedName)
@@ -135,17 +135,17 @@ func (r *ProjectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 				Name:      project.Spec.Namespace,
 				Namespace: tenant.Spec.Namespace,
 				Annotations: map[string]string{
-					"kubecube.io/sync": "1",
+					constants.SyncAnnotation: "1",
 				},
 			},
 			Spec: hnc.SubnamespaceAnchorSpec{
 				Labels: []hnc.MetaKVP{
 					{
-						Key:   "kubecube.hnc.x-k8s.io/tenant",
+						Key:   constants.HncTenantLabel,
 						Value: tenant.Name,
 					},
 					{
-						Key:   "kubecube.hnc.x-k8s.io/project",
+						Key:   constants.HncProjectLabel,
 						Value: project.Name,
 					},
 				},

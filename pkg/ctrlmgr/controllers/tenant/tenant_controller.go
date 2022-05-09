@@ -22,7 +22,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -30,9 +32,7 @@ import (
 
 	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
 	"github.com/kubecube-io/kubecube/pkg/clog"
-
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
 var _ reconcile.Reconciler = &TenantReconciler{}
@@ -75,7 +75,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	// if .spec.namespace not equal the standard name
-	nsName := "kubecube-tenant-" + req.Name
+	nsName := constants.TenantNsPrefix + req.Name
 	if tenant.Spec.Namespace != nsName {
 		tenant.Spec.Namespace = nsName
 		err = r.Client.Update(ctx, &tenant)

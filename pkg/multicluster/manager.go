@@ -281,9 +281,10 @@ func (m *MultiClustersMgr) ListClustersNameByType(t clusterType) []string {
 
 // FuzzyCluster be exported for test
 type FuzzyCluster struct {
-	Name   string
-	Config *rest.Config
-	Client client.Client
+	Name       string
+	Config     *rest.Config
+	Client     client.Client
+	RawCluster *clusterv1.Cluster
 }
 
 // FuzzyCopy copy all internal clusters when runtime except local cluster
@@ -299,9 +300,10 @@ func (m *MultiClustersMgr) FuzzyCopy() map[string]*FuzzyCluster {
 		// we must new *rest.Config just like deep copy
 		cfg, _ := kubeconfig.LoadKubeConfigFromBytes(v.RawCluster.Spec.KubeConfig)
 		clusters[name] = &FuzzyCluster{
-			Name:   name,
-			Config: cfg,
-			Client: v.Client,
+			Name:       name,
+			Config:     cfg,
+			Client:     v.Client,
+			RawCluster: v.RawCluster,
 		}
 	}
 

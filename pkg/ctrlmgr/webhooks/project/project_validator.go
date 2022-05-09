@@ -13,20 +13,24 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package project
 
 import (
 	"context"
 	"fmt"
-	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
-	"github.com/kubecube-io/kubecube/pkg/clog"
-	"github.com/kubecube-io/kubecube/pkg/utils/domain"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
+	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/domain"
 )
 
 var (
@@ -56,7 +60,7 @@ func (p *ProjectValidator) DeepCopyObject() runtime.Object {
 func (p *ProjectValidator) ValidateCreate() error {
 	log := projectLog.WithValues("ValidateCreate", p.Name)
 
-	tenantName := p.Labels["kubecube.io/tenant"]
+	tenantName := p.Labels[constants.TenantLabel]
 	if tenantName == "" {
 		log.Info("can not find .metadata.labels.kubecube.io/tenant label")
 		return fmt.Errorf("can not find .metadata.labels.kubecube.io/tenant label")
@@ -82,7 +86,7 @@ func (p *ProjectValidator) ValidateCreate() error {
 func (p *ProjectValidator) ValidateUpdate(old runtime.Object) error {
 	log := projectLog.WithValues("ValidateUpdate", p.Name)
 
-	tenantName := p.Labels["kubecube.io/tenant"]
+	tenantName := p.Labels[constants.TenantLabel]
 	if tenantName == "" {
 		log.Info("can not find .metadata.labels.kubecube.io/tenant label")
 		return fmt.Errorf("can not find .metadata.labels.kubecube.io/tenant label")
@@ -107,10 +111,10 @@ func (p *ProjectValidator) ValidateUpdate(old runtime.Object) error {
 
 func (p *ProjectValidator) ValidateDelete() error {
 	log := projectLog.WithValues("ValidateDelete", p.Name)
-	// 管辖的工作命名空间是否已经删除
+	// check the namespace we take over has been already deleted
 	ctx := context.Background()
 	namespaceList := v1.NamespaceList{}
-	if err := projectClient.List(ctx, &namespaceList, client.MatchingLabels{"kubecube.io/project": p.Name}); err != nil {
+	if err := projectClient.List(ctx, &namespaceList, client.MatchingLabels{constants.ProjectLabel: p.Name}); err != nil {
 		log.Error("Can not list namespaces under this project: %v", err.Error())
 		return fmt.Errorf("can not list namespaces under this project")
 	}
@@ -120,8 +124,7 @@ func (p *ProjectValidator) ValidateDelete() error {
 		return childResExistErr
 	}
 
-	// 关联的命名空间是否已经删除
-	// 检查关联的命名空间是否已经删除
+	// check related namespace has been deleted
 	ns := v1.Namespace{}
 	err := projectClient.Get(ctx, types.NamespacedName{Name: p.Spec.Namespace}, &ns)
 	if errors.IsNotFound(err) {
