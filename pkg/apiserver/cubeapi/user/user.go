@@ -81,6 +81,7 @@ type ResetPwd struct {
 	UserName       string `json:"userName,omitempty"`
 }
 
+// CreateUser create a user
 // @Summary create user
 // @Description create user manually
 // @Tags user
@@ -124,6 +125,7 @@ func CreateUserImpl(c *gin.Context, user *userv1.User) *errcode.ErrorInfo {
 	return nil
 }
 
+// UpdateUser update a user info
 // @Summary update user
 // @Description update user information
 // @Tags user
@@ -202,6 +204,7 @@ func UpdateUserStatusImpl(c *gin.Context, newUser *userv1.User) *errcode.ErrorIn
 	return nil
 }
 
+// ListUsers list users
 // @Summary list user
 // @Description fuzzy query user by name or displayName
 // @Tags user
@@ -428,6 +431,7 @@ func CheckUpdateParam(newUser *userv1.User, originUser *userv1.User) (*userv1.Us
 	return originUser, nil
 }
 
+// DownloadTemplate get import template
 // @Summary get import template
 // @Description get user information import template
 // @Tags user
@@ -457,6 +461,7 @@ func DownloadTemplate(c *gin.Context) {
 	return
 }
 
+// BatchCreateUser import users
 // @Summary import user
 // @Description import and create users from CSV file in batches
 // @Tags user
@@ -534,6 +539,14 @@ func BatchCreateUser(c *gin.Context) {
 const tokenExpiredTime = 3600 * 24 * 365 * 10
 
 // GetKubeConfig fetch kubeConfig for specified user
+// @Summary fetch kubeConfigs
+// @Description fetch kubeConfig for specified user
+// @Tags user
+// @Param user query string true "specified user for kubeconfig"
+// @Produce  plain
+// @Success 200 string string
+// @Failure 500 {object} errcode.ErrorInfo
+// @Router /api/v1/cube/user/kubeconfigs [get]
 func GetKubeConfig(c *gin.Context) {
 	c.Set(constants.EventName, "get kubeconfig")
 	c.Set(constants.EventResourceType, "kubeconfig")
@@ -653,6 +666,7 @@ func checkPwd(pwd string) bool {
 	return false
 }
 
+// CheckUserValid check username
 // @Summary check username
 // @Description check username when update user password
 // @Tags user
@@ -675,6 +689,7 @@ func CheckUserValid(c *gin.Context) {
 	return
 }
 
+// UpdatePwd update user password
 // @Summary update password
 // @Description update user password
 // @Tags user

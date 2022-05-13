@@ -114,10 +114,12 @@ func NewHandler() *handler {
 
 // getClusterInfo get cluster details by cluster name
 // @Summary Show cluster info
-// @Description get cluster info by cluster name, non cluster name means all clusters info
+// @Description get cluster info by cluster name or project name, non query params means all clusters info
 // @Tags cluster
-// @Param cluster query string false "cluster info search by cluster"
-// @Success 200 {object} result
+// @Param cluster query string false "cluster info search by cluster name"
+// @Param project query string false "cluster info search by project name"
+// @Param status query string false "cluster info search by cluster status"
+// @Success 200 {object} result "{"total":3,"items":[{"clusterName":"member-1","clusterDescription":"this is member cluster","networkType":"calico","harborAddr":"","isMemberCluster":true,"createTime":"2022-05-06T11:33:15+08:00","kubeApiServer":"https://10.173.33.3:6443","status":"normal","nodeCount":1,"namespaceCount":19,"usedCpu":549,"totalCpu":8000,"usedMem":7276,"totalMem":16648,"totalStorage":0,"usedStorage":0,"totalStorageEphemeral":42208,"usedStorageEphemeral":0,"totalGpu":0,"usedGpu":0,"usedCpuRequest":3300,"usedCpuLimit":4200,"usedMemRequest":3874,"usedMemLimit":7265},{"clusterName":"pivot-cluster","clusterDescription":"There is a pivot cluster dating with KubeCube","networkType":"","harborAddr":"","isMemberCluster":false,"createTime":"2022-04-28T14:41:26+08:00","kubeApiServer":"10.173.33.2:6443","status":"normal","nodeCount":1,"namespaceCount":18,"usedCpu":886,"totalCpu":8000,"usedMem":8996,"totalMem":16648,"totalStorage":0,"usedStorage":0,"totalStorageEphemeral":42208,"usedStorageEphemeral":0,"totalGpu":0,"usedGpu":0,"usedCpuRequest":3000,"usedCpuLimit":3900,"usedMemRequest":3469,"usedMemLimit":6860},{"clusterName":"member-2","clusterDescription":"this is member cluster","networkType":"calico","harborAddr":"","isMemberCluster":true,"createTime":"2022-04-28T16:12:13+08:00","kubeApiServer":"10.173.33.4:6443","status":"normal","nodeCount":1,"namespaceCount":19,"usedCpu":929,"totalCpu":8000,"usedMem":7187,"totalMem":16648,"totalStorage":0,"usedStorage":0,"totalStorageEphemeral":42208,"usedStorageEphemeral":0,"totalGpu":0,"usedGpu":0,"usedCpuRequest":3000,"usedCpuLimit":3900,"usedMemRequest":3469,"usedMemLimit":6860}]}"
 // @Failure 500 {object} errcode.ErrorInfo
 // @Router /api/v1/cube/clusters/info  [get]
 func (h *handler) getClusterInfo(c *gin.Context) {
@@ -197,7 +199,8 @@ type monitorInfo struct {
 	UsedGpu               int `json:"usedGpu"`
 }
 
-// getClusterMonitorInfo fetch resource used infos of specified cluster
+// getClusterMonitorInfo fetch resource used infos of specified cluster.
+// temp not be used
 func (h *handler) getClusterMonitorInfo(c *gin.Context) {
 	cluster := c.Param("cluster")
 	if len(cluster) == 0 {
@@ -220,7 +223,7 @@ func (h *handler) getClusterMonitorInfo(c *gin.Context) {
 // @Description get cluster name where the namespace work in
 // @Tags cluster
 // @Param namespace query string false "clusters search by namespace"
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} map[string]interface{} "{"items":["member-2","member-1","pivot-cluster"],"total":3}"
 // @Failure 500 {object} errcode.ErrorInfo
 // @Router /api/v1/cube/clusters/namespaces  [get]
 func (h *handler) getClusterNames(c *gin.Context) {
@@ -254,7 +257,7 @@ func (h *handler) getClusterNames(c *gin.Context) {
 // @Description get allocate resource of cluster
 // @Tags cluster
 // @Param cluster query string true "allocate resource search by cluster"
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} map[string]interface{} "{"assignedCpu":"4","assignedGpu":"0","assignedMem":"4000Mi","capacityCpu":"8","capacityGpu":"0","capacityMem":"15876Mi"}"
 // @Failure 500 {object} errcode.ErrorInfo
 // @Router /api/v1/cube/clusters/resources  [get]
 func (h *handler) getClusterResource(c *gin.Context) {
@@ -309,7 +312,7 @@ func (h *handler) getClusterResource(c *gin.Context) {
 // @Description get sub namespaces by tenant
 // @Tags cluster
 // @Param tenant query string false "list sub namespaces by tenant"
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} map[string]interface{} "{"items":[{"namespace":"ns-3","cluster":"member-1","project":"project-2","namespaceBody":{"metadata":{"name":"ns-3","uid":"8b557f42-dcda-4555-bfba-4bc448b4d66f","resourceVersion":"862129","creationTimestamp":"2022-04-28T08:18:35Z","labels":{"hnc.x-k8s.io/included-namespace":"true","kubecube-project-project-2.tree.hnc.x-k8s.io/depth":"1","kubecube-tenant-tenant-2.tree.hnc.x-k8s.io/depth":"2","kubecube.hnc.x-k8s.io/project":"project-2","kubecube.hnc.x-k8s.io/tenant":"tenant-2","kubernetes.io/metadata.name":"ns-3","ns-3.tree.hnc.x-k8s.io/depth":"0"},"annotations":{"hnc.x-k8s.io/subnamespace-of":"kubecube-project-project-2"},"managedFields":[{"manager":"manager","operation":"Update","apiVersion":"v1","time":"2022-05-06T03:33:37Z","fieldsType":"FieldsV1","fieldsV1":{"f:metadata":{"f:annotations":{".":{},"f:hnc.x-k8s.io/subnamespace-of":{}},"f:labels":{".":{},"f:kubecube-project-project-2.tree.hnc.x-k8s.io/depth":{},"f:kubecube-tenant-tenant-2.tree.hnc.x-k8s.io/depth":{},"f:kubecube.hnc.x-k8s.io/project":{},"f:kubecube.hnc.x-k8s.io/tenant":{},"f:kubernetes.io/metadata.name":{},"f:ns-3.tree.hnc.x-k8s.io/depth":{}}}}}]},"spec":{"finalizers":["kubernetes"]},"status":{"phase":"Active"}}},{"namespace":"ns-2","cluster":"member-2","project":"project-2","namespaceBody":{"metadata":{"name":"ns-2","uid":"8924ca69-c309-4e94-a55b-893b21ffde17","resourceVersion":"2270","creationTimestamp":"2022-04-28T08:18:23Z","labels":{"hnc.x-k8s.io/included-namespace":"true","kubecube-project-project-2.tree.hnc.x-k8s.io/depth":"1","kubecube-tenant-tenant-2.tree.hnc.x-k8s.io/depth":"2","kubecube.hnc.x-k8s.io/project":"project-2","kubecube.hnc.x-k8s.io/tenant":"tenant-2","kubernetes.io/metadata.name":"ns-2","ns-2.tree.hnc.x-k8s.io/depth":"0"},"annotations":{"hnc.x-k8s.io/subnamespace-of":"kubecube-project-project-2"},"managedFields":[{"manager":"manager","operation":"Update","apiVersion":"v1","time":"2022-04-28T08:18:23Z","fieldsType":"FieldsV1","fieldsV1":{"f:metadata":{"f:annotations":{".":{},"f:hnc.x-k8s.io/subnamespace-of":{}},"f:labels":{".":{},"f:kubecube-project-project-2.tree.hnc.x-k8s.io/depth":{},"f:kubecube-tenant-tenant-2.tree.hnc.x-k8s.io/depth":{},"f:kubecube.hnc.x-k8s.io/project":{},"f:kubecube.hnc.x-k8s.io/tenant":{},"f:kubernetes.io/metadata.name":{},"f:ns-2.tree.hnc.x-k8s.io/depth":{}}}}}]},"spec":{"finalizers":["kubernetes"]},"status":{"phase":"Active"}}}],"total":2}"
 // @Failure 500 {object} errcode.ErrorInfo
 // @Router /api/v1/cube/clusters/subnamespaces  [get]
 func (h *handler) getSubNamespaces(c *gin.Context) {
@@ -402,7 +405,7 @@ type scriptData struct {
 // @Description add cluster to KubeCube
 // @Tags cluster
 // @Param scriptData body scriptData true "new cluster raw data"
-// @Success 200 {object} string "base64 encode"
+// @Success 200 {string} string "success"
 // @Failure 400 {object} errcode.ErrorInfo
 // @Failure 500 {object} errcode.ErrorInfo
 // @Router /api/v1/cube/clusters/addCluster  [post]
@@ -521,7 +524,7 @@ type nsAndQuota struct {
 // @Description create subNamespace and resourceQuota
 // @Tags cluster
 // @Param nsAndQuota body nsAndQuota true "ns and quota data"
-// @Success 200 {object} string "success"
+// @Success 200 {string} string "success"
 // @Failure 400 {object} errcode.ErrorInfo
 // @Failure 500 {object} errcode.ErrorInfo
 // @Router /api/v1/cube/clusters/nsquota  [post]

@@ -22,10 +22,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-//@Summary health check
-//@Produce  json
-//@Success 200 {string} string "{"msg": "hello"}"
-//@Router /api/v1/cube/healthz [get]
+// HealthyCheck do kubecube healthy check
+// @Summary health check
+// @Produce  json
+// @Success 200 {string} string "healthy"
+// @Router /api/v1/cube/healthz [get]
 func HealthyCheck(c *gin.Context) {
 	c.String(http.StatusOK, "healthy")
 }
