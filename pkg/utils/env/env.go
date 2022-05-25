@@ -21,6 +21,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
@@ -108,15 +109,18 @@ func AuditLanguage() string {
 	return l
 }
 
-var once sync.Once
+var (
+	once          sync.Once
+	cubeNamespace = "kubecube-system"
+)
 
 func CubeNamespace() string {
-	cubeNamespace := "kubecube-system"
 	once.Do(func() {
 		ns, ok := os.LookupEnv("CUBE_NAMESPACE")
 		if ok {
 			cubeNamespace = ns
 		}
+		clog.Info("kubecube running in namespace %v", cubeNamespace)
 	})
 	return cubeNamespace
 }

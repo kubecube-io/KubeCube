@@ -30,9 +30,9 @@ const (
 	LocalCluster = "_local_cluster"
 
 	// DefaultPivotCubeClusterIPSvc default pivot cube svc
-	DefaultPivotCubeClusterIPSvc = "kubecube.kubecube-system:7443"
+	DefaultPivotCubeClusterIPSvc = "kubecube:7443"
 
-	DefaultAuditURL = "http://audit.kubecube-system:8888/api/v1/cube/audit/cube"
+	DefaultAuditURL = "http://audit:8888/api/v1/cube/audit/cube"
 )
 
 // http content
