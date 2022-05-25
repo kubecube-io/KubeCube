@@ -24,6 +24,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	hnc "sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
 
 	"github.com/kubecube-io/kubecube/pkg/apis"
 	"github.com/kubecube-io/kubecube/pkg/clog"
@@ -43,9 +44,8 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
 	utilruntime.Must(apis.AddToScheme(scheme))
-
+	utilruntime.Must(hnc.AddToScheme(scheme))
 	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
 }
 
