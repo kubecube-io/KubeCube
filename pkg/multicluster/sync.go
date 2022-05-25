@@ -36,12 +36,13 @@ import (
 
 // SyncMgr only running when process as subsidiary
 type SyncMgr struct {
-	cache    cache.Cache
-	Informer cache.Informer
-	Worker   worker.Interface
+	cache       cache.Cache
+	Informer    cache.Informer
+	Worker      worker.Interface
+	isWithScout bool
 }
 
-func NewSyncMgr(config *rest.Config) (*SyncMgr, error) {
+func NewSyncMgr(config *rest.Config, isWithScout bool) (*SyncMgr, error) {
 	scheme := runtime.NewScheme()
 	utilruntime.Must(apis.AddToScheme(scheme))
 
@@ -56,7 +57,7 @@ func NewSyncMgr(config *rest.Config) (*SyncMgr, error) {
 		return nil, err
 	}
 
-	return &SyncMgr{cache: c, Informer: informer}, nil
+	return &SyncMgr{cache: c, Informer: informer, isWithScout: isWithScout}, nil
 }
 
 func (m *SyncMgr) Start(ctx context.Context) error {
@@ -135,17 +136,25 @@ func (m *SyncMgr) ReconcileCluster(key worker.QueueKey) error {
 		return err
 	}
 
-	err = AddInternalClusterWithScout(*cluster)
-	if err != nil {
-		clog.Error("add internal cluster %v failed: %v", cluster.Name, err)
-		return err
-	}
+	if m.isWithScout {
+		err = AddInternalClusterWithScout(*cluster)
+		if err != nil {
+			clog.Error("add internal cluster %v failed: %v", cluster.Name, err)
+			return err
+		}
 
-	// start to scout for warden
-	err = ManagerImpl.ScoutFor(context.Background(), cluster.Name)
-	if err != nil {
-		clog.Error("scout for %v warden failed: %v", cluster.Name, err)
-		return err
+		// start to scout for warden
+		err = ManagerImpl.ScoutFor(context.Background(), cluster.Name)
+		if err != nil {
+			clog.Error("scout for %v warden failed: %v", cluster.Name, err)
+			return err
+		}
+	} else {
+		err = AddInternalCluster(*cluster)
+		if err != nil {
+			clog.Error("add internal cluster %v failed: %v", cluster.Name, err)
+			return err
+		}
 	}
 
 	return nil
