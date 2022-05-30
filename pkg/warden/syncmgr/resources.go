@@ -39,10 +39,8 @@ var syncResources = []client.Object{
 	&v1.ClusterRoleBinding{},
 	&v1.Role{},
 	&v1.ClusterRole{},
-	&corev1.Namespace{},
 
 	// kubecube resources
-	&v1alpha2.SubnamespaceAnchor{},
 	&hotplug.Hotplug{},
 	&tenant.Tenant{},
 	&tenant.Project{},
