@@ -135,7 +135,10 @@ func (o *QuotaOperator) UpdateParentStatus(flush bool) error {
 	}
 
 	// update used status of parent
-	refreshed := refreshUsedResource(currentQuota, oldQuota, parentQuota, o.Client)
+	refreshed, err := refreshUsedResource(currentQuota, oldQuota, parentQuota, o.Client)
+	if err != nil {
+		return err
+	}
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		err = o.Client.Status().Update(o.Context, refreshed)
