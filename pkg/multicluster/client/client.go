@@ -82,6 +82,7 @@ func NewClientFor(ctx context.Context, cfg *rest.Config) (Client, error) {
 	var err error
 	c := new(InternalClient)
 
+	// todo(weilaaa): support wrap client with version convert
 	c.client, err = client.New(cfg, client.Options{Scheme: scheme})
 	if err != nil {
 		return nil, fmt.Errorf("new k8s client failed: %v", err)
