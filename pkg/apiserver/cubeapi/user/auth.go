@@ -47,6 +47,7 @@ const (
 	gitHubUserNamePrefix = "github-"
 )
 
+// Login kubecube login
 // @Summary login
 // @Description user login by password or ldap
 // @Tags user
