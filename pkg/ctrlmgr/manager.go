@@ -19,21 +19,19 @@ package ctrlmgr
 import (
 	"context"
 	"fmt"
-	"github.com/kubecube-io/kubecube/pkg/multicluster"
-	"github.com/kubecube-io/kubecube/pkg/utils/informer"
-	"github.com/kubecube-io/kubecube/pkg/utils/worker"
 	"time"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
-	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/webhooks"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-
-	"github.com/kubecube-io/kubecube/pkg/clog"
-
 	"github.com/kubecube-io/kubecube/pkg/apis"
+	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/controllers"
+	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/webhooks"
+	"github.com/kubecube-io/kubecube/pkg/multicluster"
+	"github.com/kubecube-io/kubecube/pkg/utils/env"
 	"github.com/kubecube-io/kubecube/pkg/utils/exit"
+	"github.com/kubecube-io/kubecube/pkg/utils/informer"
+	"github.com/kubecube-io/kubecube/pkg/utils/worker"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -72,7 +70,7 @@ func NewCtrlMgrWithOpts(options *Config) *ControllerManager {
 		MetricsBindAddress:      "0",
 		HealthProbeBindAddress:  "0",
 		LeaderElectionID:        "kube-cube-manager",
-		LeaderElectionNamespace: constants.CubeNamespace,
+		LeaderElectionNamespace: env.CubeNamespace(),
 	})
 
 	if err != nil {

@@ -70,6 +70,8 @@ func NewWardenWithOpts(opts *Config) *Warden {
 	}
 
 	w.LocalCtrl = &localmgr.LocalManager{
+		Cluster:           opts.Cluster,
+		IsMemberCluster:   opts.InMemberCluster,
 		AllowPrivileged:   opts.AllowPrivileged,
 		LeaderElect:       opts.LeaderElect,
 		WebhookCert:       opts.WebhookCert,

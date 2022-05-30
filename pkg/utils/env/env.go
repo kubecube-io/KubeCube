@@ -19,6 +19,7 @@ package env
 import (
 	"net/http"
 	"os"
+	"sync"
 
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
@@ -87,16 +88,6 @@ func JwtSecret() string {
 	return os.Getenv("JWT_SECRET")
 }
 
-// Deprecated as soon as remove dependence of apiserver
-func NodeIP() string {
-	return os.Getenv("NODE_IP")
-}
-
-// Deprecated as soon as remove dependence of apiserver
-func InstallerVersion() string {
-	return os.Getenv("INSTALLER_VERSION")
-}
-
 func ChartsDownload() string {
 	r := os.Getenv("DOWNLOAD_CHARTS")
 	if r == "" {
@@ -115,4 +106,17 @@ func AuditLanguage() string {
 		l = "en"
 	}
 	return l
+}
+
+var once sync.Once
+
+func CubeNamespace() string {
+	cubeNamespace := "kubecube-system"
+	once.Do(func() {
+		ns, ok := os.LookupEnv("CUBE_NAMESPACE")
+		if ok {
+			cubeNamespace = ns
+		}
+	})
+	return cubeNamespace
 }

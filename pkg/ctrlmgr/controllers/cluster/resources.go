@@ -268,7 +268,7 @@ func makeDeployment(cluster string, isMemberCluster bool) *appsv1.Deployment {
 	d := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      constants.Warden,
-			Namespace: constants.CubeNamespace,
+			Namespace: env.CubeNamespace(),
 			Labels:    label,
 		},
 		Spec: appsv1.DeploymentSpec{
@@ -337,7 +337,7 @@ func makeKubeConfigCM(pivotCluster *clusterv1.Cluster) *corev1.ConfigMap {
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      configMapName,
-			Namespace: constants.CubeNamespace,
+			Namespace: env.CubeNamespace(),
 		},
 		Data: map[string]string{"config": string(pivotCluster.Spec.KubeConfig)},
 	}
@@ -352,7 +352,7 @@ func makeKubeConfigSecret(pivotCluster, targetCluster *clusterv1.Cluster) *corev
 
 	s := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{
 		Name:      "kubeconfigs",
-		Namespace: constants.CubeNamespace,
+		Namespace: env.CubeNamespace(),
 	},
 		Data: map[string][]byte{
 			"localCluster": targetCluster.Spec.KubeConfig,
@@ -370,7 +370,7 @@ func makePrevJob() *batchv1.Job {
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "install-dependence",
-			Namespace: constants.CubeNamespace,
+			Namespace: env.CubeNamespace(),
 		},
 		Spec: batchv1.JobSpec{
 			BackoffLimit: int32Ptr(4),
@@ -441,7 +441,7 @@ func makeWardenSvc() *corev1.Service {
 	s := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "warden",
-			Namespace: constants.CubeNamespace,
+			Namespace: env.CubeNamespace(),
 			Labels:    label,
 		},
 		Spec: corev1.ServiceSpec{
@@ -476,7 +476,7 @@ func makeWardenSvc() *corev1.Service {
 func makeNamespace() *corev1.Namespace {
 	return &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: constants.CubeNamespace,
+			Name: env.CubeNamespace(),
 		},
 	}
 }
@@ -533,7 +533,7 @@ func makeTLSSecret() *corev1.Secret {
 	secret := corev1.Secret{}
 	key := types.NamespacedName{
 		Name:      tlsSecretName,
-		Namespace: constants.CubeNamespace,
+		Namespace: env.CubeNamespace(),
 	}
 	err := pClient.Get(context.Background(), key, &secret)
 	if err != nil {
@@ -583,7 +583,7 @@ func makeClusterRoleBinding() *rbacv1.ClusterRoleBinding {
 			{
 				Name:      "default",
 				Kind:      constants.K8sKindServiceAccount,
-				Namespace: constants.CubeNamespace,
+				Namespace: env.CubeNamespace(),
 			},
 		},
 	}

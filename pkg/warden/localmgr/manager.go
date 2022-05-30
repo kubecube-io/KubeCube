@@ -28,7 +28,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/apis"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	multiclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/env"
 	"github.com/kubecube-io/kubecube/pkg/utils/exit"
 	"github.com/kubecube-io/kubecube/pkg/warden/reporter"
 )
@@ -72,7 +72,7 @@ func (m *LocalManager) Initialize() error {
 		Port:                    m.WebhookServerPort,
 		LeaderElection:          m.LeaderElect,
 		LeaderElectionID:        "kube-cube-warden-local-manager",
-		LeaderElectionNamespace: constants.CubeNamespace,
+		LeaderElectionNamespace: env.CubeNamespace(),
 		HealthProbeBindAddress:  healthProbeAddr,
 		MetricsBindAddress:      "0",
 	})

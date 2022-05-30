@@ -59,7 +59,7 @@ func (r *Reporter) registerIfNeed(ctx context.Context) error {
 		return err
 	}
 
-	clog.Info("pivot cluster address is %v", cfg.Host)
+	clog.Info("pivot kubecube address is %v", r.PivotCubeHost)
 
 	return wait.Poll(3*time.Second, 15*time.Second, func() (done bool, err error) {
 		cluster := &clusterv1.Cluster{
@@ -93,6 +93,7 @@ func (r *Reporter) report() bool {
 	}
 
 	if resp.StatusCode != http.StatusOK {
+		log.Debug("kubecube is unhealthy with resp code: %v", resp.StatusCode)
 		return false
 	}
 

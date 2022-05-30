@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package github
 
 import (
@@ -25,6 +26,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/env"
 	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/hotplug"
 )
 
@@ -39,7 +41,7 @@ func getConfig() authentication.GitHubConfig {
 		return gitHubConfig
 	}
 	cm := &v1.ConfigMap{}
-	err := kClient.Get(context.Background(), client.ObjectKey{Name: configMapName, Namespace: constants.CubeNamespace}, cm)
+	err := kClient.Get(context.Background(), client.ObjectKey{Name: configMapName, Namespace: env.CubeNamespace()}, cm)
 	if err != nil {
 		clog.Error("get configmap from K8s err: %v", err)
 		return gitHubConfig
@@ -50,9 +52,9 @@ func getConfig() authentication.GitHubConfig {
 		clog.Error("github config is nil")
 		return gitHubConfig
 	}
-	configJson, error := hotplug.YamlStringToJson(config)
-	if error != nil {
-		clog.Error("%v", error.Error())
+	configJson, err := hotplug.YamlStringToJson(config)
+	if err != nil {
+		clog.Error("%v", err.Error())
 		return gitHubConfig
 	}
 	if configJson["enabled"] != nil && configJson["enabled"].(bool) == true {

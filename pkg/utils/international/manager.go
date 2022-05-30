@@ -29,6 +29,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/env"
 )
 
 type Gi18nManagers struct {
@@ -47,7 +48,7 @@ func InitGi18nManagers() (*Gi18nManagers, error) {
 		return nil, errors.New("get pivot cluster client is nil")
 	}
 	cm := &v1.ConfigMap{}
-	err := kClient.Get(context.Background(), client.ObjectKey{Name: "kubecube-language-config", Namespace: constants.CubeNamespace}, cm)
+	err := kClient.Get(context.Background(), client.ObjectKey{Name: "kubecube-language-config", Namespace: env.CubeNamespace()}, cm)
 	if err != nil {
 		clog.Error("get configmap kubecube-language-config from K8s err: %v", err)
 		return nil, err
