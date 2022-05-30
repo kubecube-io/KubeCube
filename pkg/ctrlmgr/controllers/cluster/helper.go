@@ -150,7 +150,9 @@ func (r *ClusterReconciler) deleteExternalResources(cluster clusterv1.Cluster, c
 	}
 	if internalCluster == nil {
 		clog.Warn("cluster %v may be deleted, fallthrough", cluster.Name)
-	} else {
+	}
+
+	if !env.RetainMemberClusterResource() {
 		mClient := internalCluster.Client
 		// delete kubecube-system of cluster
 		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: env.CubeNamespace()}}
@@ -171,7 +173,7 @@ func (r *ClusterReconciler) deleteExternalResources(cluster clusterv1.Cluster, c
 		clog.Warn("cluster %v not found in internal clusters, skip", err)
 	}
 
-	clog.Debug("delete kubecube-system of cluster %v success", cluster.Name)
+	clog.Debug("delete kubecube of cluster %v success", cluster.Name)
 
 	return nil
 }

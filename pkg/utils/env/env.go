@@ -109,6 +109,15 @@ func AuditLanguage() string {
 	return l
 }
 
+func RetainMemberClusterResource() bool {
+	res := os.Getenv("RETAIN_MEMBER_CLUSTER_RESOURCE")
+	if res == "true" {
+		return true
+	}
+
+	return false
+}
+
 var (
 	once          sync.Once
 	cubeNamespace = "kubecube-system"
