@@ -19,8 +19,6 @@ package k8s
 import (
 	"context"
 	"fmt"
-	"github.com/kubecube-io/kubecube/pkg/clog"
-	"github.com/kubecube-io/kubecube/pkg/utils/strslice"
 	"strings"
 
 	v1 "k8s.io/api/core/v1"
@@ -30,7 +28,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	quotav1 "github.com/kubecube-io/kubecube/pkg/apis/quota/v1"
+	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/quota"
+	"github.com/kubecube-io/kubecube/pkg/utils/strslice"
 )
 
 func isExceedParent(current, old *v1.ResourceQuota, parent *quotav1.CubeResourceQuota) (bool, string) {
@@ -105,6 +105,10 @@ func refreshUsedResource(current, old *v1.ResourceQuota, parent *quotav1.CubeRes
 			}
 		}
 
+		if current.Name == name && current.Namespace == ns {
+			subResourceQuota = current
+		}
+
 		clog.Info("populate used of CubeResourceQuota %v with subResourceQuota %v", parent.Name, sub)
 
 		for _, rs := range quota.ResourceNames {
@@ -124,7 +128,8 @@ func refreshUsedResource(current, old *v1.ResourceQuota, parent *quotav1.CubeRes
 	}
 
 	parent.Status.Used = newParentUsed
-	clog.Debug("refreshed used of CubeResourceQuota %v is %v", parent, newParentUsed)
+	clog.Info("refreshed sub resource quota of %v is %v", parent.Name, parent.Status.SubResourceQuotas)
+	clog.Debug("refreshed used of CubeResourceQuota %v is %v", parent.Name, newParentUsed)
 
 	return parent, nil
 }
