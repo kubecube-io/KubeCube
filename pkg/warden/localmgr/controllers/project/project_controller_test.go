@@ -29,8 +29,8 @@ import (
 	hnc "sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
 
 	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
-	tenantctrl "github.com/kubecube-io/kubecube/pkg/ctrlmgr/controllers/tenant"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	tenantctrl "github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/tenant"
 )
 
 // tenant template
