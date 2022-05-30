@@ -43,11 +43,12 @@ const (
 	UserLabel = "kubecube.io/user"
 )
 
+// CreateKey creates ak and sk
 // create ak & sk
 // @Summary create key
 // @Description create ak & sk keys
 // @Tags key
-// @Success 200 {object} map[string]string
+// @Success 200 {object} map[string]string "{"accessKey":"xxx","secretKey":"xxx"}"
 // @Failure 500 {object} errcode.ErrorInfo
 // @Router /api/v1/cube/key/create  [get]
 func CreateKey(c *gin.Context) {
@@ -110,6 +111,7 @@ func CreateKey(c *gin.Context) {
 	response.SuccessReturn(c, result)
 }
 
+// DeleteKey delete ak and sk
 // @Summary delete key
 // @Description delete ak & sk keys
 // @Tags key
@@ -152,6 +154,7 @@ func DeleteKey(c *gin.Context) {
 	response.SuccessReturn(c, nil)
 }
 
+// ListKey query key by token
 // @Summary list key
 // @Description query key by token
 // @Tags key
@@ -177,12 +180,13 @@ func ListKey(c *gin.Context) {
 	response.SuccessReturn(c, keyList)
 }
 
+// GetTokenByKey get token by key
 // @Summary get token by key
 // @Description query key by ak&sk
 // @Tags key
 // @Param	accessKey	query	string	false "access key"
 // @Param	secretKey		query	string	false	"secret key"
-// @Success 200 {object} map[string]string
+// @Success 200 {object} map[string]string "{"token":""}"
 // @Failure 500 {object} errcode.ErrorInfo
 // @Router /api/v1/cube/key/token  [get]
 func GetTokenByKey(c *gin.Context) {
