@@ -18,13 +18,14 @@ package crds
 
 import (
 	"context"
-	"k8s.io/apimachinery/pkg/types"
+	"reflect"
 
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	rbacv1 "k8s.io/api/rbac/v1"
 	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -71,15 +72,6 @@ func (r *CrdReconciler) syncCrd(ctx context.Context, crd v1.CustomResourceDefini
 	return ctrl.Result{}, nil
 }
 
-func makePolicyRule(resources, resourceNames, verbs []string) rbacv1.PolicyRule {
-	return rbacv1.PolicyRule{
-		APIGroups:     []string{"*"},
-		Resources:     resources,
-		ResourceNames: resourceNames,
-		Verbs:         verbs,
-	}
-}
-
 // mutateClusterRole aggregate new crd auth fot build-in ClusterRole
 func (r *CrdReconciler) mutateClusterRole(ctx context.Context, crd v1.CustomResourceDefinition) ([]*rbacv1.ClusterRole, error) {
 	// ClusterRoles need to update
@@ -107,8 +99,7 @@ func (r *CrdReconciler) mutateClusterRole(ctx context.Context, crd v1.CustomReso
 			verbs = []string{"get", "list", "watch"}
 		}
 		newPolicyRule := makePolicyRule(resources, nil, verbs)
-		// we do not need deduplication cause k8s responsible for
-		role.Rules = append(role.Rules, newPolicyRule)
+		role.Rules = insertRules(role.Rules, newPolicyRule)
 		roles = append(roles, role)
 	}
 
@@ -122,6 +113,26 @@ func (r *CrdReconciler) updateClusterRoles(ctx context.Context, clusterRoles []*
 		}
 	}
 	return nil
+}
+
+func makePolicyRule(resources, resourceNames, verbs []string) rbacv1.PolicyRule {
+	return rbacv1.PolicyRule{
+		APIGroups:     []string{"*"},
+		Resources:     resources,
+		ResourceNames: resourceNames,
+		Verbs:         verbs,
+	}
+}
+
+func insertRules(rules []rbacv1.PolicyRule, newRule rbacv1.PolicyRule) []rbacv1.PolicyRule {
+	for _, rule := range rules {
+		if reflect.DeepEqual(rule, newRule) {
+			return rules
+		}
+	}
+
+	rules = append(rules, newRule)
+	return rules
 }
 
 // SetupWithManager sets up the controller with the Manager.
