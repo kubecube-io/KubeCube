@@ -116,8 +116,9 @@ func (f *Filter) FilterResult(body []byte) []byte {
 	var result K8sJson
 	err := json.Unmarshal(body, &result)
 	if err != nil {
-		clog.Warn("can not parser body to map, %v ", err)
-		return nil
+		clog.Info("can not parser body to map cause: %v ", err)
+		// give back raw body once unmarshal failed
+		return body
 	}
 
 	// k8s status response do not need filter and convert
@@ -153,7 +154,7 @@ func (f *Filter) FilterResult(body []byte) []byte {
 		res, err := json.Marshal(item[0])
 		if err != nil {
 			clog.Info("translate modify response result to json fail, %v", err)
-			return nil
+			return body
 		}
 		return res
 	}
@@ -161,7 +162,7 @@ func (f *Filter) FilterResult(body []byte) []byte {
 	resultJson, err := json.Marshal(result)
 	if err != nil {
 		clog.Info("translate modify response result to json fail, %v", err)
-		return nil
+		return body
 	}
 	return resultJson
 }
