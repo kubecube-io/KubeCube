@@ -553,6 +553,10 @@ func GetKubeConfig(c *gin.Context) {
 
 	user := c.Query("user")
 
+	if len(user) == 0 {
+		user = c.GetString(constants.EventAccountId)
+	}
+
 	authJwtImpl := jwt.GetAuthJwtImpl()
 	token, errInfo := authJwtImpl.GenerateTokenWithExpired(&v1beta1.UserInfo{Username: user}, tokenExpiredTime)
 	if errInfo != nil {
