@@ -162,7 +162,6 @@ rules:
     resources:
       - ingresses
       - ingresses/status
-      - networkpolicies
     verbs:
       - get
       - list

@@ -20,6 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	admisson "sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
+	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/crds"
 	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/hotplug"
 	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/olm"
 	project "github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/project"
@@ -50,6 +51,11 @@ func setupControllersWithManager(m *LocalManager) error {
 	}
 
 	err = project.SetupWithManager(m.Manager)
+	if err != nil {
+		return err
+	}
+
+	err = crds.SetupWithManager(m.Manager, m.PivotClient.Direct())
 	if err != nil {
 		return err
 	}

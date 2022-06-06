@@ -18,9 +18,7 @@ package crds
 
 import (
 	"context"
-	"reflect"
 
-	"github.com/kubecube-io/kubecube/pkg/clog"
 	rbacv1 "k8s.io/api/rbac/v1"
 	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -29,17 +27,21 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+
+	"github.com/kubecube-io/kubecube/pkg/clog"
 )
 
 type CrdReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	pivotClient client.Client
+	Scheme      *runtime.Scheme
 }
 
-func newReconciler(mgr manager.Manager) (*CrdReconciler, error) {
+func newReconciler(mgr manager.Manager, pivotClient client.Client) (*CrdReconciler, error) {
 	r := &CrdReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:      mgr.GetClient(),
+		Scheme:      mgr.GetScheme(),
+		pivotClient: pivotClient,
 	}
 	return r, nil
 }
@@ -89,7 +91,7 @@ func (r *CrdReconciler) mutateClusterRole(ctx context.Context, crd v1.CustomReso
 
 	for _, name := range names {
 		role := &rbacv1.ClusterRole{}
-		if err := r.Get(ctx, types.NamespacedName{Name: name}, role); err != nil {
+		if err := r.pivotClient.Get(ctx, types.NamespacedName{Name: name}, role); err != nil {
 			return nil, err
 		}
 		if name == "aggregate-to-platform-admin" || name == "aggregate-to-project-admin" || name == "aggregate-to-tenant-admin" {
@@ -108,7 +110,7 @@ func (r *CrdReconciler) mutateClusterRole(ctx context.Context, crd v1.CustomReso
 
 func (r *CrdReconciler) updateClusterRoles(ctx context.Context, clusterRoles []*rbacv1.ClusterRole) error {
 	for _, clusterRole := range clusterRoles {
-		if err := r.Update(ctx, clusterRole); err != nil {
+		if err := r.pivotClient.Update(ctx, clusterRole); err != nil {
 			return err
 		}
 	}
@@ -126,8 +128,10 @@ func makePolicyRule(resources, resourceNames, verbs []string) rbacv1.PolicyRule 
 
 func insertRules(rules []rbacv1.PolicyRule, newRule rbacv1.PolicyRule) []rbacv1.PolicyRule {
 	for _, rule := range rules {
-		if reflect.DeepEqual(rule, newRule) {
-			return rules
+		for _, resource := range rule.Resources {
+			if len(newRule.Resources) == 1 && newRule.Resources[0] == resource {
+				return rules
+			}
 		}
 	}
 
@@ -136,8 +140,8 @@ func insertRules(rules []rbacv1.PolicyRule, newRule rbacv1.PolicyRule) []rbacv1.
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func SetupWithManager(mgr ctrl.Manager) error {
-	r, err := newReconciler(mgr)
+func SetupWithManager(mgr ctrl.Manager, pivotClient client.Client) error {
+	r, err := newReconciler(mgr, pivotClient)
 	if err != nil {
 		return err
 	}
