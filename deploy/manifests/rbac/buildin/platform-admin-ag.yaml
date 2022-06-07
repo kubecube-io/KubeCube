@@ -13,12 +13,96 @@ rules:
       - "*"
     resources:
       - pods
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - pods/attach
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - pods/status
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - pods/execescalate
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - pods/exec
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - pods/portforward
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - pods/proxy
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - pods/log
     verbs:
       - get
@@ -33,7 +117,31 @@ rules:
       - "*"
     resources:
       - replicationcontrollers
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - replicationcontrollers/scale
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - replicationcontrollers/status
     verbs:
       - get
@@ -48,6 +156,18 @@ rules:
       - "*"
     resources:
       - persistentvolumeclaims
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - persistentvolumeclaims/status
     verbs:
       - get
@@ -62,7 +182,44 @@ rules:
       - "*"
     resources:
       - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - endpoints
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - endpointslices
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - secrets
     verbs:
       - get
@@ -77,7 +234,31 @@ rules:
       - "*"
     resources:
       - services
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - services/proxy
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - services/status
     verbs:
       - get
@@ -106,17 +287,161 @@ rules:
       - "*"
     resources:
       - daemonsets
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - daemonsets/status
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - deployments
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - deployments/rollback
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - deployments/scale
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - deployments/status
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - statefulsets
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - statefulsets/scale
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - statefulsets/status
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - replicasets
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - replicasets/scale
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - replicasets/status
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - controllerrevisions
     verbs:
       - get
@@ -131,6 +456,18 @@ rules:
       - "*"
     resources:
       - horizontalpodautoscalers
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - horizontalpodautoscalers/status
     verbs:
       - get
@@ -144,9 +481,71 @@ rules:
   - apiGroups:
       - "*"
     resources:
+      - verticalpodautoscalercheckpoints
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - verticalpodautoscalers
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - cronjobs
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - cronjobs/status
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - jobs
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - jobs/status
     verbs:
       - get
@@ -161,6 +560,18 @@ rules:
       - "*"
     resources:
       - ingresses
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - ingresses/status
     verbs:
       - get
@@ -174,7 +585,32 @@ rules:
   - apiGroups:
       - "*"
     resources:
+      - ingressclasses
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - poddisruptionbudgets
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - poddisruptionbudgets/status
     verbs:
       - get
@@ -228,9 +664,57 @@ rules:
       - "*"
     resources:
       - bindings
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - events
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - limitranges
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - resourcequotas
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - resourcequotas/status
     verbs:
       - get
@@ -245,6 +729,18 @@ rules:
       - "*"
     resources:
       - namespaces
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - namespaces/status
     verbs:
       - get
@@ -271,9 +767,84 @@ rules:
   - apiGroups:
       - "*"
     resources:
+      - selfsubjectaccessreviews
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - "*"
+    resources:
+      - selfsubjectrulesreviews
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - "*"
+    resources:
+      - subjectaccessreviews
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - "*"
+    resources:
       - rolebindings
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - "*"
+    resources:
       - roles
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - "*"
+    resources:
       - clusterrolebindings
+    verbs:
+      - create
+      - delete
+      - deletecollection
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - "*"
+    resources:
       - clusterroles
     verbs:
       - create
@@ -284,87 +855,6 @@ rules:
       - patch
       - update
       - watch
-  # access to operate cuberesourcequota
-  - apiGroups:
-      - "*"
-    resources:
-      - cuberesourcequota
-      - cuberesourcequota/finalizers
-      - cuberesourcequota/status
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - delete
-      - deletecollection
-      - patch
-      - update
-  # access to operate cluster
-  - apiGroups:
-      - "*"
-    resources:
-      - clusters
-      - clusters/finalizers
-      - clusters/status
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - delete
-      - deletecollection
-      - patch
-      - update
-  # access to operate tenant
-  - apiGroups:
-      - "*"
-    resources:
-      - tenants
-      - tenants/finalizers
-      - tenants/status
-      - projects
-      - projects/finalizers
-      - projects/status
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - delete
-      - deletecollection
-      - patch
-      - update
-  # access to operate project
-  - apiGroups:
-      - "*"
-    resources:
-      - users
-      - users/finalizers
-      - users/status
-      - keys
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - delete
-      - deletecollection
-      - patch
-      - update
-  - apiGroups:
-      - "*"  #monitoring.kubecube.io
-    resources:
-      - dashboards
-    verbs:
-      - get
-      - list
-      - watch
-      - create
-      - delete
-      - deletecollection
-      - patch
-      - update
   - apiGroups:
       - "*" #apiextensions.k8s.io
     resources:
@@ -379,16 +869,9 @@ rules:
       - patch
       - update
   - apiGroups:
-      - "*" #monitoring.coreos.com
+      - "*"
     resources:
-      - alertmanagerconfigs
-      - alertmanagers
-      - podmonitors
-      - probes
-      - prometheuses
-      - prometheusrules
-      - servicemonitors
-      - thanosrulers
+      - componentstatuses
     verbs:
       - get
       - list
@@ -399,23 +882,9 @@ rules:
       - patch
       - update
   - apiGroups:
-      - "*" #crd.projectcalico.org
+      - "*"
     resources:
-      - bgpconfigurations
-      - bgppeers
-      - blockaffinities
-      - clusterinformations
-      - felixconfigurations
-      - globalnetworkpolicies
-      - globalnetworksets
-      - hostendpoints
-      - ipamblocks
-      - ipamconfigs
-      - ipamhandles
-      - ippools
-      - kubecontrollersconfigurations
-      - networkpolicies
-      - networksets
+      - podtemplates
     verbs:
       - get
       - list
@@ -426,11 +895,374 @@ rules:
       - patch
       - update
   - apiGroups:
-      - "*" #hnc.x-k8s.io
+      - "*"
     resources:
-      - hierarchyconfigurations
-      - hncconfigurations
-      - subnamespaceanchors
+      - mutatingwebhookconfigurations
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - validatingwebhookconfigurations
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - apiservices
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - tokenreviews
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - certificatesigningrequests
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - leases
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - flowschemas
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - prioritylevelconfigurations
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - runtimeclasses
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - priorityclasses
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - csidrivers
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - csinodes
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - volumeattachments
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - podsecuritypolicies
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  ### KubeCube resource below
+  - apiGroups:
+      - "*"
+    resources:
+      - cuberesourcequota
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - cuberesourcequota/finalizers
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - cuberesourcequota/status
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - clusters
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - clusters/finalizers
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - tenants
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - tenants/finalizers
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - tenants/status
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - projects
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - projects/finalizers
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - projects/status
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - users
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - users/finalizers
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - users/status
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - keys
     verbs:
       - get
       - list
@@ -454,10 +1286,23 @@ rules:
       - patch
       - update
   - apiGroups:
-      - "*" #netease.com
+      - "*"
     resources:
-      - nodelogconfigs
-      - logconfigs
+      - externalresources
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  ### KubeCube dependence resource bellow
+  - apiGroups:
+      - "*"  #monitoring.kubecube.io
+    resources:
+      - dashboards
     verbs:
       - get
       - list
@@ -468,9 +1313,490 @@ rules:
       - patch
       - update
   - apiGroups:
+      - "*" #monitoring.coreos.com
+    resources:
+      - alertmanagerconfigs
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - alertmanagers
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - podmonitors
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - probes
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - prometheuses
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - prometheusrules
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - servicemonitors
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - thanosrulers
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*" #crd.projectcalico.org
+    resources:
+      - bgpconfigurations
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - bgppeers
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - blockaffinities
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - clusterinformations
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - felixconfigurations
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - globalnetworkpolicies
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - globalnetworksets
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - hostendpoints
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - ipamblocks
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - ipamconfigs
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - ipamhandles
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - ippools
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - kubecontrollersconfigurations
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - networkpolicies
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - networksets
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*" #hnc.x-k8s.io
+    resources:
+      - hierarchyconfigurations
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - hncconfigurations
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - subnamespaceanchors
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*" # olm
+    resources:
+      - catalogsources
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - clusterserviceversions
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - installplans
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - operatorconditions
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - operatorgroups
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - operators
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - subscriptions
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - packagemanifests
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*" #netease.com
+    resources:
+      - nodelogconfigs
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - logconfigs
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  ### ultimate resource below
+  - apiGroups:
       - "*" #storage.kubecube.io
     resources:
       - cephs
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
       - nfs
     verbs:
       - get
@@ -481,3 +1807,147 @@ rules:
       - deletecollection
       - patch
       - update
+  - apiGroups:
+      - "*"
+    resources:
+      - externalresources
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*" # scud
+    resources:
+      - ipallocations
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - ippools
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - ipranges
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - podstickyips
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - subnets
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*" # alert.kubecube.io/v1
+    resources:
+      - contactgroups
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - notifypolicies
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - notifytemplates
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - silencerules
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*" # nlb.netease.com/v1alpha1
+    resources:
+      - loadbalancers
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+---
