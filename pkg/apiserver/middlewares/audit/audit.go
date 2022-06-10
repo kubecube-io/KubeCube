@@ -200,6 +200,7 @@ func (h *Handler) handleProxyApi(ctx context.Context, c *gin.Context, e Event) *
 		return &e
 	}
 
+	// get object type from url
 	queryUrl := strings.Trim(strings.Split(fmt.Sprint(requestURI), "?")[0], "/api/v1/cube")
 	urlstrs := strings.Split(queryUrl, "/")
 	length := len(urlstrs)
@@ -214,7 +215,7 @@ func (h *Handler) handleProxyApi(ctx context.Context, c *gin.Context, e Event) *
 			} else if length == i+3 {
 				objectType = urlstrs[i+2]
 
-			} else if length == i+4 {
+			} else if length >= i+4 {
 				objectType = urlstrs[i+2]
 				objectName = urlstrs[i+3]
 			}
@@ -231,7 +232,11 @@ func (h *Handler) handleProxyApi(ctx context.Context, c *gin.Context, e Event) *
 	}
 
 	method := c.Request.Method
-	e.EventName = h.EnInstance.Translate(ctx, method) + strings.Title(objectType[:len(objectType)-1])
+	var objectTypeTitle string
+	if len(objectType) > 0 {
+		objectTypeTitle = strings.Title(objectType[:len(objectType)-1])
+	}
+	e.EventName = h.EnInstance.Translate(ctx, method) + objectTypeTitle
 	t := h.EnvInstance
 	if t == nil {
 		t = h.EnInstance
