@@ -19,7 +19,6 @@ package audit
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -201,7 +200,7 @@ func (h *Handler) handleProxyApi(ctx context.Context, c *gin.Context, e Event) *
 	}
 
 	// get object type from url
-	queryUrl := strings.Trim(strings.Split(fmt.Sprint(requestURI), "?")[0], "/api/v1/cube")
+	queryUrl := strings.Trim(strings.Split(requestURI, "?")[0], "/api/v1/cube")
 	urlstrs := strings.Split(queryUrl, "/")
 	length := len(urlstrs)
 	for i, str := range urlstrs {
