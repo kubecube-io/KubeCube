@@ -233,6 +233,10 @@ func (h *handler) getProjectByUser(c *gin.Context) {
 	ctx := c.Request.Context()
 	cli := h.Client
 
+	if len(user) == 0 {
+		user = c.GetString(constants.EventAccountId)
+	}
+
 	projects, err := getVisibleProjects(h.Interface, user, cli, ctx, tenant)
 	if err != nil {
 		clog.Error(err.Error())
