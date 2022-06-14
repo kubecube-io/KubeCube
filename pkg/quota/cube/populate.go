@@ -106,7 +106,7 @@ func refreshUsedResource(current, old, parent *quotav1.CubeResourceQuota, cli cl
 			}
 		}
 		// use new CubeResourceQuota if present
-		if name == current.Name {
+		if current != nil && name == current.Name {
 			subResourceQuota = current
 		}
 
