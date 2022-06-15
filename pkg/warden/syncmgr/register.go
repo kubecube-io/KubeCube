@@ -69,10 +69,10 @@ func (s *SyncManager) setupCtrlWithManager(resource client.Object) error {
 			if errors.IsNotFound(err) {
 				action = Delete
 				err = localClient.Delete(ctx, obj, &client.DeleteOptions{})
-				if err != nil {
-					return reconcile.Result{}, err
+				if err != nil && errors.IsNotFound(err) {
+					return reconcile.Result{}, nil
 				}
-				return reconcile.Result{}, nil
+				return reconcile.Result{}, err
 			}
 			return reconcile.Result{}, err
 		}

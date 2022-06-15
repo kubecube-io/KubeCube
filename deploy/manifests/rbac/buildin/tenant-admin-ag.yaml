@@ -274,7 +274,6 @@ rules:
     resources:
       - serviceaccounts
     verbs:
-      - impersonate
       - get
       - list
       - watch

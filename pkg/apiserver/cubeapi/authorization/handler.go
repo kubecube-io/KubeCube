@@ -53,6 +53,7 @@ func (h *handler) AddApisTo(root *gin.Engine) {
 	r.POST("bindings", h.createBinds)
 	r.DELETE("bindings", h.deleteBinds)
 	r.POST("access", h.authorization)
+	r.POST("resources", h.resourcesGate)
 }
 
 type result struct {
@@ -504,4 +505,63 @@ func (h *handler) authorization(c *gin.Context) {
 	}
 
 	response.SuccessReturn(c, d == authorizer.DecisionAllow)
+}
+
+type resourcesAccessInfos struct {
+	Cluster string `json:"cluster"`
+	Infos   []struct {
+		Resource  string `json:"resource"`
+		Operator  string `json:"operator"`
+		Namespace string `json:"namespace"`
+	} `json:"infos"`
+}
+
+// resourcesGate tells if given resources can access
+func (h *handler) resourcesGate(c *gin.Context) {
+	data := &resourcesAccessInfos{}
+	if err := c.ShouldBindJSON(data); err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.InvalidBodyFormat)
+		return
+	}
+
+	user := c.GetString(constants.EventAccountId)
+	result := make(map[string]bool)
+
+	if data.Cluster == "" {
+		response.FailReturn(c, errcode.InvalidBodyFormat)
+		return
+	}
+
+	r := rbac.NewDefaultResolver(data.Cluster)
+
+	for _, info := range data.Infos {
+		if info.Resource == "" || info.Operator == "" {
+			continue
+		}
+		// note:we just sort up auth to write and read, take care of it
+		var verb string
+		if info.Operator == "write" {
+			verb = "create"
+		}
+		if info.Operator == "read" {
+			verb = "get"
+		}
+		record := &authorizer.AttributesRecord{
+			User:            &userinfo.DefaultInfo{Name: user},
+			Verb:            verb,
+			Namespace:       info.Namespace,
+			Resource:        info.Resource,
+			ResourceRequest: true,
+		}
+		d, _, err := r.Authorize(c.Request.Context(), record)
+		if err != nil {
+			clog.Error(err.Error())
+			response.FailReturn(c, errcode.InternalServerError)
+			return
+		}
+		result[info.Resource] = d == authorizer.DecisionAllow
+	}
+
+	response.SuccessReturn(c, result)
 }
