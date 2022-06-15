@@ -16,6 +16,8 @@ limitations under the License.
 
 package strslice
 
+import "k8s.io/apimachinery/pkg/util/sets"
+
 // ContainsString functions to check and remove string from a slice of strings.
 func ContainsString(slice []string, s string) bool {
 	for _, item := range slice {
@@ -54,12 +56,12 @@ func IsRepeatString(slice []string) bool {
 	if len(slice) == 0 {
 		return false
 	}
-	tmp := make(map[string]int)
+	tmp := make(map[string]interface{})
 	for _, value := range slice {
 		if _, ok := tmp[value]; ok {
 			return true
 		}
-		tmp[value] = 1
+		tmp[value] = sets.Empty{}
 	}
 	return false
 }
