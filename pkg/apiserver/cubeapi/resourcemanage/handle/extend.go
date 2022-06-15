@@ -287,7 +287,7 @@ func IngressDomainSuffix(c *gin.Context) {
 	}
 	res := make([]string, 0)
 
-	for k, _ := range tmpMap {
+	for k := range tmpMap {
 		res = append(res, k)
 	}
 
