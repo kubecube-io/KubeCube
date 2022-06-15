@@ -277,13 +277,18 @@ func IngressDomainSuffix(c *gin.Context) {
 		return
 	}
 
-	res := make([]string, 0)
+	tmpMap := make(map[string]int)
 	if len(cluster.Spec.IngressDomainSuffix) != 0 {
-		res = append(res, cluster.Spec.IngressDomainSuffix)
+		tmpMap[cluster.Spec.IngressDomainSuffix] = 1
+	}
+	for _, suffix := range project.Spec.IngressDomainSuffix {
+		tmpMap[suffix] = 1
+	}
+	res := make([]string, 0)
+
+	for k, _ := range tmpMap {
+		res = append(res, k)
 	}
 
-	for _, suffix := range project.Spec.IngressDomainSuffix {
-		res = append(res, suffix)
-	}
 	response.SuccessReturn(c, res)
 }

@@ -38,9 +38,9 @@ func ValidatorDomainSuffix(domainSuffixList []string, log clog.CubeLogger) error
 		}
 	}
 
-	if strslice.IsMultiString(domainSuffixList) {
-		log.Debug("Invalid value, has multi domain suffix, %+v", domainSuffixList)
-		return fmt.Errorf("Invalid value, has multi domain suffix")
+	if strslice.IsRepeatString(domainSuffixList) {
+		log.Debug("Invalid value, has a repeated suffix, %+v", domainSuffixList)
+		return fmt.Errorf("invalid value, has a repeated suffix")
 	}
 	return nil
 }

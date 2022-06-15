@@ -151,7 +151,7 @@ func TestRemoveString(t *testing.T) {
 	}
 }
 
-func TestMultiString(t *testing.T) {
+func TestRepeatString(t *testing.T) {
 	type args struct {
 		slice []string
 	}
@@ -161,17 +161,17 @@ func TestMultiString(t *testing.T) {
 		wantResult bool
 	}{
 		{
-			name:       "have multi in last",
+			name:       "have repeat str in last",
 			args:       args{slice: []string{"a", "b", "c", "a"}},
 			wantResult: true,
 		},
 		{
-			name:       "have multi in middle",
+			name:       "have repeat str in middle",
 			args:       args{slice: []string{"a", "b", "a", "c"}},
 			wantResult: true,
 		},
 		{
-			name:       "not have multi string",
+			name:       "have no repeat str string",
 			args:       args{slice: []string{"a", "b", "c"}},
 			wantResult: false,
 		},
@@ -188,8 +188,8 @@ func TestMultiString(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if gotResult := IsMultiString(tt.args.slice); !reflect.DeepEqual(gotResult, tt.wantResult) {
-				t.Errorf("MultiString() = %v, want %v", gotResult, tt.wantResult)
+			if gotResult := IsRepeatString(tt.args.slice); !reflect.DeepEqual(gotResult, tt.wantResult) {
+				t.Errorf("RepeatString() = %v, want %v", gotResult, tt.wantResult)
 			}
 		})
 	}

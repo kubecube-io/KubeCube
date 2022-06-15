@@ -50,7 +50,7 @@ func InsertString(slice []string, s string) []string {
 	return slice
 }
 
-func IsMultiString(slice []string) bool {
+func IsRepeatString(slice []string) bool {
 	if len(slice) == 0 {
 		return false
 	}
