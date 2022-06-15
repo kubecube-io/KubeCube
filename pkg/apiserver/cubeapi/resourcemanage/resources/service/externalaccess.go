@@ -18,6 +18,7 @@ package service
 
 import (
 	"fmt"
+	"github.com/kubecube-io/kubecube/cmd/cube/app/options/flags"
 	"strconv"
 	"strings"
 
@@ -38,11 +39,8 @@ import (
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 const (
-	INGRESS_NS   = "ingress-nginx"
-	TCP_SERVICES = "tcp-services"
-	UDP_SERVICES = "udp-services"
-	TCP          = "TCP"
-	UDP          = "UDP"
+	TCP = "TCP"
+	UDP = "UDP"
 )
 
 type ExternalAccess struct {
@@ -78,9 +76,9 @@ func (s *ExternalAccess) GetExternalIP() []string {
 		"app.kubernetes.io/name":      "ingress-nginx",
 	}
 
-	err := s.client.Cache().List(s.ctx, &podList, &client.ListOptions{Namespace: INGRESS_NS, LabelSelector: labels.SelectorFromSet(nginxLable)})
+	err := s.client.Cache().List(s.ctx, &podList, &client.ListOptions{Namespace: flags.CubeOpts.ServiceExtnedOpts.Namespace, LabelSelector: labels.SelectorFromSet(nginxLable)})
 	if err != nil {
-		clog.Error("can not find pod ingress-nginx in %s from cluster, %v", INGRESS_NS, err)
+		clog.Error("can not find pod ingress-nginx in %s from cluster, %v", flags.CubeOpts.ServiceExtnedOpts.Namespace, err)
 		return nil
 	}
 
@@ -111,13 +109,13 @@ func (s *ExternalAccess) SetExternalAccess(body []byte) error {
 	// get configmap
 	var tcpcm v1.ConfigMap
 	var udpcm v1.ConfigMap
-	err = s.client.Cache().Get(s.ctx, types.NamespacedName{Namespace: INGRESS_NS, Name: TCP_SERVICES}, &tcpcm)
+	err = s.client.Cache().Get(s.ctx, types.NamespacedName{Namespace: flags.CubeOpts.ServiceExtnedOpts.Namespace, Name: flags.CubeOpts.ServiceExtnedOpts.TcpServiceConfigMap}, &tcpcm)
 	if err != nil {
-		return fmt.Errorf("can not find configmap tcp-services in kube-system from cluster, %v", err)
+		return fmt.Errorf("can not find configmap %s in %s from cluster, %v", flags.CubeOpts.ServiceExtnedOpts.TcpServiceConfigMap, flags.CubeOpts.ServiceExtnedOpts.Namespace, err)
 	}
-	err = s.client.Cache().Get(s.ctx, types.NamespacedName{Namespace: INGRESS_NS, Name: UDP_SERVICES}, &udpcm)
+	err = s.client.Cache().Get(s.ctx, types.NamespacedName{Namespace: flags.CubeOpts.ServiceExtnedOpts.Namespace, Name: flags.CubeOpts.ServiceExtnedOpts.UdpServiceConfigMap}, &udpcm)
 	if err != nil {
-		return fmt.Errorf("can not find configmap udp-services in kube-system from cluster, %v", err)
+		return fmt.Errorf("can not find configmap %s in %s from cluster, %v", flags.CubeOpts.ServiceExtnedOpts.UdpServiceConfigMap, flags.CubeOpts.ServiceExtnedOpts.Namespace, err)
 	}
 	if tcpcm.Data == nil {
 		tcpcm.Data = make(map[string]string)
@@ -197,13 +195,13 @@ func (s *ExternalAccess) SetExternalAccess(body []byte) error {
 func (s *ExternalAccess) GetExternalAccess() ([]ExternalAccessInfo, error) {
 	var tcpcm v1.ConfigMap
 	var udpcm v1.ConfigMap
-	err := s.client.Cache().Get(s.ctx, types.NamespacedName{Namespace: INGRESS_NS, Name: "tcp-services"}, &tcpcm)
+	err := s.client.Cache().Get(s.ctx, types.NamespacedName{Namespace: flags.CubeOpts.ServiceExtnedOpts.Namespace, Name: flags.CubeOpts.ServiceExtnedOpts.TcpServiceConfigMap}, &tcpcm)
 	if err != nil {
-		return nil, fmt.Errorf("can not find configmap tcp-services in kube-system from cluster, %v", err)
+		return nil, fmt.Errorf("can not find configmap %s in %s from cluster, %v", flags.CubeOpts.ServiceExtnedOpts.TcpServiceConfigMap, flags.CubeOpts.ServiceExtnedOpts.Namespace, err)
 	}
-	err = s.client.Cache().Get(s.ctx, types.NamespacedName{Namespace: INGRESS_NS, Name: "udp-services"}, &udpcm)
+	err = s.client.Cache().Get(s.ctx, types.NamespacedName{Namespace: flags.CubeOpts.ServiceExtnedOpts.Namespace, Name: flags.CubeOpts.ServiceExtnedOpts.UdpServiceConfigMap}, &udpcm)
 	if err != nil {
-		return nil, fmt.Errorf("can not find configmap udp-services in kube-system from cluster, %v", err)
+		return nil, fmt.Errorf("can not find configmap %s in %s from cluster, %v", flags.CubeOpts.ServiceExtnedOpts.UdpServiceConfigMap, flags.CubeOpts.ServiceExtnedOpts.Namespace, err)
 	}
 
 	// configmap.data:
@@ -288,19 +286,19 @@ func (s *ExternalAccess) DeleteExternalAccess() error {
 	// get configmap
 	var tcpcm v1.ConfigMap
 	var udpcm v1.ConfigMap
-	err := s.client.Cache().Get(s.ctx, types.NamespacedName{Namespace: INGRESS_NS, Name: "tcp-services"}, &tcpcm)
+	err := s.client.Cache().Get(s.ctx, types.NamespacedName{Namespace: flags.CubeOpts.ServiceExtnedOpts.Namespace, Name: flags.CubeOpts.ServiceExtnedOpts.TcpServiceConfigMap}, &tcpcm)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil
 		}
-		return fmt.Errorf("can not find configmap tcp-services in kube-system from cluster, %v", err)
+		return fmt.Errorf("can not find configmap %s in %s from cluster, %v", flags.CubeOpts.ServiceExtnedOpts.TcpServiceConfigMap, flags.CubeOpts.ServiceExtnedOpts.Namespace, err)
 	}
-	err = s.client.Cache().Get(s.ctx, types.NamespacedName{Namespace: INGRESS_NS, Name: "udp-services"}, &udpcm)
+	err = s.client.Cache().Get(s.ctx, types.NamespacedName{Namespace: flags.CubeOpts.ServiceExtnedOpts.Namespace, Name: flags.CubeOpts.ServiceExtnedOpts.UdpServiceConfigMap}, &udpcm)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil
 		}
-		return fmt.Errorf("can not find configmap udp-services in kube-system from cluster, %v", err)
+		return fmt.Errorf("can not find configmap %s in %s from cluster, %v", flags.CubeOpts.ServiceExtnedOpts.UdpServiceConfigMap, flags.CubeOpts.ServiceExtnedOpts.Namespace, err)
 	}
 	// clear old
 	value := fmt.Sprintf("%s/%s:", s.namespace, s.name)

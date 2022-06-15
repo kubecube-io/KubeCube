@@ -18,6 +18,7 @@ package options
 
 import (
 	"fmt"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/service"
 
 	"github.com/kubecube-io/kubecube/pkg/apiserver"
 	"github.com/kubecube-io/kubecube/pkg/authentication"
@@ -35,22 +36,24 @@ const (
 )
 
 type CubeOptions struct {
-	GenericCubeOpts *cube.Config
-	APIServerOpts   *apiserver.Config
-	CtrlMgrOpts     *ctrlmgr.Config
-	ClientMgrOpts   *clients.Config
-	CubeLoggerOpts  *clog.Config
-	AuthMgrOpts     *authentication.Config
+	GenericCubeOpts   *cube.Config
+	APIServerOpts     *apiserver.Config
+	CtrlMgrOpts       *ctrlmgr.Config
+	ClientMgrOpts     *clients.Config
+	CubeLoggerOpts    *clog.Config
+	AuthMgrOpts       *authentication.Config
+	ServiceExtnedOpts *service.NginxConfigMapConfig
 }
 
 func NewCubeOptions() *CubeOptions {
 	cubeOpts := &CubeOptions{
-		GenericCubeOpts: &cube.Config{},
-		APIServerOpts:   &apiserver.Config{},
-		CtrlMgrOpts:     &ctrlmgr.Config{},
-		ClientMgrOpts:   &clients.Config{},
-		CubeLoggerOpts:  &clog.Config{},
-		AuthMgrOpts:     &authentication.Config{},
+		GenericCubeOpts:   &cube.Config{},
+		APIServerOpts:     &apiserver.Config{},
+		CtrlMgrOpts:       &ctrlmgr.Config{},
+		ClientMgrOpts:     &clients.Config{},
+		CubeLoggerOpts:    &clog.Config{},
+		AuthMgrOpts:       &authentication.Config{},
+		ServiceExtnedOpts: &service.NginxConfigMapConfig{},
 	}
 
 	return cubeOpts
