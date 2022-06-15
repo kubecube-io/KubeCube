@@ -277,6 +277,7 @@ func IngressDomainSuffix(c *gin.Context) {
 		return
 	}
 
+	// because the cluster ingress domain suffix may repeat to project ingress domain suffix,so we use map in here to deduplication
 	tmpMap := make(map[string]int)
 	if len(cluster.Spec.IngressDomainSuffix) != 0 {
 		tmpMap[cluster.Spec.IngressDomainSuffix] = 1
