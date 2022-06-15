@@ -388,10 +388,10 @@ func getAssignedResource(cli mgrclient.Client, cluster string) (cpu resource.Qua
 
 	for _, obj := range listObjs.Items {
 		hard := obj.Spec.Hard
-		if v, ok := hard[corev1.ResourceLimitsCPU]; ok {
+		if v, ok := hard[corev1.ResourceRequestsCPU]; ok {
 			cpu.Add(v)
 		}
-		if v, ok := hard[corev1.ResourceLimitsMemory]; ok {
+		if v, ok := hard[corev1.ResourceRequestsMemory]; ok {
 			mem.Add(v)
 		}
 		if v, ok := hard[quota.ResourceNvidiaGPU]; ok {
