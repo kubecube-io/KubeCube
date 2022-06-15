@@ -49,3 +49,17 @@ func InsertString(slice []string, s string) []string {
 
 	return slice
 }
+
+func IsMultiString(slice []string) bool {
+	if len(slice) == 0 {
+		return false
+	}
+	tmp := make(map[string]int)
+	for _, value := range slice {
+		if _, ok := tmp[value]; ok {
+			return true
+		}
+		tmp[value] = 1
+	}
+	return false
+}
