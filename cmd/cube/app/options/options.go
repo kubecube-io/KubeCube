@@ -18,16 +18,16 @@ package options
 
 import (
 	"fmt"
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/service"
+
+	"github.com/spf13/viper"
 
 	"github.com/kubecube-io/kubecube/pkg/apiserver"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/service/config"
 	"github.com/kubecube-io/kubecube/pkg/authentication"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/ctrlmgr"
 	"github.com/kubecube-io/kubecube/pkg/cube"
-
-	"github.com/spf13/viper"
 )
 
 const (
@@ -42,7 +42,7 @@ type CubeOptions struct {
 	ClientMgrOpts     *clients.Config
 	CubeLoggerOpts    *clog.Config
 	AuthMgrOpts       *authentication.Config
-	ServiceExtnedOpts *service.NginxConfigMapConfig
+	ServiceExtnedOpts *config.NginxConfigMapConfig
 }
 
 func NewCubeOptions() *CubeOptions {
@@ -53,7 +53,7 @@ func NewCubeOptions() *CubeOptions {
 		ClientMgrOpts:     &clients.Config{},
 		CubeLoggerOpts:    &clog.Config{},
 		AuthMgrOpts:       &authentication.Config{},
-		ServiceExtnedOpts: &service.NginxConfigMapConfig{},
+		ServiceExtnedOpts: &config.NginxConfigMapConfig{},
 	}
 
 	return cubeOpts

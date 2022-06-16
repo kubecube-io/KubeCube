@@ -18,7 +18,6 @@ package service
 
 import (
 	"fmt"
-	"github.com/kubecube-io/kubecube/cmd/cube/app/options/flags"
 	"strconv"
 	"strings"
 
@@ -31,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/kubecube-io/kubecube/cmd/cube/app/options/flags"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	"github.com/kubecube-io/kubecube/pkg/utils/filter"

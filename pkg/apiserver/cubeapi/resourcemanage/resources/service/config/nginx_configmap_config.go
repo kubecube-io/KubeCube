@@ -1,4 +1,4 @@
-package service
+package config
 
 type NginxConfigMapConfig struct {
 	Namespace           string
