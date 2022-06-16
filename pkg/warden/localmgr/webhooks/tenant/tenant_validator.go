@@ -50,7 +50,7 @@ func NewTenantValidator(mgrClient client.Client) *TenantValidator {
 
 func (t *TenantValidator) GetObjectKind() schema.ObjectKind {
 
-	return t.GetObjectKind()
+	return t
 }
 
 func (t *TenantValidator) DeepCopyObject() runtime.Object {

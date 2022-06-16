@@ -42,7 +42,7 @@ func NewClusterValidator(mgrClient client.Client) *ClusterValidator {
 
 func (c *ClusterValidator) GetObjectKind() schema.ObjectKind {
 
-	return c.GetObjectKind()
+	return c
 }
 
 func (c *ClusterValidator) DeepCopyObject() runtime.Object {

@@ -25,6 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
 	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
@@ -277,13 +278,15 @@ func IngressDomainSuffix(c *gin.Context) {
 		return
 	}
 
-	res := make([]string, 0)
+	// because the cluster ingress domain suffix may repeat to project ingress domain suffix,so we use set in here to deduplication
+	tmpSet := sets.String{}
 	if len(cluster.Spec.IngressDomainSuffix) != 0 {
-		res = append(res, cluster.Spec.IngressDomainSuffix)
+		tmpSet.Insert(cluster.Spec.IngressDomainSuffix)
 	}
-
 	for _, suffix := range project.Spec.IngressDomainSuffix {
-		res = append(res, suffix)
+		tmpSet.Insert(suffix)
 	}
+	res := tmpSet.List()
+
 	response.SuccessReturn(c, res)
 }
