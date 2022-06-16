@@ -88,6 +88,11 @@ func (h *handler) getRolesByUser(c *gin.Context) {
 	userName := c.Query("user")
 	ns := c.Query("namespace")
 	details := c.Query("details")
+	byUser := c.Query("byuser")
+
+	if byUser == "true" && userName == "" {
+		userName = c.GetString(constants.EventAccountId)
+	}
 
 	if userName == "" {
 		r := make(map[string]interface{})
@@ -209,6 +214,10 @@ func (h *handler) getTenantByUser(c *gin.Context) {
 	ctx := c.Request.Context()
 	cli := h.Client
 
+	if len(user) == 0 {
+		user = c.GetString(constants.EventAccountId)
+	}
+
 	tenants, err := getVisibleTenants(h.Interface, user, cli, ctx)
 	if err != nil {
 		clog.Error(err.Error())
@@ -257,6 +266,10 @@ func (h *handler) getProjectByUser(c *gin.Context) {
 // @Router /api/v1/cube/authorization/identities [get]
 func (h *handler) getIdentity(c *gin.Context) {
 	user := c.Query("user")
+
+	if len(user) == 0 {
+		user = c.GetString(constants.EventAccountId)
+	}
 
 	r := make(map[string]bool)
 
