@@ -22,7 +22,6 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/kubecube-io/kubecube/pkg/apiserver"
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/service/config"
 	"github.com/kubecube-io/kubecube/pkg/authentication"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
@@ -36,24 +35,22 @@ const (
 )
 
 type CubeOptions struct {
-	GenericCubeOpts   *cube.Config
-	APIServerOpts     *apiserver.Config
-	CtrlMgrOpts       *ctrlmgr.Config
-	ClientMgrOpts     *clients.Config
-	CubeLoggerOpts    *clog.Config
-	AuthMgrOpts       *authentication.Config
-	ServiceExtnedOpts *config.NginxConfigMapConfig
+	GenericCubeOpts *cube.Config
+	APIServerOpts   *apiserver.Config
+	CtrlMgrOpts     *ctrlmgr.Config
+	ClientMgrOpts   *clients.Config
+	CubeLoggerOpts  *clog.Config
+	AuthMgrOpts     *authentication.Config
 }
 
 func NewCubeOptions() *CubeOptions {
 	cubeOpts := &CubeOptions{
-		GenericCubeOpts:   &cube.Config{},
-		APIServerOpts:     &apiserver.Config{},
-		CtrlMgrOpts:       &ctrlmgr.Config{},
-		ClientMgrOpts:     &clients.Config{},
-		CubeLoggerOpts:    &clog.Config{},
-		AuthMgrOpts:       &authentication.Config{},
-		ServiceExtnedOpts: &config.NginxConfigMapConfig{},
+		GenericCubeOpts: &cube.Config{},
+		APIServerOpts:   &apiserver.Config{},
+		CtrlMgrOpts:     &ctrlmgr.Config{},
+		ClientMgrOpts:   &clients.Config{},
+		CubeLoggerOpts:  &clog.Config{},
+		AuthMgrOpts:     &authentication.Config{},
 	}
 
 	return cubeOpts

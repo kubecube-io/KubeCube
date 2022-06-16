@@ -63,5 +63,20 @@ func init() {
 			Value:       false,
 			Destination: &CubeOpts.APIServerOpts.EnableVersionConversion,
 		},
+		&cli.StringFlag{
+			Name:        "ingress-nginx-namespace",
+			Value:       "ingress-nginx",
+			Destination: &CubeOpts.APIServerOpts.NginxNamespace,
+		},
+		&cli.StringFlag{
+			Name:        "ingress-nginx-tcp-configmap",
+			Value:       "tcp-services",
+			Destination: &CubeOpts.APIServerOpts.NginxTcpServiceConfigMap,
+		},
+		&cli.StringFlag{
+			Name:        "ingress-nginx-udp-configmap",
+			Value:       "udp-services",
+			Destination: &CubeOpts.APIServerOpts.NginxUdpServiceConfigMap,
+		},
 	}...)
 }

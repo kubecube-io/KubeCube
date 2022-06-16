@@ -112,7 +112,7 @@ var _ = Describe("Externalaccess", func() {
 		clients.InitCubeClientSetWithOpts(nil)
 		cli = clients.Interface().Kubernetes(constants.LocalCluster)
 		Expect(cli).NotTo(BeNil())
-		externalAccess = service.NewExternalAccess(cli, ns, serviceName, filter.Filter{Limit: 10})
+		externalAccess = service.NewExternalAccess(cli, ns, serviceName, filter.Filter{Limit: 10}, nginxNs, tcpCmName, udpCmName)
 	})
 
 	It("test get external address", func() {
@@ -178,7 +178,7 @@ var _ = Describe("Externalaccess", func() {
 	})
 
 	It("test get external access", func() {
-		ea := service.NewExternalAccess(cli, ns, serviceName2, filter.Filter{Limit: 10})
+		ea := service.NewExternalAccess(cli, ns, serviceName2, filter.Filter{Limit: 10}, nginxNs, tcpCmName, udpCmName)
 		ret, err := ea.GetExternalAccess()
 		Expect(err).To(BeNil())
 		for _, item := range ret {

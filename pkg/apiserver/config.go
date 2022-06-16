@@ -30,6 +30,11 @@ type Config struct {
 
 	// EnableVersionConversion means api-server open version conversion
 	EnableVersionConversion bool
+
+	//this if for ingress nginx controller
+	NginxNamespace           string
+	NginxTcpServiceConfigMap string
+	NginxUdpServiceConfigMap string
 }
 
 type HttpConfig struct {
