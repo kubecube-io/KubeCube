@@ -1,3 +1,36 @@
+# v 1.2.1
+
+## Feature
+- Feature service extend [#130](https://github.com/kubecube-io/KubeCube/pull/130)
+- Apis support multi auth [#127](https://github.com/kubecube-io/KubeCube/pull/127)
+- Get user form context [#124](https://github.com/kubecube-io/KubeCube/pull/124) [#122](https://github.com/kubecube-io/KubeCube/pull/122)
+- move crd controller to warden [#123](https://github.com/kubecube-io/KubeCube/pull/123)
+- Support rbac for crds [#120](https://github.com/kubecube-io/KubeCube/pull/120)
+- support retain resources in member cluster [#118](https://github.com/kubecube-io/KubeCube/pull/118)
+- Move project tenant controller [#116](https://github.com/kubecube-io/KubeCube/pull/116)
+- add swagger doc [#113](https://github.com/kubecube-io/KubeCube/pull/113)
+
+## BugFix
+- add repeat ingress domain suffix identification [#129](https://github.com/kubecube-io/KubeCube/pull/129)
+- Fix get assigned resource [#128](Fix get assigned resource)
+- Fix audit outbound [#125](https://github.com/kubecube-io/KubeCube/pull/125)
+- Fix filter body [#121](https://github.com/kubecube-io/KubeCube/pull/121)
+- fix resource quota populate [#117](https://github.com/kubecube-io/KubeCube/pull/117)
+
+## Dependencies
+
+- hnc v1.0
+- nginx-ingress v0.46.0
+- helm 3.x
+- metrics-server v0.4.1
+- elasticsearch 7.8
+- kubecube-monitoring 15.4.8
+- thanos 3.18.0
+- logseer v1.0.0
+- logagent v1.0.0
+- kubecube-audit v1.2.0
+- kubecube-webconsole v1.2.1
+
 # v1.2.0
 
 ## Feature
