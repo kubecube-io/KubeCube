@@ -17,6 +17,7 @@ limitations under the License.
 package resourcemanage
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -47,8 +48,22 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
 )
 
+type ExtendHandler struct {
+	NginxNamespace           string
+	NginxTcpServiceConfigMap string
+	NginxUdpServiceConfigMap string
+}
+
+func NewExtendHandler(namespace string, tcpCm string, udpCm string) *ExtendHandler {
+	return &ExtendHandler{
+		NginxNamespace:           namespace,
+		NginxTcpServiceConfigMap: tcpCm,
+		NginxUdpServiceConfigMap: udpCm,
+	}
+}
+
 // api/v1/cube/extend/clusters/{cluster}/namespaces/{namespace}/{resourceType}
-func ExtendHandle(c *gin.Context) {
+func (e *ExtendHandler) ExtendHandle(c *gin.Context) {
 	// request param
 	cluster := c.Param("cluster")
 	namespace := c.Param("namespace")
@@ -100,7 +115,7 @@ func ExtendHandle(c *gin.Context) {
 		result := service.GetExtendServices()
 		response.SuccessReturn(c, result)
 	case "externalAccess":
-		externalAccess := serviceRes.NewExternalAccess(client, namespace, resourceName, filter)
+		externalAccess := serviceRes.NewExternalAccess(client.Direct(), namespace, resourceName, filter, e.NginxNamespace, e.NginxTcpServiceConfigMap, e.NginxUdpServiceConfigMap)
 		if httpMethod == http.MethodGet {
 			if allow := access.AccessAllow("", "services", "list"); !allow {
 				response.FailReturn(c, errcode.ForbiddenErr)
@@ -124,7 +139,13 @@ func ExtendHandle(c *gin.Context) {
 				response.FailReturn(c, errcode.InvalidBodyFormat)
 				return
 			}
-			err = externalAccess.SetExternalAccess(body)
+			var externalServices []serviceRes.ExternalAccessInfo
+			err = json.Unmarshal(body, &externalServices)
+			if err != nil {
+				response.FailReturn(c, errcode.InvalidBodyFormat)
+				return
+			}
+			err = externalAccess.SetExternalAccess(externalServices)
 			if err != nil {
 				response.FailReturn(c, errcode.DealError(err))
 				return
@@ -140,7 +161,7 @@ func ExtendHandle(c *gin.Context) {
 			response.FailReturn(c, errcode.ForbiddenErr)
 			return
 		}
-		externalAccess := serviceRes.NewExternalAccess(client, namespace, resourceName, filter)
+		externalAccess := serviceRes.NewExternalAccess(client.Direct(), namespace, resourceName, filter, e.NginxNamespace, e.NginxTcpServiceConfigMap, e.NginxUdpServiceConfigMap)
 		if httpMethod == http.MethodGet {
 			result := externalAccess.GetExternalIP()
 			response.SuccessReturn(c, result)

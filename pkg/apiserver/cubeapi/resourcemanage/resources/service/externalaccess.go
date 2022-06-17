@@ -31,36 +31,38 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kubecube-io/kubecube/pkg/clog"
-	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 const (
-	INGRESS_NS   = "ingress-nginx"
-	TCP_SERVICES = "tcp-services"
-	UDP_SERVICES = "udp-services"
-	TCP          = "TCP"
-	UDP          = "UDP"
+	TCP = "TCP"
+	UDP = "UDP"
 )
 
 type ExternalAccess struct {
-	ctx       context.Context
-	client    mgrclient.Client
-	namespace string
-	name      string
-	filter    filter.Filter
+	ctx                      context.Context
+	client                   client.Client
+	namespace                string
+	name                     string
+	filter                   filter.Filter
+	NginxNamespace           string
+	NginxTcpServiceConfigMap string
+	NginxUdpServiceConfigMap string
 }
 
-func NewExternalAccess(client mgrclient.Client, namespace string, name string, filter filter.Filter) ExternalAccess {
+func NewExternalAccess(client client.Client, namespace string, name string, filter filter.Filter, nginxNs string, tcpCm string, udpCm string) ExternalAccess {
 	ctx := context.Background()
 	return ExternalAccess{
-		ctx:       ctx,
-		client:    client,
-		namespace: namespace,
-		name:      name,
-		filter:    filter,
+		ctx:                      ctx,
+		client:                   client,
+		namespace:                namespace,
+		name:                     name,
+		filter:                   filter,
+		NginxNamespace:           nginxNs,
+		NginxTcpServiceConfigMap: tcpCm,
+		NginxUdpServiceConfigMap: udpCm,
 	}
 }
 
@@ -78,9 +80,9 @@ func (s *ExternalAccess) GetExternalIP() []string {
 		"app.kubernetes.io/name":      "ingress-nginx",
 	}
 
-	err := s.client.Cache().List(s.ctx, &podList, &client.ListOptions{Namespace: INGRESS_NS, LabelSelector: labels.SelectorFromSet(nginxLable)})
+	err := s.client.List(s.ctx, &podList, &client.ListOptions{Namespace: s.NginxNamespace, LabelSelector: labels.SelectorFromSet(nginxLable)})
 	if err != nil {
-		clog.Error("can not find pod ingress-nginx in %s from cluster, %v", INGRESS_NS, err)
+		clog.Error("can not find pod ingress-nginx in %s from cluster, %v", s.NginxNamespace, err)
 		return nil
 	}
 
@@ -94,16 +96,11 @@ func (s *ExternalAccess) GetExternalIP() []string {
 	return hostIps
 }
 
-func (s *ExternalAccess) SetExternalAccess(body []byte) error {
-	var externalServices []ExternalAccessInfo
-	err := json.Unmarshal(body, &externalServices)
-	if err != nil {
-		return fmt.Errorf("can not parse body info")
-	}
+func (s *ExternalAccess) SetExternalAccess(externalServices []ExternalAccessInfo) error {
 
 	// get service
 	var service v1.Service
-	err = s.client.Cache().Get(s.ctx, types.NamespacedName{Namespace: s.namespace, Name: s.name}, &service)
+	err := s.client.Get(s.ctx, types.NamespacedName{Namespace: s.namespace, Name: s.name}, &service)
 	if err != nil {
 		return err
 	}
@@ -111,13 +108,13 @@ func (s *ExternalAccess) SetExternalAccess(body []byte) error {
 	// get configmap
 	var tcpcm v1.ConfigMap
 	var udpcm v1.ConfigMap
-	err = s.client.Cache().Get(s.ctx, types.NamespacedName{Namespace: INGRESS_NS, Name: TCP_SERVICES}, &tcpcm)
+	err = s.client.Get(s.ctx, types.NamespacedName{Namespace: s.NginxNamespace, Name: s.NginxTcpServiceConfigMap}, &tcpcm)
 	if err != nil {
-		return fmt.Errorf("can not find configmap tcp-services in kube-system from cluster, %v", err)
+		return fmt.Errorf("can not find configmap %s in %s from cluster, %v", s.NginxTcpServiceConfigMap, s.NginxNamespace, err)
 	}
-	err = s.client.Cache().Get(s.ctx, types.NamespacedName{Namespace: INGRESS_NS, Name: UDP_SERVICES}, &udpcm)
+	err = s.client.Get(s.ctx, types.NamespacedName{Namespace: s.NginxNamespace, Name: s.NginxUdpServiceConfigMap}, &udpcm)
 	if err != nil {
-		return fmt.Errorf("can not find configmap udp-services in kube-system from cluster, %v", err)
+		return fmt.Errorf("can not find configmap %s in %s from cluster, %v", s.NginxUdpServiceConfigMap, s.NginxNamespace, err)
 	}
 	if tcpcm.Data == nil {
 		tcpcm.Data = make(map[string]string)
@@ -182,11 +179,11 @@ func (s *ExternalAccess) SetExternalAccess(body []byte) error {
 			}
 		}
 	}
-	err = s.client.Direct().Update(s.ctx, &tcpcm)
+	err = s.client.Update(s.ctx, &tcpcm)
 	if err != nil {
 		return fmt.Errorf("update fail")
 	}
-	err = s.client.Direct().Update(s.ctx, &udpcm)
+	err = s.client.Update(s.ctx, &udpcm)
 	if err != nil {
 		return fmt.Errorf("update fail")
 	}
@@ -197,13 +194,13 @@ func (s *ExternalAccess) SetExternalAccess(body []byte) error {
 func (s *ExternalAccess) GetExternalAccess() ([]ExternalAccessInfo, error) {
 	var tcpcm v1.ConfigMap
 	var udpcm v1.ConfigMap
-	err := s.client.Cache().Get(s.ctx, types.NamespacedName{Namespace: INGRESS_NS, Name: "tcp-services"}, &tcpcm)
+	err := s.client.Get(s.ctx, types.NamespacedName{Namespace: s.NginxNamespace, Name: s.NginxTcpServiceConfigMap}, &tcpcm)
 	if err != nil {
-		return nil, fmt.Errorf("can not find configmap tcp-services in kube-system from cluster, %v", err)
+		return nil, fmt.Errorf("can not find configmap %s in %s from cluster, %v", s.NginxTcpServiceConfigMap, s.NginxNamespace, err)
 	}
-	err = s.client.Cache().Get(s.ctx, types.NamespacedName{Namespace: INGRESS_NS, Name: "udp-services"}, &udpcm)
+	err = s.client.Get(s.ctx, types.NamespacedName{Namespace: s.NginxNamespace, Name: s.NginxUdpServiceConfigMap}, &udpcm)
 	if err != nil {
-		return nil, fmt.Errorf("can not find configmap udp-services in kube-system from cluster, %v", err)
+		return nil, fmt.Errorf("can not find configmap %s in %s from cluster, %v", s.NginxUdpServiceConfigMap, s.namespace, err)
 	}
 
 	// configmap.data:
@@ -256,7 +253,7 @@ func (s *ExternalAccess) GetExternalAccess() ([]ExternalAccessInfo, error) {
 	}
 	// not in configmap but in service.spec
 	var service v1.Service
-	err = s.client.Cache().Get(s.ctx, types.NamespacedName{Namespace: s.namespace, Name: s.name}, &service)
+	err = s.client.Get(s.ctx, types.NamespacedName{Namespace: s.namespace, Name: s.name}, &service)
 	if err != nil {
 		return nil, err
 	}
@@ -283,24 +280,24 @@ func (s *ExternalAccess) GetExternalAccess() ([]ExternalAccessInfo, error) {
 	return result, nil
 }
 
-// delete external service
+// DeleteExternalAccess delete external service
 func (s *ExternalAccess) DeleteExternalAccess() error {
 	// get configmap
 	var tcpcm v1.ConfigMap
 	var udpcm v1.ConfigMap
-	err := s.client.Cache().Get(s.ctx, types.NamespacedName{Namespace: INGRESS_NS, Name: "tcp-services"}, &tcpcm)
+	err := s.client.Get(s.ctx, types.NamespacedName{Namespace: s.NginxNamespace, Name: s.NginxTcpServiceConfigMap}, &tcpcm)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil
 		}
-		return fmt.Errorf("can not find configmap tcp-services in kube-system from cluster, %v", err)
+		return fmt.Errorf("can not find configmap %s in %s from cluster, %v", s.NginxTcpServiceConfigMap, s.NginxNamespace, err)
 	}
-	err = s.client.Cache().Get(s.ctx, types.NamespacedName{Namespace: INGRESS_NS, Name: "udp-services"}, &udpcm)
+	err = s.client.Get(s.ctx, types.NamespacedName{Namespace: s.NginxNamespace, Name: s.NginxUdpServiceConfigMap}, &udpcm)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil
 		}
-		return fmt.Errorf("can not find configmap udp-services in kube-system from cluster, %v", err)
+		return fmt.Errorf("can not find configmap %s in %s from cluster, %v", s.NginxUdpServiceConfigMap, s.NginxNamespace, err)
 	}
 	// clear old
 	value := fmt.Sprintf("%s/%s:", s.namespace, s.name)
@@ -314,11 +311,11 @@ func (s *ExternalAccess) DeleteExternalAccess() error {
 			delete(udpcm.Data, k)
 		}
 	}
-	err = s.client.Direct().Update(s.ctx, &tcpcm)
+	err = s.client.Update(s.ctx, &tcpcm)
 	if err != nil {
 		return fmt.Errorf("update fail")
 	}
-	err = s.client.Direct().Update(s.ctx, &udpcm)
+	err = s.client.Update(s.ctx, &udpcm)
 	if err != nil {
 		return fmt.Errorf("update fail")
 	}

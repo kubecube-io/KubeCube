@@ -1,5 +1,5 @@
 /*
-Copyright 2021 KubeCube Authors
+Copyright 2022 KubeCube Authors
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,40 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package warden
+package service
 
-type Config struct {
-	// generic
-	Cluster                string
-	InMemberCluster        bool
-	LocalClusterKubeConfig string
-	PivotClusterKubeConfig string
-
-	// report
-	PivotCubeHost string
-	PeriodSecond  int
-	WaitSecond    int
-	RetryCounts   int
-
-	// api server
-	JwtSecret string
-	Addr      string
-	Port      int
-	TlsCert   string
-	TlsKey    string
-
-	// local manager
-	AllowPrivileged   bool
-	LeaderElect       bool
-	WebhookCert       string
-	WebhookServerPort int
-
-	// nginx ingress controller param
+type NginxConfig struct {
 	NginxNamespace           string
 	NginxTcpServiceConfigMap string
 	NginxUdpServiceConfigMap string
-}
-
-func (c *Config) Validate() []error {
-	return nil
 }
