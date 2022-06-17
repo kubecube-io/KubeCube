@@ -1,4 +1,4 @@
-v 1.2.1
+# v 1.2.1
 
 ## Feature
 - Feature service extend [#130](https://github.com/kubecube-io/KubeCube/pull/130)
