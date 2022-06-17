@@ -60,6 +60,9 @@ type LocalManager struct {
 	Cluster           string
 	PivotClient       multiclient.Client
 
+	NginxNamespace           string
+	NginxTcpServiceConfigMap string
+	NginxUdpServiceConfigMap string
 	ctrl.Manager
 }
 

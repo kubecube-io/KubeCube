@@ -41,6 +41,11 @@ type Config struct {
 	LeaderElect       bool
 	WebhookCert       string
 	WebhookServerPort int
+
+	// nginx ingress controller param
+	NginxNamespace           string
+	NginxTcpServiceConfigMap string
+	NginxUdpServiceConfigMap string
 }
 
 func (c *Config) Validate() []error {

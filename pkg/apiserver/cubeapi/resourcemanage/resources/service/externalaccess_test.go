@@ -17,8 +17,6 @@ limitations under the License.
 package service_test
 
 import (
-	"encoding/json"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -112,7 +110,7 @@ var _ = Describe("Externalaccess", func() {
 		clients.InitCubeClientSetWithOpts(nil)
 		cli = clients.Interface().Kubernetes(constants.LocalCluster)
 		Expect(cli).NotTo(BeNil())
-		externalAccess = service.NewExternalAccess(cli, ns, serviceName, filter.Filter{Limit: 10}, nginxNs, tcpCmName, udpCmName)
+		externalAccess = service.NewExternalAccess(cli.Direct(), ns, serviceName, filter.Filter{Limit: 10}, nginxNs, tcpCmName, udpCmName)
 	})
 
 	It("test get external address", func() {
@@ -134,9 +132,7 @@ var _ = Describe("Externalaccess", func() {
 			Protocol:      service.UDP,
 			ExternalPorts: []int{8000, 8800, 8880},
 		}
-		body, err := json.Marshal(externalServices)
-		Expect(err).To(BeNil())
-		err = externalAccess.SetExternalAccess(body)
+		err := externalAccess.SetExternalAccess(externalServices)
 		Expect(err).To(BeNil())
 		ret, err := externalAccess.GetExternalAccess()
 		Expect(err).To(BeNil())
@@ -178,7 +174,7 @@ var _ = Describe("Externalaccess", func() {
 	})
 
 	It("test get external access", func() {
-		ea := service.NewExternalAccess(cli, ns, serviceName2, filter.Filter{Limit: 10}, nginxNs, tcpCmName, udpCmName)
+		ea := service.NewExternalAccess(cli.Direct(), ns, serviceName2, filter.Filter{Limit: 10}, nginxNs, tcpCmName, udpCmName)
 		ret, err := ea.GetExternalAccess()
 		Expect(err).To(BeNil())
 		for _, item := range ret {
@@ -202,9 +198,7 @@ var _ = Describe("Externalaccess", func() {
 			Protocol:      service.UDP,
 			ExternalPorts: []int{5000},
 		}
-		body, err := json.Marshal(externalServices)
-		Expect(err).To(BeNil())
-		err = externalAccess.SetExternalAccess(body)
+		err := externalAccess.SetExternalAccess(externalServices)
 		Expect(err.Error()).To(Equal("the service port is not exist"))
 	})
 })

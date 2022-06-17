@@ -17,6 +17,7 @@ limitations under the License.
 package resourcemanage
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -114,7 +115,7 @@ func (e *ExtendHandler) ExtendHandle(c *gin.Context) {
 		result := service.GetExtendServices()
 		response.SuccessReturn(c, result)
 	case "externalAccess":
-		externalAccess := serviceRes.NewExternalAccess(client, namespace, resourceName, filter, e.NginxNamespace, e.NginxTcpServiceConfigMap, e.NginxUdpServiceConfigMap)
+		externalAccess := serviceRes.NewExternalAccess(client.Direct(), namespace, resourceName, filter, e.NginxNamespace, e.NginxTcpServiceConfigMap, e.NginxUdpServiceConfigMap)
 		if httpMethod == http.MethodGet {
 			if allow := access.AccessAllow("", "services", "list"); !allow {
 				response.FailReturn(c, errcode.ForbiddenErr)
@@ -138,7 +139,13 @@ func (e *ExtendHandler) ExtendHandle(c *gin.Context) {
 				response.FailReturn(c, errcode.InvalidBodyFormat)
 				return
 			}
-			err = externalAccess.SetExternalAccess(body)
+			var externalServices []serviceRes.ExternalAccessInfo
+			err = json.Unmarshal(body, &externalServices)
+			if err != nil {
+				response.FailReturn(c, errcode.InvalidBodyFormat)
+				return
+			}
+			err = externalAccess.SetExternalAccess(externalServices)
 			if err != nil {
 				response.FailReturn(c, errcode.DealError(err))
 				return
@@ -154,7 +161,7 @@ func (e *ExtendHandler) ExtendHandle(c *gin.Context) {
 			response.FailReturn(c, errcode.ForbiddenErr)
 			return
 		}
-		externalAccess := serviceRes.NewExternalAccess(client, namespace, resourceName, filter, e.NginxNamespace, e.NginxTcpServiceConfigMap, e.NginxUdpServiceConfigMap)
+		externalAccess := serviceRes.NewExternalAccess(client.Direct(), namespace, resourceName, filter, e.NginxNamespace, e.NginxTcpServiceConfigMap, e.NginxUdpServiceConfigMap)
 		if httpMethod == http.MethodGet {
 			result := externalAccess.GetExternalIP()
 			response.SuccessReturn(c, result)

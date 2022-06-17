@@ -24,6 +24,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/hotplug"
 	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/olm"
 	project "github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/project"
+	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/service"
 	tenant "github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/tenant"
 	hotplug2 "github.com/kubecube-io/kubecube/pkg/warden/localmgr/webhooks/hotplug"
 	project2 "github.com/kubecube-io/kubecube/pkg/warden/localmgr/webhooks/project"
@@ -60,6 +61,14 @@ func setupControllersWithManager(m *LocalManager) error {
 		return err
 	}
 
+	err = service.SetupWithManager(m.Manager, &service.NginxConfig{
+		NginxNamespace:           m.NginxNamespace,
+		NginxTcpServiceConfigMap: m.NginxTcpServiceConfigMap,
+		NginxUdpServiceConfigMap: m.NginxUdpServiceConfigMap,
+	})
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

@@ -31,7 +31,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kubecube-io/kubecube/pkg/clog"
-	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 )
 
@@ -44,7 +43,7 @@ const (
 
 type ExternalAccess struct {
 	ctx                      context.Context
-	client                   mgrclient.Client
+	client                   client.Client
 	namespace                string
 	name                     string
 	filter                   filter.Filter
@@ -53,7 +52,7 @@ type ExternalAccess struct {
 	NginxUdpServiceConfigMap string
 }
 
-func NewExternalAccess(client mgrclient.Client, namespace string, name string, filter filter.Filter, nginxNs string, tcpCm string, udpCm string) ExternalAccess {
+func NewExternalAccess(client client.Client, namespace string, name string, filter filter.Filter, nginxNs string, tcpCm string, udpCm string) ExternalAccess {
 	ctx := context.Background()
 	return ExternalAccess{
 		ctx:                      ctx,
@@ -81,7 +80,7 @@ func (s *ExternalAccess) GetExternalIP() []string {
 		"app.kubernetes.io/name":      "ingress-nginx",
 	}
 
-	err := s.client.Cache().List(s.ctx, &podList, &client.ListOptions{Namespace: s.NginxNamespace, LabelSelector: labels.SelectorFromSet(nginxLable)})
+	err := s.client.List(s.ctx, &podList, &client.ListOptions{Namespace: s.NginxNamespace, LabelSelector: labels.SelectorFromSet(nginxLable)})
 	if err != nil {
 		clog.Error("can not find pod ingress-nginx in %s from cluster, %v", s.NginxNamespace, err)
 		return nil
@@ -97,16 +96,11 @@ func (s *ExternalAccess) GetExternalIP() []string {
 	return hostIps
 }
 
-func (s *ExternalAccess) SetExternalAccess(body []byte) error {
-	var externalServices []ExternalAccessInfo
-	err := json.Unmarshal(body, &externalServices)
-	if err != nil {
-		return fmt.Errorf("can not parse body info")
-	}
+func (s *ExternalAccess) SetExternalAccess(externalServices []ExternalAccessInfo) error {
 
 	// get service
 	var service v1.Service
-	err = s.client.Cache().Get(s.ctx, types.NamespacedName{Namespace: s.namespace, Name: s.name}, &service)
+	err := s.client.Get(s.ctx, types.NamespacedName{Namespace: s.namespace, Name: s.name}, &service)
 	if err != nil {
 		return err
 	}
@@ -114,11 +108,11 @@ func (s *ExternalAccess) SetExternalAccess(body []byte) error {
 	// get configmap
 	var tcpcm v1.ConfigMap
 	var udpcm v1.ConfigMap
-	err = s.client.Cache().Get(s.ctx, types.NamespacedName{Namespace: s.NginxNamespace, Name: s.NginxTcpServiceConfigMap}, &tcpcm)
+	err = s.client.Get(s.ctx, types.NamespacedName{Namespace: s.NginxNamespace, Name: s.NginxTcpServiceConfigMap}, &tcpcm)
 	if err != nil {
 		return fmt.Errorf("can not find configmap %s in %s from cluster, %v", s.NginxTcpServiceConfigMap, s.NginxNamespace, err)
 	}
-	err = s.client.Cache().Get(s.ctx, types.NamespacedName{Namespace: s.NginxNamespace, Name: s.NginxUdpServiceConfigMap}, &udpcm)
+	err = s.client.Get(s.ctx, types.NamespacedName{Namespace: s.NginxNamespace, Name: s.NginxUdpServiceConfigMap}, &udpcm)
 	if err != nil {
 		return fmt.Errorf("can not find configmap %s in %s from cluster, %v", s.NginxUdpServiceConfigMap, s.NginxNamespace, err)
 	}
@@ -185,11 +179,11 @@ func (s *ExternalAccess) SetExternalAccess(body []byte) error {
 			}
 		}
 	}
-	err = s.client.Direct().Update(s.ctx, &tcpcm)
+	err = s.client.Update(s.ctx, &tcpcm)
 	if err != nil {
 		return fmt.Errorf("update fail")
 	}
-	err = s.client.Direct().Update(s.ctx, &udpcm)
+	err = s.client.Update(s.ctx, &udpcm)
 	if err != nil {
 		return fmt.Errorf("update fail")
 	}
@@ -200,11 +194,11 @@ func (s *ExternalAccess) SetExternalAccess(body []byte) error {
 func (s *ExternalAccess) GetExternalAccess() ([]ExternalAccessInfo, error) {
 	var tcpcm v1.ConfigMap
 	var udpcm v1.ConfigMap
-	err := s.client.Cache().Get(s.ctx, types.NamespacedName{Namespace: s.NginxNamespace, Name: s.NginxTcpServiceConfigMap}, &tcpcm)
+	err := s.client.Get(s.ctx, types.NamespacedName{Namespace: s.NginxNamespace, Name: s.NginxTcpServiceConfigMap}, &tcpcm)
 	if err != nil {
 		return nil, fmt.Errorf("can not find configmap %s in %s from cluster, %v", s.NginxTcpServiceConfigMap, s.NginxNamespace, err)
 	}
-	err = s.client.Cache().Get(s.ctx, types.NamespacedName{Namespace: s.NginxNamespace, Name: s.NginxUdpServiceConfigMap}, &udpcm)
+	err = s.client.Get(s.ctx, types.NamespacedName{Namespace: s.NginxNamespace, Name: s.NginxUdpServiceConfigMap}, &udpcm)
 	if err != nil {
 		return nil, fmt.Errorf("can not find configmap %s in %s from cluster, %v", s.NginxUdpServiceConfigMap, s.namespace, err)
 	}
@@ -259,7 +253,7 @@ func (s *ExternalAccess) GetExternalAccess() ([]ExternalAccessInfo, error) {
 	}
 	// not in configmap but in service.spec
 	var service v1.Service
-	err = s.client.Cache().Get(s.ctx, types.NamespacedName{Namespace: s.namespace, Name: s.name}, &service)
+	err = s.client.Get(s.ctx, types.NamespacedName{Namespace: s.namespace, Name: s.name}, &service)
 	if err != nil {
 		return nil, err
 	}
@@ -286,19 +280,19 @@ func (s *ExternalAccess) GetExternalAccess() ([]ExternalAccessInfo, error) {
 	return result, nil
 }
 
-// delete external service
+// DeleteExternalAccess delete external service
 func (s *ExternalAccess) DeleteExternalAccess() error {
 	// get configmap
 	var tcpcm v1.ConfigMap
 	var udpcm v1.ConfigMap
-	err := s.client.Cache().Get(s.ctx, types.NamespacedName{Namespace: s.NginxNamespace, Name: s.NginxTcpServiceConfigMap}, &tcpcm)
+	err := s.client.Get(s.ctx, types.NamespacedName{Namespace: s.NginxNamespace, Name: s.NginxTcpServiceConfigMap}, &tcpcm)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil
 		}
 		return fmt.Errorf("can not find configmap %s in %s from cluster, %v", s.NginxTcpServiceConfigMap, s.NginxNamespace, err)
 	}
-	err = s.client.Cache().Get(s.ctx, types.NamespacedName{Namespace: s.NginxNamespace, Name: s.NginxUdpServiceConfigMap}, &udpcm)
+	err = s.client.Get(s.ctx, types.NamespacedName{Namespace: s.NginxNamespace, Name: s.NginxUdpServiceConfigMap}, &udpcm)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil
@@ -317,11 +311,11 @@ func (s *ExternalAccess) DeleteExternalAccess() error {
 			delete(udpcm.Data, k)
 		}
 	}
-	err = s.client.Direct().Update(s.ctx, &tcpcm)
+	err = s.client.Update(s.ctx, &tcpcm)
 	if err != nil {
 		return fmt.Errorf("update fail")
 	}
-	err = s.client.Direct().Update(s.ctx, &udpcm)
+	err = s.client.Update(s.ctx, &udpcm)
 	if err != nil {
 		return fmt.Errorf("update fail")
 	}
