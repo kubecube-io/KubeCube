@@ -48,7 +48,7 @@ const (
 */
 // setupCtrlWithManager add reconcile func for each sync resource
 // resync reference to https://github.com/cloudnativeto/sig-kubernetes/issues/11
-func (s *SyncManager) setupCtrlWithManager(resource client.Object) error {
+func (s *SyncManager) SetupCtrlWithManager(resource client.Object, objFunc GenericObjFunc) error {
 	pivotClient := s.Manager.GetClient()
 	localClient := s.LocalClient
 
@@ -77,7 +77,7 @@ func (s *SyncManager) setupCtrlWithManager(resource client.Object) error {
 			return reconcile.Result{}, err
 		}
 
-		newObj, err := newGenericObj(obj)
+		newObj, err := objFunc(obj)
 		if err != nil {
 			return reconcile.Result{}, err
 		}

@@ -1,0 +1,45 @@
+2022-06-21T16:23:00.513+0800	fatal	warden/warden.go:48	init pivot client failed: invalid configuration: no configuration has been provided, try setting KUBERNETES_MASTER environment variable
+github.com/kubecube-io/kubecube/pkg/warden.NewWardenWithOpts
+	/home/tiancan/code/go/KubeCube/pkg/warden/warden.go:48
+github.com/kubecube-io/kubecube/cmd/warden/app.run
+	/home/tiancan/code/go/KubeCube/cmd/warden/app/warden.go:45
+github.com/kubecube-io/kubecube/cmd/warden/app.glob..func1
+	/home/tiancan/code/go/KubeCube/cmd/warden/app/warden.go:35
+github.com/urfave/cli/v2.(*App).RunContext
+	/home/tiancan/code/go/KubeCube/vendor/github.com/urfave/cli/v2/app.go:322
+github.com/urfave/cli/v2.(*App).Run
+	/home/tiancan/code/go/KubeCube/vendor/github.com/urfave/cli/v2/app.go:224
+main.main
+	/home/tiancan/code/go/KubeCube/cmd/warden/main.go:44
+runtime.main
+	/usr/local/go/src/runtime/proc.go:225
+2022-06-21T16:23:52.382+0800	fatal	warden/warden.go:48	init pivot client failed: invalid configuration: no configuration has been provided, try setting KUBERNETES_MASTER environment variable
+github.com/kubecube-io/kubecube/pkg/warden.NewWardenWithOpts
+	/home/tiancan/code/go/KubeCube/pkg/warden/warden.go:48
+github.com/kubecube-io/kubecube/cmd/warden/app.run
+	/home/tiancan/code/go/KubeCube/cmd/warden/app/warden.go:45
+github.com/kubecube-io/kubecube/cmd/warden/app.glob..func1
+	/home/tiancan/code/go/KubeCube/cmd/warden/app/warden.go:35
+github.com/urfave/cli/v2.(*App).RunContext
+	/home/tiancan/code/go/KubeCube/vendor/github.com/urfave/cli/v2/app.go:322
+github.com/urfave/cli/v2.(*App).Run
+	/home/tiancan/code/go/KubeCube/vendor/github.com/urfave/cli/v2/app.go:224
+main.main
+	/home/tiancan/code/go/KubeCube/cmd/warden/main.go:44
+runtime.main
+	/usr/local/go/src/runtime/proc.go:225
+2022-06-21T16:24:36.079+0800	fatal	warden/warden.go:48	init pivot client failed: invalid configuration: no configuration has been provided, try setting KUBERNETES_MASTER environment variable
+github.com/kubecube-io/kubecube/pkg/warden.NewWardenWithOpts
+	/home/tiancan/code/go/KubeCube/pkg/warden/warden.go:48
+github.com/kubecube-io/kubecube/cmd/warden/app.run
+	/home/tiancan/code/go/KubeCube/cmd/warden/app/warden.go:45
+github.com/kubecube-io/kubecube/cmd/warden/app.glob..func1
+	/home/tiancan/code/go/KubeCube/cmd/warden/app/warden.go:35
+github.com/urfave/cli/v2.(*App).RunContext
+	/home/tiancan/code/go/KubeCube/vendor/github.com/urfave/cli/v2/app.go:322
+github.com/urfave/cli/v2.(*App).Run
+	/home/tiancan/code/go/KubeCube/vendor/github.com/urfave/cli/v2/app.go:224
+main.main
+	/home/tiancan/code/go/KubeCube/cmd/warden/main.go:44
+runtime.main
+	/usr/local/go/src/runtime/proc.go:225
