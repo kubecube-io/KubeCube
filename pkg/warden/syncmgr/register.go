@@ -20,13 +20,15 @@ import (
 	"context"
 	"strconv"
 
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
 const (
@@ -61,7 +63,7 @@ func (s *SyncManager) SetupCtrlWithManager(resource client.Object, objFunc Gener
 
 		// record sync log
 		defer func() {
-			log.Info("sync: %s %+v, err: %v", action, obj, err)
+			clog.Info("sync: %s %v, name: %v, namespace: %v, err: %v", action, obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), obj.GetNamespace(), err)
 		}()
 
 		if err = pivotClient.Get(ctx, req.NamespacedName, obj); err != nil {
