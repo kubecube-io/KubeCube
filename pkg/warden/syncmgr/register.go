@@ -156,7 +156,7 @@ func isSyncResource(obj client.Object) bool {
 			return true
 		}
 		if err != nil {
-			log.Error("value format of annotation %v failed: %v, got value: %v%", constants.SyncAnnotation, err, v)
+			clog.Error("value format of annotation %v failed: %v, got value: %v%", constants.SyncAnnotation, err, v)
 		}
 	}
 
