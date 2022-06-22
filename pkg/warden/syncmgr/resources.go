@@ -49,6 +49,8 @@ var syncResources = []client.Object{
 	&quota.CubeResourceQuota{},
 }
 
+type GenericObjFunc func(obj client.Object) (client.Object, error)
+
 // newGenericObj new a struct point implemented client.Object
 func newGenericObj(obj client.Object) (client.Object, error) {
 	switch obj.(type) {
