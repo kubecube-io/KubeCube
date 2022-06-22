@@ -61,7 +61,7 @@ func (s *SyncManager) SetupCtrlWithManager(resource client.Object, objFunc Gener
 
 		// record sync log
 		defer func() {
-			log.Info("sync: %s %+v, name: %v, namespace: %v, err: %v", action, obj, err)
+			log.Info("sync: %s %+v, err: %v", action, obj, err)
 		}()
 
 		if err = pivotClient.Get(ctx, req.NamespacedName, obj); err != nil {
