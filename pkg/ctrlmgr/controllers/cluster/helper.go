@@ -150,6 +150,7 @@ func (r *ClusterReconciler) deleteExternalResources(cluster clusterv1.Cluster, c
 	}
 	if internalCluster == nil {
 		clog.Warn("cluster %v may be deleted, fallthrough", cluster.Name)
+		return nil
 	}
 
 	if !env.RetainMemberClusterResource() {
