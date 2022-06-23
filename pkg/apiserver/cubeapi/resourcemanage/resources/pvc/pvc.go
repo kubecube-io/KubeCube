@@ -1,6 +1,7 @@
 package pvc
 
 import (
+	"encoding/json"
 	"errors"
 
 	v1 "k8s.io/api/core/v1"
@@ -38,8 +39,19 @@ func PvcHandle(param resourcemanage.ExtendParams) (interface{}, error) {
 }
 
 func (p *Pvc) GetPvc() (filter.K8sJson, error) {
+	result := make(filter.K8sJson)
 	pvcList := v1.PersistentVolumeClaimList{}
 	err := p.client.Cache().List(p.ctx, &pvcList)
+	if err != nil {
+		return nil, err
+	}
+	result["total"] = len(pvcList.Items)
+	pvcListJson, err := json.Marshal(pvcList)
+	if err != nil {
+		return nil, err
+	}
+	filterResult := p.filter.FilterResult(pvcListJson)
+	err = json.Unmarshal(filterResult, &pvcList)
 	if err != nil {
 		return nil, err
 	}
@@ -62,8 +74,6 @@ func (p *Pvc) GetPvc() (filter.K8sJson, error) {
 			}
 		}
 	}
-	result := make(filter.K8sJson)
 	result["items"] = pvcExtendList
-	result["total"] = len(pvcExtendList)
 	return result, nil
 }
