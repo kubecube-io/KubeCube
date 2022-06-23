@@ -14,13 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package pod
+package pvc
 
 import (
 	"context"
 	"errors"
 
-	jsoniter "github.com/json-iterator/go"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -28,15 +27,12 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/enum"
 	"github.com/kubecube-io/kubecube/pkg/clients"
-	"github.com/kubecube-io/kubecube/pkg/clog"
 	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 )
 
-var json = jsoniter.ConfigCompatibleWithStandardLibrary
-
-type Pod struct {
+type Pvc struct {
 	ctx       context.Context
 	client    mgrclient.Client
 	namespace string
@@ -44,26 +40,25 @@ type Pod struct {
 }
 
 func init() {
-	resourcemanage.SetExtendHandler(enum.PodResourceType, Handle)
+	resourcemanage.SetExtendHandler(enum.PvcWorkLoadResourceType, Handle)
 }
 
 func Handle(param resourcemanage.ExtendParams) (interface{}, error) {
 	access := resources.NewSimpleAccess(param.Cluster, param.Username, param.Namespace)
-	if allow := access.AccessAllow("", "pods", "list"); !allow {
+	if allow := access.AccessAllow("", "persistentvolumeclaims", "list"); !allow {
 		return nil, errors.New(errcode.ForbiddenErr.Message)
 	}
 	kubernetes := clients.Interface().Kubernetes(param.Cluster)
 	if kubernetes == nil {
 		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
 	}
-	pod := NewPod(kubernetes, param.Namespace, param.Filter)
-	result, err := pod.GetPods()
-	return result, err
+	pvc := NewPvc(kubernetes, param.Namespace, param.Filter)
+	return pvc.GetPvcWorkloads(param.ResourceName)
 }
 
-func NewPod(client mgrclient.Client, namespace string, filter filter.Filter) Pod {
+func NewPvc(client mgrclient.Client, namespace string, filter filter.Filter) Pvc {
 	ctx := context.Background()
-	return Pod{
+	return Pvc{
 		ctx:       ctx,
 		client:    client,
 		namespace: namespace,
@@ -71,25 +66,28 @@ func NewPod(client mgrclient.Client, namespace string, filter filter.Filter) Pod
 	}
 }
 
-// get pods
-func (d *Pod) GetPods() (filter.K8sJson, error) {
-
-	//resultMap := make(resources.K8sJson)
-	// get pod list from k8s cluster
+// GetPvcWorkloads get extend deployments
+func (p *Pvc) GetPvcWorkloads(pvcName string) (filter.K8sJson, error) {
+	result := make(filter.K8sJson)
+	var pods []corev1.Pod
 	var podList corev1.PodList
-	err := d.client.Cache().List(d.ctx, &podList, client.InNamespace(d.namespace))
+	err := p.client.Cache().List(p.ctx, &podList, client.InNamespace(p.namespace))
 	if err != nil {
-		clog.Error("can not find info from cluster, %v", err)
 		return nil, err
 	}
-
-	// filter list by selector/sort/page
-	podListJson, err := json.Marshal(podList)
-	if err != nil {
-		clog.Error("convert deploymentList to json fail, %v", err)
-		return nil, err
+	for _, pod := range podList.Items {
+		for _, volume := range pod.Spec.Volumes {
+			if volume.PersistentVolumeClaim == nil {
+				continue
+			}
+			claimName := volume.PersistentVolumeClaim.ClaimName
+			if claimName == pvcName {
+				pods = append(pods, pod)
+				break
+			}
+		}
 	}
-	podListMap := d.filter.FilterResultToMap(podListJson)
-
-	return podListMap, nil
+	result["pods"] = pods
+	result["total"] = len(pods)
+	return result, nil
 }

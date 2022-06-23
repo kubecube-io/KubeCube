@@ -17,20 +17,24 @@ limitations under the License.
 package service
 
 import (
+	"context"
+	errors2 "errors"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
-
-	"context"
 
 	jsoniter "github.com/json-iterator/go"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/kubecube-io/kubecube/pkg/clog"
+	resourcemanage "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/enum"
+	"github.com/kubecube-io/kubecube/pkg/clients"
+	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 )
 
@@ -72,28 +76,40 @@ type ExternalAccessInfo struct {
 	ExternalPorts []int  `json:"externalPorts,omitempty"`
 }
 
-// ingress-nginx pod status host IPs
-func (s *ExternalAccess) GetExternalIP() []string {
-	var podList v1.PodList
-	nginxLable := map[string]string{
-		"app.kubernetes.io/component": "controller",
-		"app.kubernetes.io/name":      "ingress-nginx",
-	}
+func init() {
+	resourcemanage.SetExtendHandler(enum.ExternalAccessResourceType, ExternalHandle)
+}
 
-	err := s.client.List(s.ctx, &podList, &client.ListOptions{Namespace: s.NginxNamespace, LabelSelector: labels.SelectorFromSet(nginxLable)})
-	if err != nil {
-		clog.Error("can not find pod ingress-nginx in %s from cluster, %v", s.NginxNamespace, err)
-		return nil
+func ExternalHandle(param resourcemanage.ExtendParams) (interface{}, error) {
+	access := resources.NewSimpleAccess(param.Cluster, param.Username, param.Namespace)
+	kubernetes := clients.Interface().Kubernetes(param.Cluster)
+	if kubernetes == nil {
+		return nil, errors2.New(errcode.ClusterNotFoundError(param.Cluster).Message)
 	}
-
-	var hostIps []string
-	for _, pod := range podList.Items {
-		if pod.Status.HostIP != "" {
-			hostIps = append(hostIps, pod.Status.HostIP)
+	externalAccess := NewExternalAccess(kubernetes.Direct(), param.Namespace, param.ResourceName, param.Filter, param.NginxNamespace, param.NginxTcpServiceConfigMap, param.NginxUdpServiceConfigMap)
+	switch param.Action {
+	case http.MethodGet:
+		if allow := access.AccessAllow("", "services", "list"); !allow {
+			return nil, errors2.New(errcode.ForbiddenErr.Message)
 		}
+		return externalAccess.GetExternalAccess()
+	case http.MethodPost:
+		if allow := access.AccessAllow("", "services", "create"); !allow {
+			return nil, errors2.New(errcode.ForbiddenErr.Message)
+		}
+		var externalServices []ExternalAccessInfo
+		err := json.Unmarshal(param.Body, &externalServices)
+		if err != nil {
+			return nil, errors2.New(errcode.InvalidBodyFormat.Message)
+		}
+		err = externalAccess.SetExternalAccess(externalServices)
+		if err != nil {
+			return nil, err
+		}
+		return "success", nil
+	default:
+		return nil, errors2.New(errcode.InvalidHttpMethod.Message)
 	}
-
-	return hostIps
 }
 
 func (s *ExternalAccess) SetExternalAccess(externalServices []ExternalAccessInfo) error {
@@ -190,7 +206,7 @@ func (s *ExternalAccess) SetExternalAccess(externalServices []ExternalAccessInfo
 	return nil
 }
 
-// get external info
+// GetExternalAccess get external info
 func (s *ExternalAccess) GetExternalAccess() ([]ExternalAccessInfo, error) {
 	var tcpcm v1.ConfigMap
 	var udpcm v1.ConfigMap

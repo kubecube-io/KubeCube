@@ -18,6 +18,7 @@ package cronjob
 
 import (
 	"context"
+	"errors"
 
 	jsoniter "github.com/json-iterator/go"
 	batchv1 "k8s.io/api/batch/v1"
@@ -25,9 +26,14 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	resourcemanage "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/enum"
 	jobRes "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/job"
+	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
+	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 )
 
@@ -38,6 +44,27 @@ type CronJob struct {
 	client    mgrclient.Client
 	namespace string
 	filter    filter.Filter
+}
+
+func init() {
+	resourcemanage.SetExtendHandler(enum.CronResourceType, Handle)
+}
+
+func Handle(param resourcemanage.ExtendParams) (interface{}, error) {
+	access := resources.NewSimpleAccess(param.Cluster, param.Username, param.Namespace)
+	if allow := access.AccessAllow("batch", "cronjobs", "list"); !allow {
+		return nil, errors.New(errcode.ForbiddenErr.Message)
+	}
+	kubernetes := clients.Interface().Kubernetes(param.Cluster)
+	if kubernetes == nil {
+		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
+	}
+	cronjob := NewCronJob(kubernetes, param.Namespace, param.Filter)
+	if param.ResourceName == "" {
+		return cronjob.GetExtendCronJobs()
+	} else {
+		return cronjob.GetExtendCronJob(param.ResourceName)
+	}
 }
 
 func NewCronJob(client mgrclient.Client, namespace string, filter filter.Filter) CronJob {
@@ -51,7 +78,7 @@ func NewCronJob(client mgrclient.Client, namespace string, filter filter.Filter)
 }
 
 // get extend deployments
-func (c *CronJob) GetExtendCronJobs() filter.K8sJson {
+func (c *CronJob) GetExtendCronJobs() (filter.K8sJson, error) {
 	resultMap := make(filter.K8sJson)
 
 	// get deployment list from k8s cluster
@@ -59,7 +86,7 @@ func (c *CronJob) GetExtendCronJobs() filter.K8sJson {
 	err := c.client.Cache().List(c.ctx, &cronJobList, client.InNamespace(c.namespace))
 	if err != nil {
 		clog.Error("can not find cronjob in %s from cluster, %v", c.namespace, err)
-		return nil
+		return nil, err
 	}
 	resultMap["total"] = len(cronJobList.Items)
 
@@ -67,13 +94,13 @@ func (c *CronJob) GetExtendCronJobs() filter.K8sJson {
 	jobListJson, err := json.Marshal(cronJobList)
 	if err != nil {
 		clog.Error("convert deploymentList to json fail, %v", err)
-		return nil
+		return nil, err
 	}
 	jobListJson = c.filter.FilterResult(jobListJson)
 	err = json.Unmarshal(jobListJson, &cronJobList)
 	if err != nil {
 		clog.Error("convert json to deploymentList fail, %v", err)
-		return nil
+		return nil, err
 	}
 
 	// add pod status info
@@ -81,18 +108,18 @@ func (c *CronJob) GetExtendCronJobs() filter.K8sJson {
 
 	resultMap["items"] = resultList
 
-	return resultMap
+	return resultMap, nil
 }
 
 // get extend deployments
-func (c *CronJob) GetExtendCronJob(name string) filter.K8sJson {
+func (c *CronJob) GetExtendCronJob(name string) (filter.K8sJson, error) {
 
 	// get deployment list from k8s cluster
 	var cronJob batchv1beta1.CronJob
 	err := c.client.Cache().Get(c.ctx, types.NamespacedName{Namespace: c.namespace, Name: name}, &cronJob)
 	if err != nil {
 		clog.Error("can not find cronjob %s/%s from cluster, %v", c.namespace, name, err)
-		return nil
+		return nil, err
 	}
 
 	var cronJobList batchv1beta1.CronJobList
@@ -100,10 +127,10 @@ func (c *CronJob) GetExtendCronJob(name string) filter.K8sJson {
 	resultList := c.addExtendInfo(cronJobList)
 	if len(resultList) == 0 {
 		clog.Error("can not parse cronjob %s/%s", c.namespace, name)
-		return nil
+		return nil, err
 	}
 
-	return resultList[0].(filter.K8sJson)
+	return resultList[0].(filter.K8sJson), err
 }
 
 func (c *CronJob) addExtendInfo(cronJobList batchv1beta1.CronJobList) filter.K8sJsonArr {
