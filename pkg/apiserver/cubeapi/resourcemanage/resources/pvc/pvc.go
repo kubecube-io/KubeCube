@@ -38,6 +38,7 @@ func PvcHandle(param resourcemanage.ExtendParams) (interface{}, error) {
 	return pvc.GetPvc()
 }
 
+//GetPvc list pvcs, and add extend info that which pod mount this pvc
 func (p *Pvc) GetPvc() (filter.K8sJson, error) {
 	result := make(filter.K8sJson)
 	pvcList := v1.PersistentVolumeClaimList{}
@@ -45,22 +46,26 @@ func (p *Pvc) GetPvc() (filter.K8sJson, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	result["total"] = len(pvcList.Items)
 	pvcListJson, err := json.Marshal(pvcList)
 	if err != nil {
 		return nil, err
 	}
+
 	filterResult := p.filter.FilterResult(pvcListJson)
 	err = json.Unmarshal(filterResult, &pvcList)
 	if err != nil {
 		return nil, err
 	}
+
 	var pvcExtendList []PvcExtend
 	for _, pvc := range pvcList.Items {
 		workloadMap, err := p.GetPvcWorkloads(pvc.Name)
 		if err != nil {
 			return nil, err
 		}
+		// if response has pods, and result is pod array, then add it as extendInfo
 		if podRes, ok := workloadMap["pods"]; ok {
 			if pods, ok := podRes.([]v1.Pod); ok {
 				extend := PvcExtend{

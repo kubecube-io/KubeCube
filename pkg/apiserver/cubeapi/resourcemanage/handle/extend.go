@@ -65,6 +65,7 @@ func NewExtendHandler(namespace string, tcpCm string, udpCm string) *ExtendHandl
 
 type ExtendFunc func(param ExtendParams) (interface{}, error)
 
+// SetExtendHandler the func to register real handler func
 func SetExtendHandler(resource enum.ResourceTypeEnum, extendFunc ExtendFunc) {
 	extendFuncMap[string(resource)] = extendFunc
 }
@@ -89,7 +90,7 @@ func (e *ExtendHandler) ExtendHandle(c *gin.Context) {
 		response.FailReturn(c, errcode.ClusterNotFoundError(cluster))
 		return
 	}
-	// access
+	// get user info
 	username := ""
 	userInfo, err := token.GetUserFromReq(c.Request)
 	if err == nil {
@@ -107,6 +108,7 @@ func (e *ExtendHandler) ExtendHandle(c *gin.Context) {
 		NginxTcpServiceConfigMap: e.NginxTcpServiceConfigMap,
 		NginxUdpServiceConfigMap: e.NginxUdpServiceConfigMap,
 	}
+
 	if c.Request.Body != nil {
 		body, err := ioutil.ReadAll(c.Request.Body)
 		if err != nil {
@@ -116,9 +118,11 @@ func (e *ExtendHandler) ExtendHandle(c *gin.Context) {
 		param.Body = body
 	}
 
+	// get real handler func and work, if not found, return not support error
 	if extendFunc, ok := extendFuncMap[resourceType]; ok {
 		result, err := extendFunc(param)
 		if err != nil {
+			clog.Error("get extend res err, resourceType: %s, error: %+v", resourceType, err)
 			response.FailReturn(c, errcode.BadRequest(err))
 			return
 		}
