@@ -290,10 +290,10 @@ func TestGetDeepValue(t *testing.T) {
 
 	value, err := GetDeepValue(items[0], "metadata.labels.hello")
 	assert.NoError(err)
-	assert.Equal("world", value)
+	assert.Equal(len(value), 1)
+	assert.Equal("world", value[0])
 	value, err = GetDeepValue(items[0], "metadata.labels.hello1")
-	assert.NoError(err)
-	assert.Equal("", value)
+	assert.Errorf(err, "field hello1 not exsit")
 }
 
 func TestGetDeepFloat64(t *testing.T) {

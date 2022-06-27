@@ -325,34 +325,45 @@ func (f *Filter) sort(items K8sJsonArr) K8sJsonArr {
 	}
 
 	sort.Slice(items, func(i, j int) bool {
-		si, err := GetDeepValue(items[i], f.SortName)
-		if err != nil {
-			clog.Error("get sort value error, err: %+v", err)
-			return false
+		getStringFunc := func(items K8sJsonArr, i int, j int) (string, string, error) {
+			si, err := GetDeepValue(items[i], f.SortName)
+			if err != nil {
+				clog.Error("get sort value error, err: %+v", err)
+				return "", "", err
+			}
+			if len(si) > 1 {
+				clog.Error("not support array value, val: %+v", si)
+				return "", "", err
+			}
+			sj, err := GetDeepValue(items[j], f.SortName)
+			if err != nil {
+				clog.Error("get sort value error, err: %+v", err)
+				return "", "", err
+			}
+			if len(sj) > 1 {
+				clog.Error("not support array value, val: %+v", sj)
+				return "", "", err
+			}
+			before := si[0]
+			after := sj[0]
+			return before, after, nil
 		}
-		if len(si) > 1 {
-			clog.Error("not support array value, val: %+v", si)
-			return false
-		}
-		sj, err := GetDeepValue(items[j], f.SortName)
-		if err != nil {
-			clog.Error("get sort value error, err: %+v", err)
-			return false
-		}
-		if len(sj) > 1 {
-			clog.Error("not support array value, val: %+v", sj)
-			return false
-		}
-		before := si[0]
-		after := sj[0]
 		switch f.SortFunc {
 		case "string":
+			before, after, err := getStringFunc(items, i, j)
+			if err != nil {
+				return false
+			}
 			if f.SortOrder == "asc" {
 				return strings.Compare(before, after) < 0
 			} else {
 				return strings.Compare(before, after) > 0
 			}
 		case "time":
+			before, after, err := getStringFunc(items, i, j)
+			if err != nil {
+				return false
+			}
 			ti, err := time.Parse("2006-01-02T15:04:05Z", before)
 			if err != nil {
 				return false
@@ -376,6 +387,10 @@ func (f *Filter) sort(items K8sJsonArr) K8sJsonArr {
 				return ni < nj
 			}
 		default:
+			before, after, err := getStringFunc(items, i, j)
+			if err != nil {
+				return false
+			}
 			if f.SortOrder == "asc" {
 				return strings.Compare(before, after) < 0
 			} else {
