@@ -42,12 +42,8 @@ import (
 )
 
 var (
-	extendFuncMap map[string]ExtendFunc
-)
-
-func init() {
 	extendFuncMap = make(map[string]ExtendFunc)
-}
+)
 
 type ExtendHandler struct {
 	NginxNamespace           string

@@ -32,6 +32,7 @@ import (
 
 	"github.com/kubecube-io/kubecube/pkg/apis"
 	extend "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
+	_ "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/register"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
@@ -77,8 +78,8 @@ var _ = Describe("Handle", func() {
 		c.Params = params
 		handler := extend.NewExtendHandler(nginxNs, tcpCmName, udpCmName)
 		handler.ExtendHandle(c)
-		Expect(w.Code).To(Equal(403))
-		Expect(w.Body.String()).To(Equal("{\"code\":403,\"message\":\"Forbidden.\"}"))
+		Expect(w.Code).To(Equal(400))
+		Expect(w.Body.String()).To(Equal("{\"code\":400,\"message\":\"bad request. Forbidden.\"}"))
 	})
 	It("extend resourceType unknown", func() {
 		w := httptest.NewRecorder()
@@ -114,6 +115,6 @@ var _ = Describe("Handle", func() {
 		handler := extend.NewExtendHandler(nginxNs, tcpCmName, udpCmName)
 		handler.ExtendHandle(c)
 		Expect(w.Code).To(Equal(400))
-		Expect(w.Body.String()).To(Equal("{\"code\":400,\"message\":\"not match http method.\"}"))
+		Expect(w.Body.String()).To(Equal("{\"code\":400,\"message\":\"bad request. not match http method.\"}"))
 	})
 })
