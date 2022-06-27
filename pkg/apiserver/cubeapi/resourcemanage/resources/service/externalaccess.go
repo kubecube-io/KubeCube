@@ -18,7 +18,7 @@ package service
 
 import (
 	"context"
-	errors2 "errors"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -26,7 +26,7 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -84,23 +84,23 @@ func ExternalHandle(param resourcemanage.ExtendParams) (interface{}, error) {
 	access := resources.NewSimpleAccess(param.Cluster, param.Username, param.Namespace)
 	kubernetes := clients.Interface().Kubernetes(param.Cluster)
 	if kubernetes == nil {
-		return nil, errors2.New(errcode.ClusterNotFoundError(param.Cluster).Message)
+		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
 	}
 	externalAccess := NewExternalAccess(kubernetes.Direct(), param.Namespace, param.ResourceName, param.Filter, param.NginxNamespace, param.NginxTcpServiceConfigMap, param.NginxUdpServiceConfigMap)
 	switch param.Action {
 	case http.MethodGet:
 		if allow := access.AccessAllow("", "services", "list"); !allow {
-			return nil, errors2.New(errcode.ForbiddenErr.Message)
+			return nil, errors.New(errcode.ForbiddenErr.Message)
 		}
 		return externalAccess.GetExternalAccess()
 	case http.MethodPost:
 		if allow := access.AccessAllow("", "services", "create"); !allow {
-			return nil, errors2.New(errcode.ForbiddenErr.Message)
+			return nil, errors.New(errcode.ForbiddenErr.Message)
 		}
 		var externalServices []ExternalAccessInfo
 		err := json.Unmarshal(param.Body, &externalServices)
 		if err != nil {
-			return nil, errors2.New(errcode.InvalidBodyFormat.Message)
+			return nil, errors.New(errcode.InvalidBodyFormat.Message)
 		}
 		err = externalAccess.SetExternalAccess(externalServices)
 		if err != nil {
@@ -108,7 +108,7 @@ func ExternalHandle(param resourcemanage.ExtendParams) (interface{}, error) {
 		}
 		return "success", nil
 	default:
-		return nil, errors2.New(errcode.InvalidHttpMethod.Message)
+		return nil, errors.New(errcode.InvalidHttpMethod.Message)
 	}
 }
 
@@ -303,14 +303,14 @@ func (s *ExternalAccess) DeleteExternalAccess() error {
 	var udpcm v1.ConfigMap
 	err := s.client.Get(s.ctx, types.NamespacedName{Namespace: s.NginxNamespace, Name: s.NginxTcpServiceConfigMap}, &tcpcm)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return nil
 		}
 		return fmt.Errorf("can not find configmap %s in %s from cluster, %v", s.NginxTcpServiceConfigMap, s.NginxNamespace, err)
 	}
 	err = s.client.Get(s.ctx, types.NamespacedName{Namespace: s.NginxNamespace, Name: s.NginxUdpServiceConfigMap}, &udpcm)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if apierrors.IsNotFound(err) {
 			return nil
 		}
 		return fmt.Errorf("can not find configmap %s in %s from cluster, %v", s.NginxUdpServiceConfigMap, s.NginxNamespace, err)

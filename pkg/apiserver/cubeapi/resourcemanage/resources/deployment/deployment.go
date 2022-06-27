@@ -94,6 +94,7 @@ func (d *Deployment) GetExtendDeployments() (filter.K8sJson, error) {
 		return nil, err
 	}
 	deploymentListJson = d.filter.FilterResult(deploymentListJson)
+	deploymentList = appsv1.DeploymentList{}
 	err = json.Unmarshal(deploymentListJson, &deploymentList)
 	if err != nil {
 		clog.Error("convert json to deploymentList fail, %v", err)

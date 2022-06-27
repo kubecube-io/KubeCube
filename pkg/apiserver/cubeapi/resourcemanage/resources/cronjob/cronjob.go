@@ -97,6 +97,7 @@ func (c *CronJob) GetExtendCronJobs() (filter.K8sJson, error) {
 		return nil, err
 	}
 	jobListJson = c.filter.FilterResult(jobListJson)
+	cronJobList = batchv1beta1.CronJobList{}
 	err = json.Unmarshal(jobListJson, &cronJobList)
 	if err != nil {
 		clog.Error("convert json to deploymentList fail, %v", err)

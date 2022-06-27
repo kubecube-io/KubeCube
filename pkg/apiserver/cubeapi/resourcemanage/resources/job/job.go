@@ -90,6 +90,7 @@ func (j *Job) GetExtendJobs() (filter.K8sJson, error) {
 		return nil, err
 	}
 	jobListJson = j.filter.FilterResult(jobListJson)
+	jobList = batchv1.JobList{}
 	err = json.Unmarshal(jobListJson, &jobList)
 	if err != nil {
 		clog.Error("convert json to deploymentList fail, %v", err)

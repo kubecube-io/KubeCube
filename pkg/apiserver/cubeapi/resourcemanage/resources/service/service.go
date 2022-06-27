@@ -86,6 +86,7 @@ func (s *Service) GetExtendServices() (filter.K8sJson, error) {
 		return nil, err
 	}
 	serviceListJson = s.filter.FilterResult(serviceListJson)
+	serviceList = corev1.ServiceList{}
 	err = json.Unmarshal(serviceListJson, &serviceList)
 	if err != nil {
 		clog.Error("convert json to serviceList fail, %v", err)

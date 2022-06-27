@@ -70,6 +70,7 @@ func (p *Pvc) GetPvc() (filter.K8sJson, error) {
 	}
 
 	filterResult := p.filter.FilterResult(pvcListJson)
+	pvcList = v1.PersistentVolumeClaimList{}
 	err = json.Unmarshal(filterResult, &pvcList)
 	if err != nil {
 		return nil, err
