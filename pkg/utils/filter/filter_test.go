@@ -288,9 +288,11 @@ func TestGetDeepValue(t *testing.T) {
 
 	items := result["items"].([]interface{})
 
-	value := GetDeepValue(items[0], "metadata.labels.hello")
+	value, err := GetDeepValue(items[0], "metadata.labels.hello")
+	assert.NoError(err)
 	assert.Equal("world", value)
-	value = GetDeepValue(items[0], "metadata.labels.hello1")
+	value, err = GetDeepValue(items[0], "metadata.labels.hello1")
+	assert.NoError(err)
 	assert.Equal("", value)
 }
 

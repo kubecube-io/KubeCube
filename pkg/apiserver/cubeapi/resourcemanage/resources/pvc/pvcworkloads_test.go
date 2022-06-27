@@ -81,7 +81,7 @@ var _ = Describe("Pvc", func() {
 		Expect(client).NotTo(BeNil())
 		pvc := pvc.NewPvc(client, ns, filter.Filter{Limit: 10})
 		ret, err := pvc.GetPvcWorkloads(pvcName)
-		Expect(err).To(nil)
+		Expect(err).To(BeNil())
 		Expect(ret["total"]).To(Equal(1))
 		pods := ret["pods"].([]corev1.Pod)
 		s := pods[0].Name
