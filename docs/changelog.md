@@ -1,3 +1,26 @@
+# v1.2.2
+
+## Feature
+- Feature enhance warden sync extend[#132](https://github.com/kubecube-io/KubeCube/pull/132)
+- Feature support pvc mount and support filter by array value[#135](https://github.com/kubecube-io/KubeCube/pull/135)
+
+## BugFix
+- fix cluster nil pointor[#133](https://github.com/kubecube-io/KubeCube/pull/133)
+
+## Dependencies
+
+- hnc v1.0
+- nginx-ingress v0.46.0
+- helm 3.x
+- metrics-server v0.4.1
+- elasticsearch 7.8
+- kubecube-monitoring 15.4.8
+- thanos 3.18.0
+- logseer v1.0.0
+- logagent v1.0.0
+- kubecube-audit v1.2.0
+- kubecube-webconsole v1.2.2
+
 # v 1.2.1
 
 ## Feature
