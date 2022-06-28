@@ -20,18 +20,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
+
 	"github.com/gin-gonic/gin"
-	"github.com/kubecube-io/kubecube/pkg/apis"
-	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/user"
-	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
-	"github.com/kubecube-io/kubecube/pkg/clients"
-	"github.com/kubecube-io/kubecube/pkg/multicluster"
-	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"io/ioutil"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/api/authentication/v1beta1"
 	coordinationv1 "k8s.io/api/coordination/v1"
@@ -39,9 +34,17 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"net/http"
-	"net/http/httptest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/kubecube-io/kubecube/pkg/apis"
+	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/user"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/middlewares/auth"
+	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
+	"github.com/kubecube-io/kubecube/pkg/clients"
+	"github.com/kubecube-io/kubecube/pkg/multicluster"
+	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
 type header struct {
@@ -165,6 +168,7 @@ var _ = Describe("User", func() {
 
 	It("list user", func() {
 		router := gin.New()
+		router.Use(auth.Auth())
 		router.GET("/api/v1/cube/user", user.ListUsers)
 		authJwtImpl := jwt.GetAuthJwtImpl()
 		token, err := authJwtImpl.GenerateToken(&v1beta1.UserInfo{Username: "admin"})

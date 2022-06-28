@@ -252,9 +252,21 @@ func (f *Filter) exactMatch(items K8sJsonArr) (result K8sJsonArr) {
 		// every exact match condition
 		for key, value := range f.Exact {
 			// key = .metadata.xxx.xxx， multi level
-			realValue := GetDeepValue(item, key)
+			realValue, err := GetDeepValue(item, key)
+			if err != nil {
+				clog.Error("parse value error, %+v", err)
+				flag = false
+				break
+			}
 			// if one condition not match
-			if !strings.EqualFold(realValue, value) {
+			valCheck := false
+			for _, v := range realValue {
+				if strings.EqualFold(v, value) {
+					valCheck = true
+					break
+				}
+			}
+			if valCheck != true {
 				flag = false
 				break
 			}
@@ -279,9 +291,21 @@ func (f *Filter) fuzzyMatch(items K8sJsonArr) (result K8sJsonArr) {
 		// every fuzzy match condition
 		for key, value := range f.Fuzzy {
 			// key = metadata.xxx.xxx， multi level
-			realValue := GetDeepValue(item, key)
+			realValue, err := GetDeepValue(item, key)
+			if err != nil {
+				clog.Error("parse value error, %+v", err)
+				flag = false
+				break
+			}
 			// if one condition not match
-			if !strings.Contains(realValue, value) {
+			valCheck := false
+			for _, v := range realValue {
+				if strings.Contains(v, value) {
+					valCheck = true
+					break
+				}
+			}
+			if valCheck != true {
 				flag = false
 				break
 			}
@@ -301,21 +325,50 @@ func (f *Filter) sort(items K8sJsonArr) K8sJsonArr {
 	}
 
 	sort.Slice(items, func(i, j int) bool {
+		getStringFunc := func(items K8sJsonArr, i int, j int) (string, string, error) {
+			si, err := GetDeepValue(items[i], f.SortName)
+			if err != nil {
+				clog.Error("get sort value error, err: %+v", err)
+				return "", "", err
+			}
+			if len(si) > 1 {
+				clog.Error("not support array value, val: %+v", si)
+				return "", "", err
+			}
+			sj, err := GetDeepValue(items[j], f.SortName)
+			if err != nil {
+				clog.Error("get sort value error, err: %+v", err)
+				return "", "", err
+			}
+			if len(sj) > 1 {
+				clog.Error("not support array value, val: %+v", sj)
+				return "", "", err
+			}
+			before := si[0]
+			after := sj[0]
+			return before, after, nil
+		}
 		switch f.SortFunc {
 		case "string":
-			si := GetDeepValue(items[i], f.SortName)
-			sj := GetDeepValue(items[j], f.SortName)
-			if f.SortOrder == "asc" {
-				return strings.Compare(si, sj) < 0
-			} else {
-				return strings.Compare(si, sj) > 0
-			}
-		case "time":
-			ti, err := time.Parse("2006-01-02T15:04:05Z", GetDeepValue(items[i], f.SortName))
+			before, after, err := getStringFunc(items, i, j)
 			if err != nil {
 				return false
 			}
-			tj, err := time.Parse("2006-01-02T15:04:05Z", GetDeepValue(items[j], f.SortName))
+			if f.SortOrder == "asc" {
+				return strings.Compare(before, after) < 0
+			} else {
+				return strings.Compare(before, after) > 0
+			}
+		case "time":
+			before, after, err := getStringFunc(items, i, j)
+			if err != nil {
+				return false
+			}
+			ti, err := time.Parse("2006-01-02T15:04:05Z", before)
+			if err != nil {
+				return false
+			}
+			tj, err := time.Parse("2006-01-02T15:04:05Z", after)
 			if err != nil {
 				return false
 			} else if f.SortOrder == "asc" {
@@ -334,12 +387,14 @@ func (f *Filter) sort(items K8sJsonArr) K8sJsonArr {
 				return ni < nj
 			}
 		default:
-			si := GetDeepValue(items[i], f.SortName)
-			sj := GetDeepValue(items[j], f.SortName)
+			before, after, err := getStringFunc(items, i, j)
+			if err != nil {
+				return false
+			}
 			if f.SortOrder == "asc" {
-				return strings.Compare(si, sj) < 0
+				return strings.Compare(before, after) < 0
 			} else {
-				return strings.Compare(si, sj) > 0
+				return strings.Compare(before, after) > 0
 			}
 		}
 
@@ -365,34 +420,89 @@ func (f *Filter) page(items K8sJsonArr) K8sJsonArr {
 }
 
 // GetDeepValue get value by metadata.xx.xx.xx, multi level key
-func GetDeepValue(item interface{}, keyStr string) (value string) {
-	defer func() {
-		if err := recover(); err != nil {
-			value = ""
-			return
-		}
-	}()
+func GetDeepValue(item interface{}, keyStr string) ([]string, error) {
+	fields := strings.Split(keyStr, ".")
+	n := len(fields)
 
-	info := item.(K8sJson)
-	// key = metadata.xxx.xxx， multi level
-	keys := strings.Split(keyStr, ".")
-	n := len(keys)
-	i := 0
-	for ; n > 0 && i < n-1; i++ {
-		temp, ok := info[keys[i]].(K8sJson)
-		if !ok {
-			temp = info[keys[i]].(K8sJsonArr)[0].(K8sJson)
-		}
-		info = temp
-
-		if keys[i] == Labels || keys[i] == Annotations {
-			i++
-			break
-		}
+	if n < 1 {
+		return nil, fmt.Errorf("keyStr format invilid")
 	}
-	key := strings.Join(keys[i:], ".")
-	value = info[key].(string)
-	return
+
+	v, err := getRes(item, 0, fields)
+	if err != nil {
+		return nil, err
+	}
+
+	switch v.(type) {
+	case string:
+		return []string{
+			v.(string),
+		}, nil
+	case []interface{}:
+		array := v.([]interface{})
+		var result []string
+		for _, value := range array {
+			if val, ok := value.(string); ok {
+				result = append(result, val)
+			}
+		}
+		return result, nil
+	case []string:
+		return v.([]string), nil
+	default:
+		return nil, fmt.Errorf("only support string or string array value, the value is: %+v", v)
+	}
+}
+
+func getRes(item interface{}, index int, fields []string) (interface{}, error) {
+	switch item.(type) {
+	// if this value is map[string]interface{}, we need to get the value which key is, and return next index to get next key
+	case K8sJson:
+		info := item.(K8sJson)
+		n := len(fields)
+		//In special cases, such as label, key exists "." At this time, the following key is directly spliced into a complete key and the value is obtained
+		if fields[index] == Labels || fields[index] == Annotations {
+			key := strings.Join(fields[index+1:], ".")
+			// any field not found return directly
+			next, ok := info[fields[index]]
+			if !ok {
+				return nil, fmt.Errorf("field %v not exsit", fields[index])
+			}
+			return getRes(next, 0, []string{key})
+		}
+		// the end out of loop
+		if index == n-1 {
+			v, ok := info[fields[index]]
+			if !ok {
+				return nil, fmt.Errorf("field %v not exsit", fields[index])
+			}
+			return v, nil
+		}
+
+		// any field not found return directly
+		next, ok := info[fields[index]]
+		if !ok {
+			return nil, fmt.Errorf("field %v not exsit", fields[index])
+		}
+		return getRes(next, index+1, fields)
+	// if the value is []map[string]interface{}, so we need get all value which key is, so just foreach it
+	case K8sJsonArr:
+		arr := item.(K8sJsonArr)
+		var result []interface{}
+		for _, info := range arr {
+			res, err := getRes(info, index, fields)
+			if err != nil {
+				clog.Error(err.Error())
+				continue
+			}
+			result = append(result, res)
+		}
+		return result, nil
+	// for other value,we not support now
+	default:
+		return nil, fmt.Errorf("not map value of field is not support")
+	}
+
 }
 
 // GetDeepFloat64 get float64 value by metadata.xx.xx.xx, multi level key

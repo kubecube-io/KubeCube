@@ -117,7 +117,8 @@ var _ = Describe("Deployment", func() {
 		client := clients.Interface().Kubernetes(constants.LocalCluster)
 		Expect(client).NotTo(BeNil())
 		deploy := deployment.NewDeployment(client, ns, filter.Filter{Limit: 10})
-		ret := deploy.GetExtendDeployments()
+		ret, err := deploy.GetExtendDeployments()
+		Expect(err).To(BeNil())
 		Expect(ret["total"]).To(Equal(1))
 		items := ret["items"]
 		dpInfo := items.([]interface{})[0].(map[string]interface{})

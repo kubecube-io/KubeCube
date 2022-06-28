@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package pvc_test
+package filter
 
 import (
 	"testing"
@@ -22,7 +22,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestPvc(t *testing.T) {
+func TestHandle(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Pvc Suite")
+	RunSpecs(t, "Filter Suite")
 }

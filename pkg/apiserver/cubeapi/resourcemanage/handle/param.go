@@ -1,5 +1,5 @@
 /*
-Copyright 2021 KubeCube Authors
+Copyright 2022 KubeCube Authors
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,16 +13,20 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package pvc_test
 
-import (
-	"testing"
+package resourcemanage
 
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-)
+import "github.com/kubecube-io/kubecube/pkg/utils/filter"
 
-func TestPvc(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Pvc Suite")
+type ExtendParams struct {
+	Cluster                  string
+	Namespace                string
+	ResourceName             string
+	Filter                   filter.Filter
+	Action                   string
+	Username                 string
+	NginxNamespace           string
+	NginxTcpServiceConfigMap string
+	NginxUdpServiceConfigMap string
+	Body                     []byte
 }

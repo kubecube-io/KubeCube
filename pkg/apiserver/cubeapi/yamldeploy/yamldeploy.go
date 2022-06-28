@@ -34,7 +34,6 @@ import (
 	"k8s.io/kubectl/pkg/scheme"
 	"sigs.k8s.io/yaml"
 
-	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	"github.com/kubecube-io/kubecube/pkg/multicluster/client"
@@ -99,14 +98,9 @@ func Deploy(c *gin.Context) {
 
 	c = audit.SetAuditInfo(c, audit.YamlDeploy, fmt.Sprintf("%s/%s", namespace, restMapping.Resource.String()))
 
-	userInfo, err := token.GetUserFromReq(c.Request)
-	if err != nil {
-		response.FailReturn(c, errcode.InternalServerError)
-		return
-	}
-
+	username := c.GetString(constants.EventAccountId)
 	// create
-	result, err := CreateByRestClient(restClient, restMapping, namespace, dryRun, obj, userInfo.Username)
+	result, err := CreateByRestClient(restClient, restMapping, namespace, dryRun, obj, username)
 	if err != nil {
 		response.FailReturn(c, errcode.DeployYamlError(err.Error()))
 		return

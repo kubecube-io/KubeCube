@@ -114,7 +114,8 @@ var _ = Describe("Externalaccess", func() {
 	})
 
 	It("test get external address", func() {
-		ret := externalAccess.GetExternalIP()
+		ret, err := externalAccess.GetExternalIP()
+		Expect(err).To(BeNil())
 		Expect(len(ret)).To(Equal(2))
 		Expect(ret[0]).To(Equal(hostIp1))
 		Expect(ret[1]).To(Equal(hostIp2))
