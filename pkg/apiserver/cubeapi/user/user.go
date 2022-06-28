@@ -39,7 +39,6 @@ import (
 	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
 	proxy "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
-	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
@@ -216,19 +215,15 @@ func UpdateUserStatusImpl(c *gin.Context, newUser *userv1.User) *errcode.ErrorIn
 // @Router /api/v1/cube/user  [get]
 func ListUsers(c *gin.Context) {
 	kClient := clients.Interface().Kubernetes(constants.LocalCluster).Cache()
-	requestUser, err := token.GetUserFromReq(c.Request)
-	if err != nil {
-		response.FailReturn(c, errcode.AuthenticateError)
-		return
-	}
+	username := c.GetString(constants.EventAccountId)
 	accessMap := map[string]string{"platform-admin": "", "tenant-admin": "", "tenant-admin-cluster": "", "project-admin": "", "project-admin-cluster": ""}
-	if !access.CheckClusterRole(requestUser.Username, constants.LocalCluster, accessMap) {
+	if !access.CheckClusterRole(username, constants.LocalCluster, accessMap) {
 		response.FailReturn(c, errcode.ForbiddenErr)
 		return
 	}
 	// get all user
 	allUserList := &userv1.UserList{}
-	err = kClient.List(c.Request.Context(), allUserList)
+	err := kClient.List(c.Request.Context(), allUserList)
 	if err != nil {
 		clog.Error("list all users from k8s error: %s", err)
 		response.FailReturn(c, errcode.GetResourceError(resourceTypeUser))

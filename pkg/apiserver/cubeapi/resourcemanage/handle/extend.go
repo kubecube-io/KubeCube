@@ -31,7 +31,6 @@ import (
 	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/enum"
-	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/audit"
@@ -87,11 +86,7 @@ func (e *ExtendHandler) ExtendHandle(c *gin.Context) {
 		return
 	}
 	// get user info
-	username := ""
-	userInfo, err := token.GetUserFromReq(c.Request)
-	if err == nil {
-		username = userInfo.Username
-	}
+	username := c.GetString(constants.EventAccountId)
 
 	param := ExtendParams{
 		Cluster:                  cluster,
@@ -140,11 +135,7 @@ func GetPodContainerLog(c *gin.Context) {
 		return
 	}
 	// access
-	username := ""
-	userInfo, err := token.GetUserFromReq(c.Request)
-	if err == nil {
-		username = userInfo.Username
-	}
+	username := c.GetString(constants.EventAccountId)
 	access := resources.NewSimpleAccess(cluster, username, namespace)
 	if allow := access.AccessAllow("", "pods", "list"); !allow {
 		response.FailReturn(c, errcode.ForbiddenErr)

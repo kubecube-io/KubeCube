@@ -35,7 +35,6 @@ import (
 	"sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
 
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
-	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
 	"github.com/kubecube-io/kubecube/pkg/authorizer/rbac"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
@@ -548,11 +547,7 @@ func (h *handler) createNsAndQuota(c *gin.Context) {
 		response.FailReturn(c, errcode.ForbiddenErr)
 		return
 	}
-	userInfo, err := token.GetUserFromReq(c.Request)
-	if err != nil {
-		response.FailReturn(c, errcode.AuthenticateError)
-		return
-	}
+	username := c.GetString(constants.EventAccountId)
 	cli := clients.Interface().Kubernetes(data.Cluster)
 	ctx := c.Request.Context()
 
@@ -599,7 +594,7 @@ func (h *handler) createNsAndQuota(c *gin.Context) {
 		retryInterval = 100 * time.Millisecond
 	)
 
-	_, clusterRoles, err := h.Interface.RolesFor(&userinfo.DefaultInfo{Name: userInfo.Username}, "")
+	_, clusterRoles, err := h.Interface.RolesFor(&userinfo.DefaultInfo{Name: username}, "")
 	if err != nil {
 		clog.Error(err.Error())
 		rollback()
@@ -650,7 +645,7 @@ func (h *handler) createNsAndQuota(c *gin.Context) {
 	}
 
 	clog.Debug("user %v create ns %v and resourceQuota %v in cluster %v success",
-		userInfo.Username, data.SubNamespaceAnchor.Name, data.ResourceQuota.Name, data.Cluster)
+		username, data.SubNamespaceAnchor.Name, data.ResourceQuota.Name, data.Cluster)
 
 	response.SuccessReturn(c, "success")
 }

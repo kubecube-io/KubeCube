@@ -19,6 +19,7 @@ package cronjob
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	jsoniter "github.com/json-iterator/go"
 	batchv1 "k8s.io/api/batch/v1"
@@ -127,13 +128,13 @@ func (c *CronJob) GetExtendCronJob(name string) (filter.K8sJson, error) {
 	cronJobList.Items = []batchv1beta1.CronJob{cronJob}
 	resultList := c.addExtendInfo(cronJobList)
 	if len(resultList) == 0 {
-		clog.Error("can not parse cronjob %s/%s", c.namespace, name)
-		return nil, err
+		return nil, fmt.Errorf("can not parse cronjob %s/%s", c.namespace, name)
 	}
 
 	return resultList[0].(filter.K8sJson), err
 }
 
+// fixme
 func (c *CronJob) addExtendInfo(cronJobList batchv1beta1.CronJobList) filter.K8sJsonArr {
 	resultList := make(filter.K8sJsonArr, 0)
 	jobArrMap := c.getOwnerJobs()
