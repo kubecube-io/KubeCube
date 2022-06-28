@@ -21,6 +21,7 @@ import (
 	"errors"
 
 	v1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	resourcemanage "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
@@ -58,7 +59,9 @@ func PvcHandle(param resourcemanage.ExtendParams) (interface{}, error) {
 func (p *Pvc) GetPvc() (filter.K8sJson, error) {
 	result := make(filter.K8sJson)
 	pvcList := v1.PersistentVolumeClaimList{}
-	err := p.client.Cache().List(p.ctx, &pvcList)
+	err := p.client.Cache().List(p.ctx, &pvcList, &client.ListOptions{
+		Namespace: p.namespace,
+	})
 	if err != nil {
 		return nil, err
 	}
