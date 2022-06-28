@@ -19,7 +19,7 @@
 - logseer v1.0.0
 - logagent v1.0.0
 - kubecube-audit v1.2.0
-- kubecube-webconsole v1.2.1
+- kubecube-webconsole v1.2.2
 
 # v 1.2.1
 
