@@ -485,7 +485,7 @@ func (h *handler) addCluster(c *gin.Context) {
 		}
 	}
 
-	response.SuccessReturn(c, "success")
+	response.SuccessJsonReturn(c, "success")
 }
 
 // registerCluster is a callback api for add cluster to pivot cluster
@@ -509,7 +509,7 @@ func (h *handler) registerCluster(c *gin.Context) {
 		}
 	}
 
-	response.SuccessReturn(c, "success")
+	response.SuccessJsonReturn(c, "success")
 }
 
 type nsAndQuota struct {
@@ -647,5 +647,5 @@ func (h *handler) createNsAndQuota(c *gin.Context) {
 	clog.Debug("user %v create ns %v and resourceQuota %v in cluster %v success",
 		username, data.SubNamespaceAnchor.Name, data.ResourceQuota.Name, data.Cluster)
 
-	response.SuccessReturn(c, "success")
+	response.SuccessJsonReturn(c, "success")
 }

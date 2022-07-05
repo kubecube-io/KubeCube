@@ -47,6 +47,14 @@ func PivotCubeHost() string {
 	return os.Getenv("PIVOT_CUBE_HOST")
 }
 
+func WardenRegisterModeEnable() string {
+	v := os.Getenv("WARDEN_REGISTER_MODE_ENABLE")
+	if v == "" {
+		v = "false"
+	}
+	return v
+}
+
 func PivotCubeClusterIPSvc() string {
 	r := os.Getenv("PIVOT_CUBE_CLUSTER_IP_SVC")
 	if r == "" {
