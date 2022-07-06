@@ -364,7 +364,7 @@ func (h *handler) createBinds(c *gin.Context) {
 		}
 	}
 
-	response.SuccessReturn(c, "success")
+	response.SuccessJsonReturn(c, "success")
 }
 
 // deleteBinds delete roleBinding and clusterRoleBinding
@@ -389,7 +389,7 @@ func (h *handler) deleteBinds(c *gin.Context) {
 	err := cli.Cache().Get(ctx, key, &roleBinding)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			response.SuccessReturn(c, "resource has been deleted")
+			response.SuccessJsonReturn(c, "resource has been deleted")
 			return
 		}
 		clog.Error(err.Error())
@@ -439,7 +439,7 @@ func (h *handler) deleteBinds(c *gin.Context) {
 		return
 	}
 
-	response.SuccessReturn(c, "success")
+	response.SuccessJsonReturn(c, "success")
 }
 
 // getClusterRolesByLevel get clusterRoles by hnc level

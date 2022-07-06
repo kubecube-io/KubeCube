@@ -547,10 +547,11 @@ func GetKubeConfig(c *gin.Context) {
 	c.Set(constants.EventResourceType, "kubeconfig")
 
 	user := c.Query("user")
-
 	if len(user) == 0 {
 		user = c.GetString(constants.EventAccountId)
 	}
+
+	mode := c.Query("mode")
 
 	authJwtImpl := jwt.GetAuthJwtImpl()
 	token, errInfo := authJwtImpl.GenerateTokenWithExpired(&v1beta1.UserInfo{Username: user}, tokenExpiredTime)
@@ -583,6 +584,15 @@ func GetKubeConfig(c *gin.Context) {
 	if err != nil {
 		clog.Error(err.Error())
 		response.FailReturn(c, errcode.InternalServerError)
+	}
+
+	if mode == "file" {
+		reader := bytes.NewBuffer(kubeConfig)
+		extraHeaders := map[string]string{
+			"Content-Disposition": `attachment; filename="kubeconfig"`,
+		}
+		response.SuccessFileReturn(c, int64(reader.Len()), "application/octet-stream", reader, extraHeaders)
+		return
 	}
 
 	response.SuccessReturn(c, kubeConfig)
