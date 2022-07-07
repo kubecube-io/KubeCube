@@ -16,9 +16,33 @@ limitations under the License.
 
 package rbac
 
+import (
+	"context"
+
+	userinfo "k8s.io/apiserver/pkg/authentication/user"
+	"k8s.io/apiserver/pkg/authorization/authorizer"
+)
+
 // Interface aggregate rbac extractor and resolver
 type Interface interface {
 	RoleExtractor
 	RoleResolver
 	Authorizer
+}
+
+// IsAllowResourceAccess give a decision by auth attributes
+func IsAllowResourceAccess(rbac Interface, user, resource, verb, namespace string) (bool, error) {
+	a := authorizer.AttributesRecord{
+		User:            &userinfo.DefaultInfo{Name: user},
+		Verb:            verb,
+		Namespace:       namespace,
+		Resource:        resource,
+		ResourceRequest: true,
+	}
+	d, _, err := rbac.Authorize(context.Background(), a)
+	if err != nil {
+		return false, err
+	}
+
+	return d == authorizer.DecisionAllow, nil
 }
