@@ -326,6 +326,11 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 	ctx := c.Request.Context()
 	clusters := multicluster.Interface().FuzzyCopy()
 
+	user := c.Query("user")
+	if len(user) == 0 {
+		user = c.GetString(constants.EventAccountId)
+	}
+
 	listFunc := func(cli mgrclient.Client) (v1alpha2.SubnamespaceAnchorList, error) {
 		anchors := v1alpha2.SubnamespaceAnchorList{}
 		err := cli.Cache().List(ctx, &anchors)
@@ -366,6 +371,17 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 				err = cli.Direct().Get(ctx, types.NamespacedName{Name: anchor.Name}, &ns)
 				if err != nil {
 					clog.Error(err.Error())
+					continue
+				}
+
+				// only care about ns the user can see
+				allowed, err := rbac.IsAllowResourceAccess(h.Interface, user, "pods", constants.GetVerb, ns.Name)
+				if err != nil {
+					clog.Error(err.Error())
+					continue
+				}
+
+				if !allowed {
 					continue
 				}
 

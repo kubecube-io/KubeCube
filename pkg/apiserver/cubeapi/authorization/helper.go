@@ -77,8 +77,8 @@ const (
 	project
 )
 
-// getVisibleTenants get visible tenants of user
-func getVisibleTenants(rbac rbac.Interface, user string, cli mgrclient.Client, ctx context.Context) (result, error) {
+// getAccessTenants get visible tenants of user
+func getAccessTenants(rbac rbac.Interface, user string, cli mgrclient.Client, ctx context.Context, auth string) (result, error) {
 	tenantSet := sets.NewString()
 	tenantList := tenantv1.TenantList{}
 	err := cli.Cache().List(ctx, &tenantList)
@@ -87,7 +87,7 @@ func getVisibleTenants(rbac rbac.Interface, user string, cli mgrclient.Client, c
 	}
 
 	for _, t := range tenantList.Items {
-		if isAllowedAccess(rbac, user, t.Spec.Namespace) {
+		if isAllowedAccess(rbac, user, t.Spec.Namespace, auth) {
 			tenantSet.Insert(t.Name)
 		}
 	}
@@ -100,7 +100,7 @@ func getVisibleTenants(rbac rbac.Interface, user string, cli mgrclient.Client, c
 
 	// get tenant of project if user is project scope
 	for _, p := range projectList.Items {
-		if isAllowedAccess(rbac, user, p.Spec.Namespace) {
+		if isAllowedAccess(rbac, user, p.Spec.Namespace, auth) {
 			t, ok := p.Labels[constants.TenantLabel]
 			if !ok {
 				continue
@@ -130,8 +130,8 @@ func getVisibleTenants(rbac rbac.Interface, user string, cli mgrclient.Client, c
 	return res, nil
 }
 
-// getVisibleProjects get visible projects of user
-func getVisibleProjects(rbac rbac.Interface, user string, cli mgrclient.Client, ctx context.Context, tenant string) (result, error) {
+// getAccessProjects get visible projects of user
+func getAccessProjects(rbac rbac.Interface, user string, cli mgrclient.Client, ctx context.Context, tenant, auth string) (result, error) {
 	var lists []tenantv1.Project
 	projectList := tenantv1.ProjectList{}
 	err := cli.Cache().List(ctx, &projectList)
@@ -140,7 +140,7 @@ func getVisibleProjects(rbac rbac.Interface, user string, cli mgrclient.Client, 
 	}
 
 	for _, p := range projectList.Items {
-		if isAllowedAccess(rbac, user, p.Spec.Namespace) {
+		if isAllowedAccess(rbac, user, p.Spec.Namespace, auth) {
 			lists = append(lists, p)
 		}
 	}
@@ -168,8 +168,8 @@ func filterBy(tenant string, projects []tenantv1.Project) (res []tenantv1.Projec
 	return
 }
 
-// getVisibleObjs get visible objects of user
-func getVisibleObjs(rbac rbac.Interface, user string, cli mgrclient.Client, ctx context.Context, objKind int) (result, error) {
+// getAccessObjs get visible objects of user
+func getAccessObjs(rbac rbac.Interface, user string, cli mgrclient.Client, ctx context.Context, objKind int, auth string) (result, error) {
 	res := result{}
 	var lists []interface{}
 	switch objKind {
@@ -181,7 +181,7 @@ func getVisibleObjs(rbac rbac.Interface, user string, cli mgrclient.Client, ctx 
 		}
 
 		for _, t := range tenantList.Items {
-			if isAllowedAccess(rbac, user, t.Spec.Namespace) {
+			if isAllowedAccess(rbac, user, t.Spec.Namespace, auth) {
 				lists = append(lists, t)
 			}
 		}
@@ -193,7 +193,7 @@ func getVisibleObjs(rbac rbac.Interface, user string, cli mgrclient.Client, ctx 
 		}
 
 		for _, p := range projectList.Items {
-			if isAllowedAccess(rbac, user, p.Spec.Namespace) {
+			if isAllowedAccess(rbac, user, p.Spec.Namespace, auth) {
 				lists = append(lists, p)
 			}
 		}
@@ -207,10 +207,15 @@ func getVisibleObjs(rbac rbac.Interface, user string, cli mgrclient.Client, ctx 
 
 // isAllowedAccess consider user has visible view of given namespace
 // if user can get pods in that namespace.
-func isAllowedAccess(rbac rbac.Interface, user, namespace string) bool {
+func isAllowedAccess(rbac rbac.Interface, user, namespace, auth string) bool {
+	verb := constants.GetVerb
+	if auth == constants.Writable {
+		verb = constants.CreateVerb
+	}
+
 	a := authorizer.AttributesRecord{
 		User:            &userinfo.DefaultInfo{Name: user},
-		Verb:            "get",
+		Verb:            verb,
 		Namespace:       namespace,
 		Resource:        constants.K8sResourcePod,
 		ResourceRequest: true,

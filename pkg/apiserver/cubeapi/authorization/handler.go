@@ -211,6 +211,7 @@ func (h *handler) getUsersByRole(c *gin.Context) {
 // @Router /api/v1/cube/authorization/tenants [get]
 func (h *handler) getTenantByUser(c *gin.Context) {
 	user := c.Query("user")
+	auth := c.Query("auth")
 	ctx := c.Request.Context()
 	cli := h.Client
 
@@ -218,7 +219,11 @@ func (h *handler) getTenantByUser(c *gin.Context) {
 		user = c.GetString(constants.EventAccountId)
 	}
 
-	tenants, err := getVisibleTenants(h.Interface, user, cli, ctx)
+	if len(auth) == 0 {
+		auth = constants.Readable
+	}
+
+	tenants, err := getAccessTenants(h.Interface, user, cli, ctx, auth)
 	if err != nil {
 		clog.Error(err.Error())
 		response.FailReturn(c, errcode.InternalServerError)
@@ -240,6 +245,7 @@ func (h *handler) getTenantByUser(c *gin.Context) {
 func (h *handler) getProjectByUser(c *gin.Context) {
 	user := c.Query("user")
 	tenant := c.Query("tenant")
+	auth := c.Query("auth")
 	ctx := c.Request.Context()
 	cli := h.Client
 
@@ -247,7 +253,12 @@ func (h *handler) getProjectByUser(c *gin.Context) {
 		user = c.GetString(constants.EventAccountId)
 	}
 
-	projects, err := getVisibleProjects(h.Interface, user, cli, ctx, tenant)
+	if len(auth) == 0 {
+		// default use readable access
+		auth = constants.Readable
+	}
+
+	projects, err := getAccessProjects(h.Interface, user, cli, ctx, tenant, auth)
 	if err != nil {
 		clog.Error(err.Error())
 		response.FailReturn(c, errcode.InternalServerError)
