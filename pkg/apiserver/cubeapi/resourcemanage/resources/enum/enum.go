@@ -28,4 +28,5 @@ const (
 	ExternalAccessResourceType        ResourceTypeEnum = "externalAccess"
 	ExternalAccessAddressResourceType ResourceTypeEnum = "externalAccessAddress"
 	PvcResourceType                   ResourceTypeEnum = "pvc"
+	NodeResourceType                  ResourceTypeEnum = "node"
 )
