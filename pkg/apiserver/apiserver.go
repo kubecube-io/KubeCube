@@ -104,6 +104,7 @@ func registerCubeAPI(cfg *Config) http.Handler {
 	{
 		extendHandler := resourcemanage.NewExtendHandler(cfg.NginxNamespace, cfg.NginxTcpServiceConfigMap, cfg.NginxUdpServiceConfigMap)
 		k8sApiExtend.GET("/feature-config", resourcemanage.GetFeatureConfig)
+		k8sApiExtend.Any("/clusters/:cluster/resources/:resourceType", extendHandler.ExtendHandle)
 		k8sApiExtend.Any("/clusters/:cluster/namespaces/:namespace/:resourceType/:resourceName", extendHandler.ExtendHandle)
 		k8sApiExtend.Any("/clusters/:cluster/namespaces/:namespace/:resourceType", extendHandler.ExtendHandle)
 		k8sApiExtend.GET("/clusters/:cluster/namespaces/:namespace/logs/:resourceName", resourcemanage.GetPodContainerLog)
