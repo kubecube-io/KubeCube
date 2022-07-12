@@ -29,4 +29,5 @@ type ExtendParams struct {
 	NginxTcpServiceConfigMap string
 	NginxUdpServiceConfigMap string
 	Body                     []byte
+	NodeStatus               string
 }
