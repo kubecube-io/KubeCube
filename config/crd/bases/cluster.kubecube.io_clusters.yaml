@@ -42,6 +42,10 @@ spec:
           spec:
             description: ClusterSpec defines the desired state of Cluster
             properties:
+              IsWritable:
+                description: is this cluster can be writing,if true, then can deploy
+                  some resource like workloads on this cluster
+                type: boolean
               description:
                 description: describe cluster
                 type: string
