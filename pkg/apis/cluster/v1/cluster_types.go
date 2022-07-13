@@ -74,7 +74,7 @@ type ClusterSpec struct {
 
 	// is this cluster can be writing,if true, then can deploy some resource like workloads on this cluster
 	// +optional
-	IsWritable bool `json:"IsWritable,omitempty"`
+	IsWritable bool `json:"isWritable,omitempty"`
 }
 
 // ClusterStatus defines the observed state of Cluster
