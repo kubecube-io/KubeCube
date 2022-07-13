@@ -14,20 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package resourcemanage
+package node
 
-import "github.com/kubecube-io/kubecube/pkg/utils/filter"
-
-type ExtendParams struct {
-	Cluster                  string
-	Namespace                string
-	ResourceName             string
-	Filter                   filter.Filter
-	Action                   string
-	Username                 string
-	NginxNamespace           string
-	NginxTcpServiceConfigMap string
-	NginxUdpServiceConfigMap string
-	Body                     []byte
-	NodeStatus               string
-}
+const (
+	UnscheduledStatus = "unscheduled"
+	Normal            = "normal"
+	AbNormal          = "abnormal"
+)

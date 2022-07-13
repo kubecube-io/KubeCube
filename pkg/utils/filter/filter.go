@@ -254,7 +254,7 @@ func (f *Filter) exactMatch(items K8sJsonArr) (result K8sJsonArr) {
 			// key = .metadata.xxx.xxx， multi level
 			realValue, err := GetDeepValue(item, key)
 			if err != nil {
-				clog.Error("parse value error, %+v", err)
+				clog.Error("parse value error, %+v", err.Error())
 				flag = false
 				break
 			}
