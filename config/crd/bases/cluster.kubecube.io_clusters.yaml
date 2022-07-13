@@ -55,8 +55,8 @@ spec:
                 description: cluster is member or not
                 type: boolean
               isWritable:
-                description: is this cluster can be writing,if true, then can deploy
-                  some resource like workloads on this cluster
+                description: Is this cluster writable and if true then some resources
+                  such as workloads can be deployed on this cluster
                 type: boolean
               kubeconfig:
                 description: KubeConfig contains cluster raw kubeConfig

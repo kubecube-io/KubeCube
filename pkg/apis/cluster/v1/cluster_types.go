@@ -72,7 +72,7 @@ type ClusterSpec struct {
 	// +optional
 	IngressDomainSuffix string `json:"ingressDomainSuffix,omitempty"`
 
-	// is this cluster can be writing,if true, then can deploy some resource like workloads on this cluster
+	//Is this cluster writable and if true then some resources such as workloads can be deployed on this cluster
 	// +optional
 	IsWritable bool `json:"isWritable,omitempty"`
 }
