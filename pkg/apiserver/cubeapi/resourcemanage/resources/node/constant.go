@@ -16,7 +16,7 @@ limitations under the License.
 
 package node
 
-var (
+const (
 	UnscheduledStatus = "unscheduled"
 	Normal            = "normal"
 	AbNormal          = "abnormal"
