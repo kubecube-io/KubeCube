@@ -70,13 +70,16 @@ func NewWardenWithOpts(opts *Config) *Warden {
 	}
 
 	w.LocalCtrl = &localmgr.LocalManager{
-		Cluster:           opts.Cluster,
-		IsMemberCluster:   opts.InMemberCluster,
-		AllowPrivileged:   opts.AllowPrivileged,
-		LeaderElect:       opts.LeaderElect,
-		WebhookCert:       opts.WebhookCert,
-		WebhookServerPort: opts.WebhookServerPort,
-		PivotClient:       pivotClient,
+		Cluster:                  opts.Cluster,
+		IsMemberCluster:          opts.InMemberCluster,
+		AllowPrivileged:          opts.AllowPrivileged,
+		LeaderElect:              opts.LeaderElect,
+		WebhookCert:              opts.WebhookCert,
+		WebhookServerPort:        opts.WebhookServerPort,
+		PivotClient:              pivotClient,
+		NginxNamespace:           opts.NginxNamespace,
+		NginxTcpServiceConfigMap: opts.NginxTcpServiceConfigMap,
+		NginxUdpServiceConfigMap: opts.NginxUdpServiceConfigMap,
 	}
 
 	utils.Cluster = opts.Cluster

@@ -18,13 +18,19 @@ package service
 
 import (
 	"context"
+	"errors"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	resourcemanage "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/enum"
+	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
+	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 )
 
@@ -33,6 +39,23 @@ type Service struct {
 	client    mgrclient.Client
 	namespace string
 	filter    filter.Filter
+}
+
+func init() {
+	resourcemanage.SetExtendHandler(enum.ServiceResourceType, Handle)
+}
+
+func Handle(param resourcemanage.ExtendParams) (interface{}, error) {
+	access := resources.NewSimpleAccess(param.Cluster, param.Username, param.Namespace)
+	if allow := access.AccessAllow("apps", "services", "list"); !allow {
+		return nil, errors.New(errcode.ForbiddenErr.Message)
+	}
+	kubernetes := clients.Interface().Kubernetes(param.Cluster)
+	if kubernetes == nil {
+		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
+	}
+	service := NewService(kubernetes, param.Namespace, param.Filter)
+	return service.GetExtendServices()
 }
 
 func NewService(client mgrclient.Client, namespace string, filter filter.Filter) Service {
@@ -45,14 +68,14 @@ func NewService(client mgrclient.Client, namespace string, filter filter.Filter)
 	}
 }
 
-func (s *Service) GetExtendServices() filter.K8sJson {
+func (s *Service) GetExtendServices() (filter.K8sJson, error) {
 	resultMap := make(filter.K8sJson)
 	// get service list from k8s cluster
 	var serviceList corev1.ServiceList
 	err := s.client.Cache().List(s.ctx, &serviceList, client.InNamespace(s.namespace))
 	if err != nil {
 		clog.Error("can not find service from cluster, %v", err)
-		return nil
+		return nil, err
 	}
 	resultMap["total"] = len(serviceList.Items)
 
@@ -60,13 +83,14 @@ func (s *Service) GetExtendServices() filter.K8sJson {
 	serviceListJson, err := json.Marshal(serviceList)
 	if err != nil {
 		clog.Error("convert serviceList to json fail, %v", err)
-		return nil
+		return nil, err
 	}
 	serviceListJson = s.filter.FilterResult(serviceListJson)
+	serviceList = corev1.ServiceList{}
 	err = json.Unmarshal(serviceListJson, &serviceList)
 	if err != nil {
 		clog.Error("convert json to serviceList fail, %v", err)
-		return nil
+		return nil, err
 	}
 
 	// add pod status info
@@ -74,7 +98,7 @@ func (s *Service) GetExtendServices() filter.K8sJson {
 
 	resultMap["items"] = resultList
 
-	return resultMap
+	return resultMap, nil
 }
 
 // get external ips

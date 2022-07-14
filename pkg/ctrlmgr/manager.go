@@ -22,6 +22,12 @@ import (
 	"time"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	hnc "sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
 
 	"github.com/kubecube-io/kubecube/pkg/apis"
 	"github.com/kubecube-io/kubecube/pkg/clog"
@@ -32,12 +38,6 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/exit"
 	"github.com/kubecube-io/kubecube/pkg/utils/informer"
 	"github.com/kubecube-io/kubecube/pkg/utils/worker"
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	hnc "sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
 )
 
 var scheme = runtime.NewScheme()
@@ -77,7 +77,7 @@ func NewCtrlMgrWithOpts(options *Config) *ControllerManager {
 		clog.Fatal("unable to set up controller manager: %v", err)
 	}
 
-	syncMgr, err := multicluster.NewSyncMgr(cfg)
+	syncMgr, err := multicluster.NewSyncMgr(cfg, true)
 	if err != nil {
 		clog.Fatal("unable to set up subsidiary sync manager: %v", err)
 	}

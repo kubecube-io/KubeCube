@@ -20,10 +20,76 @@ import (
 	"context"
 	"fmt"
 
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/kubecube-io/kubecube/pkg/clog"
 )
+
+type wrapperClient struct {
+	// convertBack the gate to control if there is necessary
+	// to convert action result back to user
+	convertBack bool
+
+	client.Client
+	WriterWithConverter
+	ReaderWithConverter
+	StatusWriterWithConverter
+}
+
+var _ client.Client = &wrapperClient{}
+
+func WrapClient(cli client.Client, c SingleVersionConverter, convertBack bool) client.Client {
+	return &wrapperClient{
+		convertBack:               convertBack,
+		Client:                    cli,
+		WriterWithConverter:       WrapWriter(cli, c, convertBack),
+		ReaderWithConverter:       WrapReader(cli, c),
+		StatusWriterWithConverter: WrapStatusWriter(cli, c, convertBack),
+	}
+}
+
+func (w *wrapperClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+	return w.ReaderWithConverter.Get(ctx, key, obj)
+}
+
+func (w *wrapperClient) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+	return w.ReaderWithConverter.List(ctx, list, opts...)
+}
+
+func (w *wrapperClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+	return w.WriterWithConverter.Create(ctx, obj, opts...)
+}
+
+func (w *wrapperClient) Delete(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
+	return w.WriterWithConverter.Delete(ctx, obj, opts...)
+}
+
+func (w *wrapperClient) Update(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+	return w.WriterWithConverter.Update(ctx, obj, opts...)
+}
+
+func (w *wrapperClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+	return w.WriterWithConverter.Patch(ctx, obj, patch, opts...)
+}
+
+func (w *wrapperClient) DeleteAllOf(ctx context.Context, obj client.Object, opts ...client.DeleteAllOfOption) error {
+	return w.WriterWithConverter.DeleteAllOf(ctx, obj, opts...)
+}
+
+func (w *wrapperClient) Status() client.StatusWriter {
+	return w.StatusWriterWithConverter
+}
+
+func (w *wrapperClient) Scheme() *runtime.Scheme {
+	return w.Client.Scheme()
+}
+
+func (w *wrapperClient) RESTMapper() meta.RESTMapper {
+	return w.Client.RESTMapper()
+}
 
 type wrapperWriter struct {
 	// convertBack the gate to control if there is necessary
@@ -251,9 +317,12 @@ func (w *wrapperStatusWriter) Patch(ctx context.Context, obj client.Object, patc
 func tryConvert(obj runtime.Object, c SingleVersionConverter) (client.Object, *schema.GroupVersionKind, bool, error) {
 	greetBack, rawGvk, recommendGvk, err := c.ObjectGreeting(obj)
 	if err != nil {
-		return nil, rawGvk, false, err
+		clog.Warn(err.Error())
 	}
-	if greetBack == IsPassThrough || greetBack == IsNotSupport {
+	if greetBack != IsNeedConvert {
+		return nil, rawGvk, true, nil
+	}
+	if recommendGvk == nil {
 		return nil, rawGvk, true, nil
 	}
 
@@ -275,9 +344,12 @@ func tryConvert(obj runtime.Object, c SingleVersionConverter) (client.Object, *s
 func tryConvertList(obj runtime.Object, c SingleVersionConverter) (client.ObjectList, *schema.GroupVersionKind, bool, error) {
 	greetBack, rawGvk, recommendGvk, err := c.ObjectGreeting(obj)
 	if err != nil {
-		return nil, rawGvk, false, err
+		clog.Warn(err.Error())
 	}
-	if greetBack == IsPassThrough || greetBack == IsNotSupport {
+	if greetBack != IsNeedConvert {
+		return nil, rawGvk, true, nil
+	}
+	if recommendGvk == nil {
 		return nil, rawGvk, true, nil
 	}
 

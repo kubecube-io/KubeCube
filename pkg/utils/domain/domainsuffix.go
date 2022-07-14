@@ -18,6 +18,7 @@ package domain
 
 import (
 	"fmt"
+	"github.com/kubecube-io/kubecube/pkg/utils/strslice"
 
 	"k8s.io/apimachinery/pkg/util/validation"
 
@@ -35,6 +36,11 @@ func ValidatorDomainSuffix(domainSuffixList []string, log clog.CubeLogger) error
 				return fmt.Errorf("Invalid value: %s : a lowercase RFC 1123 subdomain must consist of lower case alphanumeric characters, '-' or '.', and must start and end with an alphanumeric character (e.g. 'example.com', regex used for validation is '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*')\n)", domainSuffix)
 			}
 		}
+	}
+
+	if strslice.IsRepeatString(domainSuffixList) {
+		log.Debug("Invalid value, has a repeated suffix, %+v", domainSuffixList)
+		return fmt.Errorf("invalid value, has a repeated suffix")
 	}
 	return nil
 }

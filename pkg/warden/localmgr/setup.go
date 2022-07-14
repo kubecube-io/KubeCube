@@ -20,10 +20,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	admisson "sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
+	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/crds"
 	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/hotplug"
 	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/olm"
+	project "github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/project"
+	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/service"
+	tenant "github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/tenant"
 	hotplug2 "github.com/kubecube-io/kubecube/pkg/warden/localmgr/webhooks/hotplug"
+	project2 "github.com/kubecube-io/kubecube/pkg/warden/localmgr/webhooks/project"
 	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/webhooks/quota"
+	tenant2 "github.com/kubecube-io/kubecube/pkg/warden/localmgr/webhooks/tenant"
 )
 
 // setupControllersWithManager set up controllers into manager
@@ -40,6 +46,29 @@ func setupControllersWithManager(m *LocalManager) error {
 		return err
 	}
 
+	err = tenant.SetupWithManager(m.Manager)
+	if err != nil {
+		return err
+	}
+
+	err = project.SetupWithManager(m.Manager)
+	if err != nil {
+		return err
+	}
+
+	err = crds.SetupWithManager(m.Manager, m.PivotClient.Direct())
+	if err != nil {
+		return err
+	}
+
+	err = service.SetupWithManager(m.Manager, &service.NginxConfig{
+		NginxNamespace:           m.NginxNamespace,
+		NginxTcpServiceConfigMap: m.NginxTcpServiceConfigMap,
+		NginxUdpServiceConfigMap: m.NginxUdpServiceConfigMap,
+	})
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -47,6 +76,8 @@ func setupControllersWithManager(m *LocalManager) error {
 func setupWithWebhooks(m *LocalManager) {
 	hookServer := m.GetWebhookServer()
 
+	hookServer.Register("/validate-tenant-kubecube-io-v1-tenant", admisson.ValidatingWebhookFor(tenant2.NewTenantValidator(m.GetClient())))
+	hookServer.Register("/validate-tenant-kubecube-io-v1-project", admisson.ValidatingWebhookFor(project2.NewProjectValidator(m.GetClient())))
 	hookServer.Register("/validate-core-kubernetes-v1-resource-quota", &webhook.Admission{Handler: &quota.ResourceQuotaValidator{PivotClient: m.PivotClient.Direct(), LocalClient: m.GetClient()}})
 	hookServer.Register("/warden-validate-hotplug-kubecube-io-v1-hotplug", admisson.ValidatingWebhookFor(hotplug2.NewHotplugValidator(m.IsMemberCluster)))
 }

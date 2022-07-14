@@ -158,6 +158,7 @@ func (s *Scout) illWarden(ctx context.Context) {
 	err := s.client.Get(ctx, types.NamespacedName{Name: s.Cluster}, cluster)
 	if err != nil {
 		clog.Error(err.Error())
+		return
 	}
 
 	if !isDisconnected(cluster, s.WaitTimeoutSeconds) {

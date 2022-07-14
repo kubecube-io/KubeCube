@@ -17,14 +17,13 @@ limitations under the License.
 package controllers
 
 import (
-	"github.com/kubecube-io/kubecube/pkg/clog"
-	cluster "github.com/kubecube-io/kubecube/pkg/ctrlmgr/controllers/cluster"
-	project "github.com/kubecube-io/kubecube/pkg/ctrlmgr/controllers/project"
-	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/controllers/quota"
-	tenant "github.com/kubecube-io/kubecube/pkg/ctrlmgr/controllers/tenant"
-	user "github.com/kubecube-io/kubecube/pkg/ctrlmgr/controllers/user"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+
+	"github.com/kubecube-io/kubecube/pkg/clog"
+	cluster "github.com/kubecube-io/kubecube/pkg/ctrlmgr/controllers/cluster"
+	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/controllers/quota"
+	user "github.com/kubecube-io/kubecube/pkg/ctrlmgr/controllers/user"
 )
 
 // todo: change set func if need
@@ -34,9 +33,7 @@ var setupFns []func(manager manager.Manager) error
 func init() {
 	// setup controllers
 	setupFns = append(setupFns, cluster.SetupWithManager)
-	setupFns = append(setupFns, project.SetupWithManager)
 	setupFns = append(setupFns, user.SetupWithManager)
-	setupFns = append(setupFns, tenant.SetupWithManager)
 	setupFns = append(setupFns, quota.SetupWithManager)
 }
 

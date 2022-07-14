@@ -150,3 +150,47 @@ func TestRemoveString(t *testing.T) {
 		})
 	}
 }
+
+func TestRepeatString(t *testing.T) {
+	type args struct {
+		slice []string
+	}
+	tests := []struct {
+		name       string
+		args       args
+		wantResult bool
+	}{
+		{
+			name:       "have repeat str in last",
+			args:       args{slice: []string{"a", "b", "c", "a"}},
+			wantResult: true,
+		},
+		{
+			name:       "have repeat str in middle",
+			args:       args{slice: []string{"a", "b", "a", "c"}},
+			wantResult: true,
+		},
+		{
+			name:       "have no repeat str string",
+			args:       args{slice: []string{"a", "b", "c"}},
+			wantResult: false,
+		},
+		{
+			name:       "slice nil",
+			args:       args{slice: nil},
+			wantResult: false,
+		},
+		{
+			name:       "slice empty",
+			args:       args{slice: []string{}},
+			wantResult: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if gotResult := IsRepeatString(tt.args.slice); !reflect.DeepEqual(gotResult, tt.wantResult) {
+				t.Errorf("RepeatString() = %v, want %v", gotResult, tt.wantResult)
+			}
+		})
+	}
+}

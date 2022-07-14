@@ -39,10 +39,8 @@ var syncResources = []client.Object{
 	&v1.ClusterRoleBinding{},
 	&v1.Role{},
 	&v1.ClusterRole{},
-	&corev1.Namespace{},
 
 	// kubecube resources
-	&v1alpha2.SubnamespaceAnchor{},
 	&hotplug.Hotplug{},
 	&tenant.Tenant{},
 	&tenant.Project{},
@@ -50,6 +48,8 @@ var syncResources = []client.Object{
 	&extension.ExternalResource{},
 	&quota.CubeResourceQuota{},
 }
+
+type GenericObjFunc func(obj client.Object) (client.Object, error)
 
 // newGenericObj new a struct point implemented client.Object
 func newGenericObj(obj client.Object) (client.Object, error) {

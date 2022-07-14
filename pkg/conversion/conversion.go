@@ -42,7 +42,6 @@ type VersionConverter struct {
 	cf serializer.CodecFactory
 
 	// discovery is response to communicate with k8s
-	// todo: use cache client
 	discovery discovery.DiscoveryInterface
 
 	// clusterInfo hold the version info of target cluster
@@ -116,6 +115,23 @@ const (
 	IsNeedConvert
 	IsUnknown
 )
+
+func (g GreetBackType) String() string {
+	var greetBack string
+
+	switch g {
+	case 0:
+		greetBack = "paas through"
+	case 1:
+		greetBack = "not support"
+	case 2:
+		greetBack = "need convert"
+	case 3:
+		greetBack = "unknown"
+	}
+
+	return greetBack
+}
 
 // ObjectGreeting describes if given object is available in target cluster.
 // a recommend group version kind will return if it cloud not pass through.

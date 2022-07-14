@@ -57,10 +57,26 @@ func init() {
 			Name:        "ca-key",
 			Destination: &CubeOpts.APIServerOpts.CaKey,
 		},
+		// todo(weilaaa): move this flag to suitable place
 		&cli.BoolFlag{
 			Name:        "enable-version-conversion",
 			Value:       false,
 			Destination: &CubeOpts.APIServerOpts.EnableVersionConversion,
+		},
+		&cli.StringFlag{
+			Name:        "ingress-nginx-namespace",
+			Value:       "ingress-nginx",
+			Destination: &CubeOpts.APIServerOpts.NginxNamespace,
+		},
+		&cli.StringFlag{
+			Name:        "ingress-nginx-tcp-configmap",
+			Value:       "tcp-services",
+			Destination: &CubeOpts.APIServerOpts.NginxTcpServiceConfigMap,
+		},
+		&cli.StringFlag{
+			Name:        "ingress-nginx-udp-configmap",
+			Value:       "udp-services",
+			Destination: &CubeOpts.APIServerOpts.NginxUdpServiceConfigMap,
 		},
 	}...)
 }

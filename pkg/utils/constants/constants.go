@@ -161,8 +161,17 @@ const (
 	AllVerb = "*"
 	// CreateVerb create resource
 	CreateVerb = "create"
+	// GetVerb get resource
+	GetVerb = "get"
+	// UpdateVerb update resource
+	UpdateVerb = "update"
 	// DeleteVerb delete resource
 	DeleteVerb = "delete"
 	// ListVerb list resource
 	ListVerb = "list"
+)
+
+const (
+	Writable = "writable"
+	Readable = "readable"
 )

@@ -52,8 +52,9 @@ const (
 )
 
 func deployResources(ctx context.Context, cli client.Client, memberCluster, pivotCluster *clusterv1.Cluster) error {
-	// if target cluster is dating with KubeCube, return directly
-	if isDatingCluster(ctx, cli, memberCluster.Name) {
+	// if target cluster is dating with KubeCube
+	// or warden use register mode, return directly
+	if isDatingCluster(ctx, cli, memberCluster.Name) || env.WardenRegisterModeEnable() == "true" {
 		return nil
 	}
 

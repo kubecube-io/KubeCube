@@ -17,8 +17,6 @@ limitations under the License.
 package service_test
 
 import (
-	"encoding/json"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
@@ -53,6 +51,9 @@ var _ = Describe("Externalaccess", func() {
 		service2       corev1.Service
 		tcpcm          corev1.ConfigMap
 		udpcm          corev1.ConfigMap
+		tcpCmName      = "tcp-services"
+		udpCmName      = "udp-services"
+		nginxNs        = "ingress-nginx"
 	)
 	BeforeEach(func() {
 		nginxLable := map[string]string{
@@ -61,12 +62,12 @@ var _ = Describe("Externalaccess", func() {
 		}
 		pod1 = corev1.Pod{
 			TypeMeta:   metav1.TypeMeta{Kind: "Pod", APIVersion: "v1"},
-			ObjectMeta: metav1.ObjectMeta{Name: "pod1", Namespace: service.INGRESS_NS, Labels: nginxLable},
+			ObjectMeta: metav1.ObjectMeta{Name: "pod1", Namespace: nginxNs, Labels: nginxLable},
 			Status:     corev1.PodStatus{HostIP: hostIp1},
 		}
 		pod2 = corev1.Pod{
 			TypeMeta:   metav1.TypeMeta{Kind: "Pod", APIVersion: "v1"},
-			ObjectMeta: metav1.ObjectMeta{Name: "pod2", Namespace: service.INGRESS_NS, Labels: nginxLable},
+			ObjectMeta: metav1.ObjectMeta{Name: "pod2", Namespace: nginxNs, Labels: nginxLable},
 			Status:     corev1.PodStatus{HostIP: hostIp2},
 		}
 		podList = corev1.PodList{
@@ -85,12 +86,12 @@ var _ = Describe("Externalaccess", func() {
 		}
 		tcpcm = corev1.ConfigMap{
 			TypeMeta:   metav1.TypeMeta{Kind: "ConfigMap", APIVersion: "v1"},
-			ObjectMeta: metav1.ObjectMeta{Name: service.TCP_SERVICES, Namespace: service.INGRESS_NS},
+			ObjectMeta: metav1.ObjectMeta{Name: tcpCmName, Namespace: nginxNs},
 			Data:       map[string]string{"5000": "namespace-test/service-test2:5555", "5500": "namespace-test/service-test2:5555", "5550": "ns/serv:5551"},
 		}
 		udpcm = corev1.ConfigMap{
 			TypeMeta:   metav1.TypeMeta{Kind: "ConfigMap", APIVersion: "v1"},
-			ObjectMeta: metav1.ObjectMeta{Name: service.UDP_SERVICES, Namespace: service.INGRESS_NS},
+			ObjectMeta: metav1.ObjectMeta{Name: udpCmName, Namespace: nginxNs},
 			Data:       map[string]string{"6000": "namespace-test/service-test2:6666", "6600": "namespace-test/service-test2:6666", "6660": "ns/serv:6661"},
 		}
 	})
@@ -109,11 +110,12 @@ var _ = Describe("Externalaccess", func() {
 		clients.InitCubeClientSetWithOpts(nil)
 		cli = clients.Interface().Kubernetes(constants.LocalCluster)
 		Expect(cli).NotTo(BeNil())
-		externalAccess = service.NewExternalAccess(cli, ns, serviceName, filter.Filter{Limit: 10})
+		externalAccess = service.NewExternalAccess(cli.Direct(), ns, serviceName, filter.Filter{Limit: 10}, nginxNs, tcpCmName, udpCmName)
 	})
 
 	It("test get external address", func() {
-		ret := externalAccess.GetExternalIP()
+		ret, err := externalAccess.GetExternalIP()
+		Expect(err).To(BeNil())
 		Expect(len(ret)).To(Equal(2))
 		Expect(ret[0]).To(Equal(hostIp1))
 		Expect(ret[1]).To(Equal(hostIp2))
@@ -131,9 +133,7 @@ var _ = Describe("Externalaccess", func() {
 			Protocol:      service.UDP,
 			ExternalPorts: []int{8000, 8800, 8880},
 		}
-		body, err := json.Marshal(externalServices)
-		Expect(err).To(BeNil())
-		err = externalAccess.SetExternalAccess(body)
+		err := externalAccess.SetExternalAccess(externalServices)
 		Expect(err).To(BeNil())
 		ret, err := externalAccess.GetExternalAccess()
 		Expect(err).To(BeNil())
@@ -175,7 +175,7 @@ var _ = Describe("Externalaccess", func() {
 	})
 
 	It("test get external access", func() {
-		ea := service.NewExternalAccess(cli, ns, serviceName2, filter.Filter{Limit: 10})
+		ea := service.NewExternalAccess(cli.Direct(), ns, serviceName2, filter.Filter{Limit: 10}, nginxNs, tcpCmName, udpCmName)
 		ret, err := ea.GetExternalAccess()
 		Expect(err).To(BeNil())
 		for _, item := range ret {
@@ -199,9 +199,7 @@ var _ = Describe("Externalaccess", func() {
 			Protocol:      service.UDP,
 			ExternalPorts: []int{5000},
 		}
-		body, err := json.Marshal(externalServices)
-		Expect(err).To(BeNil())
-		err = externalAccess.SetExternalAccess(body)
+		err := externalAccess.SetExternalAccess(externalServices)
 		Expect(err.Error()).To(Equal("the service port is not exist"))
 	})
 })

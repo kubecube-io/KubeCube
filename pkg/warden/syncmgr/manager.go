@@ -79,7 +79,7 @@ func (s *SyncManager) Initialize() error {
 	}
 
 	for _, r := range syncResources {
-		err = s.setupCtrlWithManager(r)
+		err = s.SetupCtrlWithManager(r, newGenericObj)
 		if err != nil {
 			return err
 		}

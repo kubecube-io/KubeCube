@@ -23,6 +23,7 @@ bin
 *.swp
 *.swo
 *~
+logs
 
 # self dir
 helmchartpkg

@@ -50,7 +50,7 @@ func NewProjectValidator(mgrClient client.Client) *ProjectValidator {
 
 func (p *ProjectValidator) GetObjectKind() schema.ObjectKind {
 
-	return p.GetObjectKind()
+	return p
 }
 
 func (p *ProjectValidator) DeepCopyObject() runtime.Object {

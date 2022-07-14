@@ -54,7 +54,7 @@ fmt-check:
 	fi;
 
 swag-gen:
-	swag init --parseDependency --parseInternal --parseDepth 5 -g ./pkg/apiserver/apiserver.go
+	swag init --parseDependency --parseInternal --parseDepth 3 -g ./pkg/apiserver/apiserver.go
 
 vendor:
 	go mod vendor

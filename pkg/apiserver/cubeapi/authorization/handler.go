@@ -53,6 +53,7 @@ func (h *handler) AddApisTo(root *gin.Engine) {
 	r.POST("bindings", h.createBinds)
 	r.DELETE("bindings", h.deleteBinds)
 	r.POST("access", h.authorization)
+	r.POST("resources", h.resourcesGate)
 }
 
 type result struct {
@@ -80,13 +81,18 @@ func NewHandler() *handler {
 // @Param user query string false "user name"
 // @Param namespace query string false "namespace name"
 // @Param details query string false "details true or false"
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} map[string]interface{} "{"clusterRoles":{"total":2,"items":["tenant-admin","reviewer"]},"roles":{"total":0,"items":[]}}"
 // @Failure 500 {object} errcode.ErrorInfo
 // @Router /api/v1/cube/authorization/roles [get]
 func (h *handler) getRolesByUser(c *gin.Context) {
 	userName := c.Query("user")
 	ns := c.Query("namespace")
 	details := c.Query("details")
+	byUser := c.Query("byuser")
+
+	if byUser == "true" && userName == "" {
+		userName = c.GetString(constants.EventAccountId)
+	}
 
 	if userName == "" {
 		r := make(map[string]interface{})
@@ -159,7 +165,7 @@ func (h *handler) getRolesByUser(c *gin.Context) {
 // @Param role query string false "role name"
 // @Param namespace query string false "namespace name"
 // @Param details query string false "details true or false"
-// @Success 200 {object} result
+// @Success 200 {object} result "{"total":1,"items":["admin"]}"
 // @Failure 500 {object} errcode.ErrorInfo
 // @Router /api/v1/cube/authorization/users [get]
 func (h *handler) getUsersByRole(c *gin.Context) {
@@ -200,15 +206,24 @@ func (h *handler) getUsersByRole(c *gin.Context) {
 // @Description get all visible tenant for user
 // @Tags authorization
 // @Param user query string true "user name"
-// @Success 200 {object} result
+// @Success 200 {object} result "{"total":4,"items":[{"kind":"Tenant","apiVersion":"tenant.kubecube.io/v1","metadata":{"name":"tenant-1","uid":"103a636a-1532-4eb6-a5d1-695fb4007c5a","resourceVersion":"34659","generation":2,"creationTimestamp":"2022-04-28T08:57:33Z","annotations":{"kubecube.io/sync":"1"},"managedFields":[{"manager":"Mozilla","operation":"Update","apiVersion":"tenant.kubecube.io/v1","time":"2022-04-28T08:57:33Z","fieldsType":"FieldsV1","fieldsV1":{"f:spec":{".":{},"f:displayName":{}}}},{"manager":"cube","operation":"Update","apiVersion":"tenant.kubecube.io/v1","time":"2022-04-28T08:57:33Z","fieldsType":"FieldsV1","fieldsV1":{"f:metadata":{"f:annotations":{".":{},"f:kubecube.io/sync":{}}},"f:spec":{"f:namespace":{}},"f:status":{}}}]},"spec":{"displayName":"tenant-1","namespace":"kubecube-tenant-tenant-1"},"status":{}},{"kind":"Tenant","apiVersion":"tenant.kubecube.io/v1","metadata":{"name":"tenant-2","uid":"31de5d32-22f0-445a-9d32-27f87fb82d53","resourceVersion":"24174","generation":2,"creationTimestamp":"2022-04-28T08:17:29Z","annotations":{"kubecube.io/sync":"1"},"managedFields":[{"manager":"Mozilla","operation":"Update","apiVersion":"tenant.kubecube.io/v1","time":"2022-04-28T08:17:29Z","fieldsType":"FieldsV1","fieldsV1":{"f:spec":{".":{},"f:displayName":{}}}},{"manager":"cube","operation":"Update","apiVersion":"tenant.kubecube.io/v1","time":"2022-04-28T08:17:29Z","fieldsType":"FieldsV1","fieldsV1":{"f:metadata":{"f:annotations":{".":{},"f:kubecube.io/sync":{}}},"f:spec":{"f:namespace":{}},"f:status":{}}}]},"spec":{"displayName":"tenant-2","namespace":"kubecube-tenant-tenant-2"},"status":{}},{"kind":"Tenant","apiVersion":"tenant.kubecube.io/v1","metadata":{"name":"tenant-3","uid":"a5756286-bf2b-4094-8c67-c65b4cd2fe7c","resourceVersion":"30156","generation":2,"creationTimestamp":"2022-04-28T08:40:28Z","annotations":{"kubecube.io/sync":"1"},"managedFields":[{"manager":"Mozilla","operation":"Update","apiVersion":"tenant.kubecube.io/v1","time":"2022-04-28T08:40:28Z","fieldsType":"FieldsV1","fieldsV1":{"f:spec":{".":{},"f:displayName":{}}}},{"manager":"cube","operation":"Update","apiVersion":"tenant.kubecube.io/v1","time":"2022-04-28T08:40:28Z","fieldsType":"FieldsV1","fieldsV1":{"f:metadata":{"f:annotations":{".":{},"f:kubecube.io/sync":{}}},"f:spec":{"f:namespace":{}},"f:status":{}}}]},"spec":{"displayName":"tenant-3","namespace":"kubecube-tenant-tenant-3"},"status":{}},{"kind":"Tenant","apiVersion":"tenant.kubecube.io/v1","metadata":{"name":"tenant-4","uid":"0e30568f-1a91-41de-9991-deaa987245eb","resourceVersion":"2936367","generation":2,"creationTimestamp":"2022-05-06T03:35:55Z","annotations":{"kubecube.io/sync":"1"},"managedFields":[{"manager":"Mozilla","operation":"Update","apiVersion":"tenant.kubecube.io/v1","time":"2022-05-06T03:35:55Z","fieldsType":"FieldsV1","fieldsV1":{"f:spec":{".":{},"f:displayName":{}}}},{"manager":"cube","operation":"Update","apiVersion":"tenant.kubecube.io/v1","time":"2022-05-06T03:35:55Z","fieldsType":"FieldsV1","fieldsV1":{"f:metadata":{"f:annotations":{".":{},"f:kubecube.io/sync":{}}},"f:spec":{"f:namespace":{}},"f:status":{}}}]},"spec":{"displayName":"tenant-4","namespace":"kubecube-tenant-tenant-4"},"status":{}}]}"
 // @Failure 500 {object} errcode.ErrorInfo
 // @Router /api/v1/cube/authorization/tenants [get]
 func (h *handler) getTenantByUser(c *gin.Context) {
 	user := c.Query("user")
+	auth := c.Query("auth")
 	ctx := c.Request.Context()
 	cli := h.Client
 
-	tenants, err := getVisibleTenants(h.Interface, user, cli, ctx)
+	if len(user) == 0 {
+		user = c.GetString(constants.EventAccountId)
+	}
+
+	if len(auth) == 0 {
+		auth = constants.Readable
+	}
+
+	tenants, err := getAccessTenants(h.Interface, user, cli, ctx, auth)
 	if err != nil {
 		clog.Error(err.Error())
 		response.FailReturn(c, errcode.InternalServerError)
@@ -224,16 +239,26 @@ func (h *handler) getTenantByUser(c *gin.Context) {
 // @Tags authorization
 // @Param user query string true "user name"
 // @Param tenant query string true "tenant name"
-// @Success 200 {object} result
+// @Success 200 {object} result "{"total":1,"items":[{"kind":"Project","apiVersion":"tenant.kubecube.io/v1","metadata":{"name":"project-1","uid":"bd1d139f-2c22-481b-ad26-a0905eb70651","resourceVersion":"34703","generation":2,"creationTimestamp":"2022-04-28T08:57:41Z","labels":{"kubecube.io/tenant":"tenant-1"},"annotations":{"kubecube.io/sync":"1"},"managedFields":[{"manager":"Mozilla","operation":"Update","apiVersion":"tenant.kubecube.io/v1","time":"2022-04-28T08:57:41Z","fieldsType":"FieldsV1","fieldsV1":{"f:metadata":{"f:labels":{".":{},"f:kubecube.io/tenant":{}}},"f:spec":{".":{},"f:description":{},"f:displayName":{}}}},{"manager":"cube","operation":"Update","apiVersion":"tenant.kubecube.io/v1","time":"2022-04-28T08:57:41Z","fieldsType":"FieldsV1","fieldsV1":{"f:metadata":{"f:annotations":{".":{},"f:kubecube.io/sync":{}}},"f:spec":{"f:namespace":{}},"f:status":{}}}]},"spec":{"displayName":"project-1","description":"project-1","namespace":"kubecube-project-project-1"},"status":{}}]}"
 // @Failure 500 {object} errcode.ErrorInfo
 // @Router /api/v1/cube/authorization/projects [get]
 func (h *handler) getProjectByUser(c *gin.Context) {
 	user := c.Query("user")
 	tenant := c.Query("tenant")
+	auth := c.Query("auth")
 	ctx := c.Request.Context()
 	cli := h.Client
 
-	projects, err := getVisibleProjects(h.Interface, user, cli, ctx, tenant)
+	if len(user) == 0 {
+		user = c.GetString(constants.EventAccountId)
+	}
+
+	if len(auth) == 0 {
+		// default use readable access
+		auth = constants.Readable
+	}
+
+	projects, err := getAccessProjects(h.Interface, user, cli, ctx, tenant, auth)
 	if err != nil {
 		clog.Error(err.Error())
 		response.FailReturn(c, errcode.InternalServerError)
@@ -248,10 +273,14 @@ func (h *handler) getProjectByUser(c *gin.Context) {
 // @Description show a user identity of platform, tenant or project
 // @Tags authorization
 // @Param user query string true "user name"
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {object} map[string]bool "{"platformAdmin":true,"tenantAdmin":true,"projectAdmin":true}"
 // @Router /api/v1/cube/authorization/identities [get]
 func (h *handler) getIdentity(c *gin.Context) {
 	user := c.Query("user")
+
+	if len(user) == 0 {
+		user = c.GetString(constants.EventAccountId)
+	}
 
 	r := make(map[string]bool)
 
@@ -346,7 +375,7 @@ func (h *handler) createBinds(c *gin.Context) {
 		}
 	}
 
-	response.SuccessReturn(c, "success")
+	response.SuccessJsonReturn(c, "success")
 }
 
 // deleteBinds delete roleBinding and clusterRoleBinding
@@ -371,7 +400,7 @@ func (h *handler) deleteBinds(c *gin.Context) {
 	err := cli.Cache().Get(ctx, key, &roleBinding)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			response.SuccessReturn(c, "resource has been deleted")
+			response.SuccessJsonReturn(c, "resource has been deleted")
 			return
 		}
 		clog.Error(err.Error())
@@ -421,7 +450,7 @@ func (h *handler) deleteBinds(c *gin.Context) {
 		return
 	}
 
-	response.SuccessReturn(c, "success")
+	response.SuccessJsonReturn(c, "success")
 }
 
 // getClusterRolesByLevel get clusterRoles by hnc level
@@ -429,7 +458,7 @@ func (h *handler) deleteBinds(c *gin.Context) {
 // @Description get clusterRoles by level
 // @Tags authorization
 // @Param level query string true "hnc level"
-// @Success 200 {object} result
+// @Success 200 {object} result "{"total":1,"items":[{"kind":"ClusterRole","apiVersion":"rbac.authorization.k8s.io/v1","metadata":{"name":"platform-admin","uid":"87851558-7247-4e17-94fa-bf9ddcb48387","resourceVersion":"793","creationTimestamp":"2022-04-28T06:41:26Z","labels":{"app.kubernetes.io/managed-by":"Helm","kubecube.io/rbac":"true","kubecube.io/role":"platform"},"annotations":{"kubecube.io/sync":"true","meta.helm.sh/release-name":"kubecube","meta.helm.sh/release-namespace":"default"},"managedFields":[{"manager":"clusterrole-aggregation-controller","operation":"Apply","apiVersion":"rbac.authorization.k8s.io/v1","time":"2022-04-28T06:41:26Z","fieldsType":"FieldsV1","fieldsV1":{"f:rules":{}}},{"manager":"Go-http-client","operation":"Update","apiVersion":"rbac.authorization.k8s.io/v1","time":"2022-04-28T06:41:26Z","fieldsType":"FieldsV1","fieldsV1":{"f:aggregationRule":{".":{},"f:clusterRoleSelectors":{}},"f:metadata":{"f:annotations":{".":{},"f:kubecube.io/sync":{},"f:meta.helm.sh/release-name":{},"f:meta.helm.sh/release-namespace":{}},"f:labels":{".":{},"f:app.kubernetes.io/managed-by":{},"f:kubecube.io/rbac":{},"f:kubecube.io/role":{}}}}}]},"rules":[{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["pods"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["pods/attach"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["pods/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["pods/execescalate"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["pods/exec"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["pods/portforward"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["pods/proxy"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["pods/log"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["replicationcontrollers"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["replicationcontrollers/scale"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["replicationcontrollers/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["persistentvolumeclaims"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["persistentvolumeclaims/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["configmaps"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["endpoints"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["endpointslices"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["secrets"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["services"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["services/proxy"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["services/status"]},{"verbs":["impersonate","get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["serviceaccounts"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["daemonsets"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["daemonsets/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["deployments"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["deployments/rollback"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["deployments/scale"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["deployments/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["statefulsets"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["statefulsets/scale"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["statefulsets/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["replicasets"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["replicasets/scale"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["replicasets/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["controllerrevisions"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["horizontalpodautoscalers"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["horizontalpodautoscalers/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["verticalpodautoscalercheckpoints"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["verticalpodautoscalers"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["cronjobs"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["cronjobs/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["jobs"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["jobs/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["ingresses"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["ingresses/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["networkpolicies"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["ingressclasses"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["poddisruptionbudgets"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["poddisruptionbudgets/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["nodes"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["persistentvolumes"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["storageclasses"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["bindings"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["events"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["limitranges"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["resourcequotas"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["resourcequotas/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["namespaces"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["namespaces/status"]},{"verbs":["create","delete","deletecollection","get","list","patch","update","watch"],"apiGroups":["*"],"resources":["localsubjectaccessreviews"]},{"verbs":["create","delete","deletecollection","get","list","patch","update","watch"],"apiGroups":["*"],"resources":["selfsubjectaccessreviews"]},{"verbs":["create","delete","deletecollection","get","list","patch","update","watch"],"apiGroups":["*"],"resources":["selfsubjectrulesreviews"]},{"verbs":["create","delete","deletecollection","get","list","patch","update","watch"],"apiGroups":["*"],"resources":["subjectaccessreviews"]},{"verbs":["create","delete","deletecollection","get","list","patch","update","watch"],"apiGroups":["*"],"resources":["rolebindings"]},{"verbs":["create","delete","deletecollection","get","list","patch","update","watch"],"apiGroups":["*"],"resources":["roles"]},{"verbs":["create","delete","deletecollection","get","list","patch","update","watch"],"apiGroups":["*"],"resources":["clusterrolebindings"]},{"verbs":["create","delete","deletecollection","get","list","patch","update","watch"],"apiGroups":["*"],"resources":["clusterroles"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["customresourcedefinitions"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["componentstatuses"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["podtemplates"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["mutatingwebhookconfigurations"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["validatingwebhookconfigurations"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["apiservices"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["tokenreviews"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["certificatesigningrequests"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["leases"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["flowschemas"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["prioritylevelconfigurations"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["runtimeclasses"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["priorityclasses"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["csidrivers"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["csinodes"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["volumeattachments"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["podsecuritypolicies"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["cuberesourcequota"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["cuberesourcequota/finalizers"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["cuberesourcequota/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["clusters"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["clusters/finalizers"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["tenants"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["tenants/finalizers"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["tenants/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["projects"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["projects/finalizers"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["projects/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["users"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["users/finalizers"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["users/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["keys"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["hotplugs"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["externalresources"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["dashboards"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["alertmanagerconfigs"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["alertmanagers"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["podmonitors"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["probes"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["prometheuses"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["prometheusrules"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["servicemonitors"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["thanosrulers"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["bgpconfigurations"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["bgppeers"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["blockaffinities"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["clusterinformations"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["felixconfigurations"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["globalnetworkpolicies"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["globalnetworksets"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["hostendpoints"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["ipamblocks"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["ipamconfigs"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["ipamhandles"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["ippools"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["kubecontrollersconfigurations"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["networksets"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["hierarchyconfigurations"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["hncconfigurations"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["subnamespaceanchors"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["catalogsources"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["clusterserviceversions"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["installplans"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["operatorconditions"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["operatorgroups"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["operators"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["subscriptions"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["packagemanifests"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["nodelogconfigs"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["logconfigs"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["cephs"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["nfs"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["ipallocations"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["ipranges"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["podstickyips"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["subnets"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["contactgroups"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["notifypolicies"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["notifytemplates"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["silencerules"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["loadbalancers"]}],"aggregationRule":{"clusterRoleSelectors":[{"matchLabels":{"rbac.authorization.k8s.io/aggregate-to-platform-admin":"true"}}]}}]}"
 // @Failure 500 {object} errcode.ErrorInfo
 // @Router /api/v1/cube/authorization/clusterroles [get]
 func (h *handler) getClusterRolesByLevel(c *gin.Context) {
@@ -500,4 +529,63 @@ func (h *handler) authorization(c *gin.Context) {
 	}
 
 	response.SuccessReturn(c, d == authorizer.DecisionAllow)
+}
+
+type resourcesAccessInfos struct {
+	Cluster string `json:"cluster"`
+	Infos   []struct {
+		Resource  string `json:"resource"`
+		Operator  string `json:"operator"`
+		Namespace string `json:"namespace"`
+	} `json:"infos"`
+}
+
+// resourcesGate tells if given resources can access
+func (h *handler) resourcesGate(c *gin.Context) {
+	data := &resourcesAccessInfos{}
+	if err := c.ShouldBindJSON(data); err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.InvalidBodyFormat)
+		return
+	}
+
+	user := c.GetString(constants.EventAccountId)
+	result := make(map[string]bool)
+
+	if data.Cluster == "" {
+		response.FailReturn(c, errcode.InvalidBodyFormat)
+		return
+	}
+
+	r := rbac.NewDefaultResolver(data.Cluster)
+
+	for _, info := range data.Infos {
+		if info.Resource == "" || info.Operator == "" {
+			continue
+		}
+		// note:we just sort up auth to write and read, take care of it
+		var verb string
+		if info.Operator == "write" {
+			verb = "create"
+		}
+		if info.Operator == "read" {
+			verb = "get"
+		}
+		record := &authorizer.AttributesRecord{
+			User:            &userinfo.DefaultInfo{Name: user},
+			Verb:            verb,
+			Namespace:       info.Namespace,
+			Resource:        info.Resource,
+			ResourceRequest: true,
+		}
+		d, _, err := r.Authorize(c.Request.Context(), record)
+		if err != nil {
+			clog.Error(err.Error())
+			response.FailReturn(c, errcode.InternalServerError)
+			return
+		}
+		result[info.Resource] = d == authorizer.DecisionAllow
+	}
+
+	response.SuccessReturn(c, result)
 }

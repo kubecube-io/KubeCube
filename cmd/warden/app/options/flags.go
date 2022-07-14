@@ -144,5 +144,20 @@ var (
 			Value:       "error",
 			Destination: &WardenOpts.CubeLoggerOpts.StacktraceLevel,
 		},
+		&cli.StringFlag{
+			Name:        "ingress-nginx-namespace",
+			Value:       "ingress-nginx",
+			Destination: &WardenOpts.GenericWardenOpts.NginxNamespace,
+		},
+		&cli.StringFlag{
+			Name:        "ingress-nginx-tcp-configmap",
+			Value:       "tcp-services",
+			Destination: &WardenOpts.GenericWardenOpts.NginxTcpServiceConfigMap,
+		},
+		&cli.StringFlag{
+			Name:        "ingress-nginx-udp-configmap",
+			Value:       "udp-services",
+			Destination: &WardenOpts.GenericWardenOpts.NginxUdpServiceConfigMap,
+		},
 	}
 )

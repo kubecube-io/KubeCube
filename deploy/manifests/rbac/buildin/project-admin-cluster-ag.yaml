@@ -9,13 +9,10 @@ metadata:
   annotations:
     kubecube.io/sync: "true"
 rules:
-  # only has read authority of namespace cause
-  # subNamespace will replace it
   - apiGroups:
-      - ""
+      - "*"
     resources:
-      - namespaces
-      - namespaces/status
+      - componentstatuses
     verbs:
       - get
       - list
@@ -29,49 +26,32 @@ rules:
       - get
       - list
       - watch
-  # access to operate cuberesourcequota
   - apiGroups:
-      - quota.kubecube.io
+      - "*"
     resources:
-      - cuberesourcequota
-    verbs:
-      - create
-      - delete
-      - get
-      - list
-      - patch
-      - update
-      - watch
-  - apiGroups:
-      - quota.kubecube.io
-    resources:
-      - cuberesourcequota/finalizers
-    verbs:
-      - update
-  - apiGroups:
-      - quota.kubecube.io
-    resources:
-      - cuberesourcequota/status
-    verbs:
-      - get
-      - patch
-      - update
-  - apiGroups:
-      - user.kubecube.io
-    resources:
-      - users/status
-    verbs:
-      - get
-  - apiGroups:
-      - storage.k8s.io
-    resources:
-      - storageclasses
+      - namespaces
     verbs:
       - get
       - list
       - watch
   - apiGroups:
-      - ""
+      - "*"
+    resources:
+      - namespaces/status
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "*"
+    resources:
+      - nodes
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "*"
     resources:
       - persistentvolumes
     verbs:
@@ -87,11 +67,67 @@ rules:
       - list
       - watch
   - apiGroups:
-      - "*" #storage.kubecube.io
+      - "*"
     resources:
-      - cephs
-      - nfs
+      - storageclasses
     verbs:
       - get
       - list
       - watch
+  ### KubeCube resource below
+  - apiGroups:
+      - "*"
+    resources:
+      - cuberesourcequota
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - cuberesourcequota/finalizers
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+  - apiGroups:
+      - "*"
+    resources:
+      - users
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "*"
+    resources:
+      - users/status
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - "*"
+    resources:
+      - externalresources
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - delete
+      - deletecollection
+      - patch
+      - update
+---

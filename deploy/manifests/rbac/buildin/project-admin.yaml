@@ -14,3 +14,4 @@ aggregationRule:
     - matchLabels:
         rbac.authorization.k8s.io/aggregate-to-project-admin: "true"
 rules: []
+---

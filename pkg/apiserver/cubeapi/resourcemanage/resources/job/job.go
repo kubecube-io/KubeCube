@@ -18,13 +18,19 @@ package job
 
 import (
 	"context"
+	"errors"
 
 	jsoniter "github.com/json-iterator/go"
 	batchv1 "k8s.io/api/batch/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	resourcemanage "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/enum"
+	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
+	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 )
 
@@ -37,6 +43,23 @@ type Job struct {
 	filter    filter.Filter
 }
 
+func init() {
+	resourcemanage.SetExtendHandler(enum.JobResourceType, Handle)
+}
+
+func Handle(param resourcemanage.ExtendParams) (interface{}, error) {
+	access := resources.NewSimpleAccess(param.Cluster, param.Username, param.Namespace)
+	if allow := access.AccessAllow("batch", "jobs", "list"); !allow {
+		return nil, errors.New(errcode.ForbiddenErr.Message)
+	}
+	kubernetes := clients.Interface().Kubernetes(param.Cluster)
+	if kubernetes == nil {
+		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
+	}
+	job := NewJob(kubernetes, param.Namespace, param.Filter)
+	return job.GetExtendJobs()
+}
+
 func NewJob(client mgrclient.Client, namespace string, filter filter.Filter) Job {
 	ctx := context.Background()
 	return Job{
@@ -47,8 +70,8 @@ func NewJob(client mgrclient.Client, namespace string, filter filter.Filter) Job
 	}
 }
 
-// get extend deployments
-func (j *Job) GetExtendJobs() filter.K8sJson {
+// GetExtendJobs get extend deployments
+func (j *Job) GetExtendJobs() (filter.K8sJson, error) {
 	resultMap := make(filter.K8sJson)
 
 	// get deployment list from k8s cluster
@@ -56,7 +79,7 @@ func (j *Job) GetExtendJobs() filter.K8sJson {
 	err := j.client.Cache().List(j.ctx, &jobList, client.InNamespace(j.namespace))
 	if err != nil {
 		clog.Error("can not find job in %s from cluster, %v", j.namespace, err)
-		return nil
+		return nil, err
 	}
 	resultMap["total"] = len(jobList.Items)
 
@@ -64,13 +87,14 @@ func (j *Job) GetExtendJobs() filter.K8sJson {
 	jobListJson, err := json.Marshal(jobList)
 	if err != nil {
 		clog.Error("convert deploymentList to json fail, %v", err)
-		return nil
+		return nil, err
 	}
 	jobListJson = j.filter.FilterResult(jobListJson)
+	jobList = batchv1.JobList{}
 	err = json.Unmarshal(jobListJson, &jobList)
 	if err != nil {
 		clog.Error("convert json to deploymentList fail, %v", err)
-		return nil
+		return nil, err
 	}
 
 	// add pod status info
@@ -78,7 +102,7 @@ func (j *Job) GetExtendJobs() filter.K8sJson {
 
 	resultMap["items"] = resultList
 
-	return resultMap
+	return resultMap, nil
 }
 
 func (j *Job) addExtendInfo(jobList batchv1.JobList) filter.K8sJsonArr {

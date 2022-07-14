@@ -76,7 +76,8 @@ var _ = Describe("Job", func() {
 		client := clients.Interface().Kubernetes(constants.LocalCluster)
 		Expect(client).NotTo(BeNil())
 		job := job.NewJob(client, ns, filter.Filter{Limit: 10})
-		ret := job.GetExtendJobs()
+		ret, err := job.GetExtendJobs()
+		Expect(err).To(BeNil())
 		Expect(ret["total"]).To(Equal(2))
 		items := ret["items"].([]interface{})
 		s := items[0].(map[string]interface{})["extendInfo"].(map[string]interface{})["status"]

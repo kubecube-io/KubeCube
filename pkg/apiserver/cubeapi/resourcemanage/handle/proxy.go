@@ -77,13 +77,18 @@ func (h *ProxyHandler) tryVersionConvert(cluster, url string, req *http.Request)
 	}
 	greetBack, _, recommendVersion, err := converter.GvrGreeting(gvr)
 	if err != nil {
-		return false, nil, "", err
+		// we just record error and pass through anyway
+		clog.Warn(err.Error())
 	}
-	if greetBack == conversion.IsPassThrough {
-		// gvr is available in target cluster, we do not need version convert
-		clog.Debug("%v is available in target cluster %v pass through", gvr.String(), cluster)
+	if greetBack != conversion.IsNeedConvert {
+		// pass through anyway if not need convert
+		clog.Info("%v greet cluster %v is %v, pass through", gvr.String(), cluster, greetBack)
 		return false, nil, "", nil
 	}
+	if recommendVersion == nil {
+		return false, nil, "", nil
+	}
+
 	// convert url according to specified gvr at first
 	convertedUrl, err := conversion.ConvertURL(url, &schema.GroupVersionResource{Group: recommendVersion.Group, Version: recommendVersion.Version, Resource: gvr.Resource})
 	if err != nil {

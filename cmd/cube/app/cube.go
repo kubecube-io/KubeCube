@@ -20,6 +20,7 @@ import (
 	"github.com/kubecube-io/kubecube/cmd/cube/app/options"
 	"github.com/kubecube-io/kubecube/cmd/cube/app/options/flags"
 	"github.com/kubecube-io/kubecube/pkg/apiserver"
+	_ "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/register"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/ctrlmgr"

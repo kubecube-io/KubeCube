@@ -19,14 +19,14 @@ package options
 import (
 	"fmt"
 
+	"github.com/spf13/viper"
+
 	"github.com/kubecube-io/kubecube/pkg/apiserver"
 	"github.com/kubecube-io/kubecube/pkg/authentication"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/ctrlmgr"
 	"github.com/kubecube-io/kubecube/pkg/cube"
-
-	"github.com/spf13/viper"
 )
 
 const (

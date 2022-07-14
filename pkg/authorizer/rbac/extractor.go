@@ -20,8 +20,8 @@ import (
 	"context"
 
 	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
-
 	"github.com/kubecube-io/kubecube/pkg/clients"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -48,8 +48,11 @@ type DefaultResolver struct {
 }
 
 func NewDefaultResolver(cluster string) *DefaultResolver {
-	c := clients.Interface().Kubernetes(cluster).Cache()
-	return &DefaultResolver{Cache: c}
+	c := clients.Interface().Kubernetes(cluster)
+	if c == nil {
+		c = clients.Interface().Kubernetes(constants.LocalCluster)
+	}
+	return &DefaultResolver{Cache: c.Cache()}
 }
 
 func (r *DefaultResolver) GetUser(name string) (userv1.User, error) {

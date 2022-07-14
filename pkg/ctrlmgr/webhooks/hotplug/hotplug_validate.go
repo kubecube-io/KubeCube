@@ -47,7 +47,7 @@ func NewHotplugValidator(mgrClient client.Client) *HotplugValidator {
 
 func (t *HotplugValidator) GetObjectKind() schema.ObjectKind {
 
-	return t.GetObjectKind()
+	return t
 }
 
 func (t *HotplugValidator) DeepCopyObject() runtime.Object {

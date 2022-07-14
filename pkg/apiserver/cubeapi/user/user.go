@@ -39,7 +39,6 @@ import (
 	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
 	proxy "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
-	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
@@ -81,6 +80,7 @@ type ResetPwd struct {
 	UserName       string `json:"userName,omitempty"`
 }
 
+// CreateUser create a user
 // @Summary create user
 // @Description create user manually
 // @Tags user
@@ -124,6 +124,7 @@ func CreateUserImpl(c *gin.Context, user *userv1.User) *errcode.ErrorInfo {
 	return nil
 }
 
+// UpdateUser update a user info
 // @Summary update user
 // @Description update user information
 // @Tags user
@@ -202,6 +203,7 @@ func UpdateUserStatusImpl(c *gin.Context, newUser *userv1.User) *errcode.ErrorIn
 	return nil
 }
 
+// ListUsers list users
 // @Summary list user
 // @Description fuzzy query user by name or displayName
 // @Tags user
@@ -213,19 +215,15 @@ func UpdateUserStatusImpl(c *gin.Context, newUser *userv1.User) *errcode.ErrorIn
 // @Router /api/v1/cube/user  [get]
 func ListUsers(c *gin.Context) {
 	kClient := clients.Interface().Kubernetes(constants.LocalCluster).Cache()
-	requestUser, err := token.GetUserFromReq(c.Request)
-	if err != nil {
-		response.FailReturn(c, errcode.AuthenticateError)
-		return
-	}
+	username := c.GetString(constants.EventAccountId)
 	accessMap := map[string]string{"platform-admin": "", "tenant-admin": "", "tenant-admin-cluster": "", "project-admin": "", "project-admin-cluster": ""}
-	if !access.CheckClusterRole(requestUser.Username, constants.LocalCluster, accessMap) {
+	if !access.CheckClusterRole(username, constants.LocalCluster, accessMap) {
 		response.FailReturn(c, errcode.ForbiddenErr)
 		return
 	}
 	// get all user
 	allUserList := &userv1.UserList{}
-	err = kClient.List(c.Request.Context(), allUserList)
+	err := kClient.List(c.Request.Context(), allUserList)
 	if err != nil {
 		clog.Error("list all users from k8s error: %s", err)
 		response.FailReturn(c, errcode.GetResourceError(resourceTypeUser))
@@ -428,6 +426,7 @@ func CheckUpdateParam(newUser *userv1.User, originUser *userv1.User) (*userv1.Us
 	return originUser, nil
 }
 
+// DownloadTemplate get import template
 // @Summary get import template
 // @Description get user information import template
 // @Tags user
@@ -457,6 +456,7 @@ func DownloadTemplate(c *gin.Context) {
 	return
 }
 
+// BatchCreateUser import users
 // @Summary import user
 // @Description import and create users from CSV file in batches
 // @Tags user
@@ -534,11 +534,24 @@ func BatchCreateUser(c *gin.Context) {
 const tokenExpiredTime = 3600 * 24 * 365 * 10
 
 // GetKubeConfig fetch kubeConfig for specified user
+// @Summary fetch kubeConfigs
+// @Description fetch kubeConfig for specified user
+// @Tags user
+// @Param user query string true "specified user for kubeconfig"
+// @Produce  plain
+// @Success 200 string string
+// @Failure 500 {object} errcode.ErrorInfo
+// @Router /api/v1/cube/user/kubeconfigs [get]
 func GetKubeConfig(c *gin.Context) {
 	c.Set(constants.EventName, "get kubeconfig")
 	c.Set(constants.EventResourceType, "kubeconfig")
 
 	user := c.Query("user")
+	if len(user) == 0 {
+		user = c.GetString(constants.EventAccountId)
+	}
+
+	mode := c.Query("mode")
 
 	authJwtImpl := jwt.GetAuthJwtImpl()
 	token, errInfo := authJwtImpl.GenerateTokenWithExpired(&v1beta1.UserInfo{Username: user}, tokenExpiredTime)
@@ -571,6 +584,15 @@ func GetKubeConfig(c *gin.Context) {
 	if err != nil {
 		clog.Error(err.Error())
 		response.FailReturn(c, errcode.InternalServerError)
+	}
+
+	if mode == "file" {
+		reader := bytes.NewBuffer(kubeConfig)
+		extraHeaders := map[string]string{
+			"Content-Disposition": `attachment; filename="kubeconfig"`,
+		}
+		response.SuccessFileReturn(c, int64(reader.Len()), "application/octet-stream", reader, extraHeaders)
+		return
 	}
 
 	response.SuccessReturn(c, kubeConfig)
@@ -653,6 +675,7 @@ func checkPwd(pwd string) bool {
 	return false
 }
 
+// CheckUserValid check username
 // @Summary check username
 // @Description check username when update user password
 // @Tags user
@@ -675,6 +698,7 @@ func CheckUserValid(c *gin.Context) {
 	return
 }
 
+// UpdatePwd update user password
 // @Summary update password
 // @Description update user password
 // @Tags user
