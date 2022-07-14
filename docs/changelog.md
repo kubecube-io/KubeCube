@@ -1,4 +1,4 @@
-# v1.2.3
+# v1.2.4
 
 ## Feature
 - Feature sign cluster iswritleable[#142](https://github.com/kubecube-io/KubeCube/pull/142)
