@@ -126,6 +126,15 @@ func RetainMemberClusterResource() bool {
 	return false
 }
 
+func EnableVersionConversion() bool {
+	res := os.Getenv("ENABLE_VERSION_CONVERSION")
+	if res == "true" {
+		return true
+	}
+
+	return false
+}
+
 var (
 	once          sync.Once
 	cubeNamespace = "kubecube-system"

@@ -38,6 +38,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/ctls"
+	"github.com/kubecube-io/kubecube/pkg/utils/env"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
@@ -54,9 +55,9 @@ type ProxyHandler struct {
 	converter conversion.MultiVersionConverter
 }
 
-func NewProxyHandler(enableConvert bool) *ProxyHandler {
+func NewProxyHandler() *ProxyHandler {
 	return &ProxyHandler{
-		enableConvert: enableConvert,
+		enableConvert: env.EnableVersionConversion(),
 		converter:     multicluster.NewDefaultMultiVersionConverter(multicluster.Interface()),
 	}
 }

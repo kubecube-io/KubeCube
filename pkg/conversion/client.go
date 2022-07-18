@@ -103,7 +103,7 @@ type wrapperCache struct {
 
 var _ cache.Cache = (*wrapperCache)(nil)
 
-func wrapCache(cac cache.Cache, c SingleVersionConverter) cache.Cache {
+func WrapCache(cac cache.Cache, c SingleVersionConverter) cache.Cache {
 	return &wrapperCache{
 		Cache:                  cac,
 		ReaderWithConverter:    WrapReader(cac, c),

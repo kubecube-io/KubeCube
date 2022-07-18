@@ -20,6 +20,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/kubecube-io/kubecube/pkg/conversion"
+	"github.com/kubecube-io/kubecube/pkg/utils/env"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -82,7 +84,6 @@ func NewClientFor(ctx context.Context, cfg *rest.Config) (Client, error) {
 	var err error
 	c := new(InternalClient)
 
-	// todo(weilaaa): support wrap client with version convert
 	c.client, err = client.New(cfg, client.Options{Scheme: scheme})
 	if err != nil {
 		return nil, fmt.Errorf("new k8s client failed: %v", err)
@@ -111,6 +112,17 @@ func NewClientFor(ctx context.Context, cfg *rest.Config) (Client, error) {
 	c.restMapper, err = apiutil.NewDynamicRESTMapper(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("new rest mapper failed: %v", err)
+	}
+
+	// wrap global client if enable version conversion
+	if env.EnableVersionConversion() {
+		converter, err := conversion.NewVersionConvertor(c.discovery, c.restMapper)
+		if err != nil {
+			return nil, fmt.Errorf("new version converter failed: %v", err)
+		}
+
+		c.client = conversion.WrapClient(c.client, converter, true)
+		c.cache = conversion.WrapCache(c.cache, converter)
 	}
 
 	go func() {

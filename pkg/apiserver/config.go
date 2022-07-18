@@ -28,9 +28,6 @@ type Config struct {
 	authentication.GenericConfig
 	Gi18nManagers *international.Gi18nManagers
 
-	// EnableVersionConversion means api-server open version conversion
-	EnableVersionConversion bool
-
 	//this if for ingress nginx controller
 	NginxNamespace           string
 	NginxTcpServiceConfigMap string
