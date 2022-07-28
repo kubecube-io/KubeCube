@@ -28,11 +28,13 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/kubecube-io/kubecube/pkg/clog"
-	"github.com/kubecube-io/kubecube/pkg/conversion"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/sets"
+
+	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/conversion"
 )
 
 const (
@@ -44,8 +46,8 @@ var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 // Filter is the filter condition
 type Filter struct {
-	Exact     map[string]string
-	Fuzzy     map[string]string
+	Exact     map[string]sets.String
+	Fuzzy     map[string][]string
 	Limit     int
 	Offset    int
 	SortName  string
@@ -261,7 +263,7 @@ func (f *Filter) exactMatch(items K8sJsonArr) (result K8sJsonArr) {
 			// if one condition not match
 			valCheck := false
 			for _, v := range realValue {
-				if strings.EqualFold(v, value) {
+				if value.Has(v) {
 					valCheck = true
 					break
 				}
@@ -289,7 +291,7 @@ func (f *Filter) fuzzyMatch(items K8sJsonArr) (result K8sJsonArr) {
 	for _, item := range items {
 		flag := true
 		// every fuzzy match condition
-		for key, value := range f.Fuzzy {
+		for key, valueArray := range f.Fuzzy {
 			// key = metadata.xxx.xxx， multi level
 			realValue, err := GetDeepValue(item, key)
 			if err != nil {
@@ -300,9 +302,11 @@ func (f *Filter) fuzzyMatch(items K8sJsonArr) (result K8sJsonArr) {
 			// if one condition not match
 			valCheck := false
 			for _, v := range realValue {
-				if strings.Contains(v, value) {
-					valCheck = true
-					break
+				for _, value := range valueArray {
+					if strings.Contains(v, value) {
+						valCheck = true
+						break
+					}
 				}
 			}
 			if valCheck != true {
