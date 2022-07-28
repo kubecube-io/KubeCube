@@ -120,6 +120,10 @@ func (s *Service) addExtendInfo(serviceList corev1.ServiceList) filter.K8sJsonAr
 			nodeNameMap := make(map[string]struct{})
 			for _, subnet := range endpoints.Subsets {
 				for _, address := range subnet.Addresses {
+					// If there is no backend server for a service, there will be no node information, skip it
+					if len(*address.NodeName) == 0 {
+						continue
+					}
 					var node corev1.Node
 					err = s.client.Cache().Get(s.ctx, types.NamespacedName{Name: *address.NodeName}, &node)
 					if err != nil {
