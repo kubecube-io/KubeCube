@@ -1,3 +1,27 @@
+# v1.2.5
+
+## Feature
+- support set cluster is writable[#148](https://github.com/kubecube-io/KubeCube/pull/148)
+- add multi filter support[#144](https://github.com/kubecube-io/KubeCube/pull/144)
+- user spec add wechat[#146](https://github.com/kubecube-io/KubeCube/pull/146)
+
+## Bugfix
+- Fix service nil [#147](https://github.com/kubecube-io/KubeCube/pull/147)
+
+## Dependencies
+
+- hnc v1.0
+- nginx-ingress v0.46.0
+- helm 3.5
+- metrics-server v0.4.1
+- elasticsearch 7.8
+- kubecube-monitoring 15.4.8
+- thanos 3.18.0
+- logseer v1.0.0
+- logagent v1.0.0
+- kubecube-audit v1.2.0
+- kubecube-webconsole v1.2.2
+
 # v1.2.4
 
 ## Feature
@@ -8,7 +32,7 @@
 
 - hnc v1.0
 - nginx-ingress v0.46.0
-- helm 3.x
+- helm 3.5
 - metrics-server v0.4.1
 - elasticsearch 7.8
 - kubecube-monitoring 15.4.8
@@ -28,7 +52,7 @@
 
 - hnc v1.0
 - nginx-ingress v0.46.0
-- helm 3.x
+- helm 3.5
 - metrics-server v0.4.1
 - elasticsearch 7.8
 - kubecube-monitoring 15.4.8
@@ -51,7 +75,7 @@
 
 - hnc v1.0
 - nginx-ingress v0.46.0
-- helm 3.x
+- helm 3.5
 - metrics-server v0.4.1
 - elasticsearch 7.8
 - kubecube-monitoring 15.4.8
@@ -84,7 +108,7 @@
 
 - hnc v1.0
 - nginx-ingress v0.46.0
-- helm 3.x
+- helm 3.5
 - metrics-server v0.4.1
 - elasticsearch 7.8
 - kubecube-monitoring 15.4.8
@@ -123,7 +147,7 @@
 
 - hnc v1.0
 - nginx-ingress v0.46.0
-- helm 3.x
+- helm 3.5
 - metrics-server v0.4.1
 - elasticsearch 7.8
 - kubecube-monitoring 15.4.8
@@ -153,7 +177,7 @@
 
 - hnc v0.8.0-kubecube.1.1
 - nginx-ingress v0.46.0
-- helm 3.x
+- helm 3.5
 - metrics-server v0.4.1
 - elasticsearch 7.8
 - kubecube-monitoring 15.4.8
@@ -170,7 +194,7 @@
 
 - hnc v0.8.0-kubecube.1.1
 - nginx-ingress v0.46.0
-- helm 3.x
+- helm 3.5
 - metrics-server v0.4.1
 - elasticsearch 7.8
 - kubecube-monitoring 15.4.8
@@ -189,7 +213,7 @@
 
 - hnc v0.8.0-kubecube.1
 - nginx-ingress v0.46.0
-- helm 3.x
+- helm 3.5
 - metrics-server v0.4.1
 - elasticsearch 7.8
 - kubecube-monitoring 15.4.8
@@ -211,7 +235,7 @@
 
 - hnc v0.8.0-kubecube.1
 - nginx-ingress v0.46.0
-- helm 3.x
+- helm 3.5
 - metrics-server v0.4.1
 - elasticsearch 7.8
 - kubecube-monitoring 15.4.8
@@ -245,7 +269,7 @@
 
 - hnc v0.8.0-kubecube.1
 - nginx-ingress v0.46.0
-- helm 3.x
+- helm 3.5
 - metrics-server v0.4.1
 - elasticsearch 7.8
 - kubecube-monitoring 15.4.8
@@ -306,7 +330,7 @@
 
 - hnc v0.8.0-kubecube.1
 - nginx-ingress v0.46.0
-- helm 3.x
+- helm 3.5
 - metrics-server v0.4.1
 - elasticsearch 7.8
 - kubecube-monitoring 15.4.8
