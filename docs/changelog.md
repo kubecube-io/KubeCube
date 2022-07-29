@@ -2,6 +2,11 @@
 
 ## Feature
 - support set cluster is writable[#148](https://github.com/kubecube-io/KubeCube/pull/148)
+- add multi filter support[#144](https://github.com/kubecube-io/KubeCube/pull/144)
+- user spec add wechat[#146](https://github.com/kubecube-io/KubeCube/pull/146)
+
+## Bugfix
+- Fix service nil [#147](https://github.com/kubecube-io/KubeCube/pull/147)
 
 ## Dependencies
 
