@@ -30,6 +30,11 @@ var (
 			Value:       true,
 			Destination: &WardenOpts.GenericWardenOpts.InMemberCluster,
 		},
+		&cli.BoolFlag{
+			Name:        "is-cluster-writable",
+			Value:       true,
+			Destination: &WardenOpts.GenericWardenOpts.IsWritable,
+		},
 		&cli.StringFlag{
 			Name:        "local-cluster-kubeconfig",
 			Destination: &WardenOpts.GenericWardenOpts.LocalClusterKubeConfig,

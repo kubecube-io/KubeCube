@@ -61,6 +61,7 @@ func NewWardenWithOpts(opts *Config) *Warden {
 
 	w.Reporter = &reporter.Reporter{
 		Cluster:                opts.Cluster,
+		IsWritable:             opts.IsWritable,
 		IsMemberCluster:        opts.InMemberCluster,
 		PivotCubeHost:          opts.PivotCubeHost,
 		PeriodSecond:           opts.PeriodSecond,

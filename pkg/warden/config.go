@@ -20,6 +20,7 @@ type Config struct {
 	// generic
 	Cluster                string
 	InMemberCluster        bool
+	IsWritable             bool
 	LocalClusterKubeConfig string
 	PivotClusterKubeConfig string
 
