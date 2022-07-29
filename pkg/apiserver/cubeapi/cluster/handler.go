@@ -74,6 +74,7 @@ type clusterInfo struct {
 	NetworkType         string    `json:"networkType"`
 	HarborAddr          string    `json:"harborAddr"`
 	IsMemberCluster     bool      `json:"isMemberCluster"`
+	IsWritable          bool      `json:"isWritable"`
 	CreateTime          time.Time `json:"createTime"`
 	KubeApiServer       string    `json:"kubeApiServer"`
 	Status              string    `json:"status"`

@@ -68,6 +68,7 @@ func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivot
 		info.ClusterDescription = cluster.Spec.Description
 		info.CreateTime = cluster.CreationTimestamp.Time
 		info.IsMemberCluster = cluster.Spec.IsMemberCluster
+		info.IsWritable = cluster.Spec.IsWritable
 		info.HarborAddr = cluster.Spec.HarborAddr
 		info.KubeApiServer = cluster.Spec.KubernetesAPIEndpoint
 		info.NetworkType = cluster.Spec.NetworkType
