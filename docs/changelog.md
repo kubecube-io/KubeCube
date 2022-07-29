@@ -12,7 +12,7 @@
 
 - hnc v1.0
 - nginx-ingress v0.46.0
-- helm 3.x
+- helm 3.5
 - metrics-server v0.4.1
 - elasticsearch 7.8
 - kubecube-monitoring 15.4.8
