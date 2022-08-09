@@ -83,6 +83,7 @@ func (m *SyncMgr) Start(ctx context.Context) error {
 		if err != nil {
 			clog.Fatal("start cluster sync cache failed")
 		}
+		clog.Info("sync manager exit")
 	}()
 
 	if !m.cache.WaitForCacheSync(ctx) {
@@ -96,7 +97,8 @@ func (m *SyncMgr) Start(ctx context.Context) error {
 	}
 
 	for _, cluster := range clusters.Items {
-		key, err := ClusterWideKeyFunc(cluster)
+		obj := cluster
+		key, err := ClusterWideKeyFunc(&obj)
 		if err != nil {
 			return err
 		}
