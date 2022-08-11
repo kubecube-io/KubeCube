@@ -99,7 +99,7 @@ func (r *CubeResourceQuotaValidator) Handle(ctx context.Context, req admission.R
 		}
 	}
 
-	go callback(q, req.Operation == v1.Delete)
+	//go callback(q, req.Operation == v1.Delete)
 
 	return admission.Allowed("")
 }

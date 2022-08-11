@@ -23,6 +23,8 @@ import (
 
 const SubFix = "quota"
 
+const Finalizer = "finalizers.kubecube.io/quota"
+
 const ResourceNvidiaGPU v1.ResourceName = "requests.nvidia.com/gpu"
 
 var ResourceNames = []v1.ResourceName{

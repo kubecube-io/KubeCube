@@ -21,13 +21,13 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/kubecube-io/kubecube/pkg/clog"
-	"github.com/kubecube-io/kubecube/pkg/quota/k8s"
 	admissionv1 "k8s.io/api/admission/v1"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+
+	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/quota/k8s"
 )
 
 type ResourceQuotaValidator struct {
@@ -83,7 +83,7 @@ func (r *ResourceQuotaValidator) Handle(ctx context.Context, req admission.Reque
 		}
 	}
 
-	go callback(q, req.Operation == admissionv1.Delete)
+	//go callback(q, req.Operation == admissionv1.Delete)
 
 	return admission.Allowed("")
 }
