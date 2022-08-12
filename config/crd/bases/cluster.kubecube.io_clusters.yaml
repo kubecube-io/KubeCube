@@ -68,6 +68,8 @@ spec:
               networkType:
                 description: CNI the cluster used
                 type: string
+            required:
+            - isWritable
             type: object
           status:
             description: ClusterStatus defines the observed state of Cluster
