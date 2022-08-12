@@ -19,6 +19,7 @@ package multicluster
 import (
 	"context"
 	"fmt"
+	"github.com/kubecube-io/kubecube/pkg/utils/informer"
 
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -52,14 +53,26 @@ func NewSyncMgr(config *rest.Config, isWithScout bool) (*SyncMgr, error) {
 	}
 
 	cluster := clusterv1.Cluster{}
-	informer, err := c.GetInformer(context.Background(), &cluster)
+	im, err := c.GetInformer(context.Background(), &cluster)
 	if err != nil {
 		return nil, err
 	}
 
-	return &SyncMgr{cache: c, Informer: informer, isWithScout: isWithScout}, nil
+	return &SyncMgr{cache: c, Informer: im, isWithScout: isWithScout}, nil
 }
 
+func NewSyncMgrWithDefaultSetting(config *rest.Config, isWithScout bool) (*SyncMgr, error) {
+	m, err := NewSyncMgr(config, isWithScout)
+	if err != nil {
+		return nil, err
+	}
+
+	m.Informer.AddEventHandler(informer.NewHandlerOnEvents(m.OnClusterAdd, m.OnClusterUpdate, m.OnClusterDelete))
+	m.Worker = worker.New("cluster", 0, ClusterWideKeyFunc, m.ReconcileCluster)
+	return m, nil
+}
+
+// Start keep sync cluster change by informer
 func (m *SyncMgr) Start(ctx context.Context) error {
 	stopCh := ctx.Done()
 
@@ -70,14 +83,31 @@ func (m *SyncMgr) Start(ctx context.Context) error {
 		if err != nil {
 			clog.Fatal("start cluster sync cache failed")
 		}
+		clog.Info("sync manager exit")
 	}()
 
 	if !m.cache.WaitForCacheSync(ctx) {
 		return fmt.Errorf("cluster sync cache can not wait for sync")
 	}
 
-	<-stopCh
-	clog.Info("sync manager stopped as context done")
+	// list all clusters and process at first
+	clusters := clusterv1.ClusterList{}
+	if err := m.cache.List(ctx, &clusters); err != nil {
+		return err
+	}
+
+	for _, cluster := range clusters.Items {
+		obj := cluster
+		key, err := ClusterWideKeyFunc(&obj)
+		if err != nil {
+			return err
+		}
+		if err = m.ReconcileCluster(key); err != nil {
+			return err
+		}
+	}
+
+	clog.Info("sync manager is running")
 	return nil
 }
 
