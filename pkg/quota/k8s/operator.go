@@ -148,7 +148,13 @@ func (o *QuotaOperator) UpdateParentStatus(flush bool) error {
 	}
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		err = o.PivotClient.Status().Update(o.Context, refreshed)
+		newQuota := &quotav1.CubeResourceQuota{}
+		err := o.PivotClient.Get(context.Background(), types.NamespacedName{Name: refreshed.Name}, newQuota)
+		if err != nil {
+			return err
+		}
+		newQuota.Status = refreshed.Status
+		err = o.PivotClient.Status().Update(o.Context, newQuota)
 		if err != nil {
 			return err
 		}
