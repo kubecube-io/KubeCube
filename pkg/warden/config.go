@@ -20,6 +20,7 @@ type Config struct {
 	// generic
 	Cluster                string
 	InMemberCluster        bool
+	IsWritable             bool
 	LocalClusterKubeConfig string
 	PivotClusterKubeConfig string
 
@@ -41,6 +42,11 @@ type Config struct {
 	LeaderElect       bool
 	WebhookCert       string
 	WebhookServerPort int
+
+	// nginx ingress controller param
+	NginxNamespace           string
+	NginxTcpServiceConfigMap string
+	NginxUdpServiceConfigMap string
 }
 
 func (c *Config) Validate() []error {

@@ -43,6 +43,9 @@ type Reporter struct {
 	// IsMemberCluster indicate if current cluster is member cluster
 	IsMemberCluster bool
 
+	// IsWritable indicate if current cluster is writable
+	IsWritable bool
+
 	// PivotCubeHost the target warden to reporting
 	PivotCubeHost string
 

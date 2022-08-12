@@ -32,12 +32,18 @@ import (
 
 	"github.com/kubecube-io/kubecube/pkg/apis"
 	extend "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
+	_ "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/register"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
+var (
+	tcpCmName = "tcp-services"
+	udpCmName = "udp-services"
+	nginxNs   = "ingress-nginx"
+)
 var _ = Describe("Handle", func() {
 
 	JustBeforeEach(func() {
@@ -70,9 +76,10 @@ var _ = Describe("Handle", func() {
 		params = append(params, gin.Param{Key: "cluster", Value: constants.LocalCluster}, gin.Param{Key: "namespace", Value: "ns1"})
 		params = append(params, gin.Param{Key: "resourceType", Value: "deployments"}, gin.Param{Key: "resourceName", Value: "d1"})
 		c.Params = params
-		extend.ExtendHandle(c)
-		Expect(w.Code).To(Equal(403))
-		Expect(w.Body.String()).To(Equal("{\"code\":403,\"message\":\"Forbidden.\"}"))
+		handler := extend.NewExtendHandler(nginxNs, tcpCmName, udpCmName)
+		handler.ExtendHandle(c)
+		Expect(w.Code).To(Equal(400))
+		Expect(w.Body.String()).To(Equal("{\"code\":400,\"message\":\"bad request. Forbidden.\"}"))
 	})
 	It("extend resourceType unknown", func() {
 		w := httptest.NewRecorder()
@@ -87,7 +94,8 @@ var _ = Describe("Handle", func() {
 		params = append(params, gin.Param{Key: "cluster", Value: constants.LocalCluster}, gin.Param{Key: "namespace", Value: "ns1"})
 		params = append(params, gin.Param{Key: "resourceType", Value: "unknown"}, gin.Param{Key: "resourceName", Value: "c1"})
 		c.Params = params
-		extend.ExtendHandle(c)
+		handler := extend.NewExtendHandler(nginxNs, tcpCmName, udpCmName)
+		handler.ExtendHandle(c)
 		Expect(w.Code).To(Equal(400))
 		Expect(w.Body.String()).To(Equal("{\"code\":400,\"message\":\"resource type param error.\"}"))
 	})
@@ -104,8 +112,9 @@ var _ = Describe("Handle", func() {
 		params = append(params, gin.Param{Key: "cluster", Value: constants.LocalCluster}, gin.Param{Key: "namespace", Value: "ns1"})
 		params = append(params, gin.Param{Key: "resourceType", Value: "externalAccess"}, gin.Param{Key: "resourceName", Value: "c1"})
 		c.Params = params
-		extend.ExtendHandle(c)
+		handler := extend.NewExtendHandler(nginxNs, tcpCmName, udpCmName)
+		handler.ExtendHandle(c)
 		Expect(w.Code).To(Equal(400))
-		Expect(w.Body.String()).To(Equal("{\"code\":400,\"message\":\"not match http method.\"}"))
+		Expect(w.Body.String()).To(Equal("{\"code\":400,\"message\":\"bad request. not match http method.\"}"))
 	})
 })

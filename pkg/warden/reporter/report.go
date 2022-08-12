@@ -67,6 +67,7 @@ func (r *Reporter) registerIfNeed(ctx context.Context) error {
 			Spec: clusterv1.ClusterSpec{
 				KubeConfig:            r.rawLocalKubeConfig,
 				IsMemberCluster:       r.IsMemberCluster,
+				IsWritable:            r.IsWritable,
 				KubernetesAPIEndpoint: cfg.Host,
 			},
 		}

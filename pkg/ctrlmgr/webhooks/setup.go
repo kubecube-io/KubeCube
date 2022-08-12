@@ -17,15 +17,13 @@ limitations under the License.
 package webhooks
 
 import (
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	admisson "sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+
 	clusterWebhook "github.com/kubecube-io/kubecube/pkg/ctrlmgr/webhooks/cluster"
 	hotplugWebhook "github.com/kubecube-io/kubecube/pkg/ctrlmgr/webhooks/hotplug"
-	projectWebhook "github.com/kubecube-io/kubecube/pkg/ctrlmgr/webhooks/project"
 	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/webhooks/quota"
-	tenantWebhook "github.com/kubecube-io/kubecube/pkg/ctrlmgr/webhooks/tenant"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
-
-	"sigs.k8s.io/controller-runtime/pkg/manager"
-	admisson "sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // todo: change set func if need
@@ -37,9 +35,6 @@ func SetupWithWebhooks(mgr manager.Manager) {
 	client := mgr.GetClient()
 
 	hookServer.Register("/validate-cluster-kubecube-io-v1-cluster", admisson.ValidatingWebhookFor(clusterWebhook.NewClusterValidator(client)))
-	hookServer.Register("/validate-tenant-kubecube-io-v1-tenant", admisson.ValidatingWebhookFor(tenantWebhook.NewTenantValidator(client)))
-	hookServer.Register("/validate-tenant-kubecube-io-v1-project", admisson.ValidatingWebhookFor(projectWebhook.NewProjectValidator(client)))
 	hookServer.Register("/validate-hotplug-kubecube-io-v1-hotplug", admisson.ValidatingWebhookFor(hotplugWebhook.NewHotplugValidator(client)))
-
 	hookServer.Register("/validate-quota-kubecube-io-v1-cube-resource-quota", &webhook.Admission{Handler: &quota.CubeResourceQuotaValidator{Client: client}})
 }

@@ -135,10 +135,19 @@ func (o *QuotaOperator) UpdateParentStatus(flush bool) error {
 	}
 
 	// update used status of parent
-	refreshed := refreshUsedResource(currentQuota, oldQuota, parentQuota, o.Client)
+	refreshed, err := refreshUsedResource(currentQuota, oldQuota, parentQuota, o.Client)
+	if err != nil {
+		return err
+	}
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		err = o.Client.Status().Update(o.Context, refreshed)
+		newQuota := &quotav1.CubeResourceQuota{}
+		err := o.Client.Get(context.Background(), types.NamespacedName{Name: refreshed.Name}, newQuota)
+		if err != nil {
+			return err
+		}
+		newQuota.Status = refreshed.Status
+		err = o.Client.Status().Update(o.Context, newQuota)
 		if err != nil {
 			return err
 		}

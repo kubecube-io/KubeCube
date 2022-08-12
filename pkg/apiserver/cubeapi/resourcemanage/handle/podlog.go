@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package podlog
+package resourcemanage
 
 import (
 	"context"
@@ -32,6 +32,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/filter"
+	"github.com/kubecube-io/kubecube/pkg/utils/log"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
 )
 
@@ -64,7 +65,7 @@ func (podLog *PodLog) HandleLogs(c *gin.Context) {
 
 	refTimestamp := c.Query("referenceTimestamp")
 	if refTimestamp == "" {
-		refTimestamp = NewestTimestamp
+		refTimestamp = log.NewestTimestamp
 	}
 
 	refLineNum, err := strconv.Atoi(c.Query("referenceLineNum"))
@@ -76,11 +77,11 @@ func (podLog *PodLog) HandleLogs(c *gin.Context) {
 	offsetTo, err2 := strconv.Atoi(c.Query("offsetTo"))
 	logFilePosition := c.Query("logFilePosition")
 
-	logSelector := DefaultSelection
+	logSelector := log.DefaultSelection
 	if err1 == nil && err2 == nil {
-		logSelector = &Selection{
-			ReferencePoint: LogLineId{
-				LogTimestamp: LogTimestamp(refTimestamp),
+		logSelector = &log.Selection{
+			ReferencePoint: log.LogLineId{
+				LogTimestamp: log.LogTimestamp(refTimestamp),
 				LineNum:      refLineNum,
 			},
 			OffsetFrom:      offsetFrom,
@@ -101,7 +102,7 @@ func (podLog *PodLog) HandleLogs(c *gin.Context) {
 // GetLogDetails returns logs for particular pod and container. When container is null, logs for the first one
 // are returned. Previous indicates to read archived logs created by log rotation or container crash
 func GetLogDetails(client kubernetes.Interface, namespace, podID string, container string,
-	logSelector *Selection, usePreviousLogs bool) (*LogDetails, error) {
+	logSelector *log.Selection, usePreviousLogs bool) (*log.LogDetails, error) {
 	pod, err := client.CoreV1().Pods(namespace).Get(context.TODO(), podID, metaV1.GetOptions{})
 	if err != nil {
 		return nil, err
@@ -122,7 +123,7 @@ func GetLogDetails(client kubernetes.Interface, namespace, podID string, contain
 
 // Maps the log selection to the corresponding api object
 // Read limits are set to avoid out of memory issues
-func mapToLogOptions(container string, logSelector *Selection, previous bool) *v1.PodLogOptions {
+func mapToLogOptions(container string, logSelector *log.Selection, previous bool) *v1.PodLogOptions {
 	logOptions := &v1.PodLogOptions{
 		Container:  container,
 		Follow:     false,
@@ -130,10 +131,10 @@ func mapToLogOptions(container string, logSelector *Selection, previous bool) *v
 		Timestamps: true,
 	}
 
-	if logSelector.LogFilePosition == Beginning {
-		logOptions.LimitBytes = &ByteReadLimit
+	if logSelector.LogFilePosition == log.Beginning {
+		logOptions.LimitBytes = &log.ByteReadLimit
 	} else {
-		logOptions.TailLines = &LineReadLimit
+		logOptions.TailLines = &log.LineReadLimit
 	}
 
 	return logOptions
@@ -167,21 +168,21 @@ func openStream(client kubernetes.Interface, namespace, podID string, logOptions
 }
 
 // ConstructLogDetails creates a new log details structure for given parameters.
-func ConstructLogDetails(podID string, rawLogs string, container string, logSelector *Selection) *LogDetails {
-	parsedLines := ToLogLines(rawLogs)
+func ConstructLogDetails(podID string, rawLogs string, container string, logSelector *log.Selection) *log.LogDetails {
+	parsedLines := log.ToLogLines(rawLogs)
 	logLines, fromDate, toDate, logSelection, lastPage := parsedLines.SelectLogs(logSelector)
 
 	readLimitReached := isReadLimitReached(int64(len(rawLogs)), int64(len(parsedLines)), logSelector.LogFilePosition)
 	truncated := readLimitReached && lastPage
 
-	info := LogInfo{
+	info := log.LogInfo{
 		PodName:       podID,
 		ContainerName: container,
 		FromDate:      fromDate,
 		ToDate:        toDate,
 		Truncated:     truncated,
 	}
-	return &LogDetails{
+	return &log.LogDetails{
 		Info:      info,
 		Selection: logSelection,
 		LogLines:  logLines,
@@ -190,6 +191,6 @@ func ConstructLogDetails(podID string, rawLogs string, container string, logSele
 
 // Checks if the amount of log file returned from the apiserver is equal to the read limits
 func isReadLimitReached(bytesLoaded int64, linesLoaded int64, logFilePosition string) bool {
-	return (logFilePosition == Beginning && bytesLoaded >= ByteReadLimit) ||
-		(logFilePosition == End && linesLoaded >= LineReadLimit)
+	return (logFilePosition == log.Beginning && bytesLoaded >= log.ByteReadLimit) ||
+		(logFilePosition == log.End && linesLoaded >= log.LineReadLimit)
 }

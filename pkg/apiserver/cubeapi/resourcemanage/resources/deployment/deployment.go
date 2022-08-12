@@ -18,6 +18,7 @@ package deployment
 
 import (
 	"context"
+	"errors"
 
 	jsoniter "github.com/json-iterator/go"
 	appsv1 "k8s.io/api/apps/v1"
@@ -27,8 +28,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	resourcemanage "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/enum"
+	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
+	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 )
 
@@ -41,6 +47,23 @@ type Deployment struct {
 	filter    filter.Filter
 }
 
+func init() {
+	resourcemanage.SetExtendHandler(enum.DeploymentResourceType, Handle)
+}
+
+func Handle(param resourcemanage.ExtendParams) (interface{}, error) {
+	access := resources.NewSimpleAccess(param.Cluster, param.Username, param.Namespace)
+	if allow := access.AccessAllow("apps", "deployments", "list"); !allow {
+		return nil, errors.New(errcode.ForbiddenErr.Message)
+	}
+	kubernetes := clients.Interface().Kubernetes(param.Cluster)
+	if kubernetes == nil {
+		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
+	}
+	deployment := NewDeployment(kubernetes, param.Namespace, param.Filter)
+	return deployment.GetExtendDeployments()
+}
+
 func NewDeployment(client mgrclient.Client, namespace string, filter filter.Filter) Deployment {
 	ctx := context.Background()
 	return Deployment{
@@ -51,8 +74,8 @@ func NewDeployment(client mgrclient.Client, namespace string, filter filter.Filt
 	}
 }
 
-// get extend deployments
-func (d *Deployment) GetExtendDeployments() filter.K8sJson {
+// GetExtendDeployments get extend deployments
+func (d *Deployment) GetExtendDeployments() (filter.K8sJson, error) {
 
 	resultMap := make(filter.K8sJson)
 	// get deployment list from k8s cluster
@@ -60,7 +83,7 @@ func (d *Deployment) GetExtendDeployments() filter.K8sJson {
 	err := d.client.Cache().List(d.ctx, &deploymentList, client.InNamespace(d.namespace))
 	if err != nil {
 		clog.Error("can not find info from cluster, %v", err)
-		return nil
+		return nil, err
 	}
 	resultMap["total"] = len(deploymentList.Items)
 
@@ -68,13 +91,14 @@ func (d *Deployment) GetExtendDeployments() filter.K8sJson {
 	deploymentListJson, err := json.Marshal(deploymentList)
 	if err != nil {
 		clog.Error("convert deploymentList to json fail, %v", err)
-		return nil
+		return nil, err
 	}
 	deploymentListJson = d.filter.FilterResult(deploymentListJson)
+	deploymentList = appsv1.DeploymentList{}
 	err = json.Unmarshal(deploymentListJson, &deploymentList)
 	if err != nil {
 		clog.Error("convert json to deploymentList fail, %v", err)
-		return nil
+		return nil, err
 	}
 
 	// add pod status info
@@ -82,7 +106,7 @@ func (d *Deployment) GetExtendDeployments() filter.K8sJson {
 
 	resultMap["items"] = resultList
 
-	return resultMap
+	return resultMap, nil
 }
 
 func (d *Deployment) addExtendInfo(deploymentList appsv1.DeploymentList) filter.K8sJsonArr {

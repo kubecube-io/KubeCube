@@ -48,6 +48,7 @@ type UserSpec struct {
 	// Login method used, normal/openId/ldap
 	LoginType LoginType `json:"loginType,omitempty"`
 	State     UserState `json:"state,omitempty"`
+	Wechat    string    `json:"wechat,omitempty"`
 }
 
 // UserStatus defines the observed state of User

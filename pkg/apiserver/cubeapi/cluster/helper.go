@@ -68,6 +68,7 @@ func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivot
 		info.ClusterDescription = cluster.Spec.Description
 		info.CreateTime = cluster.CreationTimestamp.Time
 		info.IsMemberCluster = cluster.Spec.IsMemberCluster
+		info.IsWritable = cluster.Spec.IsWritable
 		info.HarborAddr = cluster.Spec.HarborAddr
 		info.KubeApiServer = cluster.Spec.KubernetesAPIEndpoint
 		info.NetworkType = cluster.Spec.NetworkType
@@ -388,10 +389,10 @@ func getAssignedResource(cli mgrclient.Client, cluster string) (cpu resource.Qua
 
 	for _, obj := range listObjs.Items {
 		hard := obj.Spec.Hard
-		if v, ok := hard[corev1.ResourceLimitsCPU]; ok {
+		if v, ok := hard[corev1.ResourceRequestsCPU]; ok {
 			cpu.Add(v)
 		}
-		if v, ok := hard[corev1.ResourceLimitsMemory]; ok {
+		if v, ok := hard[corev1.ResourceRequestsMemory]; ok {
 			mem.Add(v)
 		}
 		if v, ok := hard[quota.ResourceNvidiaGPU]; ok {

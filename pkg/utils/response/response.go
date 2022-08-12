@@ -17,13 +17,28 @@ limitations under the License.
 package response
 
 import (
+	"io"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
-	"net/http"
 )
+
+const topKey = "message"
 
 type SuccessInfo struct {
 	Message string `json:"message"`
+}
+
+// SuccessJsonReturn given a key message for any value to return json
+func SuccessJsonReturn(c *gin.Context, v string) {
+	c.JSON(http.StatusOK, gin.H{topKey: v})
+	c.Abort()
+}
+
+func SuccessFileReturn(c *gin.Context, contentLength int64, contentType string, reader io.Reader, extraHeaders map[string]string) {
+	c.DataFromReader(http.StatusOK, contentLength, contentType, reader, extraHeaders)
+	c.Abort()
 }
 
 func SuccessReturn(c *gin.Context, obj interface{}) {

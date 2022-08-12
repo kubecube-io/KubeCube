@@ -71,6 +71,9 @@ type ClusterSpec struct {
 	// let ingress gets a domain suffix
 	// +optional
 	IngressDomainSuffix string `json:"ingressDomainSuffix,omitempty"`
+
+	// Is this cluster writable and if true then some resources such as workloads can be deployed on this cluster
+	IsWritable bool `json:"isWritable"`
 }
 
 // ClusterStatus defines the observed state of Cluster

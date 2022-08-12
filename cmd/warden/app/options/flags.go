@@ -30,6 +30,11 @@ var (
 			Value:       true,
 			Destination: &WardenOpts.GenericWardenOpts.InMemberCluster,
 		},
+		&cli.BoolFlag{
+			Name:        "is-cluster-writable",
+			Value:       true,
+			Destination: &WardenOpts.GenericWardenOpts.IsWritable,
+		},
 		&cli.StringFlag{
 			Name:        "local-cluster-kubeconfig",
 			Destination: &WardenOpts.GenericWardenOpts.LocalClusterKubeConfig,
@@ -143,6 +148,21 @@ var (
 			Name:        "stacktrace-level",
 			Value:       "error",
 			Destination: &WardenOpts.CubeLoggerOpts.StacktraceLevel,
+		},
+		&cli.StringFlag{
+			Name:        "ingress-nginx-namespace",
+			Value:       "ingress-nginx",
+			Destination: &WardenOpts.GenericWardenOpts.NginxNamespace,
+		},
+		&cli.StringFlag{
+			Name:        "ingress-nginx-tcp-configmap",
+			Value:       "tcp-services",
+			Destination: &WardenOpts.GenericWardenOpts.NginxTcpServiceConfigMap,
+		},
+		&cli.StringFlag{
+			Name:        "ingress-nginx-udp-configmap",
+			Value:       "udp-services",
+			Destination: &WardenOpts.GenericWardenOpts.NginxUdpServiceConfigMap,
 		},
 	}
 )

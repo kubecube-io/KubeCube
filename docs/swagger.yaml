@@ -23,6 +23,8 @@ definitions:
         type: string
       harborAddr:
         type: string
+      ingressDomainSuffix:
+        type: string
       isMemberCluster:
         type: boolean
       kubeApiServer:
@@ -32,6 +34,7 @@ definitions:
       networkType:
         type: string
       nodeCount:
+        description: 'todo(weilaaa): move to monitor info'
         type: integer
       status:
         type: string
@@ -47,14 +50,31 @@ definitions:
         type: integer
       usedCpu:
         type: integer
+      usedCpuLimit:
+        type: integer
+      usedCpuRequest:
+        type: integer
       usedGpu:
         type: integer
       usedMem:
+        type: integer
+      usedMemLimit:
+        type: integer
+      usedMemRequest:
         type: integer
       usedStorage:
         type: integer
       usedStorageEphemeral:
         type: integer
+    type: object
+  github.com_kubecube-io_kubecube_pkg_apiserver_cubeapi_cluster.nsAndQuota:
+    properties:
+      cluster:
+        type: string
+      resourceQuota:
+        $ref: '#/definitions/v1.ResourceQuota'
+      subNamespaceAnchor:
+        $ref: '#/definitions/v1alpha2.SubnamespaceAnchor'
     type: object
   github.com_kubecube-io_kubecube_pkg_apiserver_cubeapi_cluster.result:
     properties:
@@ -71,11 +91,11 @@ definitions:
         type: string
       description:
         type: string
+      harborAddr:
+        type: string
       k8sEndpoint:
         type: string
       kubeConfig:
-        type: string
-      kubeCubeHost:
         type: string
       networkType:
         type: string
@@ -138,6 +158,8 @@ definitions:
         type: string
       harborAddr:
         type: string
+      ingressDomainSuffix:
+        type: string
       isMemberCluster:
         type: boolean
       kubeApiServer:
@@ -147,6 +169,7 @@ definitions:
       networkType:
         type: string
       nodeCount:
+        description: 'todo(weilaaa): move to monitor info'
         type: integer
       status:
         type: string
@@ -162,14 +185,31 @@ definitions:
         type: integer
       usedCpu:
         type: integer
+      usedCpuLimit:
+        type: integer
+      usedCpuRequest:
+        type: integer
       usedGpu:
         type: integer
       usedMem:
+        type: integer
+      usedMemLimit:
+        type: integer
+      usedMemRequest:
         type: integer
       usedStorage:
         type: integer
       usedStorageEphemeral:
         type: integer
+    type: object
+  pkg_apiserver_cubeapi_cluster.nsAndQuota:
+    properties:
+      cluster:
+        type: string
+      resourceQuota:
+        $ref: '#/definitions/v1.ResourceQuota'
+      subNamespaceAnchor:
+        $ref: '#/definitions/v1alpha2.SubnamespaceAnchor'
     type: object
   pkg_apiserver_cubeapi_cluster.result:
     properties:
@@ -186,11 +226,11 @@ definitions:
         type: string
       description:
         type: string
+      harborAddr:
+        type: string
       k8sEndpoint:
         type: string
       kubeConfig:
-        type: string
-      kubeCubeHost:
         type: string
       networkType:
         type: string
@@ -236,6 +276,11 @@ definitions:
       total:
         type: integer
     type: object
+  resource.Quantity:
+    properties:
+      Format:
+        type: string
+    type: object
   response.SuccessInfo:
     properties:
       message:
@@ -245,6 +290,16 @@ definitions:
     type: object
   v1.Key:
     properties:
+      annotations:
+        additionalProperties:
+          type: string
+        description: |-
+          Annotations is an unstructured key value map stored with a resource that may be
+          set by external tools to store and retrieve arbitrary metadata. They are not
+          queryable and should be preserved when modifying objects.
+          More info: http://kubernetes.io/docs/user-guide/annotations
+          +optional
+        type: object
       apiVersion:
         description: |-
           APIVersion defines the versioned schema of this representation of an object.
@@ -253,207 +308,100 @@ definitions:
           More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
           +optional
         type: string
-      metadata:
-        type: object
-        properties:
-          annotations:
-            additionalProperties:
-              type: string
-            description: |-
-              Annotations is an unstructured key value map stored with a resource that may be
-              set by external tools to store and retrieve arbitrary metadata. They are not
-              queryable and should be preserved when modifying objects.
-              More info: http://kubernetes.io/docs/user-guide/annotations
-              +optional
-            type: object
-          clusterName:
-            description: |-
-              The name of the cluster which the object belongs to.
-              This is used to distinguish resources with same name and namespace in different clusters.
-              This field is not set anywhere right now and apiserver is going to ignore it if set in create or update request.
-              +optional
-            type: string
-          creationTimestamp:
-            description: |-
-              CreationTimestamp is a timestamp representing the server time when this object was
-              created. It is not guaranteed to be set in happens-before order across separate operations.
-              Clients may not set this value. It is represented in RFC3339 form and is in UTC.
+      clusterName:
+        description: |-
+          The name of the cluster which the object belongs to.
+          This is used to distinguish resources with same name and namespace in different clusters.
+          This field is not set anywhere right now and apiserver is going to ignore it if set in create or update request.
+          +optional
+        type: string
+      creationTimestamp:
+        description: |-
+          CreationTimestamp is a timestamp representing the server time when this object was
+          created. It is not guaranteed to be set in happens-before order across separate operations.
+          Clients may not set this value. It is represented in RFC3339 form and is in UTC.
 
-              Populated by the system.
-              Read-only.
-              Null for lists.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
-              +optional
-            type: string
-          deletionGracePeriodSeconds:
-            description: |-
-              Number of seconds allowed for this object to gracefully terminate before
-              it will be removed from the system. Only set when deletionTimestamp is also set.
-              May only be shortened.
-              Read-only.
-              +optional
-            type: integer
-          deletionTimestamp:
-            description: |-
-              DeletionTimestamp is RFC 3339 date and time at which this resource will be deleted. This
-              field is set by the server when a graceful deletion is requested by the user, and is not
-              directly settable by a client. The resource is expected to be deleted (no longer visible
-              from resource lists, and not reachable by name) after the time in this field, once the
-              finalizers list is empty. As long as the finalizers list contains items, deletion is blocked.
-              Once the deletionTimestamp is set, this value may not be unset or be set further into the
-              future, although it may be shortened or the resource may be deleted prior to this time.
-              For example, a user may request that a pod is deleted in 30 seconds. The Kubelet will react
-              by sending a graceful termination signal to the containers in the pod. After that 30 seconds,
-              the Kubelet will send a hard termination signal (SIGKILL) to the container and after cleanup,
-              remove the pod from the API. In the presence of network partitions, this object may still
-              exist after this timestamp, until an administrator or automated process can determine the
-              resource is fully terminated.
-              If not set, graceful deletion of the object has not been requested.
+          Populated by the system.
+          Read-only.
+          Null for lists.
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+          +optional
+        type: string
+      deletionGracePeriodSeconds:
+        description: |-
+          Number of seconds allowed for this object to gracefully terminate before
+          it will be removed from the system. Only set when deletionTimestamp is also set.
+          May only be shortened.
+          Read-only.
+          +optional
+        type: integer
+      deletionTimestamp:
+        description: |-
+          DeletionTimestamp is RFC 3339 date and time at which this resource will be deleted. This
+          field is set by the server when a graceful deletion is requested by the user, and is not
+          directly settable by a client. The resource is expected to be deleted (no longer visible
+          from resource lists, and not reachable by name) after the time in this field, once the
+          finalizers list is empty. As long as the finalizers list contains items, deletion is blocked.
+          Once the deletionTimestamp is set, this value may not be unset or be set further into the
+          future, although it may be shortened or the resource may be deleted prior to this time.
+          For example, a user may request that a pod is deleted in 30 seconds. The Kubelet will react
+          by sending a graceful termination signal to the containers in the pod. After that 30 seconds,
+          the Kubelet will send a hard termination signal (SIGKILL) to the container and after cleanup,
+          remove the pod from the API. In the presence of network partitions, this object may still
+          exist after this timestamp, until an administrator or automated process can determine the
+          resource is fully terminated.
+          If not set, graceful deletion of the object has not been requested.
 
-              Populated by the system when a graceful deletion is requested.
-              Read-only.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
-              +optional
-            type: string
-          finalizers:
-            description: |-
-              Must be empty before the object is deleted from the registry. Each entry
-              is an identifier for the responsible component that will remove the entry
-              from the list. If the deletionTimestamp of the object is non-nil, entries
-              in this list can only be removed.
-              Finalizers may be processed and removed in any order.  Order is NOT enforced
-              because it introduces significant risk of stuck finalizers.
-              finalizers is a shared field, any actor with permission can reorder it.
-              If the finalizer list is processed in order, then this can lead to a situation
-              in which the component responsible for the first finalizer in the list is
-              waiting for a signal (field value, external system, or other) produced by a
-              component responsible for a finalizer later in the list, resulting in a deadlock.
-              Without enforced ordering finalizers are free to order amongst themselves and
-              are not vulnerable to ordering changes in the list.
-              +optional
-              +patchStrategy=merge
-            items:
-              type: string
-            type: array
-          generateName:
-            description: |-
-              GenerateName is an optional prefix, used by the server, to generate a unique
-              name ONLY IF the Name field has not been provided.
-              If this field is used, the name returned to the client will be different
-              than the name passed. This value will also be combined with a unique suffix.
-              The provided value has the same validation rules as the Name field,
-              and may be truncated by the length of the suffix required to make the value
-              unique on the server.
+          Populated by the system when a graceful deletion is requested.
+          Read-only.
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+          +optional
+        type: string
+      finalizers:
+        description: |-
+          Must be empty before the object is deleted from the registry. Each entry
+          is an identifier for the responsible component that will remove the entry
+          from the list. If the deletionTimestamp of the object is non-nil, entries
+          in this list can only be removed.
+          Finalizers may be processed and removed in any order.  Order is NOT enforced
+          because it introduces significant risk of stuck finalizers.
+          finalizers is a shared field, any actor with permission can reorder it.
+          If the finalizer list is processed in order, then this can lead to a situation
+          in which the component responsible for the first finalizer in the list is
+          waiting for a signal (field value, external system, or other) produced by a
+          component responsible for a finalizer later in the list, resulting in a deadlock.
+          Without enforced ordering finalizers are free to order amongst themselves and
+          are not vulnerable to ordering changes in the list.
+          +optional
+          +patchStrategy=merge
+        items:
+          type: string
+        type: array
+      generateName:
+        description: |-
+          GenerateName is an optional prefix, used by the server, to generate a unique
+          name ONLY IF the Name field has not been provided.
+          If this field is used, the name returned to the client will be different
+          than the name passed. This value will also be combined with a unique suffix.
+          The provided value has the same validation rules as the Name field,
+          and may be truncated by the length of the suffix required to make the value
+          unique on the server.
 
-              If this field is specified and the generated name exists, the server will
-              NOT return a 409 - instead, it will either return 201 Created or 500 with Reason
-              ServerTimeout indicating a unique name could not be found in the time allotted, and the client
-              should retry (optionally after the time indicated in the Retry-After header).
+          If this field is specified and the generated name exists, the server will
+          NOT return a 409 - instead, it will either return 201 Created or 500 with Reason
+          ServerTimeout indicating a unique name could not be found in the time allotted, and the client
+          should retry (optionally after the time indicated in the Retry-After header).
 
-              Applied only if Name is not specified.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#idempotency
-              +optional
-            type: string
-          generation:
-            description: |-
-              A sequence number representing a specific generation of the desired state.
-              Populated by the system. Read-only.
-              +optional
-            type: integer
-          labels:
-            additionalProperties:
-              type: string
-            description: |-
-              Map of string keys and values that can be used to organize and categorize
-              (scope and select) objects. May match selectors of replication controllers
-              and services.
-              More info: http://kubernetes.io/docs/user-guide/labels
-              +optional
-            type: object
-          managedFields:
-            description: |-
-              ManagedFields maps workflow-id and version to the set of fields
-              that are managed by that workflow. This is mostly for internal
-              housekeeping, and users typically shouldn't need to set or
-              understand this field. A workflow can be the user's name, a
-              controller's name, or the name of a specific apply path like
-              "ci-cd". The set of fields is always in the version that the
-              workflow used when modifying the object.
-
-              +optional
-            items:
-              $ref: '#/definitions/'
-            type: array
-          name:
-            description: |-
-              Name must be unique within a namespace. Is required when creating resources, although
-              some resources may allow a client to request the generation of an appropriate name
-              automatically. Name is primarily intended for creation idempotence and configuration
-              definition.
-              Cannot be updated.
-              More info: http://kubernetes.io/docs/user-guide/identifiers#names
-              +optional
-            type: string
-          namespace:
-            description: |-
-              Namespace defines the space within which each name must be unique. An empty namespace is
-              equivalent to the "default" namespace, but "default" is the canonical representation.
-              Not all objects are required to be scoped to a namespace - the value of this field for
-              those objects will be empty.
-
-              Must be a DNS_LABEL.
-              Cannot be updated.
-              More info: http://kubernetes.io/docs/user-guide/namespaces
-              +optional
-            type: string
-          ownerReferences:
-            description: |-
-              List of objects depended by this object. If ALL objects in the list have
-              been deleted, this object will be garbage collected. If this object is managed by a controller,
-              then an entry in this list will point to this controller, with the controller field set to true.
-              There cannot be more than one managing controller.
-              +optional
-              +patchMergeKey=uid
-              +patchStrategy=merge
-            items:
-              $ref: '#/definitions/v1.OwnerReference'
-            type: array
-          resourceVersion:
-            description: |-
-              An opaque value that represents the internal version of this object that can
-              be used by clients to determine when objects have changed. May be used for optimistic
-              concurrency, change detection, and the watch operation on a resource or set of resources.
-              Clients must treat these values as opaque and passed unmodified back to the server.
-              They may only be valid for a particular resource or set of resources.
-
-              Populated by the system.
-              Read-only.
-              Value must be treated as opaque by clients and .
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency
-              +optional
-            type: string
-          selfLink:
-            description: |-
-              SelfLink is a URL representing this object.
-              Populated by the system.
-              Read-only.
-
-              DEPRECATED
-              Kubernetes will stop propagating this field in 1.20 release and the field is planned
-              to be removed in 1.21 release.
-              +optional
-            type: string
-          uid:
-            description: |-
-              UID is the unique in time and space value for this object. It is typically generated by
-              the server on successful creation of a resource and is not allowed to change on PUT
-              operations.
-
-              Populated by the system.
-              Read-only.
-              More info: http://kubernetes.io/docs/user-guide/identifiers#uids
-              +optional
-            type: string
+          Applied only if Name is not specified.
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#idempotency
+          +optional
+        type: string
+      generation:
+        description: |-
+          A sequence number representing a specific generation of the desired state.
+          Populated by the system. Read-only.
+          +optional
+        type: integer
       kind:
         description: |-
           Kind is a string value representing the REST resource this object represents.
@@ -463,10 +411,104 @@ definitions:
           More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
           +optional
         type: string
+      labels:
+        additionalProperties:
+          type: string
+        description: |-
+          Map of string keys and values that can be used to organize and categorize
+          (scope and select) objects. May match selectors of replication controllers
+          and services.
+          More info: http://kubernetes.io/docs/user-guide/labels
+          +optional
+        type: object
+      managedFields:
+        description: |-
+          ManagedFields maps workflow-id and version to the set of fields
+          that are managed by that workflow. This is mostly for internal
+          housekeeping, and users typically shouldn't need to set or
+          understand this field. A workflow can be the user's name, a
+          controller's name, or the name of a specific apply path like
+          "ci-cd". The set of fields is always in the version that the
+          workflow used when modifying the object.
+
+          +optional
+        items:
+          $ref: '#/definitions/v1.ManagedFieldsEntry'
+        type: array
+      name:
+        description: |-
+          Name must be unique within a namespace. Is required when creating resources, although
+          some resources may allow a client to request the generation of an appropriate name
+          automatically. Name is primarily intended for creation idempotence and configuration
+          definition.
+          Cannot be updated.
+          More info: http://kubernetes.io/docs/user-guide/identifiers#names
+          +optional
+        type: string
+      namespace:
+        description: |-
+          Namespace defines the space within which each name must be unique. An empty namespace is
+          equivalent to the "default" namespace, but "default" is the canonical representation.
+          Not all objects are required to be scoped to a namespace - the value of this field for
+          those objects will be empty.
+
+          Must be a DNS_LABEL.
+          Cannot be updated.
+          More info: http://kubernetes.io/docs/user-guide/namespaces
+          +optional
+        type: string
+      ownerReferences:
+        description: |-
+          List of objects depended by this object. If ALL objects in the list have
+          been deleted, this object will be garbage collected. If this object is managed by a controller,
+          then an entry in this list will point to this controller, with the controller field set to true.
+          There cannot be more than one managing controller.
+          +optional
+          +patchMergeKey=uid
+          +patchStrategy=merge
+        items:
+          $ref: '#/definitions/v1.OwnerReference'
+        type: array
+      resourceVersion:
+        description: |-
+          An opaque value that represents the internal version of this object that can
+          be used by clients to determine when objects have changed. May be used for optimistic
+          concurrency, change detection, and the watch operation on a resource or set of resources.
+          Clients must treat these values as opaque and passed unmodified back to the server.
+          They may only be valid for a particular resource or set of resources.
+
+          Populated by the system.
+          Read-only.
+          Value must be treated as opaque by clients and .
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency
+          +optional
+        type: string
+      selfLink:
+        description: |-
+          SelfLink is a URL representing this object.
+          Populated by the system.
+          Read-only.
+
+          DEPRECATED
+          Kubernetes will stop propagating this field in 1.20 release and the field is planned
+          to be removed in 1.21 release.
+          +optional
+        type: string
       spec:
         $ref: '#/definitions/v1.KeySpec'
       status:
         $ref: '#/definitions/v1.KeyStatus'
+      uid:
+        description: |-
+          UID is the unique in time and space value for this object. It is typically generated by
+          the server on successful creation of a resource and is not allowed to change on PUT
+          operations.
+
+          Populated by the system.
+          Read-only.
+          More info: http://kubernetes.io/docs/user-guide/identifiers#uids
+          +optional
+        type: string
     type: object
   v1.KeyList:
     properties:
@@ -478,53 +520,16 @@ definitions:
           More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
           +optional
         type: string
-      metadata:
-        type: object
-        properties:
-          continue:
-            description: |-
-              continue may be set if the user set a limit on the number of items returned, and indicates that
-              the server has more data available. The value is opaque and may be used to issue another request
-              to the endpoint that served this list to retrieve the next set of available objects. Continuing a
-              consistent list may not be possible if the server configuration has changed or more than a few
-              minutes have passed. The resourceVersion field returned when using this continue value will be
-              identical to the value in the first response, unless you have received this token from an error
-              message.
-            type: string
-          remainingItemCount:
-            description: |-
-              remainingItemCount is the number of subsequent items in the list which are not included in this
-              list response. If the list request contained label or field selectors, then the number of
-              remaining items is unknown and the field will be left unset and omitted during serialization.
-              If the list is complete (either because it is not chunking or because this is the last chunk),
-              then there are no more remaining items and this field will be left unset and omitted during
-              serialization.
-              Servers older than v1.15 do not set this field.
-              The intended use of the remainingItemCount is *estimating* the size of a collection. Clients
-              should not rely on the remainingItemCount to be set or to be exact.
-              +optional
-            type: integer
-          resourceVersion:
-            description: |-
-              String that identifies the server's internal version of this object that
-              can be used by clients to determine when objects have changed.
-              Value must be treated as opaque by clients and passed unmodified back to the server.
-              Populated by the system.
-              Read-only.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency
-              +optional
-            type: string
-          selfLink:
-            description: |-
-              selfLink is a URL representing this object.
-              Populated by the system.
-              Read-only.
-
-              DEPRECATED
-              Kubernetes will stop propagating this field in 1.20 release and the field is planned
-              to be removed in 1.21 release.
-              +optional
-              type: string
+      continue:
+        description: |-
+          continue may be set if the user set a limit on the number of items returned, and indicates that
+          the server has more data available. The value is opaque and may be used to issue another request
+          to the endpoint that served this list to retrieve the next set of available objects. Continuing a
+          consistent list may not be possible if the server configuration has changed or more than a few
+          minutes have passed. The resourceVersion field returned when using this continue value will be
+          identical to the value in the first response, unless you have received this token from an error
+          message.
+        type: string
       items:
         items:
           $ref: '#/definitions/v1.Key'
@@ -536,6 +541,40 @@ definitions:
           Cannot be updated.
           In CamelCase.
           More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+          +optional
+        type: string
+      remainingItemCount:
+        description: |-
+          remainingItemCount is the number of subsequent items in the list which are not included in this
+          list response. If the list request contained label or field selectors, then the number of
+          remaining items is unknown and the field will be left unset and omitted during serialization.
+          If the list is complete (either because it is not chunking or because this is the last chunk),
+          then there are no more remaining items and this field will be left unset and omitted during
+          serialization.
+          Servers older than v1.15 do not set this field.
+          The intended use of the remainingItemCount is *estimating* the size of a collection. Clients
+          should not rely on the remainingItemCount to be set or to be exact.
+          +optional
+        type: integer
+      resourceVersion:
+        description: |-
+          String that identifies the server's internal version of this object that
+          can be used by clients to determine when objects have changed.
+          Value must be treated as opaque by clients and passed unmodified back to the server.
+          Populated by the system.
+          Read-only.
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency
+          +optional
+        type: string
+      selfLink:
+        description: |-
+          selfLink is a URL representing this object.
+          Populated by the system.
+          Read-only.
+
+          DEPRECATED
+          Kubernetes will stop propagating this field in 1.20 release and the field is planned
+          to be removed in 1.21 release.
           +optional
         type: string
     type: object
@@ -617,8 +656,22 @@ definitions:
           More info: http://kubernetes.io/docs/user-guide/identifiers#uids
         type: string
     type: object
-  v1.RoleBinding:
+  v1.ResourceList:
+    additionalProperties:
+      $ref: '#/definitions/resource.Quantity'
+    type: object
+  v1.ResourceQuota:
     properties:
+      annotations:
+        additionalProperties:
+          type: string
+        description: |-
+          Annotations is an unstructured key value map stored with a resource that may be
+          set by external tools to store and retrieve arbitrary metadata. They are not
+          queryable and should be preserved when modifying objects.
+          More info: http://kubernetes.io/docs/user-guide/annotations
+          +optional
+        type: object
       apiVersion:
         description: |-
           APIVersion defines the versioned schema of this representation of an object.
@@ -627,6 +680,100 @@ definitions:
           More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
           +optional
         type: string
+      clusterName:
+        description: |-
+          The name of the cluster which the object belongs to.
+          This is used to distinguish resources with same name and namespace in different clusters.
+          This field is not set anywhere right now and apiserver is going to ignore it if set in create or update request.
+          +optional
+        type: string
+      creationTimestamp:
+        description: |-
+          CreationTimestamp is a timestamp representing the server time when this object was
+          created. It is not guaranteed to be set in happens-before order across separate operations.
+          Clients may not set this value. It is represented in RFC3339 form and is in UTC.
+
+          Populated by the system.
+          Read-only.
+          Null for lists.
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+          +optional
+        type: string
+      deletionGracePeriodSeconds:
+        description: |-
+          Number of seconds allowed for this object to gracefully terminate before
+          it will be removed from the system. Only set when deletionTimestamp is also set.
+          May only be shortened.
+          Read-only.
+          +optional
+        type: integer
+      deletionTimestamp:
+        description: |-
+          DeletionTimestamp is RFC 3339 date and time at which this resource will be deleted. This
+          field is set by the server when a graceful deletion is requested by the user, and is not
+          directly settable by a client. The resource is expected to be deleted (no longer visible
+          from resource lists, and not reachable by name) after the time in this field, once the
+          finalizers list is empty. As long as the finalizers list contains items, deletion is blocked.
+          Once the deletionTimestamp is set, this value may not be unset or be set further into the
+          future, although it may be shortened or the resource may be deleted prior to this time.
+          For example, a user may request that a pod is deleted in 30 seconds. The Kubelet will react
+          by sending a graceful termination signal to the containers in the pod. After that 30 seconds,
+          the Kubelet will send a hard termination signal (SIGKILL) to the container and after cleanup,
+          remove the pod from the API. In the presence of network partitions, this object may still
+          exist after this timestamp, until an administrator or automated process can determine the
+          resource is fully terminated.
+          If not set, graceful deletion of the object has not been requested.
+
+          Populated by the system when a graceful deletion is requested.
+          Read-only.
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+          +optional
+        type: string
+      finalizers:
+        description: |-
+          Must be empty before the object is deleted from the registry. Each entry
+          is an identifier for the responsible component that will remove the entry
+          from the list. If the deletionTimestamp of the object is non-nil, entries
+          in this list can only be removed.
+          Finalizers may be processed and removed in any order.  Order is NOT enforced
+          because it introduces significant risk of stuck finalizers.
+          finalizers is a shared field, any actor with permission can reorder it.
+          If the finalizer list is processed in order, then this can lead to a situation
+          in which the component responsible for the first finalizer in the list is
+          waiting for a signal (field value, external system, or other) produced by a
+          component responsible for a finalizer later in the list, resulting in a deadlock.
+          Without enforced ordering finalizers are free to order amongst themselves and
+          are not vulnerable to ordering changes in the list.
+          +optional
+          +patchStrategy=merge
+        items:
+          type: string
+        type: array
+      generateName:
+        description: |-
+          GenerateName is an optional prefix, used by the server, to generate a unique
+          name ONLY IF the Name field has not been provided.
+          If this field is used, the name returned to the client will be different
+          than the name passed. This value will also be combined with a unique suffix.
+          The provided value has the same validation rules as the Name field,
+          and may be truncated by the length of the suffix required to make the value
+          unique on the server.
+
+          If this field is specified and the generated name exists, the server will
+          NOT return a 409 - instead, it will either return 201 Created or 500 with Reason
+          ServerTimeout indicating a unique name could not be found in the time allotted, and the client
+          should retry (optionally after the time indicated in the Retry-After header).
+
+          Applied only if Name is not specified.
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#idempotency
+          +optional
+        type: string
+      generation:
+        description: |-
+          A sequence number representing a specific generation of the desired state.
+          Populated by the system. Read-only.
+          +optional
+        type: integer
       kind:
         description: |-
           Kind is a string value representing the REST resource this object represents.
@@ -636,11 +783,363 @@ definitions:
           More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
           +optional
         type: string
+      labels:
+        additionalProperties:
+          type: string
+        description: |-
+          Map of string keys and values that can be used to organize and categorize
+          (scope and select) objects. May match selectors of replication controllers
+          and services.
+          More info: http://kubernetes.io/docs/user-guide/labels
+          +optional
+        type: object
+      managedFields:
+        description: |-
+          ManagedFields maps workflow-id and version to the set of fields
+          that are managed by that workflow. This is mostly for internal
+          housekeeping, and users typically shouldn't need to set or
+          understand this field. A workflow can be the user's name, a
+          controller's name, or the name of a specific apply path like
+          "ci-cd". The set of fields is always in the version that the
+          workflow used when modifying the object.
+
+          +optional
+        items:
+          $ref: '#/definitions/v1.ManagedFieldsEntry'
+        type: array
+      name:
+        description: |-
+          Name must be unique within a namespace. Is required when creating resources, although
+          some resources may allow a client to request the generation of an appropriate name
+          automatically. Name is primarily intended for creation idempotence and configuration
+          definition.
+          Cannot be updated.
+          More info: http://kubernetes.io/docs/user-guide/identifiers#names
+          +optional
+        type: string
+      namespace:
+        description: |-
+          Namespace defines the space within which each name must be unique. An empty namespace is
+          equivalent to the "default" namespace, but "default" is the canonical representation.
+          Not all objects are required to be scoped to a namespace - the value of this field for
+          those objects will be empty.
+
+          Must be a DNS_LABEL.
+          Cannot be updated.
+          More info: http://kubernetes.io/docs/user-guide/namespaces
+          +optional
+        type: string
+      ownerReferences:
+        description: |-
+          List of objects depended by this object. If ALL objects in the list have
+          been deleted, this object will be garbage collected. If this object is managed by a controller,
+          then an entry in this list will point to this controller, with the controller field set to true.
+          There cannot be more than one managing controller.
+          +optional
+          +patchMergeKey=uid
+          +patchStrategy=merge
+        items:
+          $ref: '#/definitions/v1.OwnerReference'
+        type: array
+      resourceVersion:
+        description: |-
+          An opaque value that represents the internal version of this object that can
+          be used by clients to determine when objects have changed. May be used for optimistic
+          concurrency, change detection, and the watch operation on a resource or set of resources.
+          Clients must treat these values as opaque and passed unmodified back to the server.
+          They may only be valid for a particular resource or set of resources.
+
+          Populated by the system.
+          Read-only.
+          Value must be treated as opaque by clients and .
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency
+          +optional
+        type: string
+      selfLink:
+        description: |-
+          SelfLink is a URL representing this object.
+          Populated by the system.
+          Read-only.
+
+          DEPRECATED
+          Kubernetes will stop propagating this field in 1.20 release and the field is planned
+          to be removed in 1.21 release.
+          +optional
+        type: string
+      spec:
+        $ref: '#/definitions/v1.ResourceQuotaSpec'
+        description: |-
+          Spec defines the desired quota.
+          https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status
+          +optional
+      status:
+        $ref: '#/definitions/v1.ResourceQuotaStatus'
+        description: |-
+          Status defines the actual enforced quota and its current usage.
+          https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status
+          +optional
+      uid:
+        description: |-
+          UID is the unique in time and space value for this object. It is typically generated by
+          the server on successful creation of a resource and is not allowed to change on PUT
+          operations.
+
+          Populated by the system.
+          Read-only.
+          More info: http://kubernetes.io/docs/user-guide/identifiers#uids
+          +optional
+        type: string
+    type: object
+  v1.ResourceQuotaSpec:
+    properties:
+      hard:
+        $ref: '#/definitions/v1.ResourceList'
+        description: |-
+          hard is the set of desired hard limits for each named resource.
+          More info: https://kubernetes.io/docs/concepts/policy/resource-quotas/
+          +optional
+      scopeSelector:
+        $ref: '#/definitions/v1.ScopeSelector'
+        description: |-
+          scopeSelector is also a collection of filters like scopes that must match each object tracked by a quota
+          but expressed using ScopeSelectorOperator in combination with possible values.
+          For a resource to match, both scopes AND scopeSelector (if specified in spec), must be matched.
+          +optional
+      scopes:
+        description: |-
+          A collection of filters that must match each object tracked by a quota.
+          If not specified, the quota matches all objects.
+          +optional
+        items:
+          description: The name of the scope that the selector applies to.
+          type: string
+        type: array
+    type: object
+  v1.ResourceQuotaStatus:
+    properties:
+      hard:
+        $ref: '#/definitions/v1.ResourceList'
+        description: |-
+          Hard is the set of enforced hard limits for each named resource.
+          More info: https://kubernetes.io/docs/concepts/policy/resource-quotas/
+          +optional
+      used:
+        $ref: '#/definitions/v1.ResourceList'
+        description: |-
+          Used is the current observed total usage of the resource in the namespace.
+          +optional
+    type: object
+  v1.RoleBinding:
+    properties:
+      annotations:
+        additionalProperties:
+          type: string
+        description: |-
+          Annotations is an unstructured key value map stored with a resource that may be
+          set by external tools to store and retrieve arbitrary metadata. They are not
+          queryable and should be preserved when modifying objects.
+          More info: http://kubernetes.io/docs/user-guide/annotations
+          +optional
+        type: object
+      apiVersion:
+        description: |-
+          APIVersion defines the versioned schema of this representation of an object.
+          Servers should convert recognized schemas to the latest internal value, and
+          may reject unrecognized values.
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+          +optional
+        type: string
+      clusterName:
+        description: |-
+          The name of the cluster which the object belongs to.
+          This is used to distinguish resources with same name and namespace in different clusters.
+          This field is not set anywhere right now and apiserver is going to ignore it if set in create or update request.
+          +optional
+        type: string
+      creationTimestamp:
+        description: |-
+          CreationTimestamp is a timestamp representing the server time when this object was
+          created. It is not guaranteed to be set in happens-before order across separate operations.
+          Clients may not set this value. It is represented in RFC3339 form and is in UTC.
+
+          Populated by the system.
+          Read-only.
+          Null for lists.
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+          +optional
+        type: string
+      deletionGracePeriodSeconds:
+        description: |-
+          Number of seconds allowed for this object to gracefully terminate before
+          it will be removed from the system. Only set when deletionTimestamp is also set.
+          May only be shortened.
+          Read-only.
+          +optional
+        type: integer
+      deletionTimestamp:
+        description: |-
+          DeletionTimestamp is RFC 3339 date and time at which this resource will be deleted. This
+          field is set by the server when a graceful deletion is requested by the user, and is not
+          directly settable by a client. The resource is expected to be deleted (no longer visible
+          from resource lists, and not reachable by name) after the time in this field, once the
+          finalizers list is empty. As long as the finalizers list contains items, deletion is blocked.
+          Once the deletionTimestamp is set, this value may not be unset or be set further into the
+          future, although it may be shortened or the resource may be deleted prior to this time.
+          For example, a user may request that a pod is deleted in 30 seconds. The Kubelet will react
+          by sending a graceful termination signal to the containers in the pod. After that 30 seconds,
+          the Kubelet will send a hard termination signal (SIGKILL) to the container and after cleanup,
+          remove the pod from the API. In the presence of network partitions, this object may still
+          exist after this timestamp, until an administrator or automated process can determine the
+          resource is fully terminated.
+          If not set, graceful deletion of the object has not been requested.
+
+          Populated by the system when a graceful deletion is requested.
+          Read-only.
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+          +optional
+        type: string
+      finalizers:
+        description: |-
+          Must be empty before the object is deleted from the registry. Each entry
+          is an identifier for the responsible component that will remove the entry
+          from the list. If the deletionTimestamp of the object is non-nil, entries
+          in this list can only be removed.
+          Finalizers may be processed and removed in any order.  Order is NOT enforced
+          because it introduces significant risk of stuck finalizers.
+          finalizers is a shared field, any actor with permission can reorder it.
+          If the finalizer list is processed in order, then this can lead to a situation
+          in which the component responsible for the first finalizer in the list is
+          waiting for a signal (field value, external system, or other) produced by a
+          component responsible for a finalizer later in the list, resulting in a deadlock.
+          Without enforced ordering finalizers are free to order amongst themselves and
+          are not vulnerable to ordering changes in the list.
+          +optional
+          +patchStrategy=merge
+        items:
+          type: string
+        type: array
+      generateName:
+        description: |-
+          GenerateName is an optional prefix, used by the server, to generate a unique
+          name ONLY IF the Name field has not been provided.
+          If this field is used, the name returned to the client will be different
+          than the name passed. This value will also be combined with a unique suffix.
+          The provided value has the same validation rules as the Name field,
+          and may be truncated by the length of the suffix required to make the value
+          unique on the server.
+
+          If this field is specified and the generated name exists, the server will
+          NOT return a 409 - instead, it will either return 201 Created or 500 with Reason
+          ServerTimeout indicating a unique name could not be found in the time allotted, and the client
+          should retry (optionally after the time indicated in the Retry-After header).
+
+          Applied only if Name is not specified.
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#idempotency
+          +optional
+        type: string
+      generation:
+        description: |-
+          A sequence number representing a specific generation of the desired state.
+          Populated by the system. Read-only.
+          +optional
+        type: integer
+      kind:
+        description: |-
+          Kind is a string value representing the REST resource this object represents.
+          Servers may infer this from the endpoint the client submits requests to.
+          Cannot be updated.
+          In CamelCase.
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+          +optional
+        type: string
+      labels:
+        additionalProperties:
+          type: string
+        description: |-
+          Map of string keys and values that can be used to organize and categorize
+          (scope and select) objects. May match selectors of replication controllers
+          and services.
+          More info: http://kubernetes.io/docs/user-guide/labels
+          +optional
+        type: object
+      managedFields:
+        description: |-
+          ManagedFields maps workflow-id and version to the set of fields
+          that are managed by that workflow. This is mostly for internal
+          housekeeping, and users typically shouldn't need to set or
+          understand this field. A workflow can be the user's name, a
+          controller's name, or the name of a specific apply path like
+          "ci-cd". The set of fields is always in the version that the
+          workflow used when modifying the object.
+
+          +optional
+        items:
+          $ref: '#/definitions/v1.ManagedFieldsEntry'
+        type: array
+      name:
+        description: |-
+          Name must be unique within a namespace. Is required when creating resources, although
+          some resources may allow a client to request the generation of an appropriate name
+          automatically. Name is primarily intended for creation idempotence and configuration
+          definition.
+          Cannot be updated.
+          More info: http://kubernetes.io/docs/user-guide/identifiers#names
+          +optional
+        type: string
+      namespace:
+        description: |-
+          Namespace defines the space within which each name must be unique. An empty namespace is
+          equivalent to the "default" namespace, but "default" is the canonical representation.
+          Not all objects are required to be scoped to a namespace - the value of this field for
+          those objects will be empty.
+
+          Must be a DNS_LABEL.
+          Cannot be updated.
+          More info: http://kubernetes.io/docs/user-guide/namespaces
+          +optional
+        type: string
+      ownerReferences:
+        description: |-
+          List of objects depended by this object. If ALL objects in the list have
+          been deleted, this object will be garbage collected. If this object is managed by a controller,
+          then an entry in this list will point to this controller, with the controller field set to true.
+          There cannot be more than one managing controller.
+          +optional
+          +patchMergeKey=uid
+          +patchStrategy=merge
+        items:
+          $ref: '#/definitions/v1.OwnerReference'
+        type: array
+      resourceVersion:
+        description: |-
+          An opaque value that represents the internal version of this object that can
+          be used by clients to determine when objects have changed. May be used for optimistic
+          concurrency, change detection, and the watch operation on a resource or set of resources.
+          Clients must treat these values as opaque and passed unmodified back to the server.
+          They may only be valid for a particular resource or set of resources.
+
+          Populated by the system.
+          Read-only.
+          Value must be treated as opaque by clients and .
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency
+          +optional
+        type: string
       roleRef:
         $ref: '#/definitions/v1.RoleRef'
         description: |-
           RoleRef can reference a Role in the current namespace or a ClusterRole in the global namespace.
           If the RoleRef cannot be resolved, the Authorizer must return an error.
+      selfLink:
+        description: |-
+          SelfLink is a URL representing this object.
+          Populated by the system.
+          Read-only.
+
+          DEPRECATED
+          Kubernetes will stop propagating this field in 1.20 release and the field is planned
+          to be removed in 1.21 release.
+          +optional
+        type: string
       subjects:
         description: |-
           Subjects holds references to the objects the role applies to.
@@ -648,207 +1147,17 @@ definitions:
         items:
           $ref: '#/definitions/v1.Subject'
         type: array
-      metadata:
-        type: object
-        properties:
-          annotations:
-            additionalProperties:
-              type: string
-            description: |-
-              Annotations is an unstructured key value map stored with a resource that may be
-              set by external tools to store and retrieve arbitrary metadata. They are not
-              queryable and should be preserved when modifying objects.
-              More info: http://kubernetes.io/docs/user-guide/annotations
-              +optional
-            type: object
-          clusterName:
-            description: |-
-              The name of the cluster which the object belongs to.
-              This is used to distinguish resources with same name and namespace in different clusters.
-              This field is not set anywhere right now and apiserver is going to ignore it if set in create or update request.
-              +optional
-            type: string
-          creationTimestamp:
-            description: |-
-              CreationTimestamp is a timestamp representing the server time when this object was
-              created. It is not guaranteed to be set in happens-before order across separate operations.
-              Clients may not set this value. It is represented in RFC3339 form and is in UTC.
+      uid:
+        description: |-
+          UID is the unique in time and space value for this object. It is typically generated by
+          the server on successful creation of a resource and is not allowed to change on PUT
+          operations.
 
-              Populated by the system.
-              Read-only.
-              Null for lists.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
-              +optional
-            type: string
-          deletionGracePeriodSeconds:
-            description: |-
-              Number of seconds allowed for this object to gracefully terminate before
-              it will be removed from the system. Only set when deletionTimestamp is also set.
-              May only be shortened.
-              Read-only.
-              +optional
-            type: integer
-          deletionTimestamp:
-            description: |-
-              DeletionTimestamp is RFC 3339 date and time at which this resource will be deleted. This
-              field is set by the server when a graceful deletion is requested by the user, and is not
-              directly settable by a client. The resource is expected to be deleted (no longer visible
-              from resource lists, and not reachable by name) after the time in this field, once the
-              finalizers list is empty. As long as the finalizers list contains items, deletion is blocked.
-              Once the deletionTimestamp is set, this value may not be unset or be set further into the
-              future, although it may be shortened or the resource may be deleted prior to this time.
-              For example, a user may request that a pod is deleted in 30 seconds. The Kubelet will react
-              by sending a graceful termination signal to the containers in the pod. After that 30 seconds,
-              the Kubelet will send a hard termination signal (SIGKILL) to the container and after cleanup,
-              remove the pod from the API. In the presence of network partitions, this object may still
-              exist after this timestamp, until an administrator or automated process can determine the
-              resource is fully terminated.
-              If not set, graceful deletion of the object has not been requested.
-
-              Populated by the system when a graceful deletion is requested.
-              Read-only.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
-              +optional
-            type: string
-          finalizers:
-            description: |-
-              Must be empty before the object is deleted from the registry. Each entry
-              is an identifier for the responsible component that will remove the entry
-              from the list. If the deletionTimestamp of the object is non-nil, entries
-              in this list can only be removed.
-              Finalizers may be processed and removed in any order.  Order is NOT enforced
-              because it introduces significant risk of stuck finalizers.
-              finalizers is a shared field, any actor with permission can reorder it.
-              If the finalizer list is processed in order, then this can lead to a situation
-              in which the component responsible for the first finalizer in the list is
-              waiting for a signal (field value, external system, or other) produced by a
-              component responsible for a finalizer later in the list, resulting in a deadlock.
-              Without enforced ordering finalizers are free to order amongst themselves and
-              are not vulnerable to ordering changes in the list.
-              +optional
-              +patchStrategy=merge
-            items:
-              type: string
-            type: array
-          generateName:
-            description: |-
-              GenerateName is an optional prefix, used by the server, to generate a unique
-              name ONLY IF the Name field has not been provided.
-              If this field is used, the name returned to the client will be different
-              than the name passed. This value will also be combined with a unique suffix.
-              The provided value has the same validation rules as the Name field,
-              and may be truncated by the length of the suffix required to make the value
-              unique on the server.
-
-              If this field is specified and the generated name exists, the server will
-              NOT return a 409 - instead, it will either return 201 Created or 500 with Reason
-              ServerTimeout indicating a unique name could not be found in the time allotted, and the client
-              should retry (optionally after the time indicated in the Retry-After header).
-
-              Applied only if Name is not specified.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#idempotency
-              +optional
-            type: string
-          generation:
-            description: |-
-              A sequence number representing a specific generation of the desired state.
-              Populated by the system. Read-only.
-              +optional
-            type: integer
-          labels:
-            additionalProperties:
-              type: string
-            description: |-
-              Map of string keys and values that can be used to organize and categorize
-              (scope and select) objects. May match selectors of replication controllers
-              and services.
-              More info: http://kubernetes.io/docs/user-guide/labels
-              +optional
-            type: object
-          managedFields:
-            description: |-
-              ManagedFields maps workflow-id and version to the set of fields
-              that are managed by that workflow. This is mostly for internal
-              housekeeping, and users typically shouldn't need to set or
-              understand this field. A workflow can be the user's name, a
-              controller's name, or the name of a specific apply path like
-              "ci-cd". The set of fields is always in the version that the
-              workflow used when modifying the object.
-
-              +optional
-            items:
-              $ref: '#/definitions/v1.ManagedFieldsEntry'
-            type: array
-          name:
-            description: |-
-              Name must be unique within a namespace. Is required when creating resources, although
-              some resources may allow a client to request the generation of an appropriate name
-              automatically. Name is primarily intended for creation idempotence and configuration
-              definition.
-              Cannot be updated.
-              More info: http://kubernetes.io/docs/user-guide/identifiers#names
-              +optional
-            type: string
-          namespace:
-            description: |-
-              Namespace defines the space within which each name must be unique. An empty namespace is
-              equivalent to the "default" namespace, but "default" is the canonical representation.
-              Not all objects are required to be scoped to a namespace - the value of this field for
-              those objects will be empty.
-
-              Must be a DNS_LABEL.
-              Cannot be updated.
-              More info: http://kubernetes.io/docs/user-guide/namespaces
-              +optional
-            type: string
-          ownerReferences:
-            description: |-
-              List of objects depended by this object. If ALL objects in the list have
-              been deleted, this object will be garbage collected. If this object is managed by a controller,
-              then an entry in this list will point to this controller, with the controller field set to true.
-              There cannot be more than one managing controller.
-              +optional
-              +patchMergeKey=uid
-              +patchStrategy=merge
-            items:
-              $ref: '#/definitions/v1.OwnerReference'
-            type: array
-          resourceVersion:
-            description: |-
-              An opaque value that represents the internal version of this object that can
-              be used by clients to determine when objects have changed. May be used for optimistic
-              concurrency, change detection, and the watch operation on a resource or set of resources.
-              Clients must treat these values as opaque and passed unmodified back to the server.
-              They may only be valid for a particular resource or set of resources.
-
-              Populated by the system.
-              Read-only.
-              Value must be treated as opaque by clients and .
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency
-              +optional
-            type: string
-          selfLink:
-            description: |-
-              SelfLink is a URL representing this object.
-              Populated by the system.
-              Read-only.
-
-              DEPRECATED
-              Kubernetes will stop propagating this field in 1.20 release and the field is planned
-              to be removed in 1.21 release.
-              +optional
-            type: string
-          uid:
-            description: |-
-              UID is the unique in time and space value for this object. It is typically generated by
-              the server on successful creation of a resource and is not allowed to change on PUT
-              operations.
-
-              Populated by the system.
-              Read-only.
-              More info: http://kubernetes.io/docs/user-guide/identifiers#uids
-              +optional
-            type: string
+          Populated by the system.
+          Read-only.
+          More info: http://kubernetes.io/docs/user-guide/identifiers#uids
+          +optional
+        type: string
     type: object
   v1.RoleRef:
     properties:
@@ -861,6 +1170,37 @@ definitions:
       name:
         description: Name is the name of resource being referenced
         type: string
+    type: object
+  v1.ScopeSelector:
+    properties:
+      matchExpressions:
+        description: |-
+          A list of scope selector requirements by scope of the resources.
+          +optional
+        items:
+          $ref: '#/definitions/v1.ScopedResourceSelectorRequirement'
+        type: array
+    type: object
+  v1.ScopedResourceSelectorRequirement:
+    properties:
+      operator:
+        description: |-
+          Represents a scope's relationship to a set of values.
+          Valid operators are In, NotIn, Exists, DoesNotExist.
+        type: string
+      scopeName:
+        description: The name of the scope that the selector applies to.
+        type: string
+      values:
+        description: |-
+          An array of string values. If the operator is In or NotIn,
+          the values array must be non-empty. If the operator is Exists or DoesNotExist,
+          the values array must be empty.
+          This array is replaced during a strategic merge patch.
+          +optional
+        items:
+          type: string
+        type: array
     type: object
   v1.Subject:
     properties:
@@ -888,206 +1228,15 @@ definitions:
     type: object
   v1.User:
     properties:
-      metadata:
-        properties:
-          annotations:
-            additionalProperties:
-              type: string
-            description: |-
-              Annotations is an unstructured key value map stored with a resource that may be
-              set by external tools to store and retrieve arbitrary metadata. They are not
-              queryable and should be preserved when modifying objects.
-              More info: http://kubernetes.io/docs/user-guide/annotations
-              +optional
-            type: object
-          clusterName:
-            description: |-
-              The name of the cluster which the object belongs to.
-              This is used to distinguish resources with same name and namespace in different clusters.
-              This field is not set anywhere right now and apiserver is going to ignore it if set in create or update request.
-              +optional
-            type: string
-          creationTimestamp:
-            description: |-
-              CreationTimestamp is a timestamp representing the server time when this object was
-              created. It is not guaranteed to be set in happens-before order across separate operations.
-              Clients may not set this value. It is represented in RFC3339 form and is in UTC.
-
-              Populated by the system.
-              Read-only.
-              Null for lists.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
-              +optional
-            type: string
-          deletionGracePeriodSeconds:
-            description: |-
-              Number of seconds allowed for this object to gracefully terminate before
-              it will be removed from the system. Only set when deletionTimestamp is also set.
-              May only be shortened.
-              Read-only.
-              +optional
-            type: integer
-          deletionTimestamp:
-            description: |-
-              DeletionTimestamp is RFC 3339 date and time at which this resource will be deleted. This
-              field is set by the server when a graceful deletion is requested by the user, and is not
-              directly settable by a client. The resource is expected to be deleted (no longer visible
-              from resource lists, and not reachable by name) after the time in this field, once the
-              finalizers list is empty. As long as the finalizers list contains items, deletion is blocked.
-              Once the deletionTimestamp is set, this value may not be unset or be set further into the
-              future, although it may be shortened or the resource may be deleted prior to this time.
-              For example, a user may request that a pod is deleted in 30 seconds. The Kubelet will react
-              by sending a graceful termination signal to the containers in the pod. After that 30 seconds,
-              the Kubelet will send a hard termination signal (SIGKILL) to the container and after cleanup,
-              remove the pod from the API. In the presence of network partitions, this object may still
-              exist after this timestamp, until an administrator or automated process can determine the
-              resource is fully terminated.
-              If not set, graceful deletion of the object has not been requested.
-
-              Populated by the system when a graceful deletion is requested.
-              Read-only.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
-              +optional
-            type: string
-          finalizers:
-            description: |-
-              Must be empty before the object is deleted from the registry. Each entry
-              is an identifier for the responsible component that will remove the entry
-              from the list. If the deletionTimestamp of the object is non-nil, entries
-              in this list can only be removed.
-              Finalizers may be processed and removed in any order.  Order is NOT enforced
-              because it introduces significant risk of stuck finalizers.
-              finalizers is a shared field, any actor with permission can reorder it.
-              If the finalizer list is processed in order, then this can lead to a situation
-              in which the component responsible for the first finalizer in the list is
-              waiting for a signal (field value, external system, or other) produced by a
-              component responsible for a finalizer later in the list, resulting in a deadlock.
-              Without enforced ordering finalizers are free to order amongst themselves and
-              are not vulnerable to ordering changes in the list.
-              +optional
-              +patchStrategy=merge
-            items:
-              type: string
-            type: array
-          generateName:
-            description: |-
-              GenerateName is an optional prefix, used by the server, to generate a unique
-              name ONLY IF the Name field has not been provided.
-              If this field is used, the name returned to the client will be different
-              than the name passed. This value will also be combined with a unique suffix.
-              The provided value has the same validation rules as the Name field,
-              and may be truncated by the length of the suffix required to make the value
-              unique on the server.
-
-              If this field is specified and the generated name exists, the server will
-              NOT return a 409 - instead, it will either return 201 Created or 500 with Reason
-              ServerTimeout indicating a unique name could not be found in the time allotted, and the client
-              should retry (optionally after the time indicated in the Retry-After header).
-
-              Applied only if Name is not specified.
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#idempotency
-              +optional
-            type: string
-          generation:
-            description: |-
-              A sequence number representing a specific generation of the desired state.
-              Populated by the system. Read-only.
-              +optional
-            type: integer
-          labels:
-            additionalProperties:
-              type: string
-            description: |-
-              Map of string keys and values that can be used to organize and categorize
-              (scope and select) objects. May match selectors of replication controllers
-              and services.
-              More info: http://kubernetes.io/docs/user-guide/labels
-              +optional
-            type: object
-          managedFields:
-            description: |-
-              ManagedFields maps workflow-id and version to the set of fields
-              that are managed by that workflow. This is mostly for internal
-              housekeeping, and users typically shouldn't need to set or
-              understand this field. A workflow can be the user's name, a
-              controller's name, or the name of a specific apply path like
-              "ci-cd". The set of fields is always in the version that the
-              workflow used when modifying the object.
-
-              +optional
-            items:
-              $ref: '#/definitions/v1.ManagedFieldsEntry'
-            type: array
-          name:
-            description: |-
-              Name must be unique within a namespace. Is required when creating resources, although
-              some resources may allow a client to request the generation of an appropriate name
-              automatically. Name is primarily intended for creation idempotence and configuration
-              definition.
-              Cannot be updated.
-              More info: http://kubernetes.io/docs/user-guide/identifiers#names
-              +optional
-            type: string
-          namespace:
-            description: |-
-              Namespace defines the space within which each name must be unique. An empty namespace is
-              equivalent to the "default" namespace, but "default" is the canonical representation.
-              Not all objects are required to be scoped to a namespace - the value of this field for
-              those objects will be empty.
-
-              Must be a DNS_LABEL.
-              Cannot be updated.
-              More info: http://kubernetes.io/docs/user-guide/namespaces
-              +optional
-            type: string
-          ownerReferences:
-            description: |-
-              List of objects depended by this object. If ALL objects in the list have
-              been deleted, this object will be garbage collected. If this object is managed by a controller,
-              then an entry in this list will point to this controller, with the controller field set to true.
-              There cannot be more than one managing controller.
-              +optional
-              +patchMergeKey=uid
-              +patchStrategy=merge
-            items:
-              $ref: '#/definitions/v1.OwnerReference'
-            type: array
-          resourceVersion:
-            description: |-
-              An opaque value that represents the internal version of this object that can
-              be used by clients to determine when objects have changed. May be used for optimistic
-              concurrency, change detection, and the watch operation on a resource or set of resources.
-              Clients must treat these values as opaque and passed unmodified back to the server.
-              They may only be valid for a particular resource or set of resources.
-
-              Populated by the system.
-              Read-only.
-              Value must be treated as opaque by clients and .
-              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency
-              +optional
-            type: string
-          selfLink:
-            description: |-
-              SelfLink is a URL representing this object.
-              Populated by the system.
-              Read-only.
-
-              DEPRECATED
-              Kubernetes will stop propagating this field in 1.20 release and the field is planned
-              to be removed in 1.21 release.
-              +optional
-            type: string
-          uid:
-            description: |-
-              UID is the unique in time and space value for this object. It is typically generated by
-              the server on successful creation of a resource and is not allowed to change on PUT
-              operations.
-
-              Populated by the system.
-              Read-only.
-              More info: http://kubernetes.io/docs/user-guide/identifiers#uids
-              +optional
-            type: string
+      annotations:
+        additionalProperties:
+          type: string
+        description: |-
+          Annotations is an unstructured key value map stored with a resource that may be
+          set by external tools to store and retrieve arbitrary metadata. They are not
+          queryable and should be preserved when modifying objects.
+          More info: http://kubernetes.io/docs/user-guide/annotations
+          +optional
         type: object
       apiVersion:
         description: |-
@@ -1097,10 +1246,100 @@ definitions:
           More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
           +optional
         type: string
-      spec:
-        $ref: '#/definitions/v1.UserSpec'
-      status:
-        $ref: '#/definitions/v1.UserStatus'
+      clusterName:
+        description: |-
+          The name of the cluster which the object belongs to.
+          This is used to distinguish resources with same name and namespace in different clusters.
+          This field is not set anywhere right now and apiserver is going to ignore it if set in create or update request.
+          +optional
+        type: string
+      creationTimestamp:
+        description: |-
+          CreationTimestamp is a timestamp representing the server time when this object was
+          created. It is not guaranteed to be set in happens-before order across separate operations.
+          Clients may not set this value. It is represented in RFC3339 form and is in UTC.
+
+          Populated by the system.
+          Read-only.
+          Null for lists.
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+          +optional
+        type: string
+      deletionGracePeriodSeconds:
+        description: |-
+          Number of seconds allowed for this object to gracefully terminate before
+          it will be removed from the system. Only set when deletionTimestamp is also set.
+          May only be shortened.
+          Read-only.
+          +optional
+        type: integer
+      deletionTimestamp:
+        description: |-
+          DeletionTimestamp is RFC 3339 date and time at which this resource will be deleted. This
+          field is set by the server when a graceful deletion is requested by the user, and is not
+          directly settable by a client. The resource is expected to be deleted (no longer visible
+          from resource lists, and not reachable by name) after the time in this field, once the
+          finalizers list is empty. As long as the finalizers list contains items, deletion is blocked.
+          Once the deletionTimestamp is set, this value may not be unset or be set further into the
+          future, although it may be shortened or the resource may be deleted prior to this time.
+          For example, a user may request that a pod is deleted in 30 seconds. The Kubelet will react
+          by sending a graceful termination signal to the containers in the pod. After that 30 seconds,
+          the Kubelet will send a hard termination signal (SIGKILL) to the container and after cleanup,
+          remove the pod from the API. In the presence of network partitions, this object may still
+          exist after this timestamp, until an administrator or automated process can determine the
+          resource is fully terminated.
+          If not set, graceful deletion of the object has not been requested.
+
+          Populated by the system when a graceful deletion is requested.
+          Read-only.
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+          +optional
+        type: string
+      finalizers:
+        description: |-
+          Must be empty before the object is deleted from the registry. Each entry
+          is an identifier for the responsible component that will remove the entry
+          from the list. If the deletionTimestamp of the object is non-nil, entries
+          in this list can only be removed.
+          Finalizers may be processed and removed in any order.  Order is NOT enforced
+          because it introduces significant risk of stuck finalizers.
+          finalizers is a shared field, any actor with permission can reorder it.
+          If the finalizer list is processed in order, then this can lead to a situation
+          in which the component responsible for the first finalizer in the list is
+          waiting for a signal (field value, external system, or other) produced by a
+          component responsible for a finalizer later in the list, resulting in a deadlock.
+          Without enforced ordering finalizers are free to order amongst themselves and
+          are not vulnerable to ordering changes in the list.
+          +optional
+          +patchStrategy=merge
+        items:
+          type: string
+        type: array
+      generateName:
+        description: |-
+          GenerateName is an optional prefix, used by the server, to generate a unique
+          name ONLY IF the Name field has not been provided.
+          If this field is used, the name returned to the client will be different
+          than the name passed. This value will also be combined with a unique suffix.
+          The provided value has the same validation rules as the Name field,
+          and may be truncated by the length of the suffix required to make the value
+          unique on the server.
+
+          If this field is specified and the generated name exists, the server will
+          NOT return a 409 - instead, it will either return 201 Created or 500 with Reason
+          ServerTimeout indicating a unique name could not be found in the time allotted, and the client
+          should retry (optionally after the time indicated in the Retry-After header).
+
+          Applied only if Name is not specified.
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#idempotency
+          +optional
+        type: string
+      generation:
+        description: |-
+          A sequence number representing a specific generation of the desired state.
+          Populated by the system. Read-only.
+          +optional
+        type: integer
       kind:
         description: |-
           Kind is a string value representing the REST resource this object represents.
@@ -1108,6 +1347,104 @@ definitions:
           Cannot be updated.
           In CamelCase.
           More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+          +optional
+        type: string
+      labels:
+        additionalProperties:
+          type: string
+        description: |-
+          Map of string keys and values that can be used to organize and categorize
+          (scope and select) objects. May match selectors of replication controllers
+          and services.
+          More info: http://kubernetes.io/docs/user-guide/labels
+          +optional
+        type: object
+      managedFields:
+        description: |-
+          ManagedFields maps workflow-id and version to the set of fields
+          that are managed by that workflow. This is mostly for internal
+          housekeeping, and users typically shouldn't need to set or
+          understand this field. A workflow can be the user's name, a
+          controller's name, or the name of a specific apply path like
+          "ci-cd". The set of fields is always in the version that the
+          workflow used when modifying the object.
+
+          +optional
+        items:
+          $ref: '#/definitions/v1.ManagedFieldsEntry'
+        type: array
+      name:
+        description: |-
+          Name must be unique within a namespace. Is required when creating resources, although
+          some resources may allow a client to request the generation of an appropriate name
+          automatically. Name is primarily intended for creation idempotence and configuration
+          definition.
+          Cannot be updated.
+          More info: http://kubernetes.io/docs/user-guide/identifiers#names
+          +optional
+        type: string
+      namespace:
+        description: |-
+          Namespace defines the space within which each name must be unique. An empty namespace is
+          equivalent to the "default" namespace, but "default" is the canonical representation.
+          Not all objects are required to be scoped to a namespace - the value of this field for
+          those objects will be empty.
+
+          Must be a DNS_LABEL.
+          Cannot be updated.
+          More info: http://kubernetes.io/docs/user-guide/namespaces
+          +optional
+        type: string
+      ownerReferences:
+        description: |-
+          List of objects depended by this object. If ALL objects in the list have
+          been deleted, this object will be garbage collected. If this object is managed by a controller,
+          then an entry in this list will point to this controller, with the controller field set to true.
+          There cannot be more than one managing controller.
+          +optional
+          +patchMergeKey=uid
+          +patchStrategy=merge
+        items:
+          $ref: '#/definitions/v1.OwnerReference'
+        type: array
+      resourceVersion:
+        description: |-
+          An opaque value that represents the internal version of this object that can
+          be used by clients to determine when objects have changed. May be used for optimistic
+          concurrency, change detection, and the watch operation on a resource or set of resources.
+          Clients must treat these values as opaque and passed unmodified back to the server.
+          They may only be valid for a particular resource or set of resources.
+
+          Populated by the system.
+          Read-only.
+          Value must be treated as opaque by clients and .
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency
+          +optional
+        type: string
+      selfLink:
+        description: |-
+          SelfLink is a URL representing this object.
+          Populated by the system.
+          Read-only.
+
+          DEPRECATED
+          Kubernetes will stop propagating this field in 1.20 release and the field is planned
+          to be removed in 1.21 release.
+          +optional
+        type: string
+      spec:
+        $ref: '#/definitions/v1.UserSpec'
+      status:
+        $ref: '#/definitions/v1.UserStatus'
+      uid:
+        description: |-
+          UID is the unique in time and space value for this object. It is typically generated by
+          the server on successful creation of a resource and is not allowed to change on PUT
+          operations.
+
+          Populated by the system.
+          Read-only.
+          More info: http://kubernetes.io/docs/user-guide/identifiers#uids
           +optional
         type: string
     type: object
@@ -1138,6 +1475,283 @@ definitions:
         description: The user status, normal/forbidden
         type: string
     type: object
+  v1alpha2.MetaKVP:
+    properties:
+      key:
+        description: |-
+          Key is the name of the label or annotation. It must conform to the normal rules for Kubernetes
+          label/annotation keys.
+        type: string
+      value:
+        description: |-
+          Value is the value of the label or annotation. It must confirm to the normal rules for
+          Kubernetes label or annoation values, which are far more restrictive for labels than for
+          anntations.
+        type: string
+    type: object
+  v1alpha2.SubnamespaceAnchor:
+    properties:
+      annotations:
+        additionalProperties:
+          type: string
+        description: |-
+          Annotations is an unstructured key value map stored with a resource that may be
+          set by external tools to store and retrieve arbitrary metadata. They are not
+          queryable and should be preserved when modifying objects.
+          More info: http://kubernetes.io/docs/user-guide/annotations
+          +optional
+        type: object
+      apiVersion:
+        description: |-
+          APIVersion defines the versioned schema of this representation of an object.
+          Servers should convert recognized schemas to the latest internal value, and
+          may reject unrecognized values.
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+          +optional
+        type: string
+      clusterName:
+        description: |-
+          The name of the cluster which the object belongs to.
+          This is used to distinguish resources with same name and namespace in different clusters.
+          This field is not set anywhere right now and apiserver is going to ignore it if set in create or update request.
+          +optional
+        type: string
+      creationTimestamp:
+        description: |-
+          CreationTimestamp is a timestamp representing the server time when this object was
+          created. It is not guaranteed to be set in happens-before order across separate operations.
+          Clients may not set this value. It is represented in RFC3339 form and is in UTC.
+
+          Populated by the system.
+          Read-only.
+          Null for lists.
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+          +optional
+        type: string
+      deletionGracePeriodSeconds:
+        description: |-
+          Number of seconds allowed for this object to gracefully terminate before
+          it will be removed from the system. Only set when deletionTimestamp is also set.
+          May only be shortened.
+          Read-only.
+          +optional
+        type: integer
+      deletionTimestamp:
+        description: |-
+          DeletionTimestamp is RFC 3339 date and time at which this resource will be deleted. This
+          field is set by the server when a graceful deletion is requested by the user, and is not
+          directly settable by a client. The resource is expected to be deleted (no longer visible
+          from resource lists, and not reachable by name) after the time in this field, once the
+          finalizers list is empty. As long as the finalizers list contains items, deletion is blocked.
+          Once the deletionTimestamp is set, this value may not be unset or be set further into the
+          future, although it may be shortened or the resource may be deleted prior to this time.
+          For example, a user may request that a pod is deleted in 30 seconds. The Kubelet will react
+          by sending a graceful termination signal to the containers in the pod. After that 30 seconds,
+          the Kubelet will send a hard termination signal (SIGKILL) to the container and after cleanup,
+          remove the pod from the API. In the presence of network partitions, this object may still
+          exist after this timestamp, until an administrator or automated process can determine the
+          resource is fully terminated.
+          If not set, graceful deletion of the object has not been requested.
+
+          Populated by the system when a graceful deletion is requested.
+          Read-only.
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+          +optional
+        type: string
+      finalizers:
+        description: |-
+          Must be empty before the object is deleted from the registry. Each entry
+          is an identifier for the responsible component that will remove the entry
+          from the list. If the deletionTimestamp of the object is non-nil, entries
+          in this list can only be removed.
+          Finalizers may be processed and removed in any order.  Order is NOT enforced
+          because it introduces significant risk of stuck finalizers.
+          finalizers is a shared field, any actor with permission can reorder it.
+          If the finalizer list is processed in order, then this can lead to a situation
+          in which the component responsible for the first finalizer in the list is
+          waiting for a signal (field value, external system, or other) produced by a
+          component responsible for a finalizer later in the list, resulting in a deadlock.
+          Without enforced ordering finalizers are free to order amongst themselves and
+          are not vulnerable to ordering changes in the list.
+          +optional
+          +patchStrategy=merge
+        items:
+          type: string
+        type: array
+      generateName:
+        description: |-
+          GenerateName is an optional prefix, used by the server, to generate a unique
+          name ONLY IF the Name field has not been provided.
+          If this field is used, the name returned to the client will be different
+          than the name passed. This value will also be combined with a unique suffix.
+          The provided value has the same validation rules as the Name field,
+          and may be truncated by the length of the suffix required to make the value
+          unique on the server.
+
+          If this field is specified and the generated name exists, the server will
+          NOT return a 409 - instead, it will either return 201 Created or 500 with Reason
+          ServerTimeout indicating a unique name could not be found in the time allotted, and the client
+          should retry (optionally after the time indicated in the Retry-After header).
+
+          Applied only if Name is not specified.
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#idempotency
+          +optional
+        type: string
+      generation:
+        description: |-
+          A sequence number representing a specific generation of the desired state.
+          Populated by the system. Read-only.
+          +optional
+        type: integer
+      kind:
+        description: |-
+          Kind is a string value representing the REST resource this object represents.
+          Servers may infer this from the endpoint the client submits requests to.
+          Cannot be updated.
+          In CamelCase.
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+          +optional
+        type: string
+      labels:
+        additionalProperties:
+          type: string
+        description: |-
+          Map of string keys and values that can be used to organize and categorize
+          (scope and select) objects. May match selectors of replication controllers
+          and services.
+          More info: http://kubernetes.io/docs/user-guide/labels
+          +optional
+        type: object
+      managedFields:
+        description: |-
+          ManagedFields maps workflow-id and version to the set of fields
+          that are managed by that workflow. This is mostly for internal
+          housekeeping, and users typically shouldn't need to set or
+          understand this field. A workflow can be the user's name, a
+          controller's name, or the name of a specific apply path like
+          "ci-cd". The set of fields is always in the version that the
+          workflow used when modifying the object.
+
+          +optional
+        items:
+          $ref: '#/definitions/v1.ManagedFieldsEntry'
+        type: array
+      name:
+        description: |-
+          Name must be unique within a namespace. Is required when creating resources, although
+          some resources may allow a client to request the generation of an appropriate name
+          automatically. Name is primarily intended for creation idempotence and configuration
+          definition.
+          Cannot be updated.
+          More info: http://kubernetes.io/docs/user-guide/identifiers#names
+          +optional
+        type: string
+      namespace:
+        description: |-
+          Namespace defines the space within which each name must be unique. An empty namespace is
+          equivalent to the "default" namespace, but "default" is the canonical representation.
+          Not all objects are required to be scoped to a namespace - the value of this field for
+          those objects will be empty.
+
+          Must be a DNS_LABEL.
+          Cannot be updated.
+          More info: http://kubernetes.io/docs/user-guide/namespaces
+          +optional
+        type: string
+      ownerReferences:
+        description: |-
+          List of objects depended by this object. If ALL objects in the list have
+          been deleted, this object will be garbage collected. If this object is managed by a controller,
+          then an entry in this list will point to this controller, with the controller field set to true.
+          There cannot be more than one managing controller.
+          +optional
+          +patchMergeKey=uid
+          +patchStrategy=merge
+        items:
+          $ref: '#/definitions/v1.OwnerReference'
+        type: array
+      resourceVersion:
+        description: |-
+          An opaque value that represents the internal version of this object that can
+          be used by clients to determine when objects have changed. May be used for optimistic
+          concurrency, change detection, and the watch operation on a resource or set of resources.
+          Clients must treat these values as opaque and passed unmodified back to the server.
+          They may only be valid for a particular resource or set of resources.
+
+          Populated by the system.
+          Read-only.
+          Value must be treated as opaque by clients and .
+          More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency
+          +optional
+        type: string
+      selfLink:
+        description: |-
+          SelfLink is a URL representing this object.
+          Populated by the system.
+          Read-only.
+
+          DEPRECATED
+          Kubernetes will stop propagating this field in 1.20 release and the field is planned
+          to be removed in 1.21 release.
+          +optional
+        type: string
+      spec:
+        $ref: '#/definitions/v1alpha2.SubnamespaceAnchorSpec'
+      status:
+        $ref: '#/definitions/v1alpha2.SubnamespaceAnchorStatus'
+      uid:
+        description: |-
+          UID is the unique in time and space value for this object. It is typically generated by
+          the server on successful creation of a resource and is not allowed to change on PUT
+          operations.
+
+          Populated by the system.
+          Read-only.
+          More info: http://kubernetes.io/docs/user-guide/identifiers#uids
+          +optional
+        type: string
+    type: object
+  v1alpha2.SubnamespaceAnchorSpec:
+    properties:
+      annotations:
+        description: |-
+          Annotations is a list of annotations and values to apply to the current subnamespace and all of
+          its descendants. All annotation keys must match a regex specified on the command line by
+          --managed-namespace-annotation.
+          All annotation keys must be managed annotations (see HNC docs) and must match a regex
+        items:
+          $ref: '#/definitions/v1alpha2.MetaKVP'
+        type: array
+      labels:
+        description: |-
+          Labels is a list of labels and values to apply to the current subnamespace and all of its
+          descendants. All label keys must match a regex specified on the command line by
+          --managed-namespace-label.
+          All label keys must be managed labels (see HNC docs) and must match a regex
+        items:
+          $ref: '#/definitions/v1alpha2.MetaKVP'
+        type: array
+    type: object
+  v1alpha2.SubnamespaceAnchorStatus:
+    properties:
+      status:
+        description: |-
+          Describes the state of the subnamespace anchor.
+
+          Currently, the supported values are:
+
+          - "Missing": the subnamespace has not been created yet. This should be the default state when
+          the anchor is just created.
+
+          - "Ok": the subnamespace exists. This is the only good state of the anchor.
+
+          - "Conflict": a namespace of the same name already exists. The admission controller will
+          attempt to prevent this.
+
+          - "Forbidden": the anchor was created in a namespace that doesn't allow children, such as
+          kube-system or hnc-system. The admission controller will attempt to prevent this.
+        type: string
+    type: object
 info:
   contact: {}
   description: This is KubeCube api documentation.
@@ -1148,16 +1762,16 @@ paths:
     delete:
       description: delete roleBinding and clusterRoleBinding
       parameters:
-        - description: roleBinding name
-          in: query
-          name: name
-          required: true
-          type: string
-        - description: roleBinding namespace
-          in: query
-          name: namespace
-          required: true
-          type: string
+      - description: roleBinding name
+        in: query
+        name: name
+        required: true
+        type: string
+      - description: roleBinding namespace
+        in: query
+        name: namespace
+        required: true
+        type: string
       responses:
         "200":
           description: success
@@ -1169,16 +1783,16 @@ paths:
             $ref: '#/definitions/errcode.ErrorInfo'
       summary: Delete roleBinding
       tags:
-        - authorization
+      - authorization
     post:
       description: create roleBinding and clusterRoleBinding
       parameters:
-        - description: roleBinding data
-          in: body
-          name: roleBinding
-          required: true
-          schema:
-            $ref: '#/definitions/v1.RoleBinding'
+      - description: roleBinding data
+        in: body
+        name: roleBinding
+        required: true
+        schema:
+          $ref: '#/definitions/v1.RoleBinding'
       responses:
         "200":
           description: success
@@ -1194,92 +1808,93 @@ paths:
             $ref: '#/definitions/errcode.ErrorInfo'
       summary: Create roleBinding
       tags:
-        - authorization
+      - authorization
   /api/v1/cube/authorization/clusterroles:
     get:
       description: get clusterRoles by level
       parameters:
-        - description: hnc level
-          in: query
-          name: level
-          required: true
-          type: string
+      - description: hnc level
+        in: query
+        name: level
+        required: true
+        type: string
       responses:
         "200":
-          description: OK
+          description: '{"total":1,"items":[{"kind":"ClusterRole","apiVersion":"rbac.authorization.k8s.io/v1","metadata":{"name":"platform-admin","uid":"87851558-7247-4e17-94fa-bf9ddcb48387","resourceVersion":"793","creationTimestamp":"2022-04-28T06:41:26Z","labels":{"app.kubernetes.io/managed-by":"Helm","kubecube.io/rbac":"true","kubecube.io/role":"platform"},"annotations":{"kubecube.io/sync":"true","meta.helm.sh/release-name":"kubecube","meta.helm.sh/release-namespace":"default"},"managedFields":[{"manager":"clusterrole-aggregation-controller","operation":"Apply","apiVersion":"rbac.authorization.k8s.io/v1","time":"2022-04-28T06:41:26Z","fieldsType":"FieldsV1","fieldsV1":{"f:rules":{}}},{"manager":"Go-http-client","operation":"Update","apiVersion":"rbac.authorization.k8s.io/v1","time":"2022-04-28T06:41:26Z","fieldsType":"FieldsV1","fieldsV1":{"f:aggregationRule":{".":{},"f:clusterRoleSelectors":{}},"f:metadata":{"f:annotations":{".":{},"f:kubecube.io/sync":{},"f:meta.helm.sh/release-name":{},"f:meta.helm.sh/release-namespace":{}},"f:labels":{".":{},"f:app.kubernetes.io/managed-by":{},"f:kubecube.io/rbac":{},"f:kubecube.io/role":{}}}}}]},"rules":[{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["pods"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["pods/attach"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["pods/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["pods/execescalate"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["pods/exec"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["pods/portforward"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["pods/proxy"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["pods/log"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["replicationcontrollers"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["replicationcontrollers/scale"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["replicationcontrollers/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["persistentvolumeclaims"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["persistentvolumeclaims/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["configmaps"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["endpoints"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["endpointslices"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["secrets"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["services"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["services/proxy"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["services/status"]},{"verbs":["impersonate","get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["serviceaccounts"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["daemonsets"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["daemonsets/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["deployments"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["deployments/rollback"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["deployments/scale"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["deployments/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["statefulsets"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["statefulsets/scale"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["statefulsets/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["replicasets"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["replicasets/scale"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["replicasets/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["controllerrevisions"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["horizontalpodautoscalers"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["horizontalpodautoscalers/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["verticalpodautoscalercheckpoints"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["verticalpodautoscalers"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["cronjobs"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["cronjobs/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["jobs"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["jobs/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["ingresses"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["ingresses/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["networkpolicies"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["ingressclasses"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["poddisruptionbudgets"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["poddisruptionbudgets/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["nodes"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["persistentvolumes"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["storageclasses"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["bindings"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["events"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["limitranges"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["resourcequotas"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["resourcequotas/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["namespaces"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["namespaces/status"]},{"verbs":["create","delete","deletecollection","get","list","patch","update","watch"],"apiGroups":["*"],"resources":["localsubjectaccessreviews"]},{"verbs":["create","delete","deletecollection","get","list","patch","update","watch"],"apiGroups":["*"],"resources":["selfsubjectaccessreviews"]},{"verbs":["create","delete","deletecollection","get","list","patch","update","watch"],"apiGroups":["*"],"resources":["selfsubjectrulesreviews"]},{"verbs":["create","delete","deletecollection","get","list","patch","update","watch"],"apiGroups":["*"],"resources":["subjectaccessreviews"]},{"verbs":["create","delete","deletecollection","get","list","patch","update","watch"],"apiGroups":["*"],"resources":["rolebindings"]},{"verbs":["create","delete","deletecollection","get","list","patch","update","watch"],"apiGroups":["*"],"resources":["roles"]},{"verbs":["create","delete","deletecollection","get","list","patch","update","watch"],"apiGroups":["*"],"resources":["clusterrolebindings"]},{"verbs":["create","delete","deletecollection","get","list","patch","update","watch"],"apiGroups":["*"],"resources":["clusterroles"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["customresourcedefinitions"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["componentstatuses"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["podtemplates"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["mutatingwebhookconfigurations"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["validatingwebhookconfigurations"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["apiservices"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["tokenreviews"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["certificatesigningrequests"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["leases"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["flowschemas"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["prioritylevelconfigurations"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["runtimeclasses"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["priorityclasses"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["csidrivers"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["csinodes"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["volumeattachments"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["podsecuritypolicies"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["cuberesourcequota"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["cuberesourcequota/finalizers"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["cuberesourcequota/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["clusters"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["clusters/finalizers"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["tenants"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["tenants/finalizers"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["tenants/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["projects"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["projects/finalizers"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["projects/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["users"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["users/finalizers"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["users/status"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["keys"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["hotplugs"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["externalresources"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["dashboards"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["alertmanagerconfigs"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["alertmanagers"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["podmonitors"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["probes"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["prometheuses"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["prometheusrules"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["servicemonitors"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["thanosrulers"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["bgpconfigurations"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["bgppeers"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["blockaffinities"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["clusterinformations"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["felixconfigurations"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["globalnetworkpolicies"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["globalnetworksets"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["hostendpoints"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["ipamblocks"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["ipamconfigs"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["ipamhandles"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["ippools"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["kubecontrollersconfigurations"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["networksets"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["hierarchyconfigurations"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["hncconfigurations"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["subnamespaceanchors"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["catalogsources"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["clusterserviceversions"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["installplans"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["operatorconditions"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["operatorgroups"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["operators"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["subscriptions"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["packagemanifests"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["nodelogconfigs"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["logconfigs"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["cephs"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["nfs"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["ipallocations"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["ipranges"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["podstickyips"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["subnets"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["contactgroups"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["notifypolicies"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["notifytemplates"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["silencerules"]},{"verbs":["get","list","watch","create","delete","deletecollection","patch","update"],"apiGroups":["*"],"resources":["loadbalancers"]}],"aggregationRule":{"clusterRoleSelectors":[{"matchLabels":{"rbac.authorization.k8s.io/aggregate-to-platform-admin":"true"}}]}}]}'
           schema:
-            $ref: '#/definitions/pkg_apiserver_cubeapi_authorization.result'
+            $ref: '#/definitions/github.com_kubecube-io_kubecube_pkg_apiserver_cubeapi_authorization.result'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/errcode.ErrorInfo'
       summary: Get roleBinding
       tags:
-        - authorization
+      - authorization
   /api/v1/cube/authorization/identities:
     get:
       description: show a user identity of platform, tenant or project
       parameters:
-        - description: user name
-          in: query
-          name: user
-          required: true
-          type: string
+      - description: user name
+        in: query
+        name: user
+        required: true
+        type: string
       responses:
         "200":
-          description: OK
+          description: '{"platformAdmin":true,"tenantAdmin":true,"projectAdmin":true}'
           schema:
-            additionalProperties: true
+            additionalProperties:
+              type: boolean
             type: object
       summary: Show identity
       tags:
-        - authorization
+      - authorization
   /api/v1/cube/authorization/projects:
     get:
       description: get all visible project for user under tenant
       parameters:
-        - description: user name
-          in: query
-          name: user
-          required: true
-          type: string
-        - description: tenant name
-          in: query
-          name: tenant
-          required: true
-          type: string
+      - description: user name
+        in: query
+        name: user
+        required: true
+        type: string
+      - description: tenant name
+        in: query
+        name: tenant
+        required: true
+        type: string
       responses:
         "200":
-          description: OK
+          description: '{"total":1,"items":[{"kind":"Project","apiVersion":"tenant.kubecube.io/v1","metadata":{"name":"project-1","uid":"bd1d139f-2c22-481b-ad26-a0905eb70651","resourceVersion":"34703","generation":2,"creationTimestamp":"2022-04-28T08:57:41Z","labels":{"kubecube.io/tenant":"tenant-1"},"annotations":{"kubecube.io/sync":"1"},"managedFields":[{"manager":"Mozilla","operation":"Update","apiVersion":"tenant.kubecube.io/v1","time":"2022-04-28T08:57:41Z","fieldsType":"FieldsV1","fieldsV1":{"f:metadata":{"f:labels":{".":{},"f:kubecube.io/tenant":{}}},"f:spec":{".":{},"f:description":{},"f:displayName":{}}}},{"manager":"cube","operation":"Update","apiVersion":"tenant.kubecube.io/v1","time":"2022-04-28T08:57:41Z","fieldsType":"FieldsV1","fieldsV1":{"f:metadata":{"f:annotations":{".":{},"f:kubecube.io/sync":{}}},"f:spec":{"f:namespace":{}},"f:status":{}}}]},"spec":{"displayName":"project-1","description":"project-1","namespace":"kubecube-project-project-1"},"status":{}}]}'
           schema:
-            $ref: '#/definitions/pkg_apiserver_cubeapi_authorization.result'
+            $ref: '#/definitions/github.com_kubecube-io_kubecube_pkg_apiserver_cubeapi_authorization.result'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/errcode.ErrorInfo'
       summary: Get projects
       tags:
-        - authorization
+      - authorization
   /api/v1/cube/authorization/roles:
     get:
       description: get roles if namespace specified role and clusterRole contained,
         otherwise just return clusterRole
       parameters:
-        - description: user name
-          in: query
-          name: user
-          type: string
-        - description: namespace name
-          in: query
-          name: namespace
-          type: string
-        - description: details true or false
-          in: query
-          name: details
-          type: string
+      - description: user name
+        in: query
+        name: user
+        type: string
+      - description: namespace name
+        in: query
+        name: namespace
+        type: string
+      - description: details true or false
+        in: query
+        name: details
+        type: string
       responses:
         "200":
-          description: OK
+          description: '{"clusterRoles":{"total":2,"items":["tenant-admin","reviewer"]},"roles":{"total":0,"items":[]}}'
           schema:
             additionalProperties: true
             type: object
@@ -1289,70 +1904,70 @@ paths:
             $ref: '#/definitions/errcode.ErrorInfo'
       summary: Get roles
       tags:
-        - authorization
+      - authorization
   /api/v1/cube/authorization/tenants:
     get:
       description: get all visible tenant for user
       parameters:
-        - description: user name
-          in: query
-          name: user
-          required: true
-          type: string
+      - description: user name
+        in: query
+        name: user
+        required: true
+        type: string
       responses:
         "200":
-          description: OK
+          description: '{"total":4,"items":[{"kind":"Tenant","apiVersion":"tenant.kubecube.io/v1","metadata":{"name":"tenant-1","uid":"103a636a-1532-4eb6-a5d1-695fb4007c5a","resourceVersion":"34659","generation":2,"creationTimestamp":"2022-04-28T08:57:33Z","annotations":{"kubecube.io/sync":"1"},"managedFields":[{"manager":"Mozilla","operation":"Update","apiVersion":"tenant.kubecube.io/v1","time":"2022-04-28T08:57:33Z","fieldsType":"FieldsV1","fieldsV1":{"f:spec":{".":{},"f:displayName":{}}}},{"manager":"cube","operation":"Update","apiVersion":"tenant.kubecube.io/v1","time":"2022-04-28T08:57:33Z","fieldsType":"FieldsV1","fieldsV1":{"f:metadata":{"f:annotations":{".":{},"f:kubecube.io/sync":{}}},"f:spec":{"f:namespace":{}},"f:status":{}}}]},"spec":{"displayName":"tenant-1","namespace":"kubecube-tenant-tenant-1"},"status":{}},{"kind":"Tenant","apiVersion":"tenant.kubecube.io/v1","metadata":{"name":"tenant-2","uid":"31de5d32-22f0-445a-9d32-27f87fb82d53","resourceVersion":"24174","generation":2,"creationTimestamp":"2022-04-28T08:17:29Z","annotations":{"kubecube.io/sync":"1"},"managedFields":[{"manager":"Mozilla","operation":"Update","apiVersion":"tenant.kubecube.io/v1","time":"2022-04-28T08:17:29Z","fieldsType":"FieldsV1","fieldsV1":{"f:spec":{".":{},"f:displayName":{}}}},{"manager":"cube","operation":"Update","apiVersion":"tenant.kubecube.io/v1","time":"2022-04-28T08:17:29Z","fieldsType":"FieldsV1","fieldsV1":{"f:metadata":{"f:annotations":{".":{},"f:kubecube.io/sync":{}}},"f:spec":{"f:namespace":{}},"f:status":{}}}]},"spec":{"displayName":"tenant-2","namespace":"kubecube-tenant-tenant-2"},"status":{}},{"kind":"Tenant","apiVersion":"tenant.kubecube.io/v1","metadata":{"name":"tenant-3","uid":"a5756286-bf2b-4094-8c67-c65b4cd2fe7c","resourceVersion":"30156","generation":2,"creationTimestamp":"2022-04-28T08:40:28Z","annotations":{"kubecube.io/sync":"1"},"managedFields":[{"manager":"Mozilla","operation":"Update","apiVersion":"tenant.kubecube.io/v1","time":"2022-04-28T08:40:28Z","fieldsType":"FieldsV1","fieldsV1":{"f:spec":{".":{},"f:displayName":{}}}},{"manager":"cube","operation":"Update","apiVersion":"tenant.kubecube.io/v1","time":"2022-04-28T08:40:28Z","fieldsType":"FieldsV1","fieldsV1":{"f:metadata":{"f:annotations":{".":{},"f:kubecube.io/sync":{}}},"f:spec":{"f:namespace":{}},"f:status":{}}}]},"spec":{"displayName":"tenant-3","namespace":"kubecube-tenant-tenant-3"},"status":{}},{"kind":"Tenant","apiVersion":"tenant.kubecube.io/v1","metadata":{"name":"tenant-4","uid":"0e30568f-1a91-41de-9991-deaa987245eb","resourceVersion":"2936367","generation":2,"creationTimestamp":"2022-05-06T03:35:55Z","annotations":{"kubecube.io/sync":"1"},"managedFields":[{"manager":"Mozilla","operation":"Update","apiVersion":"tenant.kubecube.io/v1","time":"2022-05-06T03:35:55Z","fieldsType":"FieldsV1","fieldsV1":{"f:spec":{".":{},"f:displayName":{}}}},{"manager":"cube","operation":"Update","apiVersion":"tenant.kubecube.io/v1","time":"2022-05-06T03:35:55Z","fieldsType":"FieldsV1","fieldsV1":{"f:metadata":{"f:annotations":{".":{},"f:kubecube.io/sync":{}}},"f:spec":{"f:namespace":{}},"f:status":{}}}]},"spec":{"displayName":"tenant-4","namespace":"kubecube-tenant-tenant-4"},"status":{}}]}'
           schema:
-            $ref: '#/definitions/pkg_apiserver_cubeapi_authorization.result'
+            $ref: '#/definitions/github.com_kubecube-io_kubecube_pkg_apiserver_cubeapi_authorization.result'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/errcode.ErrorInfo'
       summary: Get visible tenant
       tags:
-        - authorization
+      - authorization
   /api/v1/cube/authorization/users:
     get:
       description: get all of roles and cluster roles bind to user, with non empty
         namespace will match both Role and ClusterRole, otherwise only clusterRole
       parameters:
-        - description: role name
-          in: query
-          name: role
-          type: string
-        - description: namespace name
-          in: query
-          name: namespace
-          type: string
-        - description: details true or false
-          in: query
-          name: details
-          type: string
+      - description: role name
+        in: query
+        name: role
+        type: string
+      - description: namespace name
+        in: query
+        name: namespace
+        type: string
+      - description: details true or false
+        in: query
+        name: details
+        type: string
       responses:
         "200":
-          description: OK
+          description: '{"total":1,"items":["admin"]}'
           schema:
-            $ref: '#/definitions/pkg_apiserver_cubeapi_authorization.result'
+            $ref: '#/definitions/github.com_kubecube-io_kubecube_pkg_apiserver_cubeapi_authorization.result'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/errcode.ErrorInfo'
       summary: Get users
       tags:
-        - authorization
+      - authorization
   /api/v1/cube/clusters/addCluster:
     post:
       description: add cluster to KubeCube
       parameters:
-        - description: new cluster raw data
-          in: body
-          name: scriptData
-          required: true
-          schema:
-            $ref: '#/definitions/pkg_apiserver_cubeapi_cluster.scriptData'
+      - description: new cluster raw data
+        in: body
+        name: scriptData
+        required: true
+        schema:
+          $ref: '#/definitions/pkg_apiserver_cubeapi_cluster.scriptData'
       responses:
         "200":
-          description: base64 encode
+          description: success
           schema:
             type: string
         "400":
@@ -1365,19 +1980,30 @@ paths:
             $ref: '#/definitions/errcode.ErrorInfo'
       summary: Add cluster
       tags:
-        - cluster
+      - cluster
   /api/v1/cube/clusters/info:
     get:
-      description: get cluster info by cluster name, non cluster name means all clusters
-        info
+      description: get cluster info by cluster name or project name, non query params
+        means all clusters info
       parameters:
-        - description: cluster info search by cluster
-          in: query
-          name: cluster
-          type: string
+      - description: cluster info search by cluster name
+        in: query
+        name: cluster
+        type: string
+      - description: cluster info search by project name
+        in: query
+        name: project
+        type: string
+      - description: cluster info search by cluster status
+        in: query
+        name: status
+        type: string
       responses:
         "200":
-          description: OK
+          description: '{"total":3,"items":[{"clusterName":"member-1","clusterDescription":"this
+            is member cluster","networkType":"calico","harborAddr":"","isMemberCluster":true,"createTime":"2022-05-06T11:33:15+08:00","kubeApiServer":"https://10.173.33.3:6443","status":"normal","nodeCount":1,"namespaceCount":19,"usedCpu":549,"totalCpu":8000,"usedMem":7276,"totalMem":16648,"totalStorage":0,"usedStorage":0,"totalStorageEphemeral":42208,"usedStorageEphemeral":0,"totalGpu":0,"usedGpu":0,"usedCpuRequest":3300,"usedCpuLimit":4200,"usedMemRequest":3874,"usedMemLimit":7265},{"clusterName":"pivot-cluster","clusterDescription":"There
+            is a pivot cluster dating with KubeCube","networkType":"","harborAddr":"","isMemberCluster":false,"createTime":"2022-04-28T14:41:26+08:00","kubeApiServer":"10.173.33.2:6443","status":"normal","nodeCount":1,"namespaceCount":18,"usedCpu":886,"totalCpu":8000,"usedMem":8996,"totalMem":16648,"totalStorage":0,"usedStorage":0,"totalStorageEphemeral":42208,"usedStorageEphemeral":0,"totalGpu":0,"usedGpu":0,"usedCpuRequest":3000,"usedCpuLimit":3900,"usedMemRequest":3469,"usedMemLimit":6860},{"clusterName":"member-2","clusterDescription":"this
+            is member cluster","networkType":"calico","harborAddr":"","isMemberCluster":true,"createTime":"2022-04-28T16:12:13+08:00","kubeApiServer":"10.173.33.4:6443","status":"normal","nodeCount":1,"namespaceCount":19,"usedCpu":929,"totalCpu":8000,"usedMem":7187,"totalMem":16648,"totalStorage":0,"usedStorage":0,"totalStorageEphemeral":42208,"usedStorageEphemeral":0,"totalGpu":0,"usedGpu":0,"usedCpuRequest":3000,"usedCpuLimit":3900,"usedMemRequest":3469,"usedMemLimit":6860}]}'
           schema:
             $ref: '#/definitions/pkg_apiserver_cubeapi_cluster.result'
         "500":
@@ -1386,18 +2012,18 @@ paths:
             $ref: '#/definitions/errcode.ErrorInfo'
       summary: Show cluster info
       tags:
-        - cluster
+      - cluster
   /api/v1/cube/clusters/namespaces:
     get:
       description: get cluster name where the namespace work in
       parameters:
-        - description: clusters search by namespace
-          in: query
-          name: namespace
-          type: string
+      - description: clusters search by namespace
+        in: query
+        name: namespace
+        type: string
       responses:
         "200":
-          description: OK
+          description: '{"items":["member-2","member-1","pivot-cluster"],"total":3}'
           schema:
             additionalProperties: true
             type: object
@@ -1407,19 +2033,45 @@ paths:
             $ref: '#/definitions/errcode.ErrorInfo'
       summary: Show all clusters bind to namespace
       tags:
-        - cluster
+      - cluster
+  /api/v1/cube/clusters/nsquota:
+    post:
+      description: create subNamespace and resourceQuota
+      parameters:
+      - description: ns and quota data
+        in: body
+        name: nsAndQuota
+        required: true
+        schema:
+          $ref: '#/definitions/pkg_apiserver_cubeapi_cluster.nsAndQuota'
+      responses:
+        "200":
+          description: success
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/errcode.ErrorInfo'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errcode.ErrorInfo'
+      summary: create subNamespace and resourceQuota
+      tags:
+      - cluster
   /api/v1/cube/clusters/resources:
     get:
       description: get allocate resource of cluster
       parameters:
-        - description: allocate resource search by cluster
-          in: query
-          name: cluster
-          required: true
-          type: string
+      - description: allocate resource search by cluster
+        in: query
+        name: cluster
+        required: true
+        type: string
       responses:
         "200":
-          description: OK
+          description: '{"assignedCpu":"4","assignedGpu":"0","assignedMem":"4000Mi","capacityCpu":"8","capacityGpu":"0","capacityMem":"15876Mi"}'
           schema:
             additionalProperties: true
             type: object
@@ -1429,18 +2081,18 @@ paths:
             $ref: '#/definitions/errcode.ErrorInfo'
       summary: Get allocate resource of cluster
       tags:
-        - cluster
+      - cluster
   /api/v1/cube/clusters/subnamespaces:
     get:
       description: get sub namespaces by tenant
       parameters:
-        - description: list sub namespaces by tenant
-          in: query
-          name: tenant
-          type: string
+      - description: list sub namespaces by tenant
+        in: query
+        name: tenant
+        type: string
       responses:
         "200":
-          description: OK
+          description: '{"items":[{"namespace":"ns-3","cluster":"member-1","project":"project-2","namespaceBody":{"metadata":{"name":"ns-3","uid":"8b557f42-dcda-4555-bfba-4bc448b4d66f","resourceVersion":"862129","creationTimestamp":"2022-04-28T08:18:35Z","labels":{"hnc.x-k8s.io/included-namespace":"true","kubecube-project-project-2.tree.hnc.x-k8s.io/depth":"1","kubecube-tenant-tenant-2.tree.hnc.x-k8s.io/depth":"2","kubecube.hnc.x-k8s.io/project":"project-2","kubecube.hnc.x-k8s.io/tenant":"tenant-2","kubernetes.io/metadata.name":"ns-3","ns-3.tree.hnc.x-k8s.io/depth":"0"},"annotations":{"hnc.x-k8s.io/subnamespace-of":"kubecube-project-project-2"},"managedFields":[{"manager":"manager","operation":"Update","apiVersion":"v1","time":"2022-05-06T03:33:37Z","fieldsType":"FieldsV1","fieldsV1":{"f:metadata":{"f:annotations":{".":{},"f:hnc.x-k8s.io/subnamespace-of":{}},"f:labels":{".":{},"f:kubecube-project-project-2.tree.hnc.x-k8s.io/depth":{},"f:kubecube-tenant-tenant-2.tree.hnc.x-k8s.io/depth":{},"f:kubecube.hnc.x-k8s.io/project":{},"f:kubecube.hnc.x-k8s.io/tenant":{},"f:kubernetes.io/metadata.name":{},"f:ns-3.tree.hnc.x-k8s.io/depth":{}}}}}]},"spec":{"finalizers":["kubernetes"]},"status":{"phase":"Active"}}},{"namespace":"ns-2","cluster":"member-2","project":"project-2","namespaceBody":{"metadata":{"name":"ns-2","uid":"8924ca69-c309-4e94-a55b-893b21ffde17","resourceVersion":"2270","creationTimestamp":"2022-04-28T08:18:23Z","labels":{"hnc.x-k8s.io/included-namespace":"true","kubecube-project-project-2.tree.hnc.x-k8s.io/depth":"1","kubecube-tenant-tenant-2.tree.hnc.x-k8s.io/depth":"2","kubecube.hnc.x-k8s.io/project":"project-2","kubecube.hnc.x-k8s.io/tenant":"tenant-2","kubernetes.io/metadata.name":"ns-2","ns-2.tree.hnc.x-k8s.io/depth":"0"},"annotations":{"hnc.x-k8s.io/subnamespace-of":"kubecube-project-project-2"},"managedFields":[{"manager":"manager","operation":"Update","apiVersion":"v1","time":"2022-04-28T08:18:23Z","fieldsType":"FieldsV1","fieldsV1":{"f:metadata":{"f:annotations":{".":{},"f:hnc.x-k8s.io/subnamespace-of":{}},"f:labels":{".":{},"f:kubecube-project-project-2.tree.hnc.x-k8s.io/depth":{},"f:kubecube-tenant-tenant-2.tree.hnc.x-k8s.io/depth":{},"f:kubecube.hnc.x-k8s.io/project":{},"f:kubecube.hnc.x-k8s.io/tenant":{},"f:kubernetes.io/metadata.name":{},"f:ns-2.tree.hnc.x-k8s.io/depth":{}}}}}]},"spec":{"finalizers":["kubernetes"]},"status":{"phase":"Active"}}}],"total":2}'
           schema:
             additionalProperties: true
             type: object
@@ -1450,14 +2102,14 @@ paths:
             $ref: '#/definitions/errcode.ErrorInfo'
       summary: Get sub namespace
       tags:
-        - cluster
+      - cluster
   /api/v1/cube/healthz:
     get:
       produces:
-        - application/json
+      - application/json
       responses:
         "200":
-          description: '{"msg": "hello"}'
+          description: healthy
           schema:
             type: string
       summary: health check
@@ -1501,7 +2153,7 @@ paths:
       description: create ak & sk keys
       responses:
         "200":
-          description: OK
+          description: '{"accessKey":"xxx","secretKey":"xxx"}'
           schema:
             additionalProperties:
               type: string
@@ -1527,7 +2179,7 @@ paths:
         type: string
       responses:
         "200":
-          description: OK
+          description: '{"token":""}'
           schema:
             additionalProperties:
               type: string
@@ -1550,7 +2202,7 @@ paths:
         name: loginInfo
         required: true
         schema:
-          $ref: '#/definitions/pkg_apiserver_cubeapi_user.LoginInfo'
+          $ref: '#/definitions/github.com_kubecube-io_kubecube_pkg_apiserver_cubeapi_user.LoginInfo'
       produces:
       - application/json
       responses:
@@ -1667,6 +2319,29 @@ paths:
           schema:
             $ref: '#/definitions/errcode.ErrorInfo'
       summary: update user
+      tags:
+      - user
+  /api/v1/cube/user/kubeconfigs:
+    get:
+      description: fetch kubeConfig for specified user
+      parameters:
+      - description: specified user for kubeconfig
+        in: query
+        name: user
+        required: true
+        type: string
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/errcode.ErrorInfo'
+      summary: fetch kubeConfigs
       tags:
       - user
   /api/v1/cube/user/pwd:

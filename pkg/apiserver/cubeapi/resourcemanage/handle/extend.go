@@ -25,18 +25,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
 	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
-	cronjobRes "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/cronjob"
-	deploymentRes "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/deployment"
-	jobRes "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/job"
-	podRes "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/pod"
-	podlogRes "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/podlog"
-	pvcRes "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/pvc"
-	serviceRes "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/service"
-	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/enum"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/audit"
@@ -46,8 +40,33 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
 )
 
-// api/v1/cube/extend/clusters/{cluster}/namespaces/{namespace}/{resourceType}
-func ExtendHandle(c *gin.Context) {
+var (
+	extendFuncMap = make(map[string]ExtendFunc)
+)
+
+type ExtendHandler struct {
+	NginxNamespace           string
+	NginxTcpServiceConfigMap string
+	NginxUdpServiceConfigMap string
+}
+
+func NewExtendHandler(namespace string, tcpCm string, udpCm string) *ExtendHandler {
+	return &ExtendHandler{
+		NginxNamespace:           namespace,
+		NginxTcpServiceConfigMap: tcpCm,
+		NginxUdpServiceConfigMap: udpCm,
+	}
+}
+
+type ExtendFunc func(param ExtendParams) (interface{}, error)
+
+// SetExtendHandler the func to register real handler func
+func SetExtendHandler(resource enum.ResourceTypeEnum, extendFunc ExtendFunc) {
+	extendFuncMap[string(resource)] = extendFunc
+}
+
+// ExtendHandle api/v1/cube/extend/clusters/{cluster}/namespaces/{namespace}/{resourceType}
+func (e *ExtendHandler) ExtendHandle(c *gin.Context) {
 	// request param
 	cluster := c.Param("cluster")
 	namespace := c.Param("namespace")
@@ -55,6 +74,60 @@ func ExtendHandle(c *gin.Context) {
 	resourceName := c.Param("resourceName")
 	filter := parseQueryParams(c)
 	httpMethod := c.Request.Method
+
+	if httpMethod != http.MethodGet {
+		c = audit.SetAuditInfo(c, audit.ExteranlAccess, fmt.Sprintf("%s/%s", namespace, resourceName))
+	}
+
+	// k8s client
+	client := clients.Interface().Kubernetes(cluster)
+	if client == nil {
+		response.FailReturn(c, errcode.ClusterNotFoundError(cluster))
+		return
+	}
+	// get user info
+	username := c.GetString(constants.EventAccountId)
+
+	param := ExtendParams{
+		Cluster:                  cluster,
+		Namespace:                namespace,
+		ResourceName:             resourceName,
+		Filter:                   filter,
+		Action:                   httpMethod,
+		Username:                 username,
+		NginxNamespace:           e.NginxNamespace,
+		NginxTcpServiceConfigMap: e.NginxTcpServiceConfigMap,
+		NginxUdpServiceConfigMap: e.NginxUdpServiceConfigMap,
+	}
+
+	if c.Request.Body != nil {
+		body, err := ioutil.ReadAll(c.Request.Body)
+		if err != nil {
+			response.FailReturn(c, errcode.InvalidBodyFormat)
+			return
+		}
+		param.Body = body
+	}
+
+	// get real handler func and work, if not found, return not support error
+	if extendFunc, ok := extendFuncMap[resourceType]; ok {
+		result, err := extendFunc(param)
+		if err != nil {
+			clog.Error("get extend res err, resourceType: %s, error: %+v", resourceType, err)
+			response.FailReturn(c, errcode.BadRequest(err))
+			return
+		}
+		response.SuccessReturn(c, result)
+		return
+	}
+	response.FailReturn(c, errcode.InvalidResourceTypeErr)
+	return
+}
+
+func GetPodContainerLog(c *gin.Context) {
+	cluster := c.Param("cluster")
+	namespace := c.Param("namespace")
+	filter := parseQueryParams(c)
 	// k8s client
 	client := clients.Interface().Kubernetes(cluster)
 	if client == nil {
@@ -62,129 +135,14 @@ func ExtendHandle(c *gin.Context) {
 		return
 	}
 	// access
-	username := ""
-	userInfo, err := token.GetUserFromReq(c.Request)
-	if err == nil {
-		username = userInfo.Username
-	}
+	username := c.GetString(constants.EventAccountId)
 	access := resources.NewSimpleAccess(cluster, username, namespace)
-
-	switch resourceType {
-	case "deployments":
-		if allow := access.AccessAllow("apps", "deployments", "list"); !allow {
-			response.FailReturn(c, errcode.ForbiddenErr)
-			return
-		}
-		deployment := deploymentRes.NewDeployment(client, namespace, filter)
-		result := deployment.GetExtendDeployments()
-		response.SuccessReturn(c, result)
-	case "pods":
-		if allow := access.AccessAllow("", "pods", "list"); !allow {
-			response.FailReturn(c, errcode.ForbiddenErr)
-			return
-		}
-		pod := podRes.NewPod(client, namespace, filter)
-		result := pod.GetPods()
-		if result == nil {
-			response.FailReturn(c, errcode.ServerErr)
-			return
-		}
-		response.SuccessReturn(c, result)
-	case "services":
-		if allow := access.AccessAllow("apps", "services", "list"); !allow {
-			response.FailReturn(c, errcode.ForbiddenErr)
-			return
-		}
-		service := serviceRes.NewService(client, namespace, filter)
-		result := service.GetExtendServices()
-		response.SuccessReturn(c, result)
-	case "externalAccess":
-		externalAccess := serviceRes.NewExternalAccess(client, namespace, resourceName, filter)
-		if httpMethod == http.MethodGet {
-			if allow := access.AccessAllow("", "services", "list"); !allow {
-				response.FailReturn(c, errcode.ForbiddenErr)
-				return
-			}
-			result, err := externalAccess.GetExternalAccess()
-			if err != nil {
-				response.FailReturn(c, errcode.DealError(err))
-				return
-			}
-			response.SuccessReturn(c, result)
-			return
-		} else if httpMethod == http.MethodPost {
-			if allow := access.AccessAllow("", "services", "create"); !allow {
-				response.FailReturn(c, errcode.ForbiddenErr)
-				return
-			}
-			c = audit.SetAuditInfo(c, audit.ExteranlAccess, fmt.Sprintf("%s/%s", namespace, resourceName))
-			body, err := ioutil.ReadAll(c.Request.Body)
-			if err != nil {
-				response.FailReturn(c, errcode.InvalidBodyFormat)
-				return
-			}
-			err = externalAccess.SetExternalAccess(body)
-			if err != nil {
-				response.FailReturn(c, errcode.DealError(err))
-				return
-			}
-			response.SuccessReturn(c, "success")
-			return
-		} else {
-			response.FailReturn(c, errcode.InvalidHttpMethod)
-			return
-		}
-	case "externalAccessAddress":
-		if allow := access.AccessAllow("", "services", "list"); !allow {
-			response.FailReturn(c, errcode.ForbiddenErr)
-			return
-		}
-		externalAccess := serviceRes.NewExternalAccess(client, namespace, resourceName, filter)
-		if httpMethod == http.MethodGet {
-			result := externalAccess.GetExternalIP()
-			response.SuccessReturn(c, result)
-			return
-		}
-	case "jobs":
-		if allow := access.AccessAllow("batch", "jobs", "list"); !allow {
-			response.FailReturn(c, errcode.ForbiddenErr)
-			return
-		}
-		job := jobRes.NewJob(client, namespace, filter)
-		result := job.GetExtendJobs()
-		response.SuccessReturn(c, result)
-	case "cronjobs":
-		if allow := access.AccessAllow("batch", "cronjobs", "list"); !allow {
-			response.FailReturn(c, errcode.ForbiddenErr)
-			return
-		}
-		if resourceName == "" {
-			cronjob := cronjobRes.NewCronJob(client, namespace, filter)
-			result := cronjob.GetExtendCronJobs()
-			response.SuccessReturn(c, result)
-		} else {
-			cronjob := cronjobRes.NewCronJob(client, namespace, filter)
-			result := cronjob.GetExtendCronJob(resourceName)
-			response.SuccessReturn(c, result)
-		}
-	case "pvcworkloads":
-		if allow := access.AccessAllow("", "persistentvolumeclaims", "list"); !allow {
-			response.FailReturn(c, errcode.ForbiddenErr)
-			return
-		}
-		pvc := pvcRes.NewPvc(client, namespace, filter)
-		result := pvc.GetPvcWorkloads(resourceName)
-		response.SuccessReturn(c, result)
-	case "logs":
-		if allow := access.AccessAllow("", "pods", "list"); !allow {
-			response.FailReturn(c, errcode.ForbiddenErr)
-			return
-		}
-		podlog := podlogRes.NewPodLog(client, namespace, filter)
-		podlog.HandleLogs(c)
-	default:
-		response.FailReturn(c, errcode.InvalidResourceTypeErr)
+	if allow := access.AccessAllow("", "pods", "list"); !allow {
+		response.FailReturn(c, errcode.ForbiddenErr)
+		return
 	}
+	podLog := NewPodLog(client, namespace, filter)
+	podLog.HandleLogs(c)
 }
 
 // GetFeatureConfig shows layout of integrated components
@@ -277,13 +235,15 @@ func IngressDomainSuffix(c *gin.Context) {
 		return
 	}
 
-	res := make([]string, 0)
+	// because the cluster ingress domain suffix may repeat to project ingress domain suffix,so we use set in here to deduplication
+	tmpSet := sets.String{}
 	if len(cluster.Spec.IngressDomainSuffix) != 0 {
-		res = append(res, cluster.Spec.IngressDomainSuffix)
+		tmpSet.Insert(cluster.Spec.IngressDomainSuffix)
 	}
-
 	for _, suffix := range project.Spec.IngressDomainSuffix {
-		res = append(res, suffix)
+		tmpSet.Insert(suffix)
 	}
+	res := tmpSet.List()
+
 	response.SuccessReturn(c, res)
 }
