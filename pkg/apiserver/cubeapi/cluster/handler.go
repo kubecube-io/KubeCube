@@ -69,16 +69,18 @@ type result struct {
 }
 
 type clusterInfo struct {
-	ClusterName         string    `json:"clusterName"`
-	ClusterDescription  string    `json:"clusterDescription"`
-	NetworkType         string    `json:"networkType"`
-	HarborAddr          string    `json:"harborAddr"`
-	IsMemberCluster     bool      `json:"isMemberCluster"`
-	IsWritable          bool      `json:"isWritable"`
-	CreateTime          time.Time `json:"createTime"`
-	KubeApiServer       string    `json:"kubeApiServer"`
-	Status              string    `json:"status"`
-	IngressDomainSuffix string    `json:"ingressDomainSuffix,omitempty"`
+	ClusterName         string            `json:"clusterName"`
+	ClusterDescription  string            `json:"clusterDescription"`
+	NetworkType         string            `json:"networkType"`
+	HarborAddr          string            `json:"harborAddr"`
+	IsMemberCluster     bool              `json:"isMemberCluster"`
+	IsWritable          bool              `json:"isWritable"`
+	CreateTime          time.Time         `json:"createTime"`
+	KubeApiServer       string            `json:"kubeApiServer"`
+	Status              string            `json:"status"`
+	IngressDomainSuffix string            `json:"ingressDomainSuffix,omitempty"`
+	Labels              map[string]string `json:"labels,omitempty"`
+	Annotations         map[string]string `json:"annotations,omitempty"`
 
 	// todo(weilaaa): move to monitor info
 	NodeCount             int `json:"nodeCount"`
