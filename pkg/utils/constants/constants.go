@@ -122,6 +122,9 @@ const (
 const (
 	// CubeNodeTaint is node taint that managed by KubeCube
 	CubeNodeTaint = "node.kubecube.io"
+
+	// CubeCnAnnotation is the annotation of cluster contains cluster cn name
+	CubeCnAnnotation = "cluster.kubecube.io/cn-name"
 )
 
 // hnc related const
