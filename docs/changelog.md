@@ -1,3 +1,22 @@
+# v1.3.1
+
+## Bugfix
+- fix multi cluster add error[#156](https://github.com/kubecube-io/KubeCube/pull/156)
+
+## Dependencies
+
+- hnc v1.0
+- nginx-ingress v0.46.0
+- helm 3.5
+- metrics-server v0.4.1
+- elasticsearch 7.8
+- kubecube-monitoring 15.4.8
+- thanos 3.18.0
+- logseer v1.0.0
+- logagent v1.0.0
+- kubecube-audit v1.2.0
+- kubecube-webconsole v1.2.2
+
 # v1.3.0
 
 ## Feature
