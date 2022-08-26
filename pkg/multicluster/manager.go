@@ -344,7 +344,7 @@ func addInternalCluster(cluster clusterv1.Cluster, withScout bool) error {
 
 	err = ManagerImpl.Add(cluster.Name, c)
 	if err != nil {
-		return fmt.Errorf("add internal cluster failed: %v", err)
+		clog.Warn("add internal cluster failed: %v", err)
 	}
 
 	return nil
