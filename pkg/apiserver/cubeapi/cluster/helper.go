@@ -76,6 +76,14 @@ func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivot
 		info.Labels = cluster.Labels
 		info.Annotations = cluster.Annotations
 
+		if info.Annotations == nil {
+			info.Annotations = make(map[string]string)
+		}
+
+		if _, ok := info.Annotations[constants.CubeCnAnnotation]; !ok {
+			info.Annotations[constants.CubeCnAnnotation] = cluster.Name
+		}
+
 		internalCluster, err := multicluster.Interface().Get(v)
 		if internalCluster != nil && err != nil {
 			info.Status = string(clusterv1.ClusterAbnormal)
