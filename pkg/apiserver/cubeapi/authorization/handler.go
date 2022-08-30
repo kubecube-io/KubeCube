@@ -486,6 +486,7 @@ func (h *handler) getClusterRolesByLevel(c *gin.Context) {
 }
 
 type attributes struct {
+	Cluster         string `json:"cluster,omitempty"`
 	User            string `json:"user,omitempty"`
 	Verb            string `json:"verb,omitempty"`
 	Namespace       string `json:"namespace,omitempty"`
@@ -521,7 +522,20 @@ func (h *handler) authorization(c *gin.Context) {
 		Path:            a.Path,
 	}
 
-	d, _, err := h.Interface.Authorize(c.Request.Context(), record)
+	// do auth access in local cluster by default
+	// todo: remove it as soon as other caller complete retrofit
+	if len(a.Cluster) == 0 {
+		a.Cluster = constants.LocalCluster
+	}
+
+	cli := clients.Interface().Kubernetes(a.Cluster)
+	if cli == nil {
+		response.FailReturn(c, errcode.ClusterNotFoundError(a.Cluster))
+		return
+	}
+
+	rbacResolver := &rbac.DefaultResolver{Cache: cli.Cache()}
+	d, _, err := rbacResolver.Authorize(c.Request.Context(), record)
 	if err != nil {
 		clog.Error(err.Error())
 		response.FailReturn(c, errcode.InternalServerError)
