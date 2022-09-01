@@ -1,3 +1,69 @@
+# v1.4.0
+
+## Feature
+- Support cluster cn name[#158](https://github.com/kubecube-io/KubeCube/pull/158)
+
+## Bugfix
+
+- fix auth access api [#159](https://github.com/kubecube-io/KubeCube/pull/159)
+
+## Dependencies
+
+- hnc v1.0
+- nginx-ingress v0.46.0
+- helm 3.5
+- metrics-server v0.4.1
+- elasticsearch 7.8
+- kubecube-monitoring 15.4.8
+- thanos 3.18.0
+- logseer v1.0.0
+- logagent v1.0.0
+- kubecube-audit v1.2.0
+- kubecube-webconsole v1.2.4
+
+# v1.3.1
+
+## Bugfix
+- fix multi cluster add error[#156](https://github.com/kubecube-io/KubeCube/pull/156)
+
+## Dependencies
+
+- hnc v1.0
+- nginx-ingress v0.46.0
+- helm 3.5
+- metrics-server v0.4.1
+- elasticsearch 7.8
+- kubecube-monitoring 15.4.8
+- thanos 3.18.0
+- logseer v1.0.0
+- logagent v1.0.0
+- kubecube-audit v1.2.0
+- kubecube-webconsole v1.2.2
+
+# v1.3.0
+
+## Feature
+- optimize multi cluster sync logic[#150](https://github.com/kubecube-io/KubeCube/pull/150)
+- extend cluster info[#151](https://github.com/kubecube-io/KubeCube/pull/151) ,[#154](https://github.com/kubecube-io/KubeCube/pull/154)
+- user spec add wechat[#146](https://github.com/kubecube-io/KubeCube/pull/146)
+
+## Clean up
+- move resourcequota process form webhook to controller[#152](https://github.com/kubecube-io/KubeCube/pull/152)
+
+## Dependencies
+
+- hnc v1.0
+- nginx-ingress v0.46.0
+- helm 3.5
+- metrics-server v0.4.1
+- elasticsearch 7.8
+- kubecube-monitoring 15.4.8
+- thanos 3.18.0
+- logseer v1.0.0
+- logagent v1.0.0
+- kubecube-audit v1.2.0
+- kubecube-webconsole v1.2.2
+
 # v1.2.5
 
 ## Feature
