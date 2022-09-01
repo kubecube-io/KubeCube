@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kubecube-io/kubecube/pkg/clog"
@@ -89,6 +90,33 @@ func (w *wrapperClient) Scheme() *runtime.Scheme {
 
 func (w *wrapperClient) RESTMapper() meta.RESTMapper {
 	return w.Client.RESTMapper()
+}
+
+// wrapperCache just wrap get and list action, informers interface
+// will be ignored right now.
+// todo:(weilaaa) consider support convert for informers?
+type wrapperCache struct {
+	cache.Cache
+	ReaderWithConverter
+	SingleVersionConverter
+}
+
+var _ cache.Cache = (*wrapperCache)(nil)
+
+func WrapCache(cac cache.Cache, c SingleVersionConverter) cache.Cache {
+	return &wrapperCache{
+		Cache:                  cac,
+		ReaderWithConverter:    WrapReader(cac, c),
+		SingleVersionConverter: c,
+	}
+}
+
+func (w *wrapperCache) Get(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+	return w.ReaderWithConverter.Get(ctx, key, obj)
+}
+
+func (w *wrapperCache) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+	return w.ReaderWithConverter.List(ctx, list, opts...)
 }
 
 type wrapperWriter struct {

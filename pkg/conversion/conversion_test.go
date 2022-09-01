@@ -608,6 +608,14 @@ func TestVersionConverter_GvkGreeting(t *testing.T) {
 			wantErr:          false,
 		},
 		{
+			name:             "list had recommend version",
+			gvk:              &schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "DeploymentList"},
+			wantGreetBack:    IsNeedConvert,
+			wantRawGvk:       &schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "DeploymentList"},
+			wantRecommendGvk: &schema.GroupVersionKind{Group: "apps", Version: "v1beta1", Kind: "DeploymentList"},
+			wantErr:          false,
+		},
+		{
 			name:             "unavailable group",
 			gvk:              &schema.GroupVersionKind{Group: "unknown", Version: "v1", Kind: "Deployment"},
 			wantGreetBack:    IsNeedConvert,

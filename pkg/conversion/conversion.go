@@ -164,6 +164,13 @@ func (c *VersionConverter) GvrGreeting(gvr *schema.GroupVersionResource) (greetB
 func (c *VersionConverter) GvkGreeting(gvk *schema.GroupVersionKind) (greetBack GreetBackType, rawGvk *schema.GroupVersionKind, recommendGvk *schema.GroupVersionKind, err error) {
 	clusterVersion := Version(c.clusterInfo)
 
+	// treat xxxList as xxx Kind
+	gvkCopy := &schema.GroupVersionKind{Group: gvk.Group, Version: gvk.Version, Kind: gvk.Kind}
+	if strings.HasSuffix(gvk.Kind, "List") {
+		gvkCopy.Kind = strings.TrimSuffix(gvk.Kind, "List")
+	}
+
+	// todo: cache the result of all resources
 	_, allResources, err := c.discovery.ServerGroupsAndResources()
 	if err != nil {
 		return IsUnknown, gvk, nil, err
@@ -178,7 +185,7 @@ func (c *VersionConverter) GvkGreeting(gvk *schema.GroupVersionKind) (greetBack 
 					}
 					resource.Group, resource.Version = gv.Group, gv.Version
 				}
-				if resource.Group == gvk.Group && resource.Version == gvk.Version && resource.Kind == gvk.Kind {
+				if resource.Group == gvkCopy.Group && resource.Version == gvkCopy.Version && resource.Kind == gvkCopy.Kind {
 					// found match group/version/kind in target cluster.
 					// so the object is available in target cluster.
 					return IsPassThrough, gvk, nil, nil
@@ -187,7 +194,7 @@ func (c *VersionConverter) GvkGreeting(gvk *schema.GroupVersionKind) (greetBack 
 		}
 		for _, gvs := range allResources {
 			for _, resource := range gvs.APIResources {
-				if resource.Kind == gvk.Kind {
+				if resource.Kind == gvkCopy.Kind {
 					preferredGroup := resource.Group
 					preferredVersion := resource.Version
 					if preferredGroup == "" || preferredVersion == "" {
