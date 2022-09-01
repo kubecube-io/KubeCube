@@ -5,6 +5,7 @@
 
 ## Bugfix
 
+- version convert fix list bug [#160](https://github.com/kubecube-io/KubeCube/pull/160)
 - fix auth access api [#159](https://github.com/kubecube-io/KubeCube/pull/159)
 
 ## Dependencies
