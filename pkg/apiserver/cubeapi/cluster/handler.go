@@ -46,7 +46,6 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
-	"github.com/kubecube-io/kubecube/pkg/utils/strproc"
 )
 
 const subPath = "/clusters"
@@ -286,7 +285,7 @@ func (h *handler) getClusterResource(c *gin.Context) {
 		capacityMem.Add(*v.Status.Capacity.Memory())
 		nodeGpu, ok := v.Status.Capacity[quota.ResourceNvidiaGPU]
 		if ok {
-			capacityCpu.Add(nodeGpu)
+			capacityGpu.Add(nodeGpu)
 		}
 	}
 
@@ -303,7 +302,7 @@ func (h *handler) getClusterResource(c *gin.Context) {
 		"assignedMem": assignedMem,
 		"capacityGpu": capacityGpu,
 		"assignedGpu": assignedGpu,
-		"capacityMem": fmt.Sprintf("%vMi", strproc.Str2int(capacityMem.String())/1024),
+		"capacityMem": capacityMem,
 	}
 
 	response.SuccessReturn(c, res)
