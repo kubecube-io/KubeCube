@@ -133,7 +133,7 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 	clusterName := c.Query("cluster")
 	clusterStatus := c.Query("status")
 	projectName := c.Query("project")
-	nodeLabelSelector := c.Query("labelSelector")
+	nodeLabelSelector := c.Query("nodeLabelSelector")
 
 	switch {
 	// find cluster by given name
@@ -270,7 +270,7 @@ func (h *handler) getClusterNames(c *gin.Context) {
 // @Router /api/v1/cube/clusters/resources  [get]
 func (h *handler) getClusterResource(c *gin.Context) {
 	cluster := c.Query("cluster")
-	nodeLabelSelector := c.Query("labelSelector")
+	nodeLabelSelector := c.Query("nodeLabelSelector")
 	cli := clients.Interface().Kubernetes(cluster)
 	if cli == nil {
 		response.FailReturn(c, errcode.ClusterNotFoundError(cluster))
