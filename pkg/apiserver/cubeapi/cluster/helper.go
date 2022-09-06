@@ -1,12 +1,9 @@
 /*
 Copyright 2021 KubeCube Authors
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-
     http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -27,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -43,7 +41,7 @@ import (
 
 // makeClusterInfos make cluster info with clusters given
 // todo split metric and cluster info into two apis
-func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivotCli mgrclient.Client, statusFilter string) ([]clusterInfo, error) {
+func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivotCli mgrclient.Client, statusFilter string, nodeLabelSelector labels.Selector) ([]clusterInfo, error) {
 	// populate cluster info one by one
 	infos := make([]clusterInfo, 0)
 	for _, item := range clusters.Items {
@@ -101,7 +99,7 @@ func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivot
 
 		// todo(weilaaa): context may be exceed if metrics query timeout
 		// will deprecated in v2.0.x
-		nodesMc, err := cli.Metrics().MetricsV1beta1().NodeMetricses().List(ctx, metav1.ListOptions{})
+		nodesMc, err := cli.Metrics().MetricsV1beta1().NodeMetricses().List(ctx, metav1.ListOptions{LabelSelector: nodeLabelSelector.String()})
 		if err != nil {
 			// record error from metric server, but ensure return normal
 			clog.Warn("get cluster %v nodes metrics failed: %v", v, err)
@@ -115,7 +113,7 @@ func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivot
 		}
 
 		nodes := corev1.NodeList{}
-		err = cli.Cache().List(ctx, &nodes)
+		err = cli.Cache().List(ctx, &nodes, &client.ListOptions{LabelSelector: nodeLabelSelector})
 		if err != nil {
 			return nil, fmt.Errorf("get cluster %v nodes failed: %v", v, err)
 		}
@@ -137,12 +135,12 @@ func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivot
 
 		info.NamespaceCount = len(ns.Items)
 
-		clusterNonTerminatedPodsList, err := getPodsInCluster(cli)
+		clusterNonTerminatedPods, err := getPodsInNodes(cli, nodes.Items)
 		if err != nil {
 			return nil, err
 		}
 
-		for _, pod := range clusterNonTerminatedPodsList.Items {
+		for _, pod := range clusterNonTerminatedPods {
 			req, limit := podRequestsAndLimits(&pod)
 			cpuReq, cpuLimit, memoryReq, memoryLimit := req[corev1.ResourceCPU], limit[corev1.ResourceCPU], req[corev1.ResourceMemory], limit[corev1.ResourceMemory]
 			info.UsedCPURequest += int(cpuReq.MilliValue())                  // 1000 m
@@ -214,7 +212,7 @@ func maxResourceList(list, new corev1.ResourceList) {
 	}
 }
 
-func getPodsInCluster(cli mgrclient.Client) (*corev1.PodList, error) {
+func getPodsInNodes(cli mgrclient.Client, nodes []corev1.Node) ([]corev1.Pod, error) {
 	fieldSelector, err := fields.ParseSelector("status.phase!=" + string(corev1.PodSucceeded) + ",status.phase!=" + string(corev1.PodFailed))
 	if err != nil {
 		return nil, err
@@ -225,7 +223,19 @@ func getPodsInCluster(cli mgrclient.Client) (*corev1.PodList, error) {
 	if err != nil {
 		return nil, err
 	}
-	return podList, nil
+	nodesName := sets.NewString()
+	for i := range nodes {
+		nodesName.Insert(nodes[i].Name)
+	}
+
+	res := []corev1.Pod{}
+	for i := range podList.Items {
+		if nodesName.Has(podList.Items[i].Spec.NodeName) {
+			res = append(res, podList.Items[i])
+		}
+	}
+
+	return res, nil
 }
 
 func makeMonitorInfo(ctx context.Context, cluster string) (*monitorInfo, error) {
