@@ -258,12 +258,6 @@ func Filter(c *gin.Context, result []byte) []byte {
 	return resources.FilterResult(result)
 }
 
-// product match/sort/page to other function
-func FilterToMap(c *gin.Context, result []byte) filter.K8sJson {
-	resources := parseQueryParams(c)
-	return resources.FilterResultToMap(result)
-}
-
 // parse request params, include selector, sort and page
 func parseQueryParams(c *gin.Context) filter.Filter {
 	exact, fuzzy := selector.ParseSelector(c.Query("selector"))
