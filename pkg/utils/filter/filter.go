@@ -72,6 +72,9 @@ type K8sJsonArr = []interface{}
 
 // ModifyResponse modify the response
 func (f *Filter) ModifyResponse(r *http.Response) error {
+	if !f.EnableFilter && !f.EnableConvert {
+		return nil
+	}
 	// get info from response
 	var body []byte
 	var err error
@@ -216,7 +219,7 @@ func isStatusResp(r K8sJson) bool {
 }
 
 // FilterResultToMap filter result by exact/fuzzy match, sort, page
-func (f *Filter) FilterResultToMap(body []byte) K8sJson {
+func (f *Filter) FilterResultToMap(body []byte, sort bool, page bool) K8sJson {
 	var result K8sJson
 	err := json.Unmarshal(body, &result)
 	if err != nil {
@@ -232,9 +235,13 @@ func (f *Filter) FilterResultToMap(body []byte) K8sJson {
 			items = f.fuzzyMatch(items)
 			result["total"] = len(items)
 			// sort
-			items = f.sort(items)
+			if sort {
+				items = f.sort(items)
+			}
 			// page
-			items = f.page(items)
+			if page {
+				items = f.page(items)
+			}
 			result["items"] = items
 		}
 	}

@@ -19,6 +19,8 @@ package pod
 import (
 	"context"
 	"errors"
+	appsv1 "k8s.io/api/apps/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	jsoniter "github.com/json-iterator/go"
 	corev1 "k8s.io/api/core/v1"
@@ -35,6 +37,8 @@ import (
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
+
+const ownerUidLabel = "metadata.ownerReferences.uid"
 
 type Pod struct {
 	ctx       context.Context
@@ -57,6 +61,12 @@ func Handle(param resourcemanage.ExtendParams) (interface{}, error) {
 		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
 	}
 	pod := NewPod(kubernetes, param.Namespace, param.Filter)
+	if pod.filter.EnableFilter {
+		err := pod.GetRs()
+		if err != nil {
+			return nil, errors.New(err.Error())
+		}
+	}
 	result, err := pod.GetPods()
 	return result, err
 }
@@ -69,6 +79,45 @@ func NewPod(client mgrclient.Client, namespace string, filter filter.Filter) Pod
 		namespace: namespace,
 		filter:    filter,
 	}
+}
+
+func (d *Pod) GetRs() error {
+	rsList := appsv1.ReplicaSetList{}
+	err := d.client.Cache().List(d.ctx, &rsList, client.InNamespace(d.namespace))
+	if err != nil {
+		clog.Error("can not find rs from cluster, %v", err)
+		return err
+	}
+	// filter list by selector/sort/page
+	rsListJson, err := json.Marshal(rsList)
+	if err != nil {
+		clog.Error("convert replicaSetList to json fail, %v", err)
+		return err
+	}
+	rsListMap := d.filter.FilterResultToMap(rsListJson, false, false)
+	rsList = appsv1.ReplicaSetList{}
+	reListMapJson, err := json.Marshal(rsListMap)
+	if err != nil {
+		clog.Error("convert replicaSetList to json fail, %v", err)
+		return err
+	}
+	err = json.Unmarshal(reListMapJson, &rsList)
+	if err != nil {
+		clog.Error("convert replicaSetList from json fail, %v", err)
+		return err
+	}
+	set := d.filter.Exact[ownerUidLabel]
+	for _, rs := range rsList.Items {
+		if set == nil {
+			set = sets.NewString()
+		}
+		uid := rs.UID
+		if len(uid) > 0 {
+			set.Insert(string(uid))
+		}
+	}
+	d.filter.Exact[ownerUidLabel] = set
+	return nil
 }
 
 // get pods
@@ -89,7 +138,7 @@ func (d *Pod) GetPods() (filter.K8sJson, error) {
 		clog.Error("convert deploymentList to json fail, %v", err)
 		return nil, err
 	}
-	podListMap := d.filter.FilterResultToMap(podListJson)
+	podListMap := d.filter.FilterResultToMap(podListJson, true, true)
 
 	return podListMap, nil
 }

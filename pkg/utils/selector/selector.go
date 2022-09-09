@@ -27,12 +27,12 @@ import (
 // multi query: selector=key=value1|value2|value3
 // support mixed query：selector=key1~value1,key2=value2,key3=value3
 func ParseSelector(selectorStr string) (exact map[string]sets.String, fuzzy map[string][]string) {
-	if selectorStr == "" {
-		return nil, nil
-	}
-
 	exact = make(map[string]sets.String, 0)
 	fuzzy = make(map[string][]string, 0)
+
+	if selectorStr == "" {
+		return
+	}
 
 	labels := strings.Split(selectorStr, ",")
 	for _, label := range labels {
