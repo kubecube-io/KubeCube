@@ -72,6 +72,9 @@ type K8sJsonArr = []interface{}
 
 // ModifyResponse modify the response
 func (f *Filter) ModifyResponse(r *http.Response) error {
+	if !f.EnableFilter && !f.EnableConvert {
+		return nil
+	}
 	// get info from response
 	var body []byte
 	var err error
