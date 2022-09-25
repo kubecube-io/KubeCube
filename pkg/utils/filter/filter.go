@@ -19,19 +19,15 @@ package filter
 import (
 	"bytes"
 	"compress/gzip"
-	"errors"
 	"fmt"
 	"io/ioutil"
-	"net/http"
-	"sort"
-	"strings"
-	"time"
 
 	jsoniter "github.com/json-iterator/go"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"net/http"
 
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/conversion"
@@ -42,7 +38,33 @@ const (
 	Annotations = "annotations"
 )
 
-var json = jsoniter.ConfigCompatibleWithStandardLibrary
+var (
+	json = jsoniter.ConfigCompatibleWithStandardLibrary
+)
+
+func NewFilter(exact map[string]sets.String,
+	fuzzy map[string][]string,
+	limit int,
+	offset int,
+	sortName string,
+	sortOrder string,
+	sortFunc string,
+	ctx *ConverterContext,
+	installFunc ...InstallFunc) *Filter {
+	scheme := runtime.NewScheme()
+	install(scheme, installFunc...)
+	return &Filter{
+		Exact:            exact,
+		Fuzzy:            fuzzy,
+		Limit:            limit,
+		Offset:           offset,
+		SortName:         sortName,
+		SortOrder:        sortOrder,
+		SortFunc:         sortFunc,
+		Scheme:           scheme,
+		ConverterContext: ctx,
+	}
+}
 
 // Filter is the filter condition
 type Filter struct {
@@ -54,10 +76,9 @@ type Filter struct {
 	SortOrder string
 	SortFunc  string
 
-	EnableFilter bool
-
+	Scheme *runtime.Scheme
 	// ConverterContext holds methods to convert objects
-	ConverterContext
+	*ConverterContext
 }
 
 type ConverterContext struct {
@@ -67,14 +88,8 @@ type ConverterContext struct {
 	Converter     *conversion.VersionConverter
 }
 
-type K8sJson = map[string]interface{}
-type K8sJsonArr = []interface{}
-
 // ModifyResponse modify the response
 func (f *Filter) ModifyResponse(r *http.Response) error {
-	if !f.EnableFilter && !f.EnableConvert {
-		return nil
-	}
 	// get info from response
 	var body []byte
 	var err error
@@ -102,497 +117,126 @@ func (f *Filter) ModifyResponse(r *http.Response) error {
 		}
 	}
 
-	// filter result
-	result := f.FilterResult(body)
-	if result == nil {
-		return fmt.Errorf("filter the k8s response body fail")
+	result := PageBean{}
+	if err = f.doFilter(body, &result); err == nil {
+		// return result
+		marshal, err := json.Marshal(result)
+		if err != nil {
+			clog.Error("modify response failed: %s", err.Error())
+		} else {
+			buf := bytes.NewBuffer(marshal)
+			r.Body = ioutil.NopCloser(buf)
+			r.Header["Content-Length"] = []string{fmt.Sprint(buf.Len())}
+		}
+	} else {
+		clog.Warn("modify response failed: %s", err.Error())
 	}
-
-	// return result
-	buf := bytes.NewBuffer(result)
-	r.Body = ioutil.NopCloser(buf)
-	r.Header["Content-Length"] = []string{fmt.Sprint(buf.Len())}
 	delete(r.Header, "Content-Encoding")
 	return nil
 }
 
-// FilterResult filter result by exact/fuzzy match, sort, page
-func (f *Filter) FilterResult(body []byte) []byte {
-	var result K8sJson
-	err := json.Unmarshal(body, &result)
-	if err != nil {
-		clog.Info("can not parser body to map cause: %v ", err)
-		// give back raw body once unmarshal failed
-		return body
-	}
-
-	// k8s status response do not need filter and convert
-	if items, ok := result["items"].(K8sJsonArr); ok {
-		// entry here means k8s response is object list.
-		// we do filter, sort and page action here.
-
-		// match selector
-		if f.EnableFilter {
-			items = f.exactMatch(items)
-			items = f.fuzzyMatch(items)
-			result["total"] = len(items)
-			// sort
-			items = f.sort(items)
-			// page
-			items = f.page(items)
-		}
-
-		if f.EnableConvert {
-			var err error
-			items, err = f.ConvertItems(items...)
-			if err != nil {
-				clog.Info("convert items failed: %v", err)
-			}
-		}
-
-		result["items"] = items
-	} else if !isStatusResp(result) && f.EnableConvert {
-		item, err := f.ConvertItems(result)
-		if err != nil {
-			clog.Info("convert object failed: %v", err)
-		}
-		res, err := json.Marshal(item[0])
-		if err != nil {
-			clog.Info("translate modify response result to json fail, %v", err)
-			return body
-		}
-		return res
-	}
-
-	resultJson, err := json.Marshal(result)
-	if err != nil {
-		clog.Info("translate modify response result to json fail, %v", err)
-		return body
-	}
-	return resultJson
-}
-
-// ConvertItems converts items by given version
-func (f *Filter) ConvertItems(items ...interface{}) ([]interface{}, error) {
-	res := make([]interface{}, 0, len(items))
-	// todo: optimize it
-	for _, item := range items {
-		m, ok := item.(map[string]interface{})
-		if !ok {
-			return items, errors.New("object is not map[string]interface{}")
-		}
-		u := &unstructured.Unstructured{Object: m}
-		if u.GetAPIVersion() == "" {
-			u.SetAPIVersion(f.ConvertedGvr.GroupVersion().String())
-		}
-		if u.GetKind() == "" {
-			gvk, err := conversion.Gvr2Gvk(f.Converter.RestMapper, f.ConvertedGvr)
-			if err != nil {
-				return nil, err
-			}
-			u.SetKind(gvk.Kind)
-		}
-		out, err := f.Converter.DirectConvert(u, nil, f.RawGvr.GroupVersion())
-		if err != nil {
-			return items, err
-		}
-		res = append(res, out)
-	}
-	return res, nil
-}
-
-// isStatusResp tells if k8s response is just only status
-func isStatusResp(r K8sJson) bool {
-	ok1 := false
-	ok2 := false
-	if kind, ok := r["kind"].(string); ok {
-		if kind == "Status" {
-			ok1 = true
-		}
-	}
-	if apiVersion, ok := r["apiVersion"].(v1.StatusReason); ok {
-		if apiVersion == "v1" {
-			ok2 = true
-		}
-	}
-	return ok1 && ok2
-}
-
-// FilterResultToMap filter result by exact/fuzzy match, sort, page
-func (f *Filter) FilterResultToMap(body []byte, sort bool, page bool) K8sJson {
-	var result K8sJson
-	err := json.Unmarshal(body, &result)
-	if err != nil {
-		clog.Error("can not parser body to map, %v ", err)
-		return nil
-	}
-
-	// list type
-	if result["items"] != nil {
-		if items, ok := result["items"].(K8sJsonArr); ok {
-			// match selector
-			items = f.exactMatch(items)
-			items = f.fuzzyMatch(items)
-			result["total"] = len(items)
-			// sort
-			if sort {
-				items = f.sort(items)
-			}
-			// page
-			if page {
-				items = f.page(items)
-			}
-			result["items"] = items
-		}
-	}
-
-	return result
-}
-
-// exact search
-func (f *Filter) exactMatch(items K8sJsonArr) (result K8sJsonArr) {
-	if len(f.Exact) == 0 {
-		return items
-	}
-
-	// every list record
-	for _, item := range items {
-		flag := true
-		// every exact match condition
-		for key, value := range f.Exact {
-			// key = .metadata.xxx.xxx， multi level
-			realValue, err := GetDeepValue(item, key)
-			if err != nil {
-				clog.Debug("parse value error, %+v", err.Error())
-				flag = false
-				break
-			}
-			// if one condition not match
-			valCheck := false
-			for _, v := range realValue {
-				if value.Has(v) {
-					valCheck = true
-					break
-				}
-			}
-			if valCheck != true {
-				flag = false
-				break
-			}
-		}
-		// if every exact condition match
-		if flag {
-			result = append(result, item)
-		}
-	}
-	return
-}
-
-// fuzzy search
-func (f *Filter) fuzzyMatch(items K8sJsonArr) (result K8sJsonArr) {
-	if len(f.Fuzzy) == 0 {
-		return items
-	}
-
-	// every list record
-	for _, item := range items {
-		flag := true
-		// every fuzzy match condition
-		for key, valueArray := range f.Fuzzy {
-			// key = metadata.xxx.xxx， multi level
-			realValue, err := GetDeepValue(item, key)
-			if err != nil {
-				clog.Debug("parse value error, %+v", err)
-				flag = false
-				break
-			}
-			// if one condition not match
-			valCheck := false
-			for _, v := range realValue {
-				for _, value := range valueArray {
-					if strings.Contains(v, value) {
-						valCheck = true
-						break
-					}
-				}
-			}
-			if valCheck != true {
-				flag = false
-				break
-			}
-		}
-		// if every fuzzy condition match
-		if flag {
-			result = append(result, item)
-		}
-	}
-	return
-}
-
-// sort by .metadata.name/.metadata.creationTimestamp
-func (f *Filter) sort(items K8sJsonArr) K8sJsonArr {
-	if len(f.SortName) == 0 {
-		return items
-	}
-	if len(items) == 0 {
-		return items
-	}
-
-	sort.Slice(items, func(i, j int) bool {
-		getStringFunc := func(items K8sJsonArr, i int, j int) (string, string, error) {
-			si, err := GetDeepValue(items[i], f.SortName)
-			if err != nil {
-				clog.Error("get sort value error, err: %+v", err)
-				return "", "", err
-			}
-			if len(si) > 1 {
-				clog.Error("not support array value, val: %+v", si)
-				return "", "", err
-			}
-			sj, err := GetDeepValue(items[j], f.SortName)
-			if err != nil {
-				clog.Error("get sort value error, err: %+v", err)
-				return "", "", err
-			}
-			if len(sj) > 1 {
-				clog.Error("not support array value, val: %+v", sj)
-				return "", "", err
-			}
-			before := si[0]
-			after := sj[0]
-			return before, after, nil
-		}
-		switch f.SortFunc {
-		case "string":
-			before, after, err := getStringFunc(items, i, j)
-			if err != nil {
-				return false
-			}
-			if f.SortOrder == "asc" {
-				return strings.Compare(before, after) < 0
-			} else {
-				return strings.Compare(before, after) > 0
-			}
-		case "time":
-			before, after, err := getStringFunc(items, i, j)
-			if err != nil {
-				return false
-			}
-			ti, err := time.Parse("2006-01-02T15:04:05Z", before)
-			if err != nil {
-				return false
-			}
-			tj, err := time.Parse("2006-01-02T15:04:05Z", after)
-			if err != nil {
-				return false
-			} else if f.SortOrder == "asc" {
-				return ti.Before(tj)
-			} else {
-				return ti.After(tj)
-			}
-		case "number":
-			ni := GetDeepFloat64(items[i], f.SortName)
-			nj := GetDeepFloat64(items[j], f.SortName)
-			if f.SortOrder == "asc" {
-				return ni < nj
-			} else if f.SortOrder == "desc" {
-				return ni > nj
-			} else {
-				return ni < nj
-			}
-		default:
-			before, after, err := getStringFunc(items, i, j)
-			if err != nil {
-				return false
-			}
-			if f.SortOrder == "asc" {
-				return strings.Compare(before, after) < 0
-			} else {
-				return strings.Compare(before, after) > 0
-			}
-		}
-
-	})
-	return items
-}
-
-// page
-func (f *Filter) page(items K8sJsonArr) K8sJsonArr {
-	if len(items) == 0 {
-		return items
-	}
-
-	size := len(items)
-	if f.Offset >= size {
-		return items[0:0]
-	}
-	end := f.Offset + f.Limit
-	if end > size {
-		end = size
-	}
-	return items[f.Offset:end]
-}
-
-// GetDeepValue get value by metadata.xx.xx.xx, multi level key
-func GetDeepValue(item interface{}, keyStr string) ([]string, error) {
-	fields := strings.Split(keyStr, ".")
-	n := len(fields)
-
-	if n < 1 {
-		return nil, fmt.Errorf("keyStr format invilid")
-	}
-
-	v, err := getRes(item, 0, fields)
+func (f *Filter) FilterObjectList(object runtime.Object) (*int, error) {
+	pageBean := PageBean{}
+	version := object.GetObjectKind().GroupVersionKind().Version
+	u := unstructured.Unstructured{}
+	err := f.Scheme.Convert(object, &u, version)
 	if err != nil {
 		return nil, err
 	}
-
-	switch v.(type) {
-	case string:
-		return []string{
-			v.(string),
-		}, nil
-	case []interface{}:
-		array := v.([]interface{})
-		var result []string
-		for _, value := range array {
-			if val, ok := value.(string); ok {
-				result = append(result, val)
-			}
-		}
-		return result, nil
-	case []string:
-		return v.([]string), nil
-	default:
-		return nil, fmt.Errorf("only support string or string array value, the value is: %+v", v)
+	if !u.IsList() {
+		return nil, nil
 	}
+	var listObject []unstructured.Unstructured
+	list, err := u.ToList()
+	if err != nil {
+		return nil, err
+	}
+	listObject = list.Items
+	if len(listObject) == 0 {
+		return nil, nil
+	}
+	version = listObject[0].GroupVersionKind().Version
+	first := &First{}
+	var temp Handler
+	temp = first
+	if len(f.Exact) != 0 {
+		extract := ExtractFilterChain(f.Exact)
+		temp.setNext(extract)
+		temp = extract
+	}
+
+	if len(f.Fuzzy) != 0 {
+		fuzzy := FuzzyFilterChain(f.Fuzzy)
+		temp.setNext(fuzzy)
+		temp = fuzzy
+	}
+
+	if len(f.SortName) != 0 {
+		sortChain := SortFilterChain(f.SortName, f.SortOrder, f.SortFunc)
+		temp.setNext(sortChain)
+		temp = sortChain
+	}
+	if f.Limit != 0 {
+		pageChain := PageFilterChain(f.Limit, f.Offset)
+		pageBean.Total = pageChain.total
+		temp.setNext(pageChain)
+		temp = pageChain
+	}
+	if f.ConverterContext != nil && f.EnableConvert {
+		convert := ConvertFilterChain(f.EnableConvert, f.RawGvr, f.ConvertedGvr, f.Converter)
+		temp.setNext(convert)
+		temp = convert
+	}
+	temp.setNext(&Last{})
+	res, err := first.handle(listObject)
+	if err != nil {
+		return nil, err
+	}
+	list.Items = res
+	err = f.Scheme.Convert(list, object, version)
+	if err != nil {
+		return nil, err
+	}
+	return pageBean.Total, nil
 }
 
-func getRes(item interface{}, index int, fields []string) (interface{}, error) {
-	switch item.(type) {
-	// if this value is map[string]interface{}, we need to get the value which key is, and return next index to get next key
-	case K8sJson:
-		info := item.(K8sJson)
-		n := len(fields)
-		//In special cases, such as label, key exists "." At this time, the following key is directly spliced into a complete key and the value is obtained
-		if fields[index] == Labels || fields[index] == Annotations {
-			key := strings.Join(fields[index+1:], ".")
-			// any field not found return directly
-			next, ok := info[fields[index]]
-			if !ok {
-				return nil, fmt.Errorf("field %v not exsit", fields[index])
-			}
-			return getRes(next, 0, []string{key})
-		}
-		// the end out of loop
-		if index == n-1 {
-			v, ok := info[fields[index]]
-			if !ok {
-				return nil, fmt.Errorf("field %v not exsit", fields[index])
-			}
-			return v, nil
-		}
-
-		// any field not found return directly
-		next, ok := info[fields[index]]
-		if !ok {
-			return nil, fmt.Errorf("field %v not exsit", fields[index])
-		}
-		return getRes(next, index+1, fields)
-	// if the value is []map[string]interface{}, so we need get all value which key is, so just foreach it
-	case K8sJsonArr:
-		arr := item.(K8sJsonArr)
-		var result []interface{}
-		for _, info := range arr {
-			res, err := getRes(info, index, fields)
-			if err != nil {
-				clog.Error(err.Error())
-				continue
-			}
-			result = append(result, res)
-		}
-		return result, nil
-	// for other value,we not support now
-	default:
-		return nil, fmt.Errorf("not map value of field is not support")
+func (f *Filter) doFilter(data []byte, result *PageBean) error {
+	first := &First{}
+	var temp Handler
+	temp = first
+	parseJson := ParseJsonObjChain(data, f.Scheme)
+	temp.setNext(parseJson)
+	temp = parseJson
+	if len(f.Exact) != 0 {
+		extract := ExtractFilterChain(f.Exact)
+		temp.setNext(extract)
+		temp = extract
 	}
 
-}
-
-// GetDeepFloat64 get float64 value by metadata.xx.xx.xx, multi level key
-func GetDeepFloat64(item interface{}, keyStr string) (value float64) {
-	defer func() {
-		if err := recover(); err != nil {
-			value = 0
-			return
-		}
-	}()
-
-	temp := item.(K8sJson)
-	// key = metadata.xxx.xxx， multi level
-	keys := strings.Split(keyStr, ".")
-	n := len(keys)
-	i := 0
-	for ; n > 0 && i < n-1; i++ {
-		temp = temp[keys[i]].(K8sJson)
-		if keys[i] == Labels || keys[i] == Annotations {
-			i++
-			break
-		}
+	if len(f.Fuzzy) != 0 {
+		fuzzy := FuzzyFilterChain(f.Fuzzy)
+		temp.setNext(fuzzy)
+		temp = fuzzy
 	}
-	key := strings.Join(keys[i:], ".")
-	value = temp[key].(float64)
-	return
-}
 
-// GetDeepMap get map by spec.selector.matchLabels={xx= xx}
-func GetDeepMap(item interface{}, keyStr string) (value K8sJson) {
-	defer func() {
-		if err := recover(); err != nil {
-			value = nil
-			return
-		}
-	}()
-
-	temp := item.(K8sJson)
-	// key = spec.selector.matchLabels， multi level
-	keys := strings.Split(keyStr, ".")
-	n := len(keys)
-	i := 0
-	for ; n > 0 && i < n-1; i++ {
-		temp = temp[keys[i]].(K8sJson)
-		if keys[i] == Labels || keys[i] == Annotations {
-			i++
-			break
-		}
+	if len(f.SortName) != 0 {
+		sortChain := SortFilterChain(f.SortName, f.SortOrder, f.SortFunc)
+		temp.setNext(sortChain)
+		temp = sortChain
 	}
-	key := strings.Join(keys[i:], ".")
-	value = temp[key].(K8sJson)
-	return
-}
-
-// GetDeepArray get metadata.ownerReference[0]
-func GetDeepArray(item interface{}, keyStr string) (value K8sJsonArr) {
-	defer func() {
-		if err := recover(); err != nil {
-			value = nil
-			return
-		}
-	}()
-
-	temp := item.(K8sJson)
-	// key = metadata.ownerReference[0]， multi level
-	keys := strings.Split(keyStr, ".")
-	n := len(keys)
-	i := 0
-	for ; n > 0 && i < n-1; i++ {
-		temp = temp[keys[i]].(K8sJson)
-		if keys[i] == Labels || keys[i] == Annotations {
-			i++
-			break
-		}
+	if f.Limit != 0 {
+		pageChain := PageFilterChain(f.Limit, f.Offset)
+		result.Total = pageChain.total
+		temp.setNext(pageChain)
+		temp = pageChain
 	}
-	key := strings.Join(keys[i:], ".")
-	value = temp[key].(K8sJsonArr)
-	return
+	if f.ConverterContext != nil && f.EnableConvert {
+		convert := ConvertFilterChain(f.EnableConvert, f.RawGvr, f.ConvertedGvr, f.Converter)
+		temp.setNext(convert)
+		temp = convert
+	}
+	temp.setNext(&Last{})
+	object, err := first.handle(nil)
+	result.Items = object
+	return err
 }

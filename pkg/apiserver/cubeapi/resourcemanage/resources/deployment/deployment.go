@@ -20,9 +20,9 @@ import (
 	"context"
 	"errors"
 
-	jsoniter "github.com/json-iterator/go"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
@@ -38,13 +38,11 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 )
 
-var json = jsoniter.ConfigCompatibleWithStandardLibrary
-
 type Deployment struct {
 	ctx       context.Context
 	client    mgrclient.Client
 	namespace string
-	filter    filter.Filter
+	filter    *filter.Filter
 }
 
 func init() {
@@ -64,7 +62,7 @@ func Handle(param resourcemanage.ExtendParams) (interface{}, error) {
 	return deployment.GetExtendDeployments()
 }
 
-func NewDeployment(client mgrclient.Client, namespace string, filter filter.Filter) Deployment {
+func NewDeployment(client mgrclient.Client, namespace string, filter *filter.Filter) Deployment {
 	ctx := context.Background()
 	return Deployment{
 		ctx:       ctx,
@@ -75,9 +73,9 @@ func NewDeployment(client mgrclient.Client, namespace string, filter filter.Filt
 }
 
 // GetExtendDeployments get extend deployments
-func (d *Deployment) GetExtendDeployments() (filter.K8sJson, error) {
+func (d *Deployment) GetExtendDeployments() (*unstructured.Unstructured, error) {
 
-	resultMap := make(filter.K8sJson)
+	resultMap := make(map[string]interface{})
 	// get deployment list from k8s cluster
 	var deploymentList appsv1.DeploymentList
 	err := d.client.Cache().List(d.ctx, &deploymentList, client.InNamespace(d.namespace))
@@ -85,32 +83,24 @@ func (d *Deployment) GetExtendDeployments() (filter.K8sJson, error) {
 		clog.Error("can not find info from cluster, %v", err)
 		return nil, err
 	}
-	resultMap["total"] = len(deploymentList.Items)
-
 	// filter list by selector/sort/page
-	deploymentListJson, err := json.Marshal(deploymentList)
+	total, err := d.filter.FilterObjectList(&deploymentList)
 	if err != nil {
-		clog.Error("convert deploymentList to json fail, %v", err)
+		clog.Error("filter deploymentList error, err: %s", err.Error())
 		return nil, err
 	}
-	deploymentListJson = d.filter.FilterResult(deploymentListJson)
-	deploymentList = appsv1.DeploymentList{}
-	err = json.Unmarshal(deploymentListJson, &deploymentList)
-	if err != nil {
-		clog.Error("convert json to deploymentList fail, %v", err)
-		return nil, err
-	}
-
 	// add pod status info
 	resultList := d.addExtendInfo(deploymentList)
-
+	resultMap["total"] = total
 	resultMap["items"] = resultList
 
-	return resultMap, nil
+	return &unstructured.Unstructured{
+		Object: resultMap,
+	}, nil
 }
 
-func (d *Deployment) addExtendInfo(deploymentList appsv1.DeploymentList) filter.K8sJsonArr {
-	resultList := make(filter.K8sJsonArr, 0)
+func (d *Deployment) addExtendInfo(deploymentList appsv1.DeploymentList) []unstructured.Unstructured {
+	resultList := make([]unstructured.Unstructured, 0)
 	for _, deployment := range deploymentList.Items {
 		// get pod list by deployment
 		realPodList, err := d.getPodByDeployment(deployment)
@@ -123,11 +113,11 @@ func (d *Deployment) addExtendInfo(deploymentList appsv1.DeploymentList) filter.
 		warningEventList, err := d.getWarningEventsByPodList(realPodList)
 		if err != nil {
 			clog.Info("add extend warning events info to deployment %s fail, %v", deployment.Name, err)
-			warningEventList = make(filter.K8sJsonArr, 0)
+			warningEventList = make([]unstructured.Unstructured, 0)
 		}
 
 		// create podStatus map
-		podsStatus := make(filter.K8sJson)
+		podsStatus := make(map[string]interface{})
 		podsStatus["current"] = deployment.Status.Replicas
 		podsStatus["desired"] = deployment.Spec.Replicas
 		var succeeded, running, pending, failed, unknown int
@@ -154,12 +144,13 @@ func (d *Deployment) addExtendInfo(deploymentList appsv1.DeploymentList) filter.
 		podsStatus["warning"] = warningEventList
 
 		// create result map
-		result := make(filter.K8sJson)
+		result := make(map[string]interface{})
 		result["metadata"] = deployment.ObjectMeta
 		result["spec"] = deployment.Spec
 		result["status"] = deployment.Status
 		result["podStatus"] = podsStatus
-		resultList = append(resultList, result)
+		res := unstructured.Unstructured{Object: result}
+		resultList = append(resultList, res)
 	}
 	return resultList
 }
@@ -219,9 +210,9 @@ func (d *Deployment) getPodByDeployment(deployment appsv1.Deployment) (corev1.Po
 	return realPodList, nil
 }
 
-func (d *Deployment) getWarningEventsByPodList(podList corev1.PodList) (filter.K8sJsonArr, error) {
+func (d *Deployment) getWarningEventsByPodList(podList corev1.PodList) ([]unstructured.Unstructured, error) {
 	// kubectl get ev --field-selector="involvedObject.uid=1a58441c-3c03-4267-85d1-a81f0c268d62,type=Warning"
-	resultEventList := make(filter.K8sJsonArr, 0)
+	resultEventList := make([]unstructured.Unstructured, 0)
 	for _, pod := range podList.Items {
 		if isPodReadyOrSucceed(pod) {
 			continue
@@ -241,13 +232,13 @@ func (d *Deployment) getWarningEventsByPodList(podList corev1.PodList) (filter.K
 		}
 
 		for _, event := range eventList.Items {
-			eventMap := make(filter.K8sJson)
+			eventMap := make(map[string]interface{})
 			eventMap["type"] = "Warning"
 			eventMap["reason"] = event.Reason
 			eventMap["message"] = event.Message
 			eventMap["object"] = event.InvolvedObject.Name
 			eventMap["creationTimestamp"] = event.CreationTimestamp
-			resultEventList = append(resultEventList, eventMap)
+			resultEventList = append(resultEventList, unstructured.Unstructured{Object: eventMap})
 		}
 	}
 	return resultEventList, nil

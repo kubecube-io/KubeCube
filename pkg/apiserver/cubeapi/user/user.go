@@ -20,7 +20,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/csv"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -232,10 +231,10 @@ func ListUsers(c *gin.Context) {
 
 	// fuzzy query
 	query := c.Query("query")
-	var filterList = &UserList{}
+	var filterList = &userv1.UserList{}
 	for _, user := range allUserList.Items {
 		if query == "" || strings.Contains(user.Spec.DisplayName, query) || strings.Contains(user.Name, query) {
-			var userResp UserItem
+			var userResp userv1.User
 			userResp.Spec = user.Spec
 			userResp.Spec.Password = ""
 			userResp.Status = user.Status
@@ -245,21 +244,15 @@ func ListUsers(c *gin.Context) {
 	}
 
 	// page
-	filterListJson, err := json.Marshal(filterList)
+	total, err := proxy.Filter(c, filterList)
 	if err != nil {
-		clog.Error("transform user list struct to json error: %s", err)
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.BadRequest(err))
 		return
 	}
-	pageList := proxy.Filter(c, filterListJson)
-	var resultList UserList
-	if err = json.Unmarshal(pageList, &resultList); err != nil {
-		clog.Error("transform json to user list struct error: %s", err)
-		response.FailReturn(c, errcode.InternalServerError)
-		return
-	}
-
-	response.SuccessReturn(c, resultList)
+	res := make(map[string]interface{})
+	res["total"] = total
+	res["items"] = filterList
+	response.SuccessReturn(c, res)
 	return
 }
 

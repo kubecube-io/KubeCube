@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"k8s.io/apimachinery/pkg/runtime"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -300,32 +301,21 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 }
 
 // product match/sort/page to other function
-func Filter(c *gin.Context, result []byte) []byte {
+func Filter(c *gin.Context, object runtime.Object) (*int, error) {
 	resources := parseQueryParams(c)
-	return resources.FilterResult(result)
+	total, err := resources.FilterObjectList(object)
+	if err != nil {
+		clog.Error("filter userList error, err: %s", err.Error())
+		return nil, err
+	}
+	return total, nil
 }
 
 // parse request params, include selector, sort and page
-func parseQueryParams(c *gin.Context) filter.Filter {
+func parseQueryParams(c *gin.Context) *filter.Filter {
 	exact, fuzzy := selector.ParseSelector(c.Query("selector"))
 	limit, offset := page.ParsePage(c.Query("pageSize"), c.Query("pageNum"))
 	sortName, sortOrder, sortFunc := sort.ParseSort(c.Query("sortName"), c.Query("sortOrder"), c.Query("sortFunc"))
 
-	filter := filter.Filter{
-		EnableFilter: needFilter(c),
-		Exact:        exact,
-		Fuzzy:        fuzzy,
-		Limit:        limit,
-		Offset:       offset,
-		SortName:     sortName,
-		SortOrder:    sortOrder,
-		SortFunc:     sortFunc,
-	}
-
-	return filter
-}
-
-func needFilter(c *gin.Context) bool {
-	return c.Query("selector")+c.Query("pageSize")+c.Query("pageNum")+
-		c.Query("sortName")+c.Query("sortOrder")+c.Query("sortFunc") != ""
+	return filter.NewFilter(exact, fuzzy, limit, offset, sortName, sortOrder, sortFunc, nil)
 }

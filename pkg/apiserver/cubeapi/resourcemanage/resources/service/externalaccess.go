@@ -52,13 +52,13 @@ type ExternalAccess struct {
 	client                   client.Client
 	namespace                string
 	name                     string
-	filter                   filter.Filter
+	filter                   *filter.Filter
 	NginxNamespace           string
 	NginxTcpServiceConfigMap string
 	NginxUdpServiceConfigMap string
 }
 
-func NewExternalAccess(client client.Client, namespace string, name string, filter filter.Filter, nginxNs string, tcpCm string, udpCm string) ExternalAccess {
+func NewExternalAccess(client client.Client, namespace string, name string, filter *filter.Filter, nginxNs string, tcpCm string, udpCm string) ExternalAccess {
 	ctx := context.Background()
 	return ExternalAccess{
 		ctx:                      ctx,

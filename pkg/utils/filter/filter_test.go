@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,41 +26,49 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
+
+	v1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
 )
 
 var _ = Describe("Filter", func() {
 	var (
-		list = make(map[string]interface{})
+		list = v1.ClusterList{
+			Items: make([]v1.Cluster, 0),
+		}
 	)
 
 	BeforeEach(func() {
-		list["kind"] = "List"
-		var l2s []map[string]interface{}
+		list.Kind = "List"
+		list.APIVersion = "v1"
 		for i := 0; i < 20; i++ {
-			l2 := make(map[string]interface{})
-
-			l3 := make(map[string]interface{})
+			l2 := v1.Cluster{}
+			l2.Kind = "Cluster"
+			l2.APIVersion = "cluster.kubecube.io/v1"
 			if i <= 10 {
-				l3["name"] = "a-name" + strconv.Itoa(i)
+				l2.SetName("a-name" + strconv.Itoa(i))
 			} else {
-				l3["name"] = "b-name" + strconv.Itoa(i)
+				l2.SetName("b-name" + strconv.Itoa(i))
 			}
-			l3["index"] = i
-			l3["creationTimestamp"] = time.Now()
+			l2.SetCreationTimestamp(metav1.NewTime(time.Now()))
 			// labels
-			l4 := make(map[string]interface{})
+			l4 := make(map[string]string)
 			l4["hello"] = "world"
-			l4["number"] = 5
-			l3["labels"] = l4
-			annotations := make(map[string]interface{})
-			annotations["kubecube.test.io/index"] = []string{strconv.Itoa(i)}
-			annotations["kubecube.test.io/app"] = []string{"a-name" + strconv.Itoa(i), "b-name" + strconv.Itoa(i)}
-			l3["annotations"] = annotations
-			l2["metadata"] = l3
-			l2s = append(l2s, l2)
+			l4["number"] = "5"
+			l2.SetLabels(l4)
+			annotations := make(map[string]string)
+			annotations["kubecube.test.io/index"] = strconv.Itoa(i)
+			annotations["kubecube.test.io/app"] = "a-name" + strconv.Itoa(i)
+			l2.SetAnnotations(annotations)
+			list.Items = append(list.Items, l2)
 		}
-		list["items"] = l2s
+	})
+
+	AfterEach(func() {
+		list = v1.ClusterList{
+			Items: make([]v1.Cluster, 0),
+		}
 	})
 
 	It("TestModifyResponses", func() {
@@ -75,18 +83,9 @@ var _ = Describe("Filter", func() {
 		fuzzy := make(map[string][]string)
 		fuzzy["metadata.name"] = []string{"a-name"}
 
-		filter := Filter{
-			Exact:        nil,
-			Fuzzy:        fuzzy,
-			Limit:        5,
-			Offset:       5,
-			SortName:     "metadata.creationTimestamp",
-			SortOrder:    "asc",
-			SortFunc:     "time",
-			EnableFilter: true,
-		}
-
-		filter.ModifyResponse(&r)
+		filter := NewFilter(nil, fuzzy, 5, 5, "metadata.creationTimestamp", "asc", "time", nil)
+		err := filter.ModifyResponse(&r)
+		Expect(err).To(BeNil())
 
 		body, err := ioutil.ReadAll(r.Body)
 		Expect(err).To(BeNil())
@@ -103,262 +102,119 @@ var _ = Describe("Filter", func() {
 	})
 
 	It("TestFilterResult", func() {
-		// create http.response
-		listJson, _ := json.Marshal(list)
-
 		// create condition
 		fuzzy := make(map[string][]string)
 		fuzzy["metadata.name"] = []string{"a-name"}
 
-		filter := Filter{
-			Exact:        nil,
-			Fuzzy:        fuzzy,
-			Limit:        5,
-			Offset:       5,
-			SortName:     "metadata.creationTimestamp",
-			SortOrder:    "asc",
-			SortFunc:     "time",
-			EnableFilter: true,
-		}
+		filter := NewFilter(nil, fuzzy, 5, 5, "metadata.creationTimestamp", "asc", "time", nil)
 
-		resultJson := filter.FilterResult(listJson)
-		var result map[string]interface{}
-		err := json.Unmarshal(resultJson, &result)
+		_, err := filter.FilterObjectList(&list)
 		Expect(err).To(BeNil())
 
-		items, ok := result["items"].([]interface{})
-		Expect(ok).To(Equal(true))
-
-		for i, item := range items {
-			Expect("a-name" + strconv.Itoa(i+5)).To(Equal(item.(map[string]interface{})["metadata"].(map[string]interface{})["name"].(string)))
+		for i, item := range list.Items {
+			Expect("a-name" + strconv.Itoa(i+5)).To(Equal(item.Name))
 		}
 	})
 
 	It("TestExactMatch", func() {
-		// create http.response
-		listJson, _ := json.Marshal(list)
-		var result map[string]interface{}
-		err := json.Unmarshal(listJson, &result)
-		Expect(err).To(BeNil())
-
-		items := result["items"].([]interface{})
 		// create condition
 		exact := make(map[string]sets.String)
 		exact["metadata.name"] = sets.NewString("a-name2")
-
-		filter := Filter{
-			Exact:     exact,
-			Fuzzy:     nil,
-			Limit:     5,
-			Offset:    0,
-			SortName:  "metadata.creationTimestamp",
-			SortOrder: "asc",
-			SortFunc:  "time",
-		}
-
-		items = filter.exactMatch(items)
-
-		Expect(1).To(Equal(len(items)))
-		Expect("a-name2").To(Equal(items[0].(map[string]interface{})["metadata"].(map[string]interface{})["name"].(string)))
+		filter := NewFilter(exact, nil, 0, 0, "", "", "", nil)
+		_, err := filter.FilterObjectList(&list)
+		Expect(err).To(BeNil())
+		Expect(1).To(Equal(len(list.Items)))
+		Expect("a-name2").To(Equal(list.Items[0].Name))
 	})
 
 	It("TestArrayExactMatch", func() {
-		listJson, _ := json.Marshal(list)
-		var result map[string]interface{}
-		err := json.Unmarshal(listJson, &result)
-		Expect(err).To(BeNil())
-
-		items := result["items"].([]interface{})
 		// create condition
 		exact := make(map[string]sets.String)
-		exact["metadata.annotations.kubecube.test.io/app"] = sets.NewString("a-name2")
-		exact["metadata.annotations.kubecube.test.io/app"] = sets.NewString("b-name2")
-
-		filter := Filter{
-			Exact:     exact,
-			Fuzzy:     nil,
-			Limit:     5,
-			Offset:    0,
-			SortName:  "metadata.creationTimestamp",
-			SortOrder: "asc",
-			SortFunc:  "time",
-		}
-
-		items = filter.exactMatch(items)
-		Expect(1).To(Equal(len(items)))
-		Expect("a-name2").To(Equal(items[0].(map[string]interface{})["metadata"].(map[string]interface{})["name"].(string)))
+		exact["metadata.annotations.kubecube.test.io/app"] = sets.NewString("a-name2", "b-name2")
+		filter := NewFilter(exact, nil, 0, 0, "", "", "", nil)
+		_, err := filter.FilterObjectList(&list)
+		Expect(err).To(BeNil())
+		Expect(1).To(Equal(len(list.Items)))
+		Expect("a-name2").To(Equal(list.Items[0].Name))
 	})
 
 	It("TestExactArrayMatch", func() {
-		listJson, _ := json.Marshal(list)
-		var result map[string]interface{}
-		err := json.Unmarshal(listJson, &result)
-		Expect(err).To(BeNil())
-
-		items := result["items"].([]interface{})
 		// create condition
 		exact := make(map[string]sets.String)
 		exact["metadata.annotations.kubecube.test.io/app"] = sets.NewString("a-name1", "a-name2")
-
-		filter := Filter{
-			Exact:     exact,
-			Fuzzy:     nil,
-			Limit:     5,
-			Offset:    0,
-			SortName:  "metadata.creationTimestamp",
-			SortOrder: "asc",
-			SortFunc:  "time",
-		}
-
-		items = filter.exactMatch(items)
-		Expect(2).To(Equal(len(items)))
-		Expect("a-name1").To(Equal(items[0].(map[string]interface{})["metadata"].(map[string]interface{})["name"].(string)))
-		Expect("a-name2").To(Equal(items[1].(map[string]interface{})["metadata"].(map[string]interface{})["name"].(string)))
+		filter := NewFilter(exact, nil, 0, 0, "", "", "", nil)
+		_, err := filter.FilterObjectList(&list)
+		Expect(err).To(BeNil())
+		Expect(2).To(Equal(len(list.Items)))
+		Expect("a-name1").To(Equal(list.Items[0].Name))
+		Expect("a-name2").To(Equal(list.Items[1].Name))
 	})
 
 	It("TestFuzzyMatch", func() {
-		listJson, _ := json.Marshal(list)
-		var result map[string]interface{}
-		err := json.Unmarshal(listJson, &result)
-		Expect(err).To(BeNil())
-
-		items := result["items"].([]interface{})
 		// create condition
 		fuzzy := make(map[string][]string)
 		fuzzy["metadata.name"] = []string{"b-name"}
-
-		filter := Filter{
-			Exact:     nil,
-			Fuzzy:     fuzzy,
-			Limit:     5,
-			Offset:    0,
-			SortName:  "metadata.creationTimestamp",
-			SortOrder: "asc",
-			SortFunc:  "time",
-		}
-
-		items = filter.fuzzyMatch(items)
-
-		for i, item := range items {
-			Expect("b-name" + strconv.Itoa(i+11)).To(Equal(item.(map[string]interface{})["metadata"].(map[string]interface{})["name"].(string)))
+		filter := NewFilter(nil, fuzzy, 0, 0, "", "", "", nil)
+		_, err := filter.FilterObjectList(&list)
+		Expect(err).To(BeNil())
+		for i, item := range list.Items {
+			Expect("b-name" + strconv.Itoa(i+11)).To(Equal(item.Name))
 		}
 	})
 
 	It("TestArrayFuzzyMatch", func() {
-		listJson, _ := json.Marshal(list)
-		var result map[string]interface{}
-		err := json.Unmarshal(listJson, &result)
-		Expect(err).To(BeNil())
-
-		items := result["items"].([]interface{})
 		// create condition
 		fuzzy := make(map[string][]string)
 		fuzzy["metadata.annotations.kubecube.test.io/app"] = []string{"-name2"}
-
-		filter := Filter{
-			Exact:     nil,
-			Fuzzy:     fuzzy,
-			Limit:     5,
-			Offset:    0,
-			SortName:  "metadata.creationTimestamp",
-			SortOrder: "asc",
-			SortFunc:  "time",
-		}
-
-		items = filter.fuzzyMatch(items)
-		Expect(1).To(Equal(len(items)))
-		Expect("a-name2").To(Equal(items[0].(map[string]interface{})["metadata"].(map[string]interface{})["name"].(string)))
+		filter := NewFilter(nil, fuzzy, 0, 0, "", "", "", nil)
+		_, err := filter.FilterObjectList(&list)
+		Expect(err).To(BeNil())
+		Expect(1).To(Equal(len(list.Items)))
+		Expect("a-name2").To(Equal(list.Items[0].Name))
 	})
 
 	It("TestFuzzyArrayMatch", func() {
-		listJson, _ := json.Marshal(list)
-		var result map[string]interface{}
-		err := json.Unmarshal(listJson, &result)
-		Expect(err).To(BeNil())
-
-		items := result["items"].([]interface{})
 		// create condition
 		fuzzy := make(map[string][]string)
 		fuzzy["metadata.name"] = []string{"-name11", "-name12"}
 
-		filter := Filter{
-			Exact:     nil,
-			Fuzzy:     fuzzy,
-			Limit:     5,
-			Offset:    0,
-			SortName:  "metadata.creationTimestamp",
-			SortOrder: "asc",
-			SortFunc:  "time",
-		}
-
-		items = filter.fuzzyMatch(items)
-		Expect(2).To(Equal(len(items)))
-		Expect("b-name11").To(Equal(items[0].(map[string]interface{})["metadata"].(map[string]interface{})["name"].(string)))
-		Expect("b-name12").To(Equal(items[1].(map[string]interface{})["metadata"].(map[string]interface{})["name"].(string)))
+		filter := NewFilter(nil, fuzzy, 0, 0, "", "", "", nil)
+		_, err := filter.FilterObjectList(&list)
+		Expect(err).To(BeNil())
+		Expect(2).To(Equal(len(list.Items)))
+		Expect("b-name11").To(Equal(list.Items[0].Name))
+		Expect("b-name12").To(Equal(list.Items[1].Name))
 	})
 
 	It("TestSort", func() {
-		listJson, _ := json.Marshal(list)
-		var result map[string]interface{}
-		err := json.Unmarshal(listJson, &result)
-		Expect(err).To(BeNil())
-
-		items := result["items"].([]interface{})
 		// create condition
 		exact := make(map[string]sets.String)
 		exact["metadata.name"] = sets.NewString("a-name2")
 		fuzzy := make(map[string][]string)
 		fuzzy["metadata.name"] = []string{"b-name"}
 
-		filter := Filter{
-			Exact:     exact,
-			Fuzzy:     fuzzy,
-			Limit:     20,
-			Offset:    0,
-			SortName:  "metadata.index",
-			SortOrder: "desc",
-			SortFunc:  "number",
-		}
+		filter := NewFilter(exact, fuzzy, 0, 0, "metadata.index", "desc", "number", nil)
+		_, err := filter.FilterObjectList(&list)
+		Expect(err).To(BeNil())
 
-		items = filter.sort(items)
-
-		for i, item := range items {
+		for i, item := range list.Items {
 			if i < 9 {
-				Expect("b-name" + strconv.Itoa(19-i)).To(Equal(item.(map[string]interface{})["metadata"].(map[string]interface{})["name"].(string)))
+				Expect("b-name" + strconv.Itoa(19-i)).To(Equal(item.Name))
 			} else {
-				Expect("a-name" + strconv.Itoa(19-i)).To(Equal(item.(map[string]interface{})["metadata"].(map[string]interface{})["name"].(string)))
+				Expect("a-name" + strconv.Itoa(19-i)).To(Equal(item.Name))
 			}
 
 		}
 	})
 
 	It("TestPage", func() {
-		listJson, _ := json.Marshal(list)
-		var result map[string]interface{}
-		err := json.Unmarshal(listJson, &result)
-		Expect(err).To(BeNil())
-
-		items := result["items"].([]interface{})
 		// create condition
-		exact := make(map[string]sets.String)
-		exact["metadata.name"] = sets.NewString("a-name2")
-		fuzzy := make(map[string][]string)
-		fuzzy["metadata.name"] = []string{"b-name"}
-
-		filter := Filter{
-			Exact:     exact,
-			Fuzzy:     fuzzy,
-			Limit:     2,
-			Offset:    2,
-			SortName:  "metadata.index",
-			SortOrder: "desc",
-			SortFunc:  "number",
-		}
-
-		items = filter.page(items)
-		Expect(2).To(Equal(len(items)))
-		Expect("a-name2").To(Equal(items[0].(map[string]interface{})["metadata"].(map[string]interface{})["name"].(string)))
-		Expect("a-name3").To(Equal(items[1].(map[string]interface{})["metadata"].(map[string]interface{})["name"].(string)))
+		filter := NewFilter(nil, nil, 2, 2, "metadata.index", "desc", "number", nil)
+		_, err := filter.FilterObjectList(&list)
+		Expect(err).To(BeNil())
+		Expect(2).To(Equal(len(list.Items)))
+		Expect("a-name2").To(Equal(list.Items[0].Name))
+		Expect("a-name3").To(Equal(list.Items[1].Name))
 	})
 
 	It("TestGetDeepValue", func() {

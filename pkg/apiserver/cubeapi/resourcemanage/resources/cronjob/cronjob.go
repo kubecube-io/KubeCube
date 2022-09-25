@@ -21,9 +21,9 @@ import (
 	"errors"
 	"fmt"
 
-	jsoniter "github.com/json-iterator/go"
 	batchv1 "k8s.io/api/batch/v1"
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -38,13 +38,11 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 )
 
-var json = jsoniter.ConfigCompatibleWithStandardLibrary
-
 type CronJob struct {
 	ctx       context.Context
 	client    mgrclient.Client
 	namespace string
-	filter    filter.Filter
+	filter    *filter.Filter
 }
 
 func init() {
@@ -68,7 +66,7 @@ func Handle(param resourcemanage.ExtendParams) (interface{}, error) {
 	}
 }
 
-func NewCronJob(client mgrclient.Client, namespace string, filter filter.Filter) CronJob {
+func NewCronJob(client mgrclient.Client, namespace string, filter *filter.Filter) CronJob {
 	ctx := context.Background()
 	return CronJob{
 		ctx:       ctx,
@@ -78,9 +76,9 @@ func NewCronJob(client mgrclient.Client, namespace string, filter filter.Filter)
 	}
 }
 
-// get extend deployments
-func (c *CronJob) GetExtendCronJobs() (filter.K8sJson, error) {
-	resultMap := make(filter.K8sJson)
+// GetExtendCronJobs get extend deployments
+func (c *CronJob) GetExtendCronJobs() (*unstructured.Unstructured, error) {
+	resultMap := make(map[string]interface{})
 
 	// get deployment list from k8s cluster
 	var cronJobList batchv1beta1.CronJobList
@@ -89,33 +87,24 @@ func (c *CronJob) GetExtendCronJobs() (filter.K8sJson, error) {
 		clog.Error("can not find cronjob in %s from cluster, %v", c.namespace, err)
 		return nil, err
 	}
-	resultMap["total"] = len(cronJobList.Items)
 
 	// filter list by selector/sort/page
-	jobListJson, err := json.Marshal(cronJobList)
+	total, err := c.filter.FilterObjectList(&cronJobList)
 	if err != nil {
-		clog.Error("convert deploymentList to json fail, %v", err)
+		clog.Error("can not filter cronjob, err: %s", err.Error())
 		return nil, err
 	}
-	jobListJson = c.filter.FilterResult(jobListJson)
-	cronJobList = batchv1beta1.CronJobList{}
-	err = json.Unmarshal(jobListJson, &cronJobList)
-	if err != nil {
-		clog.Error("convert json to deploymentList fail, %v", err)
-		return nil, err
-	}
-
 	// add pod status info
 	resultList := c.addExtendInfo(cronJobList)
 
+	resultMap["total"] = total
 	resultMap["items"] = resultList
 
-	return resultMap, nil
+	return &unstructured.Unstructured{Object: resultMap}, nil
 }
 
-// get extend deployments
-func (c *CronJob) GetExtendCronJob(name string) (filter.K8sJson, error) {
-
+// GetExtendCronJob get extend deployments
+func (c *CronJob) GetExtendCronJob(name string) (*unstructured.Unstructured, error) {
 	// get deployment list from k8s cluster
 	var cronJob batchv1beta1.CronJob
 	err := c.client.Cache().Get(c.ctx, types.NamespacedName{Namespace: c.namespace, Name: name}, &cronJob)
@@ -131,12 +120,11 @@ func (c *CronJob) GetExtendCronJob(name string) (filter.K8sJson, error) {
 		return nil, fmt.Errorf("can not parse cronjob %s/%s", c.namespace, name)
 	}
 
-	return resultList[0].(filter.K8sJson), err
+	return &resultList[0], err
 }
 
-// fixme
-func (c *CronJob) addExtendInfo(cronJobList batchv1beta1.CronJobList) filter.K8sJsonArr {
-	resultList := make(filter.K8sJsonArr, 0)
+func (c *CronJob) addExtendInfo(cronJobList batchv1beta1.CronJobList) []unstructured.Unstructured {
+	resultList := make([]unstructured.Unstructured, 0)
 	jobArrMap := c.getOwnerJobs()
 	for _, cronJob := range cronJobList.Items {
 		// parse job status
@@ -145,33 +133,36 @@ func (c *CronJob) addExtendInfo(cronJobList batchv1beta1.CronJobList) filter.K8s
 		runningJobCount := 0
 		if ok {
 			for _, job := range jobArr {
-				extendInfo := job.(filter.K8sJson)["extendInfo"]
-				extendInfoStatus := extendInfo.(filter.K8sJson)["status"].(string)
+				extendInfo := job.(map[string]interface{})["extendInfo"]
+				extendInfoStatus := extendInfo.(map[string]interface{})["status"].(string)
 				if extendInfoStatus == "Running" {
 					runningJobCount++
 				}
 			}
 		}
-		extendInfo := make(filter.K8sJson)
+		extendInfo := make(map[string]interface{})
 		extendInfo["status"] = status
 		extendInfo["runningJobCount"] = runningJobCount
 		extendInfo["jobCount"] = len(jobArr)
 		extendInfo["jobs"] = jobArr
 
 		// create result map
-		result := make(filter.K8sJson)
+		result := make(map[string]interface{})
 		result["metadata"] = cronJob.ObjectMeta
 		result["spec"] = cronJob.Spec
 		result["status"] = cronJob.Status
 		result["extendInfo"] = extendInfo
-		resultList = append(resultList, result)
+		res := unstructured.Unstructured{
+			Object: result,
+		}
+		resultList = append(resultList, res)
 	}
 
 	return resultList
 }
 
-func (c *CronJob) getOwnerJobs() map[string]filter.K8sJsonArr {
-	result := make(map[string]filter.K8sJsonArr)
+func (c *CronJob) getOwnerJobs() map[string][]interface{} {
+	result := make(map[string][]interface{})
 	var jobList batchv1.JobList
 	err := c.client.Cache().List(c.ctx, &jobList, client.InNamespace(c.namespace))
 	if err != nil {
@@ -186,10 +177,10 @@ func (c *CronJob) getOwnerJobs() map[string]filter.K8sJsonArr {
 		uid := string(job.OwnerReferences[0].UID)
 
 		status := jobRes.ParseJobStatus(job)
-		extendInfo := make(filter.K8sJson)
+		extendInfo := make(map[string]interface{})
 		extendInfo["status"] = status
 		// create result map
-		jobMap := make(filter.K8sJson)
+		jobMap := make(map[string]interface{})
 		jobMap["metadata"] = job.ObjectMeta
 		jobMap["spec"] = job.Spec
 		jobMap["status"] = job.Status
@@ -199,7 +190,7 @@ func (c *CronJob) getOwnerJobs() map[string]filter.K8sJsonArr {
 			jobArr = append(jobArr, jobMap)
 			result[uid] = jobArr
 		} else {
-			var jobArrTemp filter.K8sJsonArr
+			var jobArrTemp []interface{}
 			jobArrTemp = append(jobArrTemp, jobMap)
 			result[uid] = jobArrTemp
 		}

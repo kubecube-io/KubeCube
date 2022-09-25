@@ -19,6 +19,7 @@ package pvc
 import (
 	"context"
 	"errors"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -36,7 +37,7 @@ type Pvc struct {
 	ctx       context.Context
 	client    mgrclient.Client
 	namespace string
-	filter    filter.Filter
+	filter    *filter.Filter
 }
 
 func init() {
@@ -56,7 +57,7 @@ func Handle(param resourcemanage.ExtendParams) (interface{}, error) {
 	return pvc.GetPvcWorkloads(param.ResourceName)
 }
 
-func NewPvc(client mgrclient.Client, namespace string, filter filter.Filter) Pvc {
+func NewPvc(client mgrclient.Client, namespace string, filter *filter.Filter) Pvc {
 	ctx := context.Background()
 	return Pvc{
 		ctx:       ctx,
@@ -67,8 +68,8 @@ func NewPvc(client mgrclient.Client, namespace string, filter filter.Filter) Pvc
 }
 
 // GetPvcWorkloads get extend deployments
-func (p *Pvc) GetPvcWorkloads(pvcName string) (filter.K8sJson, error) {
-	result := make(filter.K8sJson)
+func (p *Pvc) GetPvcWorkloads(pvcName string) (*unstructured.Unstructured, error) {
+	result := make(map[string]interface{})
 	var pods []corev1.Pod
 	var podList corev1.PodList
 	err := p.client.Cache().List(p.ctx, &podList, client.InNamespace(p.namespace))
@@ -89,5 +90,5 @@ func (p *Pvc) GetPvcWorkloads(pvcName string) (filter.K8sJson, error) {
 	}
 	result["pods"] = pods
 	result["total"] = len(pods)
-	return result, nil
+	return &unstructured.Unstructured{Object: result}, nil
 }

@@ -17,10 +17,10 @@ limitations under the License.
 package pvc
 
 import (
-	"encoding/json"
 	"errors"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	resourcemanage "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
@@ -29,7 +29,6 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
-	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 )
 
 type PvcExtend struct {
@@ -56,8 +55,8 @@ func PvcHandle(param resourcemanage.ExtendParams) (interface{}, error) {
 }
 
 // GetPvc list pvcs, and add extend info that which pod mount this pvc
-func (p *Pvc) GetPvc() (filter.K8sJson, error) {
-	result := make(filter.K8sJson)
+func (p *Pvc) GetPvc() (*unstructured.Unstructured, error) {
+	result := make(map[string]interface{})
 	pvcList := v1.PersistentVolumeClaimList{}
 	err := p.client.Cache().List(p.ctx, &pvcList, &client.ListOptions{
 		Namespace: p.namespace,
@@ -66,16 +65,9 @@ func (p *Pvc) GetPvc() (filter.K8sJson, error) {
 		return nil, err
 	}
 
-	result["total"] = len(pvcList.Items)
-	pvcListJson, err := json.Marshal(pvcList)
+	total, err := p.filter.FilterObjectList(&pvcList)
 	if err != nil {
-		return nil, err
-	}
-
-	filterResult := p.filter.FilterResult(pvcListJson)
-	pvcList = v1.PersistentVolumeClaimList{}
-	err = json.Unmarshal(filterResult, &pvcList)
-	if err != nil {
+		clog.Error("filter pvcList error, err: %s", err.Error())
 		return nil, err
 	}
 
@@ -86,7 +78,7 @@ func (p *Pvc) GetPvc() (filter.K8sJson, error) {
 			return nil, err
 		}
 		// if response has pods, and result is pod array, then add it as extendInfo
-		if podRes, ok := workloadMap["pods"]; ok {
+		if podRes, ok := workloadMap.Object["pods"]; ok {
 			if pods, ok := podRes.([]v1.Pod); ok {
 				extend := PvcExtend{
 					PersistentVolumeClaim: pvc,
@@ -99,6 +91,7 @@ func (p *Pvc) GetPvc() (filter.K8sJson, error) {
 			}
 		}
 	}
+	result["total"] = total
 	result["items"] = pvcExtendList
-	return result, nil
+	return &unstructured.Unstructured{Object: result}, nil
 }

@@ -17,7 +17,6 @@ limitations under the License.
 package resourcemanage_test
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -49,7 +48,7 @@ var _ = Describe("Handle", func() {
 		ns1 = corev1.Namespace{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "Namespace",
-				APIVersion: "",
+				APIVersion: "v1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:   "ns1",
@@ -59,7 +58,7 @@ var _ = Describe("Handle", func() {
 		ns2 = corev1.Namespace{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "Namespace",
-				APIVersion: "",
+				APIVersion: "v1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:   "ns2",
@@ -69,7 +68,7 @@ var _ = Describe("Handle", func() {
 		ns3 = corev1.Namespace{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "Namespace",
-				APIVersion: "",
+				APIVersion: "v1",
 			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name:   "ns3",
@@ -105,14 +104,16 @@ var _ = Describe("Handle", func() {
 			Header: http.Header{},
 		}
 		c.Request = &request
-		nsList := corev1.NamespaceList{Items: []corev1.Namespace{ns1, ns2, ns3}}
-		nsBytes, err := json.Marshal(nsList)
+		nsList := corev1.NamespaceList{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "List",
+				APIVersion: "v1",
+			},
+			Items: []corev1.Namespace{ns1, ns2, ns3},
+		}
+		total, err := proxy.Filter(c, &nsList)
 		Expect(err).To(BeNil())
-		retBytes := proxy.Filter(c, nsBytes)
-		var ret map[string]interface{}
-		err = json.Unmarshal(retBytes, &ret)
-		Expect(err).To(BeNil())
-		Expect(ret["total"]).To(Equal(float64(1)))
+		Expect(*total).To(Equal(1))
 	})
 
 	It("test filter2", func() {
@@ -124,13 +125,15 @@ var _ = Describe("Handle", func() {
 			Header: http.Header{},
 		}
 		c.Request = &request
-		nsList := corev1.NamespaceList{Items: []corev1.Namespace{ns1, ns2, ns3}}
-		nsBytes, err := json.Marshal(nsList)
+		nsList := corev1.NamespaceList{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "List",
+				APIVersion: "v1",
+			},
+			Items: []corev1.Namespace{ns1, ns2, ns3},
+		}
+		total, err := proxy.Filter(c, &nsList)
 		Expect(err).To(BeNil())
-		retBytes := proxy.Filter(c, nsBytes)
-		var ret map[string]interface{}
-		err = json.Unmarshal(retBytes, &ret)
-		Expect(err).To(BeNil())
-		Expect(ret["total"]).To(Equal(float64(1)))
+		Expect(*total).To(Equal(1))
 	})
 })

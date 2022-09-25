@@ -113,7 +113,7 @@ func (e *ExtendHandler) ExtendHandle(c *gin.Context) {
 	if extendFunc, ok := extendFuncMap[resourceType]; ok {
 		result, err := extendFunc(param)
 		if err != nil {
-			clog.Error("get extend res err, resourceType: %s, error: %+v", resourceType, err)
+			clog.Error("get extend res err, resourceType: %s, error: %s", resourceType, err.Error())
 			response.FailReturn(c, errcode.BadRequest(err))
 			return
 		}

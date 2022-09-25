@@ -19,11 +19,11 @@ package pod
 import (
 	"context"
 	"errors"
-	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
-
 	jsoniter "github.com/json-iterator/go"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	resourcemanage "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
@@ -44,7 +44,7 @@ type Pod struct {
 	ctx       context.Context
 	client    mgrclient.Client
 	namespace string
-	filter    filter.Filter
+	filter    *filter.Filter
 }
 
 func init() {
@@ -61,7 +61,7 @@ func Handle(param resourcemanage.ExtendParams) (interface{}, error) {
 		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
 	}
 	pod := NewPod(kubernetes, param.Namespace, param.Filter)
-	if pod.filter.EnableFilter && pod.filter.Exact[ownerUidLabel].Len() > 0 {
+	if pod.filter.Exact[ownerUidLabel].Len() > 0 {
 		err := pod.GetRs()
 		if err != nil {
 			return nil, errors.New(err.Error())
@@ -71,7 +71,7 @@ func Handle(param resourcemanage.ExtendParams) (interface{}, error) {
 	return result, err
 }
 
-func NewPod(client mgrclient.Client, namespace string, filter filter.Filter) Pod {
+func NewPod(client mgrclient.Client, namespace string, filter *filter.Filter) Pod {
 	ctx := context.Background()
 	return Pod{
 		ctx:       ctx,
@@ -82,6 +82,9 @@ func NewPod(client mgrclient.Client, namespace string, filter filter.Filter) Pod
 }
 
 func (d *Pod) GetRs() error {
+	if len(d.filter.Exact) == 0 && len(d.filter.Exact) == 0 {
+		return nil
+	}
 	rsList := appsv1.ReplicaSetList{}
 	err := d.client.Cache().List(d.ctx, &rsList, client.InNamespace(d.namespace))
 	if err != nil {
@@ -89,21 +92,10 @@ func (d *Pod) GetRs() error {
 		return err
 	}
 	// filter list by selector/sort/page
-	rsListJson, err := json.Marshal(rsList)
+	rsFilter := filter.NewFilter(d.filter.Exact, d.filter.Fuzzy, 0, 0, "", "", "", d.filter.ConverterContext)
+	_, err = rsFilter.FilterObjectList(&rsList)
 	if err != nil {
-		clog.Error("convert replicaSetList to json fail, %v", err)
-		return err
-	}
-	rsListMap := d.filter.FilterResultToMap(rsListJson, false, false)
-	rsList = appsv1.ReplicaSetList{}
-	reListMapJson, err := json.Marshal(rsListMap)
-	if err != nil {
-		clog.Error("convert replicaSetList to json fail, %v", err)
-		return err
-	}
-	err = json.Unmarshal(reListMapJson, &rsList)
-	if err != nil {
-		clog.Error("convert replicaSetList from json fail, %v", err)
+		clog.Error("filter rsList error, err: %s", err.Error())
 		return err
 	}
 	set := d.filter.Exact[ownerUidLabel]
@@ -121,10 +113,10 @@ func (d *Pod) GetRs() error {
 }
 
 // get pods
-func (d *Pod) GetPods() (filter.K8sJson, error) {
+func (d *Pod) GetPods() (*unstructured.Unstructured, error) {
 
-	//resultMap := make(resources.K8sJson)
 	// get pod list from k8s cluster
+	resultMap := make(map[string]interface{})
 	var podList corev1.PodList
 	err := d.client.Cache().List(d.ctx, &podList, client.InNamespace(d.namespace))
 	if err != nil {
@@ -133,12 +125,15 @@ func (d *Pod) GetPods() (filter.K8sJson, error) {
 	}
 
 	// filter list by selector/sort/page
-	podListJson, err := json.Marshal(podList)
+	total, err := d.filter.FilterObjectList(&podList)
 	if err != nil {
-		clog.Error("convert deploymentList to json fail, %v", err)
+		clog.Error("filter podList error, err: %s", err.Error())
 		return nil, err
 	}
-	podListMap := d.filter.FilterResultToMap(podListJson, true, true)
 
-	return podListMap, nil
+	// add pod status info
+
+	resultMap["total"] = total
+	resultMap["items"] = podList
+	return &unstructured.Unstructured{Object: resultMap}, nil
 }

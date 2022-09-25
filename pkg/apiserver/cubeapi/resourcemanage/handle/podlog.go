@@ -43,10 +43,10 @@ type PodLog struct {
 	ctx       context.Context
 	client    client.Client
 	namespace string
-	filter    filter.Filter
+	filter    *filter.Filter
 }
 
-func NewPodLog(client client.Client, namespace string, filter filter.Filter) PodLog {
+func NewPodLog(client client.Client, namespace string, filter *filter.Filter) PodLog {
 	ctx := context.Background()
 	return PodLog{
 		ctx:       ctx,

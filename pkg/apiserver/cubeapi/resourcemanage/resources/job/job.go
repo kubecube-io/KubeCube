@@ -20,8 +20,8 @@ import (
 	"context"
 	"errors"
 
-	jsoniter "github.com/json-iterator/go"
 	batchv1 "k8s.io/api/batch/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	resourcemanage "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
@@ -34,13 +34,11 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 )
 
-var json = jsoniter.ConfigCompatibleWithStandardLibrary
-
 type Job struct {
 	ctx       context.Context
 	client    mgrclient.Client
 	namespace string
-	filter    filter.Filter
+	filter    *filter.Filter
 }
 
 func init() {
@@ -60,7 +58,7 @@ func Handle(param resourcemanage.ExtendParams) (interface{}, error) {
 	return job.GetExtendJobs()
 }
 
-func NewJob(client mgrclient.Client, namespace string, filter filter.Filter) Job {
+func NewJob(client mgrclient.Client, namespace string, filter *filter.Filter) Job {
 	ctx := context.Background()
 	return Job{
 		ctx:       ctx,
@@ -71,8 +69,8 @@ func NewJob(client mgrclient.Client, namespace string, filter filter.Filter) Job
 }
 
 // GetExtendJobs get extend deployments
-func (j *Job) GetExtendJobs() (filter.K8sJson, error) {
-	resultMap := make(filter.K8sJson)
+func (j *Job) GetExtendJobs() (*unstructured.Unstructured, error) {
+	resultMap := make(map[string]interface{})
 
 	// get deployment list from k8s cluster
 	var jobList batchv1.JobList
@@ -81,47 +79,42 @@ func (j *Job) GetExtendJobs() (filter.K8sJson, error) {
 		clog.Error("can not find job in %s from cluster, %v", j.namespace, err)
 		return nil, err
 	}
-	resultMap["total"] = len(jobList.Items)
 
 	// filter list by selector/sort/page
-	jobListJson, err := json.Marshal(jobList)
+	total, err := j.filter.FilterObjectList(&jobList)
 	if err != nil {
-		clog.Error("convert deploymentList to json fail, %v", err)
-		return nil, err
-	}
-	jobListJson = j.filter.FilterResult(jobListJson)
-	jobList = batchv1.JobList{}
-	err = json.Unmarshal(jobListJson, &jobList)
-	if err != nil {
-		clog.Error("convert json to deploymentList fail, %v", err)
+		clog.Error("filter jobList error, err: %s", err.Error())
 		return nil, err
 	}
 
 	// add pod status info
 	resultList := j.addExtendInfo(jobList)
 
+	resultMap["total"] = total
 	resultMap["items"] = resultList
 
-	return resultMap, nil
+	return &unstructured.Unstructured{
+		Object: resultMap,
+	}, nil
 }
 
-func (j *Job) addExtendInfo(jobList batchv1.JobList) filter.K8sJsonArr {
-	resultList := make(filter.K8sJsonArr, 0)
+func (j *Job) addExtendInfo(jobList batchv1.JobList) []unstructured.Unstructured {
+	resultList := make([]unstructured.Unstructured, 0)
 
 	for _, job := range jobList.Items {
 		// parse job status
 		status := ParseJobStatus(job)
 
-		extendInfo := make(filter.K8sJson)
+		extendInfo := make(map[string]interface{})
 		extendInfo["status"] = status
 
 		// create result map
-		result := make(filter.K8sJson)
+		result := make(map[string]interface{})
 		result["metadata"] = job.ObjectMeta
 		result["spec"] = job.Spec
 		result["status"] = job.Status
 		result["extendInfo"] = extendInfo
-		resultList = append(resultList, result)
+		resultList = append(resultList, unstructured.Unstructured{Object: result})
 	}
 
 	return resultList

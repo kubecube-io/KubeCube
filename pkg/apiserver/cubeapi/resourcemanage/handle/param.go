@@ -22,7 +22,7 @@ type ExtendParams struct {
 	Cluster                  string
 	Namespace                string
 	ResourceName             string
-	Filter                   filter.Filter
+	Filter                   *filter.Filter
 	Action                   string
 	Username                 string
 	NginxNamespace           string
