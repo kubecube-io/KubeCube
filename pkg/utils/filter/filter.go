@@ -42,6 +42,18 @@ var (
 	json = jsoniter.ConfigCompatibleWithStandardLibrary
 )
 
+func NewEmptyFilter(installFunc ...InstallFunc) *Filter {
+	scheme := runtime.NewScheme()
+	install(scheme, installFunc...)
+	return &Filter{Scheme: scheme}
+}
+
+func NewPageFilter(limit int, offset int, installFunc ...InstallFunc) *Filter {
+	scheme := runtime.NewScheme()
+	install(scheme, installFunc...)
+	return &Filter{Scheme: scheme, Limit: limit, Offset: offset}
+}
+
 func NewFilter(exact map[string]sets.String,
 	fuzzy map[string][]string,
 	limit int,

@@ -68,10 +68,11 @@ func NewService(client mgrclient.Client, namespace string, filter *filter.Filter
 	}
 }
 
-func (s *Service) GetExtendServices() (resultMap map[string]interface{}, err error) {
+func (s *Service) GetExtendServices() (map[string]interface{}, error) {
 	// get service list from k8s cluster
 	var serviceList corev1.ServiceList
-	err = s.client.Cache().List(s.ctx, &serviceList, client.InNamespace(s.namespace))
+	resultMap := make(map[string]interface{})
+	err := s.client.Cache().List(s.ctx, &serviceList, client.InNamespace(s.namespace))
 	if err != nil {
 		clog.Error("can not find service from cluster, %v", err)
 		return nil, err

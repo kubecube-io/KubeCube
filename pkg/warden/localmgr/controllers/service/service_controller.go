@@ -69,8 +69,9 @@ func (s *Reconciler) OnServiceUpdate(oldObj, newObj interface{}) {
 	newService := newObj.(*v1.Service)
 
 	clog.Info("start update service external access: %+v", oldService)
-	externalHandler := service.NewExternalAccess(s.Client, oldService.Namespace, oldService.Name, filter.Filter{Limit: 10}, s.NginxNamespace, s.NginxTcpServiceConfigMap, s.NginxUdpServiceConfigMap)
+	externalHandler := service.NewExternalAccess(s.Client, oldService.Namespace, oldService.Name, &filter.Filter{Limit: 10}, s.NginxNamespace, s.NginxTcpServiceConfigMap, s.NginxUdpServiceConfigMap)
 	tcpInfo, udpInfo, err := externalHandler.GetExternalAccessConfigMap()
+
 	if err != nil {
 		clog.Error("get external access info fail, %+v", err)
 		return
@@ -120,7 +121,7 @@ func (s *Reconciler) OnServiceUpdate(oldObj, newObj interface{}) {
 
 func (s *Reconciler) OnServiceDelete(obj interface{}) {
 	deleteService := obj.(*v1.Service)
-	externalHandler := service.NewExternalAccess(s.Client, deleteService.Namespace, deleteService.Name, filter.Filter{Limit: 10}, s.NginxNamespace, s.NginxTcpServiceConfigMap, s.NginxUdpServiceConfigMap)
+	externalHandler := service.NewExternalAccess(s.Client, deleteService.Namespace, deleteService.Name, &filter.Filter{Limit: 10}, s.NginxNamespace, s.NginxTcpServiceConfigMap, s.NginxUdpServiceConfigMap)
 	err := externalHandler.DeleteExternalAccess()
 	if err != nil {
 		clog.Debug("delete service external access error, %+v", err)

@@ -134,6 +134,6 @@ func (d *Pod) GetPods() (*unstructured.Unstructured, error) {
 	// add pod status info
 
 	resultMap["total"] = total
-	resultMap["items"] = podList
+	resultMap["items"] = podList.Items
 	return &unstructured.Unstructured{Object: resultMap}, nil
 }

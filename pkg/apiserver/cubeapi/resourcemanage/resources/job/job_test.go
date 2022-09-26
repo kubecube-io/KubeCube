@@ -17,8 +17,10 @@ limitations under the License.
 package job_test
 
 import (
+	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -31,7 +33,6 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 )
 
 var _ = Describe("Job", func() {
@@ -75,14 +76,14 @@ var _ = Describe("Job", func() {
 	It("test get job extend info", func() {
 		client := clients.Interface().Kubernetes(constants.LocalCluster)
 		Expect(client).NotTo(BeNil())
-		job := job.NewJob(client, ns, filter.Filter{Limit: 10})
+		job := job.NewJob(client, ns, filter.NewPageFilter(10, 0))
 		ret, err := job.GetExtendJobs()
 		Expect(err).To(BeNil())
-		Expect(ret["total"]).To(Equal(2))
-		items := ret["items"].([]interface{})
-		s := items[0].(map[string]interface{})["extendInfo"].(map[string]interface{})["status"]
+		Expect(*(ret.Object["total"].(*int))).To(Equal(2))
+		items := ret.Object["items"].([]unstructured.Unstructured)
+		s := items[0].Object["extendInfo"].(map[string]interface{})["status"]
 		Expect(s).To(Equal("Complete"))
-		s = items[1].(map[string]interface{})["extendInfo"].(map[string]interface{})["status"]
+		s = items[1].Object["extendInfo"].(map[string]interface{})["status"]
 		Expect(s).To(Equal("Pending"))
 
 	})

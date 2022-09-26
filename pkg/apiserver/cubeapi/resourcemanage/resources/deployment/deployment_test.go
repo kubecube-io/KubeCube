@@ -23,6 +23,7 @@ import (
 	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -116,12 +117,12 @@ var _ = Describe("Deployment", func() {
 	It("test get deployment extend info", func() {
 		client := clients.Interface().Kubernetes(constants.LocalCluster)
 		Expect(client).NotTo(BeNil())
-		deploy := deployment.NewDeployment(client, ns, filter.Filter{Limit: 10})
+		deploy := deployment.NewDeployment(client, ns, filter.NewPageFilter(10, 0))
 		ret, err := deploy.GetExtendDeployments()
 		Expect(err).To(BeNil())
-		Expect(ret["total"]).To(Equal(1))
-		items := ret["items"]
-		dpInfo := items.([]interface{})[0].(map[string]interface{})
+		Expect(*ret.Object["total"].(*int)).To(Equal(1))
+		items := ret.Object["items"]
+		dpInfo := items.([]unstructured.Unstructured)[0].Object
 		dpInfoname := dpInfo["metadata"].(metav1.ObjectMeta).Name
 		Expect(dpInfoname).To(Equal("dp"))
 		podStatus := dpInfo["podStatus"].(map[string]interface{})
