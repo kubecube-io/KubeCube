@@ -173,7 +173,7 @@ func normalizeLocation(location *url.URL) *url.URL {
 	return normalized
 }
 
-// NewUpgradeAwareHandler creates a new proxy handler with a default flush interval. Responder is required for returning
+// NewUpgradeAwareHandler creates a new proxy handler with a default flush interval. responder is required for returning
 // errors to the caller.
 func NewUpgradeAwareHandler(location *url.URL, transport http.RoundTripper, wrapTransport, upgradeRequired bool, responder ErrorResponder) *UpgradeAwareHandler {
 	return &UpgradeAwareHandler{

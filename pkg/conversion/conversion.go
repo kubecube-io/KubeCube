@@ -298,7 +298,7 @@ func ConvertURL(url string, gvr *schema.GroupVersionResource) (convertedUrl stri
 
 // ParseURL parse k8s api url into gvr
 func ParseURL(url string) (bool, bool, *schema.GroupVersionResource, error) {
-	invalidUrlErr := fmt.Errorf("url not k8s format: %s", url)
+	notExpectedUrlErr := fmt.Errorf("url format not expected: %s", url)
 
 	const (
 		coreApiPrefix    = "/api/"
@@ -319,21 +319,21 @@ func ParseURL(url string) (bool, bool, *schema.GroupVersionResource, error) {
 	case isCoreApi && isNamespaced:
 		// like: /api/v1/namespaces/{namespace}/pods
 		if len(ss) < 5 {
-			return false, false, nil, invalidUrlErr
+			return false, false, nil, notExpectedUrlErr
 		}
 		gvr.Version = ss[1]
 		gvr.Resource = ss[4]
 	case isCoreApi && !isNamespaced:
 		// like: /api/v1/namespaces/{name}
 		if len(ss) < 3 {
-			return false, false, nil, invalidUrlErr
+			return false, false, nil, notExpectedUrlErr
 		}
 		gvr.Version = ss[1]
 		gvr.Resource = ss[2]
 	case isNonCoreApi && isNamespaced:
 		// like: /apis/batch/v1/namespaces/{namespace}/jobs
 		if len(ss) < 6 {
-			return false, false, nil, invalidUrlErr
+			return false, false, nil, notExpectedUrlErr
 		}
 		gvr.Group = ss[1]
 		gvr.Version = ss[2]
@@ -341,13 +341,13 @@ func ParseURL(url string) (bool, bool, *schema.GroupVersionResource, error) {
 	case isNonCoreApi && !isNamespaced:
 		// like: /apis/rbac.authorization.k8s.io/v1/clusterroles
 		if len(ss) < 4 {
-			return false, false, nil, invalidUrlErr
+			return false, false, nil, notExpectedUrlErr
 		}
 		gvr.Group = ss[1]
 		gvr.Version = ss[2]
 		gvr.Resource = ss[3]
 	default:
-		return false, false, nil, invalidUrlErr
+		return false, false, nil, notExpectedUrlErr
 	}
 
 	return isCoreApi, isNamespaced, gvr, nil

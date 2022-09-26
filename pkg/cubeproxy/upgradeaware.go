@@ -80,6 +80,13 @@ type UpgradeAwareHandler struct {
 	FlushInterval time.Duration
 	// MaxBytesPerSec controls the maximum rate for an upstream connection. No rate is imposed if the value is zero.
 	MaxBytesPerSec int64
+	// Director must be a function which modifies
+	// the request into a new request to be sent
+	// using Transport.
+	Director func(*http.Request)
+	// ModifyResponse is an optional function that modifies the
+	// Response from the backend.
+	ModifyResponse func(*http.Response) error
 	// Responder is passed errors that occur while setting up proxying.
 	Responder ErrorResponder
 }
@@ -126,7 +133,7 @@ func (rt *upgradeRequestRoundTripper) WrappedRoundTripper() http.RoundTripper {
 	return rt.RoundTripper
 }
 
-// WriteToRequest calls the nested upgrader and then copies the returned request
+// WrapRequest calls the nested upgrader and then copies the returned request
 // fields onto the passed request.
 func (rt *upgradeRequestRoundTripper) WrapRequest(req *http.Request) (*http.Request, error) {
 	resp, err := rt.upgrader.RoundTrip(req)
@@ -173,16 +180,24 @@ func normalizeLocation(location *url.URL) *url.URL {
 	return normalized
 }
 
-// NewUpgradeAwareHandler creates a new proxy handler with a default flush interval. Responder is required for returning
+type proxyHooks struct {
+	director       func(request *http.Request)
+	modifyResponse func(response *http.Response) error
+	responder      ErrorResponder
+}
+
+// NewUpgradeAwareHandler creates a new proxy handler with a default flush interval. responder is required for returning
 // errors to the caller.
-func NewUpgradeAwareHandler(location *url.URL, transport http.RoundTripper, wrapTransport, upgradeRequired bool, responder ErrorResponder) *UpgradeAwareHandler {
+func NewUpgradeAwareHandler(location *url.URL, transport http.RoundTripper, wrapTransport, upgradeRequired bool, hooks proxyHooks) *UpgradeAwareHandler {
 	return &UpgradeAwareHandler{
 		Location:        normalizeLocation(location),
 		Transport:       transport,
 		WrapTransport:   wrapTransport,
 		UpgradeRequired: upgradeRequired,
 		FlushInterval:   defaultFlushInterval,
-		Responder:       responder,
+		Director:        hooks.director,
+		ModifyResponse:  hooks.modifyResponse,
+		Responder:       hooks.responder,
 	}
 }
 
@@ -239,6 +254,12 @@ func (h *UpgradeAwareHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 		// the custom DefaultResponder might be used for providing a unified error reporting
 		// or supporting retry mechanisms by not sending non-fatal errors to the clients
 		proxy.ErrorHandler = h.Responder.Error
+	}
+	//if h.Director != nil {
+	//	proxy.Director = h.Director
+	//}
+	if h.ModifyResponse != nil {
+		proxy.ModifyResponse = h.ModifyResponse
 	}
 	proxy.ServeHTTP(w, newReq)
 }
