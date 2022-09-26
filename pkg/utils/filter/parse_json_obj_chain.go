@@ -49,6 +49,7 @@ func (param *ParseJsonObjParam) handle(_ []unstructured.Unstructured) ([]unstruc
 		return nil, err
 	}
 	object := unstructured.Unstructured{}
+	// fixme : if gvr not in scheme, this will failed
 	err = param.scheme.Convert(internalObject, &object, gvr.GroupVersion())
 	if err != nil {
 		return nil, err
