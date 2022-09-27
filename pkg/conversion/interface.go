@@ -38,7 +38,7 @@ type SingleVersionConverter interface {
 	// ObjectGreeting describes if given object is available in target cluster.
 	// a recommend group version kind will return if it cloud not pass through.
 	ObjectGreeting(obj runtime.Object) (isPassThrough GreetBackType, rawGvk *schema.GroupVersionKind, recommendGvk *schema.GroupVersionKind, err error)
-	// GvrGreeting describes if given gvr is available in target cluster.
+	// GvrGreeting describes if given rawGvr is available in target cluster.
 	// a recommend group version kind will return if it cloud not pass through.
 	GvrGreeting(gvr *schema.GroupVersionResource) (isPassThrough GreetBackType, rawGvk *schema.GroupVersionKind, recommendGvk *schema.GroupVersionKind, err error)
 	// GvkGreeting describes if given gvk is available in target cluster.
