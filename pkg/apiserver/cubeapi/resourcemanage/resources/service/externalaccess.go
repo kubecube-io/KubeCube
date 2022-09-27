@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"net/http"
 	"strconv"
 	"strings"
@@ -71,9 +72,9 @@ func NewExternalAccess(client client.Client, namespace string, name string, filt
 }
 
 type ExternalAccessInfo struct {
-	ServicePort   int    `json:"servicePort,omitempty"`
-	Protocol      string `json:"protocol,omitempty"`
-	ExternalPorts []int  `json:"externalPorts,omitempty"`
+	ServicePort  int    `json:"servicePort,omitempty"`
+	Protocol     string `json:"protocol,omitempty"`
+	ExternalPort *int   `json:"externalPort,omitempty"`
 }
 
 func init() {
@@ -120,7 +121,29 @@ func (s *ExternalAccess) SetExternalAccess(externalServices []ExternalAccessInfo
 	if err != nil {
 		return err
 	}
-
+	testService := service.DeepCopy()
+	testService.Name = service.Name + "-test"
+	testService.ResourceVersion = ""
+	ports := make([]v1.ServicePort, 0)
+	i := 0
+	for _, info := range externalServices {
+		if info.ExternalPort == nil {
+			continue
+		}
+		port := v1.ServicePort{
+			Port:       int32(info.ServicePort),
+			NodePort:   int32(*info.ExternalPort),
+			TargetPort: intstr.FromInt(info.ServicePort),
+			Name:       fmt.Sprintf("%s--%d", service.Name, i),
+		}
+		i++
+		ports = append(ports, port)
+	}
+	testService.Spec.Ports = ports
+	err = s.client.Create(s.ctx, testService, client.DryRunAll)
+	if err != nil && !apierrors.IsAlreadyExists(err) {
+		return err
+	}
 	// get configmap
 	var tcpcm v1.ConfigMap
 	var udpcm v1.ConfigMap
@@ -168,33 +191,33 @@ func (s *ExternalAccess) SetExternalAccess(externalServices []ExternalAccessInfo
 			return fmt.Errorf("the service port is not exist")
 		}
 		dumpTest := make(map[int]int)
-		for _, ep := range es.ExternalPorts {
-			if ep < 1 || ep > 65535 || ep == 80 || ep == 443 {
-				return fmt.Errorf("the external port is invalid")
-			}
-			// is dump
-			if _, ok := dumpTest[ep]; ok {
-				return fmt.Errorf("dump external ports")
-			} else {
-				dumpTest[ep] = 0
-			}
-			// port conflict
-			if _, ok := tcpcm.Data[strconv.Itoa(ep)]; ok {
-				return fmt.Errorf("the external port conflict")
-			}
-			if _, ok := udpcm.Data[strconv.Itoa(ep)]; ok {
-				return fmt.Errorf("the external port conflict")
-			}
-			// set port to configmap
-			if strings.EqualFold(es.Protocol, TCP) {
-				tcpcm.Data[strconv.Itoa(ep)] = fmt.Sprintf("%s/%s:%d", s.namespace, s.name, es.ServicePort)
-			} else if strings.EqualFold(es.Protocol, UDP) {
-				udpcm.Data[strconv.Itoa(ep)] = fmt.Sprintf("%s/%s:%d", s.namespace, s.name, es.ServicePort)
-			} else {
-				return fmt.Errorf("not support protocol")
-			}
+		ep := *es.ExternalPort
+		if ep < 1 || ep > 65535 || ep == 80 || ep == 443 {
+			return fmt.Errorf("the external port is invalid")
+		}
+		// is dump
+		if _, ok := dumpTest[ep]; ok {
+			return fmt.Errorf("dump external ports")
+		} else {
+			dumpTest[ep] = 0
+		}
+		// port conflict
+		if _, ok := tcpcm.Data[strconv.Itoa(ep)]; ok {
+			return fmt.Errorf("the external port conflict")
+		}
+		if _, ok := udpcm.Data[strconv.Itoa(ep)]; ok {
+			return fmt.Errorf("the external port conflict")
+		}
+		// set port to configmap
+		if strings.EqualFold(es.Protocol, TCP) {
+			tcpcm.Data[strconv.Itoa(ep)] = fmt.Sprintf("%s/%s:%d", s.namespace, s.name, es.ServicePort)
+		} else if strings.EqualFold(es.Protocol, UDP) {
+			udpcm.Data[strconv.Itoa(ep)] = fmt.Sprintf("%s/%s:%d", s.namespace, s.name, es.ServicePort)
+		} else {
+			return fmt.Errorf("not support protocol")
 		}
 	}
+
 	err = s.client.Update(s.ctx, &tcpcm)
 	if err != nil {
 		return fmt.Errorf("update fail")
@@ -225,12 +248,16 @@ func (s *ExternalAccess) GetExternalAccess() ([]ExternalAccessInfo, error) {
 	//   5556: demo-ns2/demo-service2:7791
 	tcpResultMap := make(map[int]ExternalAccessInfo)
 	udpResultMap := make(map[int]ExternalAccessInfo)
-	valuePrefix := fmt.Sprintf("%s/%s:", s.namespace, s.name)
+	valuePrefix := fmt.Sprintf("%s/%s", s.namespace, s.name)
 	for k, v := range tcpcm.Data {
-		if !strings.HasPrefix(v, valuePrefix) {
+		split := strings.Split(v, ":")
+		if len(split) != 2 {
 			continue
 		}
-		servicePort, err := strconv.Atoi(v[len(valuePrefix):])
+		if !strings.EqualFold(split[0], valuePrefix) {
+			continue
+		}
+		servicePort, err := strconv.Atoi(split[1])
 		if err != nil {
 			continue
 		}
@@ -239,33 +266,23 @@ func (s *ExternalAccess) GetExternalAccess() ([]ExternalAccessInfo, error) {
 		if err != nil {
 			continue
 		}
-		if externalAccessInfo, ok := tcpResultMap[servicePort]; ok {
-			externalAccessInfo.ExternalPorts = append(externalAccessInfo.ExternalPorts, externalPort)
-			tcpResultMap[servicePort] = externalAccessInfo
-		} else {
-			tcpResultMap[servicePort] = ExternalAccessInfo{servicePort, protocol, []int{externalPort}}
-		}
-
+		tcpResultMap[servicePort] = ExternalAccessInfo{servicePort, protocol, &externalPort}
 	}
 	for k, v := range udpcm.Data {
-		if !strings.HasPrefix(v, valuePrefix) {
+		split := strings.Split(v, ":")
+		if len(split) != 2 {
 			continue
 		}
-		servicePort, err := strconv.Atoi(v[len(valuePrefix):])
-		if err != nil {
+		if !strings.EqualFold(split[0], valuePrefix) {
 			continue
 		}
+		servicePort, err := strconv.Atoi(split[1])
 		protocol := UDP
 		externalPort, err := strconv.Atoi(k)
 		if err != nil {
 			continue
 		}
-		if externalAccessInfo, ok := udpResultMap[servicePort]; ok {
-			externalAccessInfo.ExternalPorts = append(externalAccessInfo.ExternalPorts, externalPort)
-			udpResultMap[servicePort] = externalAccessInfo
-		} else {
-			udpResultMap[servicePort] = ExternalAccessInfo{servicePort, protocol, []int{externalPort}}
-		}
+		udpResultMap[servicePort] = ExternalAccessInfo{servicePort, protocol, &externalPort}
 	}
 	// not in configmap but in service.spec
 	var service v1.Service
@@ -276,11 +293,11 @@ func (s *ExternalAccess) GetExternalAccess() ([]ExternalAccessInfo, error) {
 	for _, items := range service.Spec.Ports {
 		if items.Protocol == TCP {
 			if _, ok := tcpResultMap[int(items.Port)]; !ok {
-				tcpResultMap[int(items.Port)] = ExternalAccessInfo{int(items.Port), TCP, []int{}}
+				tcpResultMap[int(items.Port)] = ExternalAccessInfo{int(items.Port), TCP, nil}
 			}
 		} else if items.Protocol == UDP {
 			if _, ok := udpResultMap[int(items.Port)]; !ok {
-				udpResultMap[int(items.Port)] = ExternalAccessInfo{int(items.Port), UDP, []int{}}
+				udpResultMap[int(items.Port)] = ExternalAccessInfo{int(items.Port), UDP, nil}
 			}
 		}
 	}
