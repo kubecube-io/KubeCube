@@ -391,7 +391,7 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 				}
 
 				// only care about ns the user can see
-				allowed, err := rbac.IsAllowResourceAccess(h.Interface, user, "pods", constants.GetVerb, ns.Name)
+				allowed, err := rbac.IsAllowResourceAccess(&rbac.DefaultResolver{Cache: cli.Cache()}, user, "pods", constants.GetVerb, ns.Name)
 				if err != nil {
 					clog.Error(err.Error())
 					continue
