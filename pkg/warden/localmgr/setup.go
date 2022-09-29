@@ -22,7 +22,6 @@ import (
 
 	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/crds"
 	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/hotplug"
-	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/olm"
 	project "github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/project"
 	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/quota"
 	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/service"
@@ -42,10 +41,10 @@ func setupControllersWithManager(m *LocalManager) error {
 		return err
 	}
 
-	err = olm.SetupWithManager(m.Manager)
-	if err != nil {
-		return err
-	}
+	//err = olm.SetupWithManager(m.Manager)
+	//if err != nil {
+	//	return err
+	//}
 
 	err = tenant.SetupWithManager(m.Manager)
 	if err != nil {

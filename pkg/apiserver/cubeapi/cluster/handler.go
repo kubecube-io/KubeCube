@@ -46,7 +46,6 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
-	"github.com/kubecube-io/kubecube/pkg/utils/strproc"
 )
 
 const subPath = "/clusters"
@@ -134,6 +133,7 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 	clusterName := c.Query("cluster")
 	clusterStatus := c.Query("status")
 	projectName := c.Query("project")
+	nodeLabelSelector := c.Query("nodeLabelSelector")
 
 	switch {
 	// find cluster by given name
@@ -168,7 +168,13 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 		clusterList = clusters
 	}
 
-	infos, err := makeClusterInfos(c.Request.Context(), clusterList, cli, clusterStatus)
+	selector, err := labels.Parse(nodeLabelSelector)
+	if err != nil {
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, "labels selector invalid: %v", err))
+		return
+	}
+
+	infos, err := makeClusterInfos(c.Request.Context(), clusterList, cli, clusterStatus, selector)
 	if err != nil {
 		clog.Error(err.Error())
 		response.FailReturn(c, errcode.InternalServerError)
@@ -264,14 +270,21 @@ func (h *handler) getClusterNames(c *gin.Context) {
 // @Router /api/v1/cube/clusters/resources  [get]
 func (h *handler) getClusterResource(c *gin.Context) {
 	cluster := c.Query("cluster")
+	nodeLabelSelector := c.Query("nodeLabelSelector")
 	cli := clients.Interface().Kubernetes(cluster)
 	if cli == nil {
 		response.FailReturn(c, errcode.ClusterNotFoundError(cluster))
 		return
 	}
 
+	selector, err := labels.Parse(nodeLabelSelector)
+	if err != nil {
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, "labels selector invalid: %v", err))
+		return
+	}
+
 	nodes := v1.NodeList{}
-	err := cli.Cache().List(c.Request.Context(), &nodes)
+	err = cli.Cache().List(c.Request.Context(), &nodes, &client.ListOptions{LabelSelector: selector})
 	if err != nil {
 		clog.Error("get cluster %v nodes failed: %v", cluster, err)
 		response.FailReturn(c, errcode.InternalServerError)
@@ -286,7 +299,7 @@ func (h *handler) getClusterResource(c *gin.Context) {
 		capacityMem.Add(*v.Status.Capacity.Memory())
 		nodeGpu, ok := v.Status.Capacity[quota.ResourceNvidiaGPU]
 		if ok {
-			capacityCpu.Add(nodeGpu)
+			capacityGpu.Add(nodeGpu)
 		}
 	}
 
@@ -303,7 +316,7 @@ func (h *handler) getClusterResource(c *gin.Context) {
 		"assignedMem": assignedMem,
 		"capacityGpu": capacityGpu,
 		"assignedGpu": assignedGpu,
-		"capacityMem": fmt.Sprintf("%vMi", strproc.Str2int(capacityMem.String())/1024),
+		"capacityMem": capacityMem,
 	}
 
 	response.SuccessReturn(c, res)
@@ -378,7 +391,7 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 				}
 
 				// only care about ns the user can see
-				allowed, err := rbac.IsAllowResourceAccess(h.Interface, user, "pods", constants.GetVerb, ns.Name)
+				allowed, err := rbac.IsAllowResourceAccess(&rbac.DefaultResolver{Cache: cli.Cache()}, user, "pods", constants.GetVerb, ns.Name)
 				if err != nil {
 					clog.Error(err.Error())
 					continue
