@@ -337,6 +337,7 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 		Cluster       string       `json:"cluster"`
 		ClusterName   string       `json:"clusterName,omitempty"`
 		Project       string       `json:"project"`
+		Tenant        string       `json:"tenant"`
 		NamespaceBody v1.Namespace `json:"namespaceBody"`
 	}
 
@@ -396,6 +397,7 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 
 		for _, anchor := range anchors.Items {
 			project, ok := anchor.Labels[constants.ProjectLabel]
+			tenant, ok := anchor.Labels[constants.TenantLabel]
 			if ok && anchor.ObjectMeta.DeletionTimestamp.IsZero() {
 
 				// fetch namespace under subNamespace
@@ -426,6 +428,7 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 					Cluster:       cluster.Name,
 					ClusterName:   clusterName,
 					Project:       project,
+					Tenant:        tenant,
 					NamespaceBody: ns,
 				}
 
