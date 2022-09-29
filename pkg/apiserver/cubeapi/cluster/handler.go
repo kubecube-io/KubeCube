@@ -20,6 +20,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -334,11 +335,16 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 	type respBody struct {
 		Namespace     string       `json:"namespace"`
 		Cluster       string       `json:"cluster"`
+		ClusterName   string       `json:"clusterName,omitempty"`
 		Project       string       `json:"project"`
 		NamespaceBody v1.Namespace `json:"namespaceBody"`
 	}
 
-	tenant := c.Query("tenant")
+	tenantArray := c.Query("tenant")
+	tenantList := strings.Split(tenantArray, "|")
+	if len(tenantArray) == 0 {
+		tenantList = nil
+	}
 	ctx := c.Request.Context()
 	clusters := multicluster.Interface().FuzzyCopy()
 
@@ -353,17 +359,27 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 		return anchors, err
 	}
 
-	if len(tenant) > 0 {
-		labelSelector, err := labels.Parse(fmt.Sprintf("%v=%v", constants.TenantLabel, tenant))
-		if err != nil {
-			clog.Error(err.Error())
-			response.FailReturn(c, errcode.CustomReturn(http.StatusInternalServerError, "label selector parse failed"))
-			return
-		}
+	if len(tenantList) > 0 {
+
 		listFunc = func(cli mgrclient.Client) (v1alpha2.SubnamespaceAnchorList, error) {
 			anchors := v1alpha2.SubnamespaceAnchorList{}
-			err := cli.Cache().List(ctx, &anchors, &client.ListOptions{LabelSelector: labelSelector})
-			return anchors, err
+			for _, tenant := range tenantList {
+				tempAnchort := v1alpha2.SubnamespaceAnchorList{}
+				labelSelector, err := labels.Parse(fmt.Sprintf("%v=%v", constants.TenantLabel, tenant))
+				if err != nil {
+					clog.Error(err.Error())
+					response.FailReturn(c, errcode.CustomReturn(http.StatusInternalServerError, "label selector parse failed"))
+					return tempAnchort, err
+				}
+				err = cli.Cache().List(ctx, &tempAnchort, &client.ListOptions{LabelSelector: labelSelector})
+				if err != nil {
+					clog.Error(err.Error())
+					response.FailReturn(c, errcode.CustomReturn(http.StatusInternalServerError, "label selector parse failed"))
+					return tempAnchort, err
+				}
+				anchors.Items = append(anchors.Items, tempAnchort.Items...)
+			}
+			return anchors, nil
 		}
 	}
 
@@ -401,9 +417,14 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 					continue
 				}
 
+				clusterName := cluster.RawCluster.Annotations[constants.CubeCnAnnotation]
+				if len(clusterName) == 0 {
+					clusterName = cluster.Name
+				}
 				item := respBody{
 					Namespace:     anchor.Name,
 					Cluster:       cluster.Name,
+					ClusterName:   clusterName,
 					Project:       project,
 					NamespaceBody: ns,
 				}

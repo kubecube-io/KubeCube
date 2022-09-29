@@ -131,7 +131,7 @@ func getAccessTenants(rbac rbac.Interface, user string, cli mgrclient.Client, ct
 }
 
 // getAccessProjects get visible projects of user
-func getAccessProjects(rbac rbac.Interface, user string, cli mgrclient.Client, ctx context.Context, tenant, auth string) (result, error) {
+func getAccessProjects(rbac rbac.Interface, user string, cli mgrclient.Client, ctx context.Context, tenant []string, auth string) (result, error) {
 	var lists []tenantv1.Project
 	projectList := tenantv1.ProjectList{}
 	err := cli.Cache().List(ctx, &projectList)
@@ -145,8 +145,9 @@ func getAccessProjects(rbac rbac.Interface, user string, cli mgrclient.Client, c
 		}
 	}
 
-	lists = filterBy(tenant, lists)
-
+	if len(tenant) != 0 {
+		lists = filterBy(tenant, lists)
+	}
 	res := result{
 		Total: len(lists),
 		Items: lists,
@@ -155,13 +156,14 @@ func getAccessProjects(rbac rbac.Interface, user string, cli mgrclient.Client, c
 	return res, nil
 }
 
-func filterBy(tenant string, projects []tenantv1.Project) (res []tenantv1.Project) {
+func filterBy(tenant []string, projects []tenantv1.Project) (res []tenantv1.Project) {
+	tenantSet := sets.NewString(tenant...)
 	for _, p := range projects {
 		t, ok := p.Labels[constants.TenantLabel]
 		if !ok {
 			continue
 		}
-		if t == tenant {
+		if _, ok := tenantSet[t]; ok {
 			res = append(res, p)
 		}
 	}

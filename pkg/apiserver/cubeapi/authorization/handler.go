@@ -19,6 +19,7 @@ package authorization
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -244,11 +245,14 @@ func (h *handler) getTenantByUser(c *gin.Context) {
 // @Router /api/v1/cube/authorization/projects [get]
 func (h *handler) getProjectByUser(c *gin.Context) {
 	user := c.Query("user")
-	tenant := c.Query("tenant")
+	tenantArray := c.Query("tenant")
 	auth := c.Query("auth")
 	ctx := c.Request.Context()
 	cli := h.Client
-
+	tenant := strings.Split(tenantArray, "|")
+	if len(tenantArray) == 0 {
+		tenant = nil
+	}
 	if len(user) == 0 {
 		user = c.GetString(constants.EventAccountId)
 	}
