@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/kubecube-io/kubecube/pkg/clog"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"net/http"
 	"strconv"
@@ -124,6 +125,7 @@ func (s *ExternalAccess) SetExternalAccess(externalServices []ExternalAccessInfo
 	testService := service.DeepCopy()
 	testService.Name = service.Name + "-test"
 	testService.ResourceVersion = ""
+	testService.UID = ""
 	ports := make([]v1.ServicePort, 0)
 	i := 0
 	for _, info := range externalServices {
@@ -139,10 +141,14 @@ func (s *ExternalAccess) SetExternalAccess(externalServices []ExternalAccessInfo
 		i++
 		ports = append(ports, port)
 	}
-	testService.Spec.Ports = ports
-	err = s.client.Create(s.ctx, testService, client.DryRunAll)
-	if err != nil && !apierrors.IsAlreadyExists(err) {
-		return err
+	if len(ports) != 0 {
+		testService.Spec.Ports = ports
+		testService.Spec.Type = v1.ServiceTypeNodePort
+		err = s.client.Create(s.ctx, testService, client.DryRunAll)
+		if err != nil && !apierrors.IsAlreadyExists(err) {
+			clog.Error("creaty dry service err: %s", err.Error())
+			return fmt.Errorf("this externalPort is already in use")
+		}
 	}
 	// get configmap
 	var tcpcm v1.ConfigMap
@@ -177,6 +183,9 @@ func (s *ExternalAccess) SetExternalAccess(externalServices []ExternalAccessInfo
 
 	// update
 	for _, es := range externalServices {
+		if es.ExternalPort == nil {
+			continue
+		}
 		// in serivce spec
 		valid := false
 		for _, items := range service.Spec.Ports {
