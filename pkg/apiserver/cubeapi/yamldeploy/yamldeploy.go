@@ -98,7 +98,7 @@ func Deploy(c *gin.Context) {
 
 	c = audit.SetAuditInfo(c, audit.YamlDeploy, fmt.Sprintf("%s/%s", namespace, restMapping.Resource.String()))
 
-	username := c.GetString(constants.EventAccountId)
+	username := c.GetString(constants.UserName)
 	// create
 	result, err := CreateByRestClient(restClient, restMapping, namespace, dryRun, obj, username)
 	if err != nil {
