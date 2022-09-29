@@ -93,6 +93,10 @@ func (g githubIdentity) GetUserEmail() string {
 	return g.Email
 }
 
+func (g githubIdentity) GetAccountId() string {
+	return ""
+}
+
 func GetProvider() githubProvider {
 	config := getConfig()
 	return githubProvider{

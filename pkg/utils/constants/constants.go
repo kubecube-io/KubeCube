@@ -56,6 +56,7 @@ const (
 
 	AuthorizationHeader        = "Authorization"
 	DefaultTokenExpireDuration = 3600 // 1 hour
+	UserName                   = "userName"
 )
 
 // k8s api resources

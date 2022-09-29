@@ -21,6 +21,7 @@ import "net/http"
 type Identity interface {
 	GetUserName() string
 	GetUserEmail() string
+	GetAccountId() string
 	GetGroup() string
 	GetRespHeader() http.Header
 }

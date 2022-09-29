@@ -351,7 +351,7 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 
 	user := c.Query("user")
 	if len(user) == 0 {
-		user = c.GetString(constants.EventAccountId)
+		user = c.GetString(constants.UserName)
 	}
 
 	listFunc := func(cli mgrclient.Client) (v1alpha2.SubnamespaceAnchorList, error) {
@@ -603,7 +603,7 @@ func (h *handler) createNsAndQuota(c *gin.Context) {
 		response.FailReturn(c, errcode.ForbiddenErr)
 		return
 	}
-	username := c.GetString(constants.EventAccountId)
+	username := c.GetString(constants.UserName)
 	cli := clients.Interface().Kubernetes(data.Cluster)
 	ctx := c.Request.Context()
 
