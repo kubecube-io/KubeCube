@@ -70,13 +70,13 @@ func Auth() gin.HandlerFunc {
 				h := generic.GetProvider()
 				user, err := h.Authenticate(c.Request.Header)
 				if err != nil {
-					clog.Warn("generic auth error: %v", err)
+					clog.Error("generic auth error: %v", err)
 					response.FailReturn(c, errcode.AuthenticateError)
 					return
 				}
 				newToken, err := authJwtImpl.GenerateToken(&v1beta1.UserInfo{Username: user.GetUserName()})
 				if err != nil {
-					clog.Warn(err.Error())
+					clog.Error(err.Error())
 					response.FailReturn(c, errcode.AuthenticateError)
 					return
 				}
@@ -92,7 +92,8 @@ func Auth() gin.HandlerFunc {
 						break
 					}
 				}
-				c.Set(constants.EventAccountId, user.GetUserName())
+				c.Set(constants.UserName, user.GetUserName())
+				c.Set(constants.EventAccountId, user.GetAccountId())
 			} else {
 				userToken, err := token.GetTokenFromReq(c.Request)
 				if err != nil {
@@ -113,7 +114,7 @@ func Auth() gin.HandlerFunc {
 				c.Request.Header.Set(constants.AuthorizationHeader, v)
 				c.Request.Header.Set(constants.ImpersonateUserKey, user.Username)
 				c.SetCookie(constants.AuthorizationHeader, v, int(authJwtImpl.TokenExpireDuration), "/", "", false, true)
-				c.Set(constants.EventAccountId, user.Username)
+				c.Set(constants.UserName, user.Username)
 			}
 			c.Next()
 		}

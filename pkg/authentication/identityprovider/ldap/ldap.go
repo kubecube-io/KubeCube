@@ -70,6 +70,10 @@ func (l *ldapIdentity) GetUserEmail() string {
 	return ""
 }
 
+func (l *ldapIdentity) GetAccountId() string {
+	return ""
+}
+
 func GetProvider() ldapProvider {
 	return ldapProvider{
 		LdapObjectClass:      Config.LdapObjectClass,

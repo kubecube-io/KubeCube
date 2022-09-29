@@ -97,7 +97,7 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	c.Set(constants.EventAccountId, user.Name)
+	c.Set(constants.UserName, user.Name)
 	// update user login information
 	user.Status.LastLoginIP = c.ClientIP()
 	user.Status.LastLoginTime = &metav1.Time{Time: time.Now()}
@@ -192,7 +192,7 @@ func GitHubLogin(c *gin.Context) {
 		return
 	}
 	c.SetCookie(constants.AuthorizationHeader, bearerToken, int(authJwtImpl.TokenExpireDuration), "/", "", false, true)
-	c.Set(constants.EventAccountId, user.Name)
+	c.Set(constants.UserName, user.Name)
 
 	response.SuccessReturn(c, user)
 	return
