@@ -255,9 +255,6 @@ func (h *UpgradeAwareHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 		// or supporting retry mechanisms by not sending non-fatal errors to the clients
 		proxy.ErrorHandler = h.Responder.Error
 	}
-	//if h.Director != nil {
-	//	proxy.Director = h.Director
-	//}
 	if h.ModifyResponse != nil {
 		proxy.ModifyResponse = h.ModifyResponse
 	}

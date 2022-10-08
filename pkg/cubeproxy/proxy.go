@@ -79,6 +79,7 @@ func (c *Config) applyOptions(opts Options) {
 	*proxyCfg = *c.RawRestConfig
 	proxyCfg.Host = opts.ProxyHost
 	proxyCfg.TLSClientConfig = rest.TLSClientConfig{Insecure: true}
+	// todo: expand qps here
 	c.ProxyRestConfig = proxyCfg
 	c.Options = opts
 }
@@ -93,7 +94,7 @@ type ProxyHook interface {
 	ErrorResponder
 }
 
-type ProxyHandler struct {
+type Proxy struct {
 	rawRestConfig   *rest.Config
 	proxyRestConfig *rest.Config
 	beforeReqHook   func(req *http.Request)
@@ -101,12 +102,16 @@ type ProxyHandler struct {
 	errorResponder  ErrorResponder
 	hookDelegator   HookDelegator
 
+	// register handlers and funcs
+	handlers     map[string]http.Handler
+	handlerFuncs map[string]func(http.ResponseWriter, *http.Request)
+
 	// proxy do real proxy action with any inbound stream
 	proxy *UpgradeAwareHandler
 }
 
-func NewProxy(conf *Config) (*ProxyHandler, error) {
-	h := &ProxyHandler{
+func NewProxy(conf *Config) (*Proxy, error) {
+	h := &Proxy{
 		rawRestConfig:   conf.RawRestConfig,
 		proxyRestConfig: conf.ProxyRestConfig,
 		hookDelegator:   conf.HookDelegator,
@@ -147,8 +152,17 @@ func NewProxy(conf *Config) (*ProxyHandler, error) {
 	return h, nil
 }
 
-func (h *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *Proxy) RegisterHandler(hs ...http.Handler) {
+
+}
+
+func (h *Proxy) RegisterHandlerFuncs(funcs ...func(http.ResponseWriter, *http.Request)) {
+
+}
+
+func (h *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if h.hookDelegator != nil {
+		// we must new hook as each request coming to ensure context by side.
 		hook := h.hookDelegator.NewProxyHook(w, r)
 		h.beforeReqHook = hook.BeforeReqHook
 		h.beforeRespHook = hook.BeforeRespHook
@@ -160,7 +174,7 @@ func (h *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.proxy.ServeHTTP(w, r)
 }
 
-func (h *ProxyHandler) Run(stop <-chan struct{}) {
+func (h *Proxy) Run(stop <-chan struct{}) {
 	mux := http.NewServeMux()
 	mux.Handle("/", h)
 

@@ -42,6 +42,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/cubeproxy"
 )
 
+// VersionConvertDelegator delegate the hookDelegator of cube proxy to make hook.
 type VersionConvertDelegator struct {
 	converter *VersionConverter
 }
@@ -52,11 +53,13 @@ func (d *VersionConvertDelegator) NewProxyHook(w http.ResponseWriter, r *http.Re
 	}
 }
 
+// VersionConvertHook will be created as every request happen.
 type VersionConvertHook struct {
 	converter *VersionConverter
 	ctx       hookContext
 }
 
+// hookContext contains the context during each request.
 type hookContext struct {
 	convertResponse     bool
 	isWatch             bool
@@ -78,6 +81,7 @@ func NewVersionConvertDelegator(cfg *rest.Config) (*VersionConvertDelegator, err
 	return &VersionConvertDelegator{converter: c}, nil
 }
 
+// NewForConfig make new rest.Config for user proxy.
 func NewForConfig(cfg *rest.Config, opts cubeproxy.Options) (*cubeproxy.Config, error) {
 	c, err := NewVersionConvertDelegator(cfg)
 	if err != nil {
@@ -113,7 +117,7 @@ func (c *VersionConvertHook) BeforeReqHook(req *http.Request) {
 	c.ctx.isWatch = isWatchReq(req)
 
 	if needConvert {
-		clog.Info("convert request url %v -> %v", req.URL.Path, convertedUrl)
+		clog.Info("request verb: %v, watch enable: %v, convert request url: %v -> %v", req.Method, c.ctx.isWatch, req.URL.Path, convertedUrl)
 		c.ctx.convertResponse = true
 		// replace request body and url when need
 		if convertedObj != nil {
