@@ -1,5 +1,5 @@
 /*
-Copyright 2021 KubeCube Authors
+Copyright 2022 KubeCube Authors
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,37 +18,33 @@ package tenant
 
 import (
 	"context"
-	"fmt"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"net/http"
 
 	v1 "k8s.io/api/admission/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
 )
 
 type Validator struct {
-	Client   client.Client
-	IsMember bool
-	decoder  *admission.Decoder
+	decoder *admission.Decoder
 }
 
 func (r *Validator) Handle(ctx context.Context, req admission.Request) admission.Response {
+	tenant := tenantv1.Tenant{}
 	switch req.Operation {
 	case v1.Create:
 		return admission.Allowed("")
 	case v1.Update:
 		return admission.Allowed("")
 	case v1.Delete:
-		tenant := tenantv1.Tenant{}
 		err := r.decoder.DecodeRaw(req.OldObject, &tenant)
 		if err != nil {
 			return admission.Errored(http.StatusBadRequest, err)
 		}
-		if r.IsMember && tenant.Annotations[constants.ForceDeleteAnnotation] != "true" {
-			return admission.Errored(http.StatusBadRequest, fmt.Errorf("member cluster does not allow deletion of tenant %s", tenant.Name))
+		err = ValidateDelete(&tenant)
+		if err != nil {
+			return admission.Errored(http.StatusBadRequest, err)
 		}
 		return admission.Allowed("")
 	}

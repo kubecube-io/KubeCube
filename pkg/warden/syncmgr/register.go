@@ -18,6 +18,8 @@ package syncmgr
 
 import (
 	"context"
+	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"strconv"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -67,8 +69,22 @@ func (s *SyncManager) SetupCtrlWithManager(resource client.Object, objFunc Gener
 		}()
 
 		if err = pivotClient.Get(ctx, req.NamespacedName, obj); err != nil {
+			// If the object is a tenant or project, add an annotation to inform the webhook to allow it to be deleted
 			// delete: when object is not exist in pivot cluster
 			if errors.IsNotFound(err) {
+				gvk, err := apiutil.GVKForObject(obj, s.Manager.GetScheme())
+				if err != nil {
+					return ctrl.Result{}, err
+				}
+				groupKind := gvk.GroupKind()
+				if groupKind.Group == tenantv1.GroupVersion.Group {
+					if groupKind.Kind == "Tenant" || groupKind.Kind == "Project" {
+						err = s.updateSpecialObjForDelete(obj, objFunc, ctx, req)
+						if err != nil {
+							return ctrl.Result{}, err
+						}
+					}
+				}
 				action = Delete
 				err = localClient.Delete(ctx, obj, &client.DeleteOptions{})
 				if err != nil && errors.IsNotFound(err) {
@@ -179,4 +195,25 @@ func eventPredicate() predicate.Funcs {
 			return false
 		},
 	}
+}
+
+func (s *SyncManager) updateSpecialObjForDelete(obj client.Object, objFunc GenericObjFunc, ctx context.Context, req reconcile.Request) error {
+	newObj, err := objFunc(obj)
+	if err != nil {
+		return err
+	}
+	err = s.LocalClient.Get(ctx, req.NamespacedName, newObj)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+	annotation := newObj.GetAnnotations()
+	if annotation == nil {
+		annotation = make(map[string]string)
+	}
+	annotation[constants.ForceDeleteAnnotation] = "true"
+	newObj.SetAnnotations(annotation)
+	return s.LocalClient.Update(ctx, newObj)
 }

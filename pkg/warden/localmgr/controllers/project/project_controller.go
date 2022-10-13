@@ -19,14 +19,17 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
 
 	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
 	"github.com/kubecube-io/kubecube/pkg/clog"
@@ -36,6 +39,12 @@ import (
 )
 
 var _ reconcile.Reconciler = &ProjectReconciler{}
+
+const (
+	// Default timeouts to be used in TimeoutContext
+	waitInterval = 2 * time.Second
+	waitTimeout  = 120 * time.Second
+)
 
 // ProjectReconciler reconciles a Project object
 type ProjectReconciler struct {
@@ -70,6 +79,9 @@ func (r *ProjectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	project := tenantv1.Project{}
 	err := r.Client.Get(ctx, req.NamespacedName, &project)
 	if err != nil {
+		if errors.IsNotFound(err) {
+			return r.deleteProject(req.Name)
+		}
 		log.Warn("get project fail, %v", err)
 		return ctrl.Result{}, nil
 	}
@@ -159,6 +171,50 @@ func (r *ProjectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func (r *ProjectReconciler) deleteProject(projectName string) (ctrl.Result, error) {
+	// delete subNamespace of project
+	err := r.deleteSubNSOfProject(projectName)
+	return ctrl.Result{}, err
+}
+
+func (r *ProjectReconciler) deleteSubNSOfProject(projectName string) error {
+	ctx := context.Background()
+	name := constants.ProjectNsPrefix + projectName
+	subNamespaceList := &v1alpha2.SubnamespaceAnchorList{}
+	if err := r.Client.List(ctx, subNamespaceList); err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		} else {
+			clog.Error("get subnamespacelist err: %v", err)
+			return fmt.Errorf("get subnamespace list err")
+		}
+	}
+	for _, subNamespace := range subNamespaceList.Items {
+		if subNamespace.Name != name {
+			continue
+		}
+		namespace := subNamespace.Namespace
+		if err := r.Client.Delete(ctx, &subNamespace); err != nil {
+			clog.Error("delete subnamespace of project err: %v", err)
+			return fmt.Errorf("delete subnamespace of project err")
+		}
+		err := wait.Poll(waitInterval, waitTimeout,
+			func() (bool, error) {
+				e := r.Client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, &subNamespace)
+				if errors.IsNotFound(e) {
+					return true, nil
+				} else {
+					return false, nil
+				}
+			})
+		if err != nil {
+			clog.Error("wait for delete subnamespace of project err: %v", err)
+			return fmt.Errorf("wait for delete subnamespace of project err")
+		}
+	}
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

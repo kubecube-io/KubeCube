@@ -23,7 +23,9 @@ import (
 
 	clusterWebhook "github.com/kubecube-io/kubecube/pkg/ctrlmgr/webhooks/cluster"
 	hotplugWebhook "github.com/kubecube-io/kubecube/pkg/ctrlmgr/webhooks/hotplug"
+	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/webhooks/project"
 	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/webhooks/quota"
+	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/webhooks/tenant"
 )
 
 // todo: change set func if need
@@ -33,8 +35,9 @@ func SetupWithWebhooks(mgr manager.Manager) {
 	hookServer := mgr.GetWebhookServer()
 
 	client := mgr.GetClient()
-
 	hookServer.Register("/validate-cluster-kubecube-io-v1-cluster", admisson.ValidatingWebhookFor(clusterWebhook.NewClusterValidator(client)))
 	hookServer.Register("/validate-hotplug-kubecube-io-v1-hotplug", admisson.ValidatingWebhookFor(hotplugWebhook.NewHotplugValidator(client)))
 	hookServer.Register("/validate-quota-kubecube-io-v1-cube-resource-quota", &webhook.Admission{Handler: &quota.CubeResourceQuotaValidator{Client: client}})
+	hookServer.Register("/validate-tenant-kubecube-io-v1-tenant", &webhook.Admission{Handler: &tenant.Validator{}})
+	hookServer.Register("/validate-tenant-kubecube-io-v1-project", &webhook.Admission{Handler: &project.Validator{Client: client}})
 }

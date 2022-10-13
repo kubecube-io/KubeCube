@@ -64,7 +64,7 @@ func (c *ClusterValidator) ValidateCreate() error {
 		return err
 	}
 
-	if err = domain.ValidatorDomainSuffix([]string{c.Spec.IngressDomainSuffix}, log); err != nil {
+	if err = domain.ValidatorDomainSuffix([]string{c.Spec.IngressDomainSuffix}); err != nil {
 		return err
 	}
 	log.Debug("Create validate success")
@@ -79,7 +79,7 @@ func (c *ClusterValidator) ValidateUpdate(old runtime.Object) error {
 		return err
 	}
 
-	if err = domain.ValidatorDomainSuffix([]string{c.Spec.IngressDomainSuffix}, log); err != nil {
+	if err = domain.ValidatorDomainSuffix([]string{c.Spec.IngressDomainSuffix}); err != nil {
 		return err
 	}
 	log.Debug("Update validate success")

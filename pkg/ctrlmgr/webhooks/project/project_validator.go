@@ -1,5 +1,5 @@
 /*
-Copyright 2021 KubeCube Authors
+Copyright 2022 KubeCube Authors
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,12 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package tenant
+package project
 
 import (
 	"context"
-	"fmt"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"net/http"
 
 	v1 "k8s.io/api/admission/v1"
@@ -27,28 +25,53 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
+	"github.com/kubecube-io/kubecube/pkg/clog"
 )
 
 type Validator struct {
-	Client   client.Client
-	IsMember bool
-	decoder  *admission.Decoder
+	Client  client.Client
+	decoder *admission.Decoder
 }
 
 func (r *Validator) Handle(ctx context.Context, req admission.Request) admission.Response {
+	oldProject := tenantv1.Project{}
+	currentProject := tenantv1.Project{}
 	switch req.Operation {
 	case v1.Create:
-		return admission.Allowed("")
-	case v1.Update:
-		return admission.Allowed("")
-	case v1.Delete:
-		tenant := tenantv1.Tenant{}
-		err := r.decoder.DecodeRaw(req.OldObject, &tenant)
+		err := r.decoder.Decode(req, &currentProject)
 		if err != nil {
 			return admission.Errored(http.StatusBadRequest, err)
 		}
-		if r.IsMember && tenant.Annotations[constants.ForceDeleteAnnotation] != "true" {
-			return admission.Errored(http.StatusBadRequest, fmt.Errorf("member cluster does not allow deletion of tenant %s", tenant.Name))
+		err = r.ValidateCreate(&currentProject)
+		if err != nil {
+			return admission.Errored(http.StatusBadRequest, err)
+		}
+		return admission.Allowed("")
+	case v1.Update:
+		err := r.decoder.Decode(req, &currentProject)
+		if err != nil {
+			return admission.Errored(http.StatusBadRequest, err)
+		}
+
+		err = r.decoder.DecodeRaw(req.OldObject, &oldProject)
+		if err != nil {
+			return admission.Errored(http.StatusBadRequest, err)
+		}
+		err = r.ValidateUpdate(&oldProject, &currentProject)
+		if err != nil {
+			return admission.Errored(http.StatusBadRequest, err)
+		}
+		return admission.Allowed("")
+	case v1.Delete:
+		err := r.decoder.DecodeRaw(req.OldObject, &oldProject)
+		if err != nil {
+			clog.Error(err.Error())
+			return admission.Errored(http.StatusBadRequest, err)
+		}
+		err = r.ValidateDelete(&oldProject)
+		if err != nil {
+			clog.Error(err.Error())
+			return admission.Errored(http.StatusBadRequest, err)
 		}
 		return admission.Allowed("")
 	}
