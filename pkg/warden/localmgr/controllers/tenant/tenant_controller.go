@@ -18,17 +18,19 @@ package controllers
 
 import (
 	"context"
-
-	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"fmt"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
 	"github.com/kubecube-io/kubecube/pkg/clog"
@@ -36,6 +38,12 @@ import (
 )
 
 var _ reconcile.Reconciler = &TenantReconciler{}
+
+const (
+	// Default timeouts to be used in TimeoutContext
+	waitInterval = 2 * time.Second
+	waitTimeout  = 120 * time.Second
+)
 
 // TenantReconciler reconciles a Tenant object
 type TenantReconciler struct {
@@ -70,6 +78,9 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	tenant := tenantv1.Tenant{}
 	err := r.Client.Get(ctx, req.NamespacedName, &tenant)
 	if err != nil {
+		if errors.IsNotFound(err) {
+			return r.deleteTenant(req.Name)
+		}
 		log.Warn("get tenant fail, %v", err)
 		return ctrl.Result{}, nil
 	}
@@ -129,6 +140,46 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	}
 
 	return ctrl.Result{}, nil
+}
+func (r *TenantReconciler) deleteTenant(tenantName string) (ctrl.Result, error) {
+	// get projects in tenant
+	// delete namespace of tenant
+	if err := r.deleteNSofTenant(tenantName); err != nil {
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{}, nil
+}
+
+func (r *TenantReconciler) deleteNSofTenant(tenantName string) error {
+	namespace := &corev1.Namespace{}
+	name := constants.TenantNsPrefix + tenantName
+	ctx := context.Background()
+	if err := r.Client.Get(ctx, types.NamespacedName{Name: name}, namespace); err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		} else {
+			clog.Error("get namespace of tenant err: %s", err.Error())
+			return fmt.Errorf("get namespace of tenant err")
+		}
+	}
+	if err := r.Client.Delete(ctx, namespace); err != nil {
+		clog.Error("delete namespace of tenant err: %s", err.Error())
+		return err
+	}
+	err := wait.Poll(waitInterval, waitTimeout,
+		func() (bool, error) {
+			e := r.Client.Get(ctx, types.NamespacedName{Name: name}, namespace)
+			if errors.IsNotFound(e) {
+				return true, nil
+			} else {
+				return false, nil
+			}
+		})
+	if err != nil {
+		clog.Error("wait for delete namespace of tenant err: %s", err.Error())
+		return err
+	}
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

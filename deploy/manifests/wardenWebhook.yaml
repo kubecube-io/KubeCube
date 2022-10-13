@@ -60,7 +60,7 @@ webhooks:
         name: warden
         namespace: kubecube-system
         port: 8443
-        path: /validate-tenant-kubecube-io-v1-project
+        path: /warden-validate-tenant-kubecube-io-v1-project
     failurePolicy: Fail
     name: vproject.kb.io
     rules:
@@ -69,8 +69,6 @@ webhooks:
         apiVersions:
           - v1
         operations:
-          - CREATE
-          - UPDATE
           - DELETE
         resources:
           - projects
@@ -84,7 +82,7 @@ webhooks:
         name: warden
         namespace: kubecube-system
         port: 8443
-        path: /validate-tenant-kubecube-io-v1-tenant
+        path: /warden-validate-tenant-kubecube-io-v1-tenant
     failurePolicy: Fail
     name: vtenant.kb.io
     rules:
@@ -93,8 +91,6 @@ webhooks:
         apiVersions:
           - v1
         operations:
-          - CREATE
-          - UPDATE
           - DELETE
         resources:
           - tenants

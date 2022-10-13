@@ -17,6 +17,7 @@ limitations under the License.
 package localmgr
 
 import (
+	project2 "github.com/kubecube-io/kubecube/pkg/warden/localmgr/webhooks/project"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	admisson "sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -27,7 +28,6 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/service"
 	tenant "github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/tenant"
 	hotplug2 "github.com/kubecube-io/kubecube/pkg/warden/localmgr/webhooks/hotplug"
-	project2 "github.com/kubecube-io/kubecube/pkg/warden/localmgr/webhooks/project"
 	quota2 "github.com/kubecube-io/kubecube/pkg/warden/localmgr/webhooks/quota"
 	tenant2 "github.com/kubecube-io/kubecube/pkg/warden/localmgr/webhooks/tenant"
 )
@@ -80,9 +80,8 @@ func setupControllersWithManager(m *LocalManager) error {
 // setupWithWebhooks set up webhooks into manager
 func setupWithWebhooks(m *LocalManager) {
 	hookServer := m.GetWebhookServer()
-
-	hookServer.Register("/validate-tenant-kubecube-io-v1-tenant", admisson.ValidatingWebhookFor(tenant2.NewTenantValidator(m.GetClient())))
-	hookServer.Register("/validate-tenant-kubecube-io-v1-project", admisson.ValidatingWebhookFor(project2.NewProjectValidator(m.GetClient())))
+	hookServer.Register("/warden-validate-tenant-kubecube-io-v1-tenant", &webhook.Admission{Handler: &tenant2.Validator{Client: m.GetClient(), IsMember: m.IsMemberCluster}})
+	hookServer.Register("/warden-validate-tenant-kubecube-io-v1-project", &webhook.Admission{Handler: &project2.Validator{Client: m.GetClient(), IsMember: m.IsMemberCluster}})
 	hookServer.Register("/validate-core-kubernetes-v1-resource-quota", &webhook.Admission{Handler: &quota2.ResourceQuotaValidator{PivotClient: m.PivotClient.Direct(), LocalClient: m.GetClient()}})
 	hookServer.Register("/warden-validate-hotplug-kubecube-io-v1-hotplug", admisson.ValidatingWebhookFor(hotplug2.NewHotplugValidator(m.IsMemberCluster)))
 }
