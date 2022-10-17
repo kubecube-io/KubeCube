@@ -1,9 +1,6 @@
 name: Makefile CI
 
-on:
-  push:
-    branches:
-      - *
+on: [push]
 
 jobs:
   lint:
