@@ -101,7 +101,7 @@ func (h *Handler) Audit() gin.HandlerFunc {
 
 func (h *Handler) handle(c *gin.Context, w *responseBodyWriter) {
 	e := &Event{
-		EventTime:         time.Now().UnixNano() / int64(time.Second),
+		EventTime:         time.Now().UnixNano() / int64(time.Millisecond),
 		EventVersion:      "V1",
 		SourceIpAddress:   c.ClientIP(),
 		RequestMethod:     c.Request.Method,
@@ -159,6 +159,7 @@ func sendEvent(e *Event) {
 		return
 	}
 	buffer := bytes.NewBuffer(jsonstr)
+	clog.Debug("[audit] [%s] [%s] body: %s", auditSvc.Method, auditSvc.URL, string(jsonstr))
 	request, err := http.NewRequest(auditSvc.Method, auditSvc.URL, buffer)
 	if err != nil {
 		clog.Error("[audit] create http request error: %v", err)
@@ -263,12 +264,17 @@ func isProxyApi(requestURI string) bool {
 
 // get user name from token
 func getUserIdentity(c *gin.Context) *UserIdentity {
-
 	userIdentity := &UserIdentity{}
-	accountId, isExist := c.Get(constants.EventAccountId)
-	if isExist {
-		userIdentity.AccountId = accountId.(string)
+	accountId := c.GetString(constants.EventAccountId)
+	if len(accountId) > 0 {
+		userIdentity.AccountId = accountId
 		return userIdentity
+	} else {
+		userName := c.GetString(constants.UserName)
+		if len(userName) > 0 {
+			userIdentity.AccountId = userName
+			return userIdentity
+		}
 	}
 
 	userInfo, err := token.GetUserFromReq(c.Request)

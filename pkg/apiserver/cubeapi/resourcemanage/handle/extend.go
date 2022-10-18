@@ -86,7 +86,7 @@ func (e *ExtendHandler) ExtendHandle(c *gin.Context) {
 		return
 	}
 	// get user info
-	username := c.GetString(constants.EventAccountId)
+	username := c.GetString(constants.UserName)
 
 	param := ExtendParams{
 		Cluster:                  cluster,
@@ -135,7 +135,7 @@ func GetPodContainerLog(c *gin.Context) {
 		return
 	}
 	// access
-	username := c.GetString(constants.EventAccountId)
+	username := c.GetString(constants.UserName)
 	access := resources.NewSimpleAccess(cluster, username, namespace)
 	if allow := access.AccessAllow("", "pods", "list"); !allow {
 		response.FailReturn(c, errcode.ForbiddenErr)

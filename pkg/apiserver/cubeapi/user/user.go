@@ -215,7 +215,7 @@ func UpdateUserStatusImpl(c *gin.Context, newUser *userv1.User) *errcode.ErrorIn
 // @Router /api/v1/cube/user  [get]
 func ListUsers(c *gin.Context) {
 	kClient := clients.Interface().Kubernetes(constants.LocalCluster).Cache()
-	username := c.GetString(constants.EventAccountId)
+	username := c.GetString(constants.UserName)
 	accessMap := map[string]string{"platform-admin": "", "tenant-admin": "", "tenant-admin-cluster": "", "project-admin": "", "project-admin-cluster": ""}
 	if !access.CheckClusterRole(username, constants.LocalCluster, accessMap) {
 		response.FailReturn(c, errcode.ForbiddenErr)
@@ -548,7 +548,7 @@ func GetKubeConfig(c *gin.Context) {
 
 	user := c.Query("user")
 	if len(user) == 0 {
-		user = c.GetString(constants.EventAccountId)
+		user = c.GetString(constants.UserName)
 	}
 
 	mode := c.Query("mode")

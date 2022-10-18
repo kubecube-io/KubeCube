@@ -42,8 +42,9 @@ type HeaderProvider struct {
 }
 
 type GenericIdentity struct {
-	Username string
-	Header   http.Header
+	Username  string
+	Header    http.Header
+	AccountId string
 }
 
 func (g *GenericIdentity) GetRespHeader() http.Header {
@@ -61,6 +62,10 @@ func (g *GenericIdentity) GetUserName() string {
 
 func (g *GenericIdentity) GetGroup() string {
 	return ""
+}
+
+func (g *GenericIdentity) GetAccountId() string {
+	return g.AccountId
 }
 
 func GetProvider() HeaderProvider {
@@ -126,7 +131,7 @@ func (h HeaderProvider) Authenticate(headers map[string][]string) (identityprovi
 		return nil, fmt.Errorf("json unmarshal error: %v", err)
 	}
 
-	name := ""
+	name, accountId := "", ""
 	if username := respMap["name"]; username != nil {
 		n, ok := username.(string)
 		if !ok {
@@ -134,10 +139,18 @@ func (h HeaderProvider) Authenticate(headers map[string][]string) (identityprovi
 		}
 		name = n
 	}
+	if account := respMap["accountId"]; account != nil {
+		n, ok := account.(string)
+		if !ok {
+			return nil, errors.New("accountId is not string type")
+		}
+		accountId = n
+	}
 	respHeader := resp.Header
 
 	return &GenericIdentity{
-		Username: name,
-		Header:   respHeader,
+		Username:  name,
+		Header:    respHeader,
+		AccountId: accountId,
 	}, nil
 }

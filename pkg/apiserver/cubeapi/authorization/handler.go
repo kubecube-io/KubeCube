@@ -92,7 +92,7 @@ func (h *handler) getRolesByUser(c *gin.Context) {
 	byUser := c.Query("byuser")
 
 	if byUser == "true" && userName == "" {
-		userName = c.GetString(constants.EventAccountId)
+		userName = c.GetString(constants.UserName)
 	}
 
 	if userName == "" {
@@ -217,7 +217,7 @@ func (h *handler) getTenantByUser(c *gin.Context) {
 	cli := h.Client
 
 	if len(user) == 0 {
-		user = c.GetString(constants.EventAccountId)
+		user = c.GetString(constants.UserName)
 	}
 
 	if len(auth) == 0 {
@@ -254,7 +254,7 @@ func (h *handler) getProjectByUser(c *gin.Context) {
 		tenant = nil
 	}
 	if len(user) == 0 {
-		user = c.GetString(constants.EventAccountId)
+		user = c.GetString(constants.UserName)
 	}
 
 	if len(auth) == 0 {
@@ -283,7 +283,7 @@ func (h *handler) getIdentity(c *gin.Context) {
 	user := c.Query("user")
 
 	if len(user) == 0 {
-		user = c.GetString(constants.EventAccountId)
+		user = c.GetString(constants.UserName)
 	}
 
 	r := make(map[string]bool)
@@ -567,7 +567,7 @@ func (h *handler) resourcesGate(c *gin.Context) {
 		return
 	}
 
-	user := c.GetString(constants.EventAccountId)
+	user := c.GetString(constants.UserName)
 	result := make(map[string]bool)
 
 	if data.Cluster == "" {
