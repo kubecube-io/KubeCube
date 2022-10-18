@@ -18,6 +18,7 @@ package e2e
 
 import (
 	"math/rand"
+	"os"
 	"testing"
 	"time"
 
@@ -38,6 +39,7 @@ func TestMain(m *testing.M) {
 	m.Run()
 	Clean()
 	clog.Info("e2e end")
+	os.Exit(0)
 }
 
 // start e2e test
