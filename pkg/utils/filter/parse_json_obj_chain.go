@@ -43,15 +43,10 @@ func (param *ParseJsonObjParam) setNext(handler Handler) {
 func (param *ParseJsonObjParam) handle(_ []unstructured.Unstructured) ([]unstructured.Unstructured, error) {
 	codecFactory := serializer.NewCodecFactory(param.scheme)
 	decoder := codecFactory.UniversalDecoder()
-	internalObject, gvr, err := decoder.Decode(param.data, nil, nil)
+	object := unstructured.Unstructured{}
+	_, _, err := decoder.Decode(param.data, nil, &object)
 	if err != nil {
 		clog.Error("can not parser data to internalObject cause: %v ", err)
-		return nil, err
-	}
-	object := unstructured.Unstructured{}
-	// fixme : if gvr not in scheme, this will failed
-	err = param.scheme.Convert(internalObject, &object, gvr.GroupVersion())
-	if err != nil {
 		return nil, err
 	}
 	var listObject []unstructured.Unstructured

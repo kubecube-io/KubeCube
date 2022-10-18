@@ -48,7 +48,7 @@ func (param *FuzzyParam) handle(items []unstructured.Unstructured) ([]unstructur
 			// key = metadata.xxx.xxx， multi level
 			realValue, err := GetDeepValue(item, key)
 			if err != nil {
-				clog.Error("parse value error, %s", err.Error())
+				clog.Warn("parse value error, %s", err.Error())
 				flag = false
 				break
 			}

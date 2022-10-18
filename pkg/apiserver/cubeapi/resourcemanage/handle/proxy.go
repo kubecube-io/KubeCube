@@ -164,7 +164,7 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 	_, _, gvr, err := conversion.ParseURL(proxyUrl)
 	if err != nil {
 		clog.Error(err.Error())
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 		return
 	}
 
@@ -202,7 +202,6 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 		if err != nil {
 			clog.Error("fail to add fieldManager due to %s", err.Error())
 		}
-
 		if needConvert {
 			// replace request body and url if need
 			if convertedObj != nil {

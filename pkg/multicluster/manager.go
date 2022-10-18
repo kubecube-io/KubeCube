@@ -130,7 +130,6 @@ func NewInternalCluster(cluster clusterv1.Cluster) (*InternalCluster, error) {
 	if err != nil {
 		return nil, fmt.Errorf("load RoundTripper failed: %v", err)
 	}
-
 	// allocate mem address to avoid nil
 	cluster.Status.State = new(clusterv1.ClusterState)
 
