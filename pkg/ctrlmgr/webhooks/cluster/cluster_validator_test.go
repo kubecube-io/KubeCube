@@ -44,7 +44,7 @@ func TestValidateCreate(t *testing.T) {
 
 	// create
 	cluster := clusterTemplate("test-cluster")
-	fakeClient := fake.NewFakeClientWithScheme(scheme, &cluster)
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(&cluster).Build()
 
 	clusterValidate := NewClusterValidator(fakeClient)
 
@@ -78,7 +78,7 @@ func TestValidateUpdate(t *testing.T) {
 
 	// create
 	cluster := clusterTemplate("test-cluster")
-	fakeClient := fake.NewFakeClientWithScheme(scheme, &cluster)
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(&cluster).Build()
 
 	clusterValidate := NewClusterValidator(fakeClient)
 

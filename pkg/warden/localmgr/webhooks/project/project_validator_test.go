@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package project
 
 import (
@@ -70,7 +71,7 @@ func TestValidateCreate(t *testing.T) {
 
 	// create
 	tenant := tenantTemplate("test-tenant")
-	fakeClient := fake.NewFakeClientWithScheme(scheme, &tenant)
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(&tenant).Build()
 
 	projectValidate := NewProjectValidator(fakeClient)
 
@@ -120,7 +121,7 @@ func TestValidateUpdate(t *testing.T) {
 
 	// create
 	tenant := tenantTemplate("test-tenant")
-	fakeClient := fake.NewFakeClientWithScheme(scheme, &tenant)
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(&tenant).Build()
 
 	projectValidate := NewProjectValidator(fakeClient)
 
@@ -172,7 +173,7 @@ func TestValidateDelete(t *testing.T) {
 	project1 := projectTemplate("test-tenant", "test-project1")
 	project2 := projectTemplate("test-tenant", "test-project2")
 	namespace := namespaceTemplate("test-project1", "test-namespace")
-	fakeClient := fake.NewFakeClientWithScheme(scheme, &tenant, &project1, &project2, &namespace)
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(&tenant, &project1, &project2, &namespace).Build()
 
 	// test delete if namespace still exist
 	projectValidate := NewProjectValidator(fakeClient)

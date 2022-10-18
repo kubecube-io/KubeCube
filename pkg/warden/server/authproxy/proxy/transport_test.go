@@ -258,6 +258,7 @@ func TestProxyTransport(t *testing.T) {
 			t.Errorf("%v: Unexpected error: %v", name, err)
 			return
 		}
+		defer resp.Body.Close()
 		if item.redirect != "" {
 			// Check that redirect URLs get rewritten properly.
 			if got, want := resp.Header.Get("Location"), item.redirectWant; got != want {
@@ -356,6 +357,9 @@ func TestRewriteResponse(t *testing.T) {
 			if result != exp {
 				errFn(v.encodeType, fmt.Errorf("expected %s, get %s", exp, result))
 			}
+
+			resp.Body.Close()
+			gotResponse.Body.Close()
 		}
 	}
 }

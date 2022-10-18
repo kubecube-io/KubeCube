@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package tenant
 
 import (
@@ -72,7 +73,7 @@ func TestValidateDelete(t *testing.T) {
 	tenant2 := tenantTemplate("test-tenant2")
 	project := projectTemplate("test-tenant1", "test-project")
 	namespace := namespaceTemplate("test-project1", "test-namespace")
-	fakeClient := fake.NewFakeClientWithScheme(scheme, &tenant1, &tenant2, &project, &namespace)
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(&tenant1, &tenant2, &project, &namespace).Build()
 
 	// test delete if project still exist
 	tenantValidate := NewTenantValidator(fakeClient)

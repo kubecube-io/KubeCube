@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package generic
 
 import (
@@ -86,9 +87,7 @@ func (h HeaderProvider) Authenticate(headers map[string][]string) (identityprovi
 	if h.Scheme == "https" {
 		cfg := &tls.Config{}
 		if h.InsecureSkipVerify == true {
-			cfg = &tls.Config{
-				InsecureSkipVerify: true,
-			}
+			cfg.InsecureSkipVerify = true
 		} else {
 			if h.TLSCert == "" || h.TLSKey == "" {
 				return nil, fmt.Errorf("generic auth cert is %s, key is %s", h.TLSCert, h.TLSKey)
@@ -100,9 +99,7 @@ func (h HeaderProvider) Authenticate(headers map[string][]string) (identityprovi
 				clog.Error("%v", err)
 				return nil, err
 			}
-			cfg = &tls.Config{
-				Certificates: []tls.Certificate{c},
-			}
+			cfg.Certificates = []tls.Certificate{c}
 		}
 		tr = &http.Transport{
 			TLSClientConfig: cfg,
@@ -114,6 +111,7 @@ func (h HeaderProvider) Authenticate(headers map[string][]string) (identityprovi
 		return nil, fmt.Errorf("request to generic auth error: %v", err)
 	}
 
+	defer resp.Body.Close()
 	respBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("read response error: %v", err)

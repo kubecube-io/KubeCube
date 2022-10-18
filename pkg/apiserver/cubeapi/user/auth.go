@@ -77,7 +77,7 @@ func Login(c *gin.Context) {
 	}
 
 	// login
-	user := &v1.User{}
+	var user *v1.User
 	if loginType == v1.LDAPLogin && ldap.IsLdapOpen() {
 		ldapUser, errInfo := ldapLogin(c, name, password)
 		if errInfo != nil {

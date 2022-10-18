@@ -194,10 +194,11 @@ func (r *ClusterReconciler) enqueue(cluster clusterv1.Cluster) {
 
 		// pop from retry queue when reconnected or context exceed or context canceled
 		defer r.retryQueue.Delete(cluster.Name)
-
+		ticker := time.NewTicker(retryInterval)
+		defer ticker.Stop()
 		for {
 			select {
-			case <-time.Tick(retryInterval):
+			case <-ticker.C:
 				_, err := client.New(config, client.Options{Scheme: r.Scheme})
 				if err == nil {
 					log.Info("enqueuing cluster %v for reconciliation", cluster.Name)

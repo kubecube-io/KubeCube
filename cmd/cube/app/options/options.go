@@ -17,6 +17,7 @@ limitations under the License.
 package options
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/spf13/viper"
@@ -63,7 +64,8 @@ func LoadConfigFromDisk() (*CubeOptions, error) {
 	viper.SetConfigType("yaml")
 
 	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+		var configFileNotFoundError *viper.ConfigFileNotFoundError
+		if errors.As(err, &configFileNotFoundError) {
 			return nil, err
 		} else {
 			return nil, fmt.Errorf("error parsing configuration file %s", err)

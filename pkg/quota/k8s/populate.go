@@ -162,19 +162,15 @@ func getResourceQuota(cli client.Client, s string) (*v1.ResourceQuota, string, s
 }
 
 func ensureValue(c *v1.ResourceQuota, key v1.ResourceName) resource.Quantity {
-	q := resource.Quantity{}
 	if c == nil {
-		q = quota.ZeroQ()
-	} else {
-		oHard := c.Spec.Hard
-		_, ok := oHard[key]
-		if !ok {
-			oHard[key] = quota.ZeroQ()
-		}
-		q = oHard[key]
+		return quota.ZeroQ()
 	}
-
-	return q
+	oHard := c.Spec.Hard
+	_, ok := oHard[key]
+	if !ok {
+		oHard[key] = quota.ZeroQ()
+	}
+	return oHard[key]
 }
 
 func isExceed(parentHard, parentUsed, changed resource.Quantity) bool {

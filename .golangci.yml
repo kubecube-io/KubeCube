@@ -31,3 +31,10 @@ linters-settings:
     check-unreachable: true
     check-rangeloops: true
     check-copylocks: true
+
+issues:
+  exclude-use-default: false
+  exclude-rules:
+    - linters:
+        - errorlint
+      text: "non-wrapping"
