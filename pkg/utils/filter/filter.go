@@ -198,7 +198,7 @@ func (f *Filter) FilterObjectList(object runtime.Object) (*int, error) {
 		temp = convert
 	}
 	temp.setNext(&Last{})
-	res, err := first.handle(listObject, context.Background())
+	res, err := first.handle(listObject, context.WithValue(context.Background(), isObjectIsList, true))
 	if err != nil {
 		return nil, err
 	}
