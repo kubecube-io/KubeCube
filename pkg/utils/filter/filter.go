@@ -19,6 +19,7 @@ package filter
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"fmt"
 	"io/ioutil"
 
@@ -110,7 +111,6 @@ func (f *Filter) ModifyResponse(r *http.Response) error {
 	case "gzip":
 		reader, err := gzip.NewReader(r.Body)
 		defer reader.Close()
-		defer r.Body.Close()
 		if err != nil {
 			clog.Info("can not read gzip body from response, %v", err)
 			return err
@@ -122,27 +122,25 @@ func (f *Filter) ModifyResponse(r *http.Response) error {
 		}
 	default:
 		body, err = ioutil.ReadAll(r.Body)
-		defer r.Body.Close()
 		if err != nil {
 			clog.Info("can not read body from response, %v", err)
 			return err
 		}
 	}
 
-	result := PageBean{}
-	if err = f.doFilter(body, &result); err == nil {
+	if obj, err := f.doFilter(body); err == nil {
 		// return result
-		marshal, err := json.Marshal(result)
+		marshal, err := json.Marshal(obj)
 		if err != nil {
 			clog.Error("modify response failed: %s", err.Error())
-		} else {
-			buf := bytes.NewBuffer(marshal)
-			r.Body = ioutil.NopCloser(buf)
-			r.Header["Content-Length"] = []string{fmt.Sprint(buf.Len())}
 		}
+		body = marshal
 	} else {
 		clog.Warn("modify response failed: %s", err.Error())
 	}
+	buf := bytes.NewBuffer(body)
+	r.Body = ioutil.NopCloser(buf)
+	r.Header["Content-Length"] = []string{fmt.Sprint(buf.Len())}
 	delete(r.Header, "Content-Encoding")
 	return nil
 }
@@ -200,11 +198,15 @@ func (f *Filter) FilterObjectList(object runtime.Object) (*int, error) {
 		temp = convert
 	}
 	temp.setNext(&Last{})
-	res, err := first.handle(listObject)
+	res, err := first.handle(listObject, context.Background())
 	if err != nil {
 		return nil, err
 	}
-	list.Items = res
+	obj, err := res.ToList()
+	if err != nil {
+		return nil, err
+	}
+	list.Items = obj.Items
 	err = f.Scheme.Convert(list, object, version)
 	if err != nil {
 		return nil, err
@@ -212,9 +214,10 @@ func (f *Filter) FilterObjectList(object runtime.Object) (*int, error) {
 	return pageBean.Total, nil
 }
 
-func (f *Filter) doFilter(data []byte, result *PageBean) error {
+func (f *Filter) doFilter(data []byte) (*unstructured.Unstructured, error) {
 	first := &First{}
 	var temp Handler
+	var total *int
 	temp = first
 	parseJson := ParseJsonObjChain(data, f.Scheme)
 	temp.setNext(parseJson)
@@ -238,7 +241,7 @@ func (f *Filter) doFilter(data []byte, result *PageBean) error {
 	}
 	if f.Limit != 0 {
 		pageChain := PageFilterChain(f.Limit, f.Offset)
-		result.Total = pageChain.total
+		total = pageChain.total
 		temp.setNext(pageChain)
 		temp = pageChain
 	}
@@ -248,7 +251,12 @@ func (f *Filter) doFilter(data []byte, result *PageBean) error {
 		temp = convert
 	}
 	temp.setNext(&Last{})
-	object, err := first.handle(nil)
-	result.Items = object
-	return err
+	object, err := first.handle(nil, context.Background())
+	if err != nil {
+		return nil, err
+	}
+	if object.IsList() {
+		object.Object["total"] = total
+	}
+	return object, nil
 }

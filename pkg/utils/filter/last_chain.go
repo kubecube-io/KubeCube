@@ -16,7 +16,10 @@ limitations under the License.
 
 package filter
 
-import "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+import (
+	"context"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+)
 
 type Last struct {
 	handler Handler
@@ -25,10 +28,16 @@ type Last struct {
 func (last *Last) setNext(handler Handler) {
 	last.handler = handler
 }
-func (last *Last) handle(items []unstructured.Unstructured) ([]unstructured.Unstructured, error) {
-	return items, nil
+func (last *Last) handle(items []unstructured.Unstructured, ctx context.Context) (*unstructured.Unstructured, error) {
+	if ctx.Value(isObjectIsList).(bool) {
+		return GetUnstructured(items), nil
+	}
+	if len(items) == 0 {
+		return nil, nil
+	}
+	return &items[0], nil
 }
 
-func (last *Last) next(_ []unstructured.Unstructured) ([]unstructured.Unstructured, error) {
+func (last *Last) next(_ []unstructured.Unstructured, ctx context.Context) (*unstructured.Unstructured, error) {
 	return nil, nil
 }

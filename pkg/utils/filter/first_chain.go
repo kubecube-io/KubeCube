@@ -17,6 +17,7 @@ limitations under the License.
 package filter
 
 import (
+	"context"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -27,13 +28,13 @@ type First struct {
 func (first *First) setNext(handler Handler) {
 	first.handler = handler
 }
-func (first *First) handle(items []unstructured.Unstructured) ([]unstructured.Unstructured, error) {
-	return first.next(items)
+func (first *First) handle(items []unstructured.Unstructured, ctx context.Context) (*unstructured.Unstructured, error) {
+	return first.next(items, ctx)
 }
 
-func (first *First) next(items []unstructured.Unstructured) ([]unstructured.Unstructured, error) {
+func (first *First) next(items []unstructured.Unstructured, ctx context.Context) (*unstructured.Unstructured, error) {
 	if first.handler == nil {
-		return items, nil
+		return GetUnstructured(items), nil
 	}
-	return first.handler.handle(items)
+	return first.handler.handle(items, ctx)
 }

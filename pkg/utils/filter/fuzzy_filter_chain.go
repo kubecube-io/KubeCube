@@ -17,6 +17,7 @@ limitations under the License.
 package filter
 
 import (
+	"context"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -38,7 +39,10 @@ type FuzzyParam struct {
 func (param *FuzzyParam) setNext(handler Handler) {
 	param.handler = handler
 }
-func (param *FuzzyParam) handle(items []unstructured.Unstructured) ([]unstructured.Unstructured, error) {
+func (param *FuzzyParam) handle(items []unstructured.Unstructured, ctx context.Context) (*unstructured.Unstructured, error) {
+	if !ctx.Value(isObjectIsList).(bool) {
+		return param.next(items, ctx)
+	}
 	result := make([]unstructured.Unstructured, 0)
 	// every list record
 	for _, item := range items {
@@ -72,12 +76,12 @@ func (param *FuzzyParam) handle(items []unstructured.Unstructured) ([]unstructur
 			result = append(result, item)
 		}
 	}
-	return param.next(result)
+	return param.next(result, ctx)
 }
 
-func (param *FuzzyParam) next(items []unstructured.Unstructured) ([]unstructured.Unstructured, error) {
+func (param *FuzzyParam) next(items []unstructured.Unstructured, ctx context.Context) (*unstructured.Unstructured, error) {
 	if param.handler == nil {
-		return items, nil
+		return GetUnstructured(items), nil
 	}
-	return param.handler.handle(items)
+	return param.handler.handle(items, ctx)
 }

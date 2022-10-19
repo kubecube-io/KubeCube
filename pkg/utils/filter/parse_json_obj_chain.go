@@ -17,6 +17,7 @@ limitations under the License.
 package filter
 
 import (
+	"context"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -40,7 +41,7 @@ type ParseJsonObjParam struct {
 func (param *ParseJsonObjParam) setNext(handler Handler) {
 	param.handler = handler
 }
-func (param *ParseJsonObjParam) handle(_ []unstructured.Unstructured) ([]unstructured.Unstructured, error) {
+func (param *ParseJsonObjParam) handle(_ []unstructured.Unstructured, ctx context.Context) (*unstructured.Unstructured, error) {
 	codecFactory := serializer.NewCodecFactory(param.scheme)
 	decoder := codecFactory.UniversalDecoder()
 	object := unstructured.Unstructured{}
@@ -50,6 +51,7 @@ func (param *ParseJsonObjParam) handle(_ []unstructured.Unstructured) ([]unstruc
 		return nil, err
 	}
 	var listObject []unstructured.Unstructured
+	ctx = context.WithValue(ctx, isObjectIsList, object.IsList())
 	if object.IsList() {
 		list, err := object.ToList()
 		if err != nil {
@@ -59,12 +61,12 @@ func (param *ParseJsonObjParam) handle(_ []unstructured.Unstructured) ([]unstruc
 	} else {
 		listObject = []unstructured.Unstructured{object}
 	}
-	return param.next(listObject)
+	return param.next(listObject, ctx)
 }
 
-func (param *ParseJsonObjParam) next(items []unstructured.Unstructured) ([]unstructured.Unstructured, error) {
+func (param *ParseJsonObjParam) next(items []unstructured.Unstructured, ctx context.Context) (*unstructured.Unstructured, error) {
 	if param.handler == nil {
-		return items, nil
+		return GetUnstructured(items), nil
 	}
-	return param.handler.handle(items)
+	return param.handler.handle(items, ctx)
 }

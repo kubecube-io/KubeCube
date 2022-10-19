@@ -17,6 +17,7 @@ limitations under the License.
 package filter
 
 import (
+	"context"
 	"github.com/kubecube-io/kubecube/pkg/conversion"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -42,7 +43,7 @@ type ConvertParam struct {
 func (param *ConvertParam) setNext(handler Handler) {
 	param.handler = handler
 }
-func (param *ConvertParam) handle(items []unstructured.Unstructured) ([]unstructured.Unstructured, error) {
+func (param *ConvertParam) handle(items []unstructured.Unstructured, ctx context.Context) (*unstructured.Unstructured, error) {
 	res := make([]unstructured.Unstructured, 0, len(items))
 	for _, u := range items {
 		if u.GetAPIVersion() == "" {
@@ -58,16 +59,16 @@ func (param *ConvertParam) handle(items []unstructured.Unstructured) ([]unstruct
 		out := unstructured.Unstructured{}
 		_, err := param.converter.DirectConvert(&u, &out, param.rawGvr.GroupVersion())
 		if err != nil {
-			return items, err
+			return GetUnstructured(items), err
 		}
 		res = append(res, out)
 	}
-	return param.next(res)
+	return param.next(res, ctx)
 }
 
-func (param *ConvertParam) next(items []unstructured.Unstructured) ([]unstructured.Unstructured, error) {
+func (param *ConvertParam) next(items []unstructured.Unstructured, ctx context.Context) (*unstructured.Unstructured, error) {
 	if param.handler == nil {
-		return items, nil
+		return GetUnstructured(items), nil
 	}
-	return param.handler.handle(items)
+	return param.handler.handle(items, ctx)
 }

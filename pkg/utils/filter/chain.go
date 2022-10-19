@@ -17,11 +17,12 @@ limitations under the License.
 package filter
 
 import (
+	"context"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 type Handler interface {
 	setNext(handler Handler)
-	handle(items []unstructured.Unstructured) ([]unstructured.Unstructured, error)
-	next(items []unstructured.Unstructured) ([]unstructured.Unstructured, error)
+	handle(items []unstructured.Unstructured, ctx context.Context) (*unstructured.Unstructured, error)
+	next(items []unstructured.Unstructured, ctx context.Context) (*unstructured.Unstructured, error)
 }

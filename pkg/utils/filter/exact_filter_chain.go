@@ -17,6 +17,7 @@ limitations under the License.
 package filter
 
 import (
+	"context"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -36,7 +37,10 @@ type ExtractParam struct {
 func (param *ExtractParam) setNext(handler Handler) {
 	param.handler = handler
 }
-func (param *ExtractParam) handle(items []unstructured.Unstructured) ([]unstructured.Unstructured, error) {
+func (param *ExtractParam) handle(items []unstructured.Unstructured, ctx context.Context) (*unstructured.Unstructured, error) {
+	if !ctx.Value(isObjectIsList).(bool) {
+		return param.next(items, ctx)
+	}
 	result := make([]unstructured.Unstructured, 0)
 	// every list record
 	for _, item := range items {
@@ -68,12 +72,12 @@ func (param *ExtractParam) handle(items []unstructured.Unstructured) ([]unstruct
 			result = append(result, item)
 		}
 	}
-	return param.next(result)
+	return param.next(result, ctx)
 }
 
-func (param *ExtractParam) next(items []unstructured.Unstructured) ([]unstructured.Unstructured, error) {
+func (param *ExtractParam) next(items []unstructured.Unstructured, ctx context.Context) (*unstructured.Unstructured, error) {
 	if param.handler == nil {
-		return items, nil
+		return GetUnstructured(items), nil
 	}
-	return param.handler.handle(items)
+	return param.handler.handle(items, ctx)
 }

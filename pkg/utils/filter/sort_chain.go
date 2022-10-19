@@ -17,6 +17,7 @@ limitations under the License.
 package filter
 
 import (
+	"context"
 	"sort"
 	"strings"
 	"time"
@@ -44,9 +45,12 @@ type SortParam struct {
 func (param *SortParam) setNext(handler Handler) {
 	param.handler = handler
 }
-func (param *SortParam) handle(items []unstructured.Unstructured) ([]unstructured.Unstructured, error) {
+func (param *SortParam) handle(items []unstructured.Unstructured, ctx context.Context) (*unstructured.Unstructured, error) {
+	if !ctx.Value(isObjectIsList).(bool) {
+		return param.next(items, ctx)
+	}
 	if len(items) == 0 {
-		return param.next(items)
+		return param.next(items, ctx)
 	}
 	sort.Slice(items, func(i, j int) bool {
 		getStringFunc := func(items []unstructured.Unstructured, i int, j int) (string, string, error) {
@@ -122,12 +126,12 @@ func (param *SortParam) handle(items []unstructured.Unstructured) ([]unstructure
 			}
 		}
 	})
-	return param.next(items)
+	return param.next(items, ctx)
 }
 
-func (param *SortParam) next(items []unstructured.Unstructured) ([]unstructured.Unstructured, error) {
+func (param *SortParam) next(items []unstructured.Unstructured, ctx context.Context) (*unstructured.Unstructured, error) {
 	if param.handler == nil {
-		return items, nil
+		return GetUnstructured(items), nil
 	}
-	return param.handler.handle(items)
+	return param.handler.handle(items, ctx)
 }
