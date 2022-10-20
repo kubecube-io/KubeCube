@@ -1,5 +1,25 @@
 # v1.5.0
 
+## Bugfix
+
+- if sorting is not required, return directly in the sorting method [#180](https://github.com/kubecube-io/KubeCube/pull/180)
+
+## Dependencies
+
+- hnc v1.0
+- nginx-ingress v0.46.0
+- helm 3.5
+- metrics-server v0.4.1
+- elasticsearch 7.8
+- kubecube-monitoring 15.4.8
+- thanos 3.18.0
+- logseer v1.0.0
+- logagent v1.0.0
+- kubecube-audit v1.2.0
+- kubecube-webconsole v1.2.4
+
+# v1.5.0
+
 ## Feature
 
 - feat:<tenant> get namespaces and project by multi tenant [#175](https://github.com/kubecube-io/KubeCube/pull/175)
