@@ -17,6 +17,7 @@ limitations under the License.
 package auth
 
 import (
+	"net/http"
 	"net/url"
 	"regexp"
 
@@ -32,23 +33,15 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
 )
 
-const (
-	post  = "POST"
-	get   = "GET"
-	del   = "DELETE"
-	put   = "PUT"
-	patch = "PATCH"
-)
-
 var AuthWhiteList = map[string]string{
-	constants.ApiPathRoot + "/login":                post,
-	constants.ApiPathRoot + "/audit":                post,
-	constants.ApiPathRoot + "/key/token":            get,
-	constants.ApiPathRoot + "/authorization/access": post,
-	constants.ApiPathRoot + "/oauth/redirect":       get,
-	constants.ApiPathRoot + "/user/pwd":             put,
-	constants.ApiPathRoot + "/user/valid/:username": get,
-	constants.ApiPathRoot + "/clusters/register":    post,
+	constants.ApiPathRoot + "/login":                http.MethodPost,
+	constants.ApiPathRoot + "/audit":                http.MethodPost,
+	constants.ApiPathRoot + "/key/token":            http.MethodGet,
+	constants.ApiPathRoot + "/authorization/access": http.MethodPost,
+	constants.ApiPathRoot + "/oauth/redirect":       http.MethodGet,
+	constants.ApiPathRoot + "/user/pwd":             http.MethodPut,
+	constants.ApiPathRoot + "/user/valid/:username": http.MethodGet,
+	constants.ApiPathRoot + "/clusters/register":    http.MethodPost,
 }
 
 func WithinWhiteList(url *url.URL, method string, whiteList map[string]string) bool {

@@ -20,9 +20,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kubecube-io/kubecube/pkg/clients"
-	"github.com/kubecube-io/kubecube/pkg/clog"
-
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
@@ -183,46 +180,6 @@ func InitStatus(current *quotav1.CubeResourceQuota) {
 
 	current.Status.Used = used
 	current.Status.SubResourceQuotas = make([]string, 0)
-}
-
-// todo: get real physical resource from nodes pool cr, use cluster name at begin
-func physicalResourceFrom(objName string) v1.ResourceList {
-	cli := clients.Interface().Kubernetes(objName)
-	nodes := v1.NodeList{}
-	err := cli.Cache().List(context.Background(), &nodes)
-	if err != nil {
-		clog.Error("get cluster %v nodes failed: %v", objName, err)
-	}
-
-	cpu := quota.ZeroQ()
-	mem := quota.ZeroQ()
-	storage := quota.ZeroQ()
-	storageEphemeral := quota.ZeroQ()
-	pods := quota.ZeroQ()
-
-	for _, v := range nodes.Items {
-		cpu.Add(*v.Status.Capacity.Cpu())
-		mem.Add(*v.Status.Capacity.Memory())
-		storage.Add(*v.Status.Capacity.Storage())
-		storageEphemeral.Add(*v.Status.Capacity.StorageEphemeral())
-		pods.Add(*v.Status.Capacity.Pods())
-	}
-
-	r := map[v1.ResourceName]resource.Quantity{
-		v1.ResourceRequestsCPU:              cpu,
-		v1.ResourceLimitsCPU:                cpu,
-		v1.ResourceCPU:                      cpu,
-		v1.ResourceRequestsMemory:           mem,
-		v1.ResourceLimitsMemory:             mem,
-		v1.ResourceMemory:                   mem,
-		v1.ResourceRequestsEphemeralStorage: storageEphemeral,
-		v1.ResourceLimitsEphemeralStorage:   storageEphemeral,
-		v1.ResourceEphemeralStorage:         storageEphemeral,
-		v1.ResourceStorage:                  storage,
-		v1.ResourcePods:                     pods,
-	}
-
-	return r
 }
 
 // AllowedDel return true if deletion of current cube resource quota

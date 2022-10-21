@@ -55,7 +55,7 @@ func PvcHandle(param resourcemanage.ExtendParams) (interface{}, error) {
 	return pvc.GetPvc()
 }
 
-//GetPvc list pvcs, and add extend info that which pod mount this pvc
+// GetPvc list pvcs, and add extend info that which pod mount this pvc
 func (p *Pvc) GetPvc() (filter.K8sJson, error) {
 	result := make(filter.K8sJson)
 	pvcList := v1.PersistentVolumeClaimList{}

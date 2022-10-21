@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package hotplug_test
 
 import (
@@ -44,7 +45,7 @@ var _ = Describe("HotplugController", func() {
 		// crete
 		hotplug1 := hotplugTemplate("common")
 		hotplug2 := hotplugTemplate("pivot-cluster-test")
-		fakeClient := fake.NewFakeClientWithScheme(scheme, &hotplug1, &hotplug2)
+		fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(&hotplug1, &hotplug2).Build()
 
 		hotplugCtrl := hotplug.HotplugReconciler{}
 		hotplugCtrl.Client = fakeClient

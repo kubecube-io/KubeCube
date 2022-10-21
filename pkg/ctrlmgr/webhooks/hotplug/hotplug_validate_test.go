@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package hotplug
 
 import (
@@ -43,9 +44,9 @@ func TestValidateDelete(t *testing.T) {
 	_ = v1.AddToScheme(scheme)
 
 	// crete
-	cluser1 := clusterTemplate("test-cluster1")
+	cluster1 := clusterTemplate("test-cluster1")
 	cluster2 := clusterTemplate("common")
-	fakeClient := fake.NewFakeClientWithScheme(scheme, &cluser1, &cluster2)
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(&cluster1, &cluster2).Build()
 
 	// test delete if project still exist
 	hotplugValidate := NewHotplugValidator(fakeClient)

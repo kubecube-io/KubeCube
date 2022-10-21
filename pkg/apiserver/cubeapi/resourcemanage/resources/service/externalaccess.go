@@ -286,6 +286,9 @@ func (s *ExternalAccess) GetExternalAccess() ([]ExternalAccessInfo, error) {
 			continue
 		}
 		servicePort, err := strconv.Atoi(split[1])
+		if err != nil {
+			continue
+		}
 		protocol := UDP
 		externalPort, err := strconv.Atoi(k)
 		if err != nil {

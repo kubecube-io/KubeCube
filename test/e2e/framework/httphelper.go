@@ -115,6 +115,7 @@ func (h *HttpHelper) LoginByUser(user *AuthUser) error {
 		clog.Error("login fail, %v", err)
 		return err
 	}
+	defer resp.Body.Close()
 	user.Cookies = resp.Cookies()
 	user.AuthType = 0
 	return nil
@@ -256,18 +257,22 @@ func (h *HttpHelper) MultiUserRequest(method, url, body string, header map[strin
 	r1 := h.RequestByUser(method, h.FormatUrl(url), body, header, "admin")
 	resp1, err1 := h.Client.Do(&r1)
 	ret["admin"] = MultiRequestResponse{resp1, err1}
+	defer resp1.Body.Close()
 
 	r2 := h.RequestByUser(method, h.FormatUrl(url), body, header, "tenantAdmin")
 	resp2, err2 := h.Client.Do(&r2)
 	ret["tenantAdmin"] = MultiRequestResponse{resp2, err2}
+	defer resp2.Body.Close()
 
 	r3 := h.RequestByUser(method, h.FormatUrl(url), body, header, "projectAdmin")
 	resp3, err3 := h.Client.Do(&r3)
 	ret["projectAdmin"] = MultiRequestResponse{resp3, err3}
+	defer resp3.Body.Close()
 
 	r4 := h.RequestByUser(method, h.FormatUrl(url), body, header, "user")
 	resp4, err4 := h.Client.Do(&r4)
 	ret["user"] = MultiRequestResponse{resp4, err4}
+	defer resp4.Body.Close()
 
 	return ret
 }

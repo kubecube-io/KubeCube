@@ -116,11 +116,12 @@ func (m *ControllerManager) Run(stop <-chan struct{}) {
 		clog.Info("kubecube won the leader")
 		cancel()
 	}()
-
+	ticker := time.NewTicker(20 * time.Second)
+	defer ticker.Stop()
 	select {
 	case <-m.CtrlMgr.Elected():
 		// as elected leader need not multi cluster sync
-	case <-time.Tick(20 * time.Second):
+	case <-ticker.C:
 		// exceed 10 seconds we thought current mgr is not leader.
 		// need cluster sync
 		clog.Info("kubecube run as subsidiary")

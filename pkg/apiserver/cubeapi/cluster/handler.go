@@ -147,7 +147,7 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 			response.FailReturn(c, errcode.InternalServerError)
 			return
 		}
-		clusterList = clusterv1.ClusterList{Items: []clusterv1.Cluster{cluster}}
+		clusterList.Items = []clusterv1.Cluster{cluster}
 	// find related clusters by given project name
 	case len(projectName) > 0:
 		clusters, err := getClustersByProject(ctx, projectName)
@@ -396,9 +396,9 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 		}
 
 		for _, anchor := range anchors.Items {
-			project, ok := anchor.Labels[constants.ProjectLabel]
-			tenant, ok := anchor.Labels[constants.TenantLabel]
-			if ok && anchor.ObjectMeta.DeletionTimestamp.IsZero() {
+			project, ok1 := anchor.Labels[constants.ProjectLabel]
+			tenant, ok2 := anchor.Labels[constants.TenantLabel]
+			if ok1 && ok2 && anchor.ObjectMeta.DeletionTimestamp.IsZero() {
 
 				// fetch namespace under subNamespace
 				ns := v1.Namespace{}
@@ -466,8 +466,8 @@ type scriptData struct {
 // @Router /api/v1/cube/clusters/addCluster  [post]
 func (h *handler) addCluster(c *gin.Context) {
 	const (
-		defaultNetworkType string = "calico"
-		defaultDescription        = "this is member cluster"
+		defaultNetworkType = "calico"
+		defaultDescription = "this is member cluster"
 	)
 
 	d := scriptData{}

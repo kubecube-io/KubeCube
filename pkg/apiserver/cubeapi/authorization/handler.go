@@ -96,7 +96,7 @@ func (h *handler) getRolesByUser(c *gin.Context) {
 	}
 
 	if userName == "" {
-		r := make(map[string]interface{})
+		var r map[string]interface{}
 		var err error
 		if ns != "" {
 			r, err = getRolesByNs(c.Request.Context(), h.Client, ns)

@@ -36,11 +36,11 @@ import (
 )
 
 const (
-	common   = "common"
-	fail     = "fail"
-	success  = "success"
-	enabled  = "enabled"
-	disabled = "disabled"
+	common  = "common"
+	fail    = "fail"
+	success = "success"
+	enabled = "enabled"
+	//disabled = "disabled"
 )
 
 var _ reconcile.Reconciler = &HotplugReconciler{}

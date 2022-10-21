@@ -31,9 +31,11 @@ func RegisterCheckFunc(fn checkFunc) {
 }
 
 func readyzCheck(ctx context.Context, ch chan struct{}, checkFn checkFunc) {
+	ticker := time.NewTicker(waitPeriod)
+	defer ticker.Stop()
 	for {
 		select {
-		case <-time.Tick(waitPeriod):
+		case <-ticker.C:
 			if checkFn() {
 				ch <- struct{}{}
 				return

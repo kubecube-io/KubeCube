@@ -40,7 +40,7 @@ type Handler struct {
 	authMgr authenticators.AuthNManager
 
 	// cfg holds current cluster info
-	cfg *rest.Config
+	// cfg *rest.Config
 
 	// proxy do real proxy action with any inbound stream
 	proxy *proxy.UpgradeAwareHandler

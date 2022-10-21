@@ -36,9 +36,11 @@ import (
 
 // reporting do real report loop
 func (r *Reporter) reporting(stop <-chan struct{}) {
+	ticker := time.NewTicker(time.Duration(r.PeriodSecond) * time.Second)
+	defer ticker.Stop()
 	for {
 		select {
-		case <-time.Tick(time.Duration(r.PeriodSecond) * time.Second):
+		case <-ticker.C:
 			healthy := r.report()
 			if healthy {
 				r.healPivotCluster()
@@ -93,6 +95,7 @@ func (r *Reporter) report() bool {
 		return false
 	}
 
+	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		log.Debug("kubecube is unhealthy with resp code: %v", resp.StatusCode)
 		return false

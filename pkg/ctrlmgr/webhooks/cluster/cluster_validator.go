@@ -33,8 +33,8 @@ import (
 )
 
 var (
-	clusterLog    clog.CubeLogger
-	clusterClient client.Client
+	clusterLog clog.CubeLogger
+	//clusterClient client.Client
 )
 
 type ClusterValidator struct {
@@ -43,7 +43,7 @@ type ClusterValidator struct {
 
 func NewClusterValidator(mgrClient client.Client) *ClusterValidator {
 	clusterLog = clog.WithName("Webhook").WithName("ClusterValidator")
-	clusterClient = mgrClient
+	//clusterClient = mgrClient
 	return &ClusterValidator{}
 }
 
