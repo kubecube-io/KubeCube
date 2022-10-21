@@ -61,6 +61,7 @@ var _ = ginkgo.Describe("Test user action", func() {
 				},
 			}
 			err := cli.Direct().Delete(ctx, user)
+			framework.ExpectNoError(err)
 
 			// create user by api
 			userItem := userv1.User{
@@ -123,6 +124,7 @@ var _ = ginkgo.Describe("Test user action", func() {
 				},
 			}
 			err := cli.Direct().Delete(ctx, user1)
+			framework.ExpectNoError(err)
 			err = cli.Direct().Create(ctx, user1)
 			framework.ExpectNoError(err)
 			err = wait.Poll(waitInterval, waitTimeout,

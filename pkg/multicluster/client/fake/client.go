@@ -21,7 +21,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/metrics/pkg/client/clientset/versioned"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/cache/informertest"
@@ -43,7 +42,7 @@ type FakerClient struct {
 	rawClientSet kubernetes.Interface
 	metrics      versioned.Interface
 	discovery    discovery.DiscoveryInterface
-	restful      rest.Interface
+	//restful      rest.Interface
 
 	// restMapper map GroupVersionKinds to Resources
 	restMapper meta.RESTMapper
