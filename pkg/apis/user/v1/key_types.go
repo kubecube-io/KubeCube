@@ -33,8 +33,8 @@ type KeyStatus struct {
 //+kubebuilder:object:root=true
 
 // Key is the Schema for the keys API
-// +kubebuilder:resource:categories="kubecube",scope="Cluster"
-// +kubebuilder:printcolumn:name="User",type="string",JSONPath=".spec.user"
+//+kubebuilder:resource:categories="kubecube",scope="Cluster"
+//+kubebuilder:printcolumn:name="User",type="string",JSONPath=".spec.user"
 type Key struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

@@ -15,8 +15,8 @@ limitations under the License.
 */
 
 // Package v1 contains API Schema definitions for the tenant v1 API group
-// +kubebuilder:object:generate=true
-// +groupName=tenant.kubecube.io
+//+kubebuilder:object:generate=true
+//+groupName=tenant.kubecube.io
 package v1
 
 import (

@@ -38,3 +38,6 @@ issues:
     - linters:
         - errorlint
       text: "non-wrapping"
+    - linters:
+        - gofmt
+      path: pkg/apis

@@ -15,8 +15,8 @@ limitations under the License.
 */
 
 // Package v1 contains API Schema definitions for the extension v1 API group
-// +kubebuilder:object:generate=true
-// +groupName=extension.kubecube.io
+//+kubebuilder:object:generate=true
+//+groupName=extension.kubecube.io
 package v1
 
 import (
