@@ -133,6 +133,7 @@ func (rt *upgradeRequestRoundTripper) WrapRequest(req *http.Request) (*http.Requ
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 	return resp.Request, nil
 }
 
@@ -301,6 +302,7 @@ func (h *UpgradeAwareHandler) tryUpgrade(w http.ResponseWriter, req *http.Reques
 		h.Responder.Error(w, req, err)
 		return true
 	}
+	defer backendHTTPResponse.Body.Close()
 	if len(headerBytes) > len(rawResponse) {
 		// we read beyond the bytes stored in rawResponse, update rawResponse to the full set of bytes read from the backend
 		rawResponse = headerBytes

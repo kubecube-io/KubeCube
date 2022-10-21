@@ -72,11 +72,6 @@ func makeUserNames(users []*userv1.User) []string {
 	return userNames
 }
 
-const (
-	tenant = iota
-	project
-)
-
 // getAccessTenants get visible tenants of user
 func getAccessTenants(rbac rbac.Interface, user string, cli mgrclient.Client, ctx context.Context, auth string) (result, error) {
 	tenantSet := sets.NewString()
@@ -168,43 +163,6 @@ func filterBy(tenant []string, projects []tenantv1.Project) (res []tenantv1.Proj
 		}
 	}
 	return
-}
-
-// getAccessObjs get visible objects of user
-func getAccessObjs(rbac rbac.Interface, user string, cli mgrclient.Client, ctx context.Context, objKind int, auth string) (result, error) {
-	res := result{}
-	var lists []interface{}
-	switch objKind {
-	case tenant:
-		tenantList := tenantv1.TenantList{}
-		err := cli.Cache().List(ctx, &tenantList)
-		if err != nil {
-			return res, err
-		}
-
-		for _, t := range tenantList.Items {
-			if isAllowedAccess(rbac, user, t.Spec.Namespace, auth) {
-				lists = append(lists, t)
-			}
-		}
-	case project:
-		projectList := tenantv1.ProjectList{}
-		err := cli.Cache().List(ctx, &projectList)
-		if err != nil {
-			return res, err
-		}
-
-		for _, p := range projectList.Items {
-			if isAllowedAccess(rbac, user, p.Spec.Namespace, auth) {
-				lists = append(lists, p)
-			}
-		}
-	}
-
-	res.Total = len(lists)
-	res.Items = lists
-
-	return res, nil
 }
 
 // isAllowedAccess consider user has visible view of given namespace

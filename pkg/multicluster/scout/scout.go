@@ -105,12 +105,14 @@ func (s *Scout) ClusterHealth() v1.ClusterState {
 
 // Collect will scout a specified warden of cluster
 func (s *Scout) Collect(ctx context.Context) {
+	ticker := time.NewTicker(time.Duration(s.WaitTimeoutSeconds) * time.Second)
+	defer ticker.Stop()
 	for {
 		select {
 		case info := <-s.Receiver:
 			s.healthWarden(ctx, info)
 
-		case <-time.Tick(time.Duration(s.WaitTimeoutSeconds) * time.Second):
+		case <-ticker.C:
 			s.illWarden(ctx)
 
 		case <-ctx.Done():

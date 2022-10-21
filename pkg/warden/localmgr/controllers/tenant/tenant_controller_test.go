@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package controllers
 
 import (
@@ -50,7 +51,7 @@ func TestReconcile(t *testing.T) {
 
 	// crete
 	tenant1 := tenantTemplate("test-tenant1")
-	fakeClient := fake.NewFakeClientWithScheme(scheme, &tenant1)
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(&tenant1).Build()
 
 	tenantReconciler := TenantReconciler{}
 	tenantReconciler.Client = fakeClient

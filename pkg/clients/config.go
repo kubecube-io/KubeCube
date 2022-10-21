@@ -16,10 +16,8 @@ limitations under the License.
 
 package clients
 
-import "k8s.io/client-go/rest"
-
 type Config struct {
-	cfg *rest.Config
+	//cfg *rest.Config
 }
 
 func (c *Config) Validate() []error {

@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package filter
 
 import (
@@ -371,7 +372,7 @@ var _ = Describe("Filter", func() {
 		Expect(err).To(BeNil())
 		Expect(1).To(Equal(len(value)))
 		Expect("world").To(Equal(value[0]))
-		value, err = GetDeepValue(items[0], "metadata.labels.hello1")
+		_, err = GetDeepValue(items[0], "metadata.labels.hello1")
 		Expect(err.Error()).To(Equal("field hello1 not exsit"))
 	})
 

@@ -41,6 +41,8 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/international"
 )
 
+const cubePrefix = "/api/v1/cube"
+
 var (
 	json           = jsoniter.ConfigCompatibleWithStandardLibrary
 	auditWhiteList = map[string]string{
@@ -201,7 +203,7 @@ func (h *Handler) handleProxyApi(ctx context.Context, c *gin.Context, e Event) *
 	}
 
 	// get object type from url
-	queryUrl := strings.Trim(strings.Split(requestURI, "?")[0], "/api/v1/cube")
+	queryUrl := strings.TrimPrefix(strings.Split(requestURI, "?")[0], cubePrefix)
 	urlstrs := strings.Split(queryUrl, "/")
 	length := len(urlstrs)
 	for i, str := range urlstrs {
@@ -340,6 +342,10 @@ func (r responseBodyWriter) WriteString(s string) (n int, err error) {
 func getPostObjectName(c *gin.Context) string {
 	// get request body
 	data, err := c.GetRawData()
+	if err != nil {
+		clog.Warn("[audit] get raw data err: %s", err.Error())
+		return ""
+	}
 	// put request body back
 	c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(data))
 	// get resource name from metadata.name

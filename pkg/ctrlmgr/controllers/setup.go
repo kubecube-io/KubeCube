@@ -17,6 +17,7 @@ limitations under the License.
 package controllers
 
 import (
+	"errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
@@ -41,7 +42,8 @@ func init() {
 func SetupWithManager(m manager.Manager) error {
 	for _, f := range setupFns {
 		if err := f(m); err != nil {
-			if kindMatchErr, ok := err.(*meta.NoKindMatchError); ok {
+			var kindMatchErr *meta.NoKindMatchError
+			if errors.As(err, &kindMatchErr) {
 				clog.Warn("CRD %v is not installed, its controller will dry run!", kindMatchErr.GroupKind)
 				continue
 			}
