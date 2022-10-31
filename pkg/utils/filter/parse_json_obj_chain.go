@@ -41,7 +41,7 @@ type ParseJsonObjParam struct {
 func (param *ParseJsonObjParam) setNext(handler Handler) {
 	param.handler = handler
 }
-func (param *ParseJsonObjParam) handle(_ []unstructured.Unstructured, ctx context.Context) (*unstructured.Unstructured, error) {
+func (param *ParseJsonObjParam) handle(ctx context.Context, _ []unstructured.Unstructured) (*unstructured.Unstructured, error) {
 	codecFactory := serializer.NewCodecFactory(param.scheme)
 	decoder := codecFactory.UniversalDecoder()
 	object := unstructured.Unstructured{}

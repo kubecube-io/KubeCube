@@ -43,7 +43,7 @@ type ConvertParam struct {
 func (param *ConvertParam) setNext(handler Handler) {
 	param.handler = handler
 }
-func (param *ConvertParam) handle(items []unstructured.Unstructured, ctx context.Context) (*unstructured.Unstructured, error) {
+func (param *ConvertParam) handle(ctx context.Context, items []unstructured.Unstructured) (*unstructured.Unstructured, error) {
 	res := make([]unstructured.Unstructured, 0, len(items))
 	for _, u := range items {
 		if u.GetAPIVersion() == "" {

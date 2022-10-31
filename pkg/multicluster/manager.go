@@ -227,6 +227,7 @@ func (m *MultiClustersMgr) GetClient(cluster string) (client.Client, error) {
 
 	return c.Client, err
 }
+
 func (m *MultiClustersMgr) GetTransport(cluster string) (http.RoundTripper, error) {
 	c, err := m.Get(cluster)
 	if err != nil {

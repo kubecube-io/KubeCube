@@ -316,5 +316,6 @@ func parseQueryParams(c *gin.Context) *filter.Filter {
 	limit, offset := page.ParsePage(c.Query("pageSize"), c.Query("pageNum"))
 	sortName, sortOrder, sortFunc := sort.ParseSort(c.Query("sortName"), c.Query("sortOrder"), c.Query("sortFunc"))
 
+	// fixme use struct
 	return filter.NewFilter(exact, fuzzy, limit, offset, sortName, sortOrder, sortFunc, nil)
 }

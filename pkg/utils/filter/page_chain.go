@@ -39,7 +39,7 @@ type PageParam struct {
 func (param *PageParam) setNext(handler Handler) {
 	param.handler = handler
 }
-func (param *PageParam) handle(items []unstructured.Unstructured, ctx context.Context) (*unstructured.Unstructured, error) {
+func (param *PageParam) handle(ctx context.Context, items []unstructured.Unstructured) (*unstructured.Unstructured, error) {
 	if !ctx.Value(isObjectIsList).(bool) {
 		return param.next(items, ctx)
 	}

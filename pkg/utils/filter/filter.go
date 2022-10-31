@@ -27,7 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"net/http"
 
 	"github.com/kubecube-io/kubecube/pkg/clog"
@@ -43,37 +42,12 @@ var (
 	json = jsoniter.ConfigCompatibleWithStandardLibrary
 )
 
-func NewEmptyFilter(installFunc ...InstallFunc) *Filter {
-	scheme := runtime.NewScheme()
-	install(scheme, installFunc...)
-	return &Filter{Scheme: scheme}
-}
-
-func NewPageFilter(limit int, offset int, installFunc ...InstallFunc) *Filter {
-	scheme := runtime.NewScheme()
-	install(scheme, installFunc...)
-	return &Filter{Scheme: scheme, Limit: limit, Offset: offset}
-}
-
-func NewFilter(exact map[string]sets.String,
-	fuzzy map[string][]string,
-	limit int,
-	offset int,
-	sortName string,
-	sortOrder string,
-	sortFunc string,
+func NewFilter(
 	ctx *ConverterContext,
 	installFunc ...InstallFunc) *Filter {
 	scheme := runtime.NewScheme()
 	install(scheme, installFunc...)
 	return &Filter{
-		Exact:            exact,
-		Fuzzy:            fuzzy,
-		Limit:            limit,
-		Offset:           offset,
-		SortName:         sortName,
-		SortOrder:        sortOrder,
-		SortFunc:         sortFunc,
 		Scheme:           scheme,
 		ConverterContext: ctx,
 	}
@@ -81,14 +55,6 @@ func NewFilter(exact map[string]sets.String,
 
 // Filter is the filter condition
 type Filter struct {
-	Exact     map[string]sets.String
-	Fuzzy     map[string][]string
-	Limit     int
-	Offset    int
-	SortName  string
-	SortOrder string
-	SortFunc  string
-
 	Scheme *runtime.Scheme
 	// ConverterContext holds methods to convert objects
 	*ConverterContext
@@ -102,7 +68,7 @@ type ConverterContext struct {
 }
 
 // ModifyResponse modify the response
-func (f *Filter) ModifyResponse(r *http.Response) error {
+func (f *Filter) ModifyResponse(r *http.Response, filterCondition *Condition) error {
 	// get info from response
 	var body []byte
 	var err error
@@ -128,7 +94,8 @@ func (f *Filter) ModifyResponse(r *http.Response) error {
 		}
 	}
 
-	if obj, err := f.doFilter(body); err == nil {
+	// todo create index
+	if obj, err := f.doFilter(body, filterCondition); err == nil {
 		// return result
 		marshal, err := json.Marshal(obj)
 		if err != nil {
@@ -145,7 +112,7 @@ func (f *Filter) ModifyResponse(r *http.Response) error {
 	return nil
 }
 
-func (f *Filter) FilterObjectList(object runtime.Object) (*int, error) {
+func (f *Filter) FilterObjectList(object runtime.Object, filterCondition *Condition) (*int, error) {
 	pageBean := PageBean{}
 	version := object.GetObjectKind().GroupVersionKind().Version
 	u := unstructured.Unstructured{}
@@ -166,28 +133,26 @@ func (f *Filter) FilterObjectList(object runtime.Object) (*int, error) {
 		return nil, nil
 	}
 	version = listObject[0].GroupVersionKind().Version
-	first := &First{}
 	var temp Handler
-	temp = first
-	if len(f.Exact) != 0 {
-		extract := ExtractFilterChain(f.Exact)
+	if len(filterCondition.Exact) != 0 {
+		extract := ExtractFilterChain(filterCondition.Exact)
 		temp.setNext(extract)
 		temp = extract
 	}
 
-	if len(f.Fuzzy) != 0 {
-		fuzzy := FuzzyFilterChain(f.Fuzzy)
+	if len(filterCondition.Fuzzy) != 0 {
+		fuzzy := FuzzyFilterChain(filterCondition.Fuzzy)
 		temp.setNext(fuzzy)
 		temp = fuzzy
 	}
 
-	if len(f.SortName) != 0 {
-		sortChain := SortFilterChain(f.SortName, f.SortOrder, f.SortFunc)
+	if len(filterCondition.SortName) != 0 {
+		sortChain := SortFilterChain(filterCondition.SortName, filterCondition.SortOrder, filterCondition.SortFunc)
 		temp.setNext(sortChain)
 		temp = sortChain
 	}
-	if f.Limit != 0 {
-		pageChain := PageFilterChain(f.Limit, f.Offset)
+	if filterCondition.Limit != 0 {
+		pageChain := PageFilterChain(filterCondition.Limit, filterCondition.Offset)
 		pageBean.Total = pageChain.total
 		temp.setNext(pageChain)
 		temp = pageChain
@@ -197,8 +162,7 @@ func (f *Filter) FilterObjectList(object runtime.Object) (*int, error) {
 		temp.setNext(convert)
 		temp = convert
 	}
-	temp.setNext(&Last{})
-	res, err := first.handle(listObject, context.WithValue(context.Background(), isObjectIsList, true))
+	res, err := temp.handle(listObject, context.WithValue(context.Background(), isObjectIsList, true))
 	if err != nil {
 		return nil, err
 	}
@@ -214,33 +178,31 @@ func (f *Filter) FilterObjectList(object runtime.Object) (*int, error) {
 	return pageBean.Total, nil
 }
 
-func (f *Filter) doFilter(data []byte) (*unstructured.Unstructured, error) {
-	first := &First{}
+func (f *Filter) doFilter(data []byte, filterCondition *Condition) (*unstructured.Unstructured, error) {
 	var temp Handler
 	var total *int
-	temp = first
 	parseJson := ParseJsonObjChain(data, f.Scheme)
 	temp.setNext(parseJson)
 	temp = parseJson
-	if len(f.Exact) != 0 {
-		extract := ExtractFilterChain(f.Exact)
+	if len(filterCondition.Exact) != 0 {
+		extract := ExtractFilterChain(filterCondition.Exact)
 		temp.setNext(extract)
 		temp = extract
 	}
 
-	if len(f.Fuzzy) != 0 {
-		fuzzy := FuzzyFilterChain(f.Fuzzy)
+	if len(filterCondition.Fuzzy) != 0 {
+		fuzzy := FuzzyFilterChain(filterCondition.Fuzzy)
 		temp.setNext(fuzzy)
 		temp = fuzzy
 	}
 
-	if len(f.SortName) != 0 {
-		sortChain := SortFilterChain(f.SortName, f.SortOrder, f.SortFunc)
+	if len(filterCondition.SortName) != 0 {
+		sortChain := SortFilterChain(filterCondition.SortName, filterCondition.SortOrder, filterCondition.SortFunc)
 		temp.setNext(sortChain)
 		temp = sortChain
 	}
-	if f.Limit != 0 {
-		pageChain := PageFilterChain(f.Limit, f.Offset)
+	if filterCondition.Limit != 0 {
+		pageChain := PageFilterChain(filterCondition.Limit, filterCondition.Offset)
 		total = pageChain.total
 		temp.setNext(pageChain)
 		temp = pageChain
@@ -250,8 +212,7 @@ func (f *Filter) doFilter(data []byte) (*unstructured.Unstructured, error) {
 		temp.setNext(convert)
 		temp = convert
 	}
-	temp.setNext(&Last{})
-	object, err := first.handle(nil, context.Background())
+	object, err := temp.handle(nil, context.Background())
 	if err != nil {
 		return nil, err
 	}

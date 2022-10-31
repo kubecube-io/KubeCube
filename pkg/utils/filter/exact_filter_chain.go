@@ -37,7 +37,7 @@ type ExtractParam struct {
 func (param *ExtractParam) setNext(handler Handler) {
 	param.handler = handler
 }
-func (param *ExtractParam) handle(items []unstructured.Unstructured, ctx context.Context) (*unstructured.Unstructured, error) {
+func (param *ExtractParam) handle(ctx context.Context, items []unstructured.Unstructured) (*unstructured.Unstructured, error) {
 	if !ctx.Value(isObjectIsList).(bool) {
 		return param.next(items, ctx)
 	}
