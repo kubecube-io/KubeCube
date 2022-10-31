@@ -109,7 +109,8 @@ func (r *Reporter) do(info scout.WardenInfo) (*http.Response, error) {
 
 	reader := bytes.NewReader(data)
 
-	url := fmt.Sprintf("https://%s%s", r.PivotCubeHost, "/api/v1/cube/scout/heartbeat")
+	// fixme support use https and http
+	url := fmt.Sprintf("http://%s%s", r.PivotCubeHost, "/api/v1/cube/scout/heartbeat")
 
 	resp, err := r.Client.Post(url, "application/json", reader)
 	if err != nil {
