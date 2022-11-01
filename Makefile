@@ -18,6 +18,8 @@ GOFILES=$(shell find . -name "*.go" -type f -not -path "./vendor/*")
 
 all: build
 
+build: build-cube build-warden
+
 ##@ General
 
 # The help target prints out all targets with their descriptions organized
@@ -51,6 +53,7 @@ fmt-check:
 	if [ -n "$${diff}" ]; then \
 		echo "Please run 'make fmt' and commit the result:"; \
 		echo "$${diff}"; \
+		exit 1; \
 	fi;
 
 swag-gen:
