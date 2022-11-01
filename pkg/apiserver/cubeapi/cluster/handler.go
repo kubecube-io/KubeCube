@@ -135,6 +135,7 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 	clusterStatus := c.Query("status")
 	projectName := c.Query("project")
 	nodeLabelSelector := c.Query("nodeLabelSelector")
+	simplifyInfo := c.Query("simplify")
 
 	switch {
 	// find cluster by given name
@@ -175,7 +176,13 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 		return
 	}
 
-	infos, err := makeClusterInfos(c.Request.Context(), clusterList, cli, clusterStatus, selector)
+	opts := clusterInfoOpts{
+		simplifyInfo:      simplifyInfo == "true",
+		statusFilter:      clusterStatus,
+		nodeLabelSelector: selector,
+	}
+
+	infos, err := makeClusterInfos(c.Request.Context(), clusterList, cli, opts)
 	if err != nil {
 		clog.Error(err.Error())
 		response.FailReturn(c, errcode.InternalServerError)
