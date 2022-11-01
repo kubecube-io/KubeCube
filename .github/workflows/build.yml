@@ -26,14 +26,7 @@ jobs:
           go-version: 1.16
 
       - name: go fmt check
-        run: |
-          gofiles=$(find . -name "*.go" -type f -not -path "./vendor/*");
-          diff=`gofmt -s -l ${gofiles}`;
-          if [ -n "${diff}" ]; then
-              echo "Please run 'make fmt' and commit the result:";
-              echo "${diff}";
-              exit 1;
-          fi;
+        run: make fmt-check
 
       - name: Build
         run: make build
