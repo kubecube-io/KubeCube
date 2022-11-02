@@ -16,12 +16,12 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -39,9 +39,15 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/strproc"
 )
 
+type clusterInfoOpts struct {
+	statusFilter      string
+	nodeLabelSelector labels.Selector
+	simplifyInfo      bool
+}
+
 // makeClusterInfos make cluster info with clusters given
 // todo split metric and cluster info into two apis
-func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivotCli mgrclient.Client, statusFilter string, nodeLabelSelector labels.Selector) ([]clusterInfo, error) {
+func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivotCli mgrclient.Client, opts clusterInfoOpts) ([]clusterInfo, error) {
 	// populate cluster info one by one
 	infos := make([]clusterInfo, 0)
 	for _, item := range clusters.Items {
@@ -87,9 +93,9 @@ func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivot
 			info.Status = string(clusterv1.ClusterAbnormal)
 		}
 		if internalCluster == nil {
-			if len(statusFilter) == 0 {
+			if len(opts.statusFilter) == 0 {
 				infos = append(infos, info)
-			} else if info.Status == statusFilter {
+			} else if info.Status == opts.statusFilter {
 				infos = append(infos, info)
 			}
 			continue
@@ -97,23 +103,30 @@ func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivot
 
 		cli := internalCluster.Client
 
-		// todo(weilaaa): context may be exceed if metrics query timeout
-		// will deprecated in v2.0.x
-		nodesMc, err := cli.Metrics().MetricsV1beta1().NodeMetricses().List(ctx, metav1.ListOptions{LabelSelector: nodeLabelSelector.String()})
-		if err != nil {
-			// record error from metric server, but ensure return normal
-			clog.Warn("get cluster %v nodes metrics failed: %v", v, err)
-		} else {
-			for _, m := range nodesMc.Items {
-				info.UsedCPU += int(m.Usage.Cpu().MilliValue())                                         // 1000 m
-				info.UsedMem += int(m.Usage.Memory().ScaledValue(resource.Mega))                        // 1024 Mi
-				info.UsedStorage += int(m.Usage.Storage().ScaledValue(resource.Mega))                   // 1024 Mi
-				info.UsedStorageEphemeral += int(m.Usage.StorageEphemeral().ScaledValue(resource.Mega)) // 1024 Mi
+		if !opts.simplifyInfo {
+			// todo(weilaaa): context may be exceed if metrics query timeout
+			// will deprecated in v2.0.x
+			metricListCtx, cancel := context.WithTimeout(ctx, time.Second)
+			nodesMc, err := cli.Metrics().MetricsV1beta1().NodeMetricses().List(metricListCtx, metav1.ListOptions{LabelSelector: opts.nodeLabelSelector.String()})
+			if err != nil {
+				// record error from metric server, but ensure return normal
+				clog.Warn("get cluster %v nodes metrics failed: %v", v, err)
+			} else {
+				for _, m := range nodesMc.Items {
+					info.UsedCPU += int(m.Usage.Cpu().MilliValue())                                         // 1000 m
+					info.UsedMem += int(m.Usage.Memory().ScaledValue(resource.Mega))                        // 1024 Mi
+					info.UsedStorage += int(m.Usage.Storage().ScaledValue(resource.Mega))                   // 1024 Mi
+					info.UsedStorageEphemeral += int(m.Usage.StorageEphemeral().ScaledValue(resource.Mega)) // 1024 Mi
+				}
 			}
+
+			// releases resources if call metric api completes before timeout elapses
+			// or any errors occurred
+			cancel()
 		}
 
 		nodes := corev1.NodeList{}
-		err = cli.Cache().List(ctx, &nodes, &client.ListOptions{LabelSelector: nodeLabelSelector})
+		err = cli.Cache().List(ctx, &nodes, &client.ListOptions{LabelSelector: opts.nodeLabelSelector})
 		if err != nil {
 			return nil, fmt.Errorf("get cluster %v nodes failed: %v", v, err)
 		}
@@ -135,23 +148,33 @@ func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivot
 
 		info.NamespaceCount = len(ns.Items)
 
-		clusterNonTerminatedPods, err := getPodsInNodes(cli, nodes.Items)
-		if err != nil {
-			return nil, err
+		if !opts.simplifyInfo {
+			podList := &corev1.PodList{}
+			err := cli.Cache().List(context.TODO(), podList)
+			if err != nil {
+				return nil, err
+			}
+			nodesName := sets.NewString()
+			for i := range nodes.Items {
+				nodesName.Insert(nodes.Items[i].Name)
+			}
+
+			for i := range podList.Items {
+				statusPhase := podList.Items[i].Status.Phase
+				if nodesName.Has(podList.Items[i].Spec.NodeName) && statusPhase != corev1.PodSucceeded && statusPhase != corev1.PodFailed {
+					req, limit := podRequestsAndLimits(&podList.Items[i])
+					cpuReq, cpuLimit, memoryReq, memoryLimit := req[corev1.ResourceCPU], limit[corev1.ResourceCPU], req[corev1.ResourceMemory], limit[corev1.ResourceMemory]
+					info.UsedCPURequest += int(cpuReq.MilliValue())                  // 1000 m
+					info.UsedCPULimit += int(cpuLimit.MilliValue())                  // 1000 m
+					info.UsedMemRequest += int(memoryReq.ScaledValue(resource.Mega)) // 1024 Mi
+					info.UsedMemLimit += int(memoryLimit.ScaledValue(resource.Mega)) // 1024 Mi
+				}
+			}
 		}
 
-		for _, pod := range clusterNonTerminatedPods {
-			req, limit := podRequestsAndLimits(&pod)
-			cpuReq, cpuLimit, memoryReq, memoryLimit := req[corev1.ResourceCPU], limit[corev1.ResourceCPU], req[corev1.ResourceMemory], limit[corev1.ResourceMemory]
-			info.UsedCPURequest += int(cpuReq.MilliValue())                  // 1000 m
-			info.UsedCPULimit += int(cpuLimit.MilliValue())                  // 1000 m
-			info.UsedMemRequest += int(memoryReq.ScaledValue(resource.Mega)) // 1024 Mi
-			info.UsedMemLimit += int(memoryLimit.ScaledValue(resource.Mega)) // 1024 Mi
-		}
-
-		if len(statusFilter) == 0 {
+		if len(opts.statusFilter) == 0 {
 			infos = append(infos, info)
-		} else if info.Status == statusFilter {
+		} else if info.Status == opts.statusFilter {
 			infos = append(infos, info)
 		}
 	}
@@ -210,32 +233,6 @@ func maxResourceList(list, new corev1.ResourceList) {
 			}
 		}
 	}
-}
-
-func getPodsInNodes(cli mgrclient.Client, nodes []corev1.Node) ([]corev1.Pod, error) {
-	fieldSelector, err := fields.ParseSelector("status.phase!=" + string(corev1.PodSucceeded) + ",status.phase!=" + string(corev1.PodFailed))
-	if err != nil {
-		return nil, err
-	}
-	podList := &corev1.PodList{}
-	// todo: use cache as soon as cache support for complicated field selector
-	err = cli.Direct().List(context.TODO(), podList, &client.ListOptions{FieldSelector: fieldSelector})
-	if err != nil {
-		return nil, err
-	}
-	nodesName := sets.NewString()
-	for i := range nodes {
-		nodesName.Insert(nodes[i].Name)
-	}
-
-	res := []corev1.Pod{}
-	for i := range podList.Items {
-		if nodesName.Has(podList.Items[i].Spec.NodeName) {
-			res = append(res, podList.Items[i])
-		}
-	}
-
-	return res, nil
 }
 
 func makeMonitorInfo(ctx context.Context, cluster string) (*monitorInfo, error) {
