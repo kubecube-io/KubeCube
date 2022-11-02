@@ -18,6 +18,7 @@ package reporter
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -75,9 +76,9 @@ func (r *Reporter) Initialize() error {
 
 	// todo:(vela) support tls
 	r.Client = &http.Client{
-		//Transport: &http.Transport{
-		//	TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		//},
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
 		Timeout: 5 * time.Second,
 	}
 
