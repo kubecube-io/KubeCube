@@ -74,12 +74,12 @@ func (r *Reporter) Initialize() error {
 	log = clog.WithName("reporter")
 
 	// todo:(vela) support tls
-	//r.Client = &http.Client{
-	//	Transport: &http.Transport{
-	//		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	//	},
-	//	Timeout: 5 * time.Second,
-	//}
+	r.Client = &http.Client{
+		//Transport: &http.Transport{
+		//	TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		//},
+		Timeout: 5 * time.Second,
+	}
 
 	b, err := ioutil.ReadFile(r.LocalClusterKubeConfig)
 	if err != nil {
