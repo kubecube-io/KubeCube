@@ -112,13 +112,14 @@ func (r *Reporter) do(info scout.WardenInfo) (*http.Response, error) {
 
 	reader := bytes.NewReader(data)
 
-	// default, use https as scheme
 	uri, err := url.Parse(r.PivotCubeHost)
 	if err != nil {
 		return nil, err
 	}
 
 	uri.Path = "api/v1/cube/scout/heartbeat"
+
+	// default, use https as scheme
 	if len(uri.Host) == 0 {
 		uri.Scheme = "https"
 		uri.Host = r.PivotCubeHost
