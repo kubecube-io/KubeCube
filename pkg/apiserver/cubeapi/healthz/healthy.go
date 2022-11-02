@@ -26,7 +26,7 @@ import (
 // @Summary health check
 // @Produce  json
 // @Success 200 {string} string "healthy"
-// @Router /api/v1/cube/healthz [get]
+// @Router /healthz [get]
 func HealthyCheck(c *gin.Context) {
 	c.String(http.StatusOK, "healthy")
 }
