@@ -1,3 +1,34 @@
+# v1.6.0
+
+## Feature
+
+- update proxy transport [#188](https://github.com/kubecube-io/KubeCube/pull/188)
+- warden support special kubecube scheme [#186](https://github.com/kubecube-io/KubeCube/pull/186)
+- widen the number of characters in the cluster name to 100 [#178](https://github.com/kubecube-io/KubeCube/pull/178)
+- Feature delete tenant project [#177](https://github.com/kubecube-io/KubeCube/pull/177)
+
+
+## Bugfix
+- Fix: workflow error, missing build in makefile [#184](https://github.com/kubecube-io/KubeCube/pull/184)
+- [typos] Fix the swag annotations for HealthyCheck [#183](https://github.com/kubecube-io/KubeCube/pull/183)
+- feat: ci-lint [#181](https://github.com/kubecube-io/KubeCube/pull/181)
+- fix audit eventTime and userIdentity field [#176](https://github.com/kubecube-io/KubeCube/pull/176)
+
+## Dependencies
+
+- hnc v1.0
+- nginx-ingress v0.46.0
+- helm 3.5
+- metrics-server v0.4.1
+- elasticsearch 7.8
+- kubecube-monitoring 15.4.8
+- thanos 3.18.0
+- logseer v1.0.0
+- logagent v1.0.0
+- kubecube-audit v1.2.0
+- kubecube-webconsole v1.2.4
+
+
 # v1.5.2
 
 ## Bugfix
