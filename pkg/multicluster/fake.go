@@ -19,10 +19,11 @@ package multicluster
 import (
 	"context"
 	"fmt"
-	"k8s.io/apimachinery/pkg/version"
+	"net/http"
 	"sync"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 
@@ -54,7 +55,12 @@ func InitFakeMultiClusterMgrWithOpts(opts *fake.Options) {
 	c.Client = fake.NewFakeClients(opts)
 	c.Config = &rest.Config{Host: "127.0.0.1", ContentConfig: rest.ContentConfig{GroupVersion: &v1.SchemeGroupVersion, NegotiatedSerializer: scheme.Codecs}}
 
-	err := m.Add(constants.LocalCluster, c)
+	ts, err := rest.TransportFor(c.Config)
+	if err != nil {
+		clog.Fatal("load RoundTripper failed: %v", err)
+	}
+	c.transport = ts
+	err = m.Add(constants.LocalCluster, c)
 	if err != nil {
 		clog.Fatal("init multi cluster mgr failed: %v", err)
 	}
@@ -134,6 +140,14 @@ func (m *FakerManagerImpl) GetClient(cluster string) (client.Client, error) {
 	}
 
 	return c.Client, err
+}
+
+func (m *FakerManagerImpl) GetTransport(cluster string) (http.RoundTripper, error) {
+	c, err := m.Get(cluster)
+	if err != nil {
+		return nil, err
+	}
+	return c.transport, err
 }
 
 func (m *FakerManagerImpl) ListClustersByType(t clusterType) []*InternalCluster {

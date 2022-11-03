@@ -18,6 +18,8 @@ package multicluster
 
 import (
 	"context"
+	"net/http"
+
 	"github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	"k8s.io/apimachinery/pkg/version"
 )
@@ -40,6 +42,8 @@ type Manager interface {
 
 	// GetClient get client for cluster by name
 	GetClient(cluster string) (client.Client, error)
+
+	GetTransport(cluster string) (http.RoundTripper, error)
 
 	// ListClustersByType list clusters by given type
 	ListClustersByType(t clusterType) []*InternalCluster
