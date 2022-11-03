@@ -18,33 +18,25 @@ package resourcemanage
 
 import (
 	"bytes"
-	"context"
 	"fmt"
-	"io"
-	"io/ioutil"
-	"net/http"
-	"net/http/httputil"
-	url2 "net/url"
-	"strings"
-
 	"github.com/gin-gonic/gin"
-	"k8s.io/apimachinery/pkg/api/meta"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
-
-	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
-	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/conversion"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/filter"
-	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
 	"github.com/kubecube-io/kubecube/pkg/utils/page"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
 	"github.com/kubecube-io/kubecube/pkg/utils/selector"
 	"github.com/kubecube-io/kubecube/pkg/utils/sort"
+	"io"
+	"io/ioutil"
+	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"net/http"
+	"net/http/httputil"
+	url2 "net/url"
 )
 
 type ProxyHandler struct {
@@ -225,33 +217,6 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 	c.Request.Header.Del(constants.AuthorizationHeader)
 
 	requestProxy.ServeHTTP(c.Writer, c.Request)
-}
-
-// get cluster info by clusterName
-func getClusterInfo(clusterName string) (string, []byte, []byte, []byte) {
-
-	client := clients.Interface().Kubernetes(constants.LocalCluster)
-	if client == nil {
-		return "", nil, nil, nil
-	}
-	clusterInfo := clusterv1.Cluster{}
-	err := client.Cache().Get(context.Background(), types.NamespacedName{Name: clusterName}, &clusterInfo)
-	if err != nil {
-		clog.Info("the cluster %s is no exist: %v", clusterName, err)
-		return "", nil, nil, nil
-	}
-
-	host := clusterInfo.Spec.KubernetesAPIEndpoint
-	host = strings.TrimPrefix(host, "https://")
-	host = strings.TrimPrefix(host, "http://")
-
-	config, err := kubeconfig.LoadKubeConfigFromBytes(clusterInfo.Spec.KubeConfig)
-	if err != nil {
-		clog.Info("the cluster %s parser kubeconfig fail: %v", clusterName, err)
-		return "", nil, nil, nil
-	}
-
-	return host, config.CertData, config.KeyData, config.CAData
 }
 
 // product match/sort/page to other function
