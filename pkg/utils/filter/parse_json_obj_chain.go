@@ -17,7 +17,6 @@ limitations under the License.
 package filter
 
 import (
-	"context"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -25,48 +24,21 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/clog"
 )
 
-func ParseJsonObjChain(data []byte, scheme *runtime.Scheme) *ParseJsonObjParam {
-	return &ParseJsonObjParam{
-		data:   data,
-		scheme: scheme,
-	}
-}
-
-type ParseJsonObjParam struct {
-	data    []byte
-	scheme  *runtime.Scheme
-	handler Handler
-}
-
-func (param *ParseJsonObjParam) setNext(handler Handler) {
-	param.handler = handler
-}
-func (param *ParseJsonObjParam) handle(ctx context.Context, _ []unstructured.Unstructured) (*unstructured.Unstructured, error) {
-	codecFactory := serializer.NewCodecFactory(param.scheme)
+func ParseJsonDataHandler(data []byte, scheme *runtime.Scheme) (isList bool, items []unstructured.Unstructured, err error) {
+	codecFactory := serializer.NewCodecFactory(scheme)
 	decoder := codecFactory.UniversalDecoder()
 	object := unstructured.Unstructured{}
-	_, _, err := decoder.Decode(param.data, nil, &object)
+	_, _, err = decoder.Decode(data, nil, &object)
 	if err != nil {
 		clog.Error("can not parser data to internalObject cause: %v ", err)
-		return nil, err
+		return false, nil, err
 	}
-	var listObject []unstructured.Unstructured
-	ctx = context.WithValue(ctx, isObjectIsList, object.IsList())
 	if object.IsList() {
 		list, err := object.ToList()
 		if err != nil {
-			return nil, err
+			return false, nil, err
 		}
-		listObject = list.Items
-	} else {
-		listObject = []unstructured.Unstructured{object}
+		return true, list.Items, nil
 	}
-	return param.next(listObject, ctx)
-}
-
-func (param *ParseJsonObjParam) next(items []unstructured.Unstructured, ctx context.Context) (*unstructured.Unstructured, error) {
-	if param.handler == nil {
-		return GetUnstructured(items), nil
-	}
-	return param.handler.handle(items, ctx)
+	return false, []unstructured.Unstructured{object}, nil
 }

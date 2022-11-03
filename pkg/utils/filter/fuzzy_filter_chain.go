@@ -17,7 +17,6 @@ limitations under the License.
 package filter
 
 import (
-	"context"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -25,30 +24,19 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/clog"
 )
 
-func FuzzyFilterChain(fuzzy map[string][]string) *FuzzyParam {
-	return &FuzzyParam{
-		fuzzy: fuzzy,
+func FuzzyFilter(items []unstructured.Unstructured, fuzzy map[string][]string) ([]unstructured.Unstructured, error) {
+	if len(items) < 1 {
+		return items, nil
 	}
-}
-
-type FuzzyParam struct {
-	fuzzy   map[string][]string
-	handler Handler
-}
-
-func (param *FuzzyParam) setNext(handler Handler) {
-	param.handler = handler
-}
-func (param *FuzzyParam) handle(ctx context.Context, items []unstructured.Unstructured) (*unstructured.Unstructured, error) {
-	if !ctx.Value(isObjectIsList).(bool) {
-		return param.next(items, ctx)
+	if len(fuzzy) < 1 {
+		return items, nil
 	}
 	result := make([]unstructured.Unstructured, 0)
 	// every list record
 	for _, item := range items {
 		flag := true
 		// every fuzzy match condition
-		for key, valueArray := range param.fuzzy {
+		for key, valueArray := range fuzzy {
 			// key = metadata.xxx.xxx， multi level
 			realValue, err := GetDeepValue(item, key)
 			if err != nil {
@@ -76,12 +64,5 @@ func (param *FuzzyParam) handle(ctx context.Context, items []unstructured.Unstru
 			result = append(result, item)
 		}
 	}
-	return param.next(result, ctx)
-}
-
-func (param *FuzzyParam) next(items []unstructured.Unstructured, ctx context.Context) (*unstructured.Unstructured, error) {
-	if param.handler == nil {
-		return GetUnstructured(items), nil
-	}
-	return param.handler.handle(items, ctx)
+	return result, nil
 }

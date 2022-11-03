@@ -17,50 +17,21 @@ limitations under the License.
 package filter
 
 import (
-	"context"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-func PageFilterChain(limit int, offset int) *PageParam {
-	return &PageParam{
-		limit:  limit,
-		offset: offset,
-		total:  new(int),
-	}
-}
+func PageHandler(items []unstructured.Unstructured, limit int, offset int) ([]unstructured.Unstructured, error) {
 
-type PageParam struct {
-	limit   int
-	offset  int
-	total   *int
-	handler Handler
-}
-
-func (param *PageParam) setNext(handler Handler) {
-	param.handler = handler
-}
-func (param *PageParam) handle(ctx context.Context, items []unstructured.Unstructured) (*unstructured.Unstructured, error) {
-	if !ctx.Value(isObjectIsList).(bool) {
-		return param.next(items, ctx)
-	}
-	*param.total = len(items)
 	if len(items) == 0 {
-		return param.next(items, ctx)
+		return items, nil
 	}
 	size := len(items)
-	if param.offset >= size {
-		return param.next(items[0:0], ctx)
+	if offset >= size {
+		return items, nil
 	}
-	end := param.offset + param.limit
+	end := offset + limit
 	if end > size {
 		end = size
 	}
-	return param.next(items[param.offset:end], ctx)
-}
-
-func (param *PageParam) next(items []unstructured.Unstructured, ctx context.Context) (*unstructured.Unstructured, error) {
-	if param.handler == nil {
-		return GetUnstructured(items), nil
-	}
-	return param.handler.handle(items, ctx)
+	return items[offset:end], nil
 }

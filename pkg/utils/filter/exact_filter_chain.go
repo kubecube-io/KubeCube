@@ -17,36 +17,25 @@ limitations under the License.
 package filter
 
 import (
-	"context"
-	"github.com/kubecube-io/kubecube/pkg/clog"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/sets"
+
+	"github.com/kubecube-io/kubecube/pkg/clog"
 )
 
-func ExtractFilterChain(exact map[string]sets.String) *ExtractParam {
-	return &ExtractParam{
-		exact: exact,
+func ExactFilter(items []unstructured.Unstructured, exact map[string]sets.String) ([]unstructured.Unstructured, error) {
+	if len(items) < 1 {
+		return items, nil
 	}
-}
-
-type ExtractParam struct {
-	exact   map[string]sets.String
-	handler Handler
-}
-
-func (param *ExtractParam) setNext(handler Handler) {
-	param.handler = handler
-}
-func (param *ExtractParam) handle(ctx context.Context, items []unstructured.Unstructured) (*unstructured.Unstructured, error) {
-	if !ctx.Value(isObjectIsList).(bool) {
-		return param.next(items, ctx)
+	if len(exact) < 1 {
+		return items, nil
 	}
 	result := make([]unstructured.Unstructured, 0)
 	// every list record
 	for _, item := range items {
 		flag := true
 		// every exact match condition
-		for key, value := range param.exact {
+		for key, value := range exact {
 			// key = .metadata.xxx.xxx， multi level
 			realValue, err := GetDeepValue(item, key)
 			if err != nil {
@@ -72,12 +61,5 @@ func (param *ExtractParam) handle(ctx context.Context, items []unstructured.Unst
 			result = append(result, item)
 		}
 	}
-	return param.next(result, ctx)
-}
-
-func (param *ExtractParam) next(items []unstructured.Unstructured, ctx context.Context) (*unstructured.Unstructured, error) {
-	if param.handler == nil {
-		return GetUnstructured(items), nil
-	}
-	return param.handler.handle(items, ctx)
+	return result, nil
 }

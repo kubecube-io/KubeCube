@@ -179,15 +179,17 @@ func (f *Filter) FilterObjectList(object runtime.Object, filterCondition *Condit
 }
 
 func (f *Filter) doFilter(data []byte, filterCondition *Condition) (*unstructured.Unstructured, error) {
-	var temp Handler
-	var total *int
-	parseJson := ParseJsonObjChain(data, f.Scheme)
-	temp.setNext(parseJson)
-	temp = parseJson
-	if len(filterCondition.Exact) != 0 {
-		extract := ExtractFilterChain(filterCondition.Exact)
-		temp.setNext(extract)
-		temp = extract
+	isList, items, err := ParseJsonDataHandler(data, f.Scheme)
+	if err != nil {
+		return nil, err
+	}
+	if isList {
+		exactItems, err := ExactFilter(items, filterCondition.Exact)
+		if err != nil {
+			clog.Warn("exact filter error: %s", err.Error())
+		} else {
+			items = exactItems
+		}
 	}
 
 	if len(filterCondition.Fuzzy) != 0 {
