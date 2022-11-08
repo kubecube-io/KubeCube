@@ -124,7 +124,7 @@ func (s *SyncManager) SetupCtrlWithManager(resource client.Object, objFunc Gener
 		//Warning, this relies on the local clock, which can cause problems when the clock is wrong or when the clock goes backwards
 
 		pivotCreateTimestamp := obj.GetCreationTimestamp()
-		localCreateTimestamp := obj.GetCreationTimestamp()
+		localCreateTimestamp := newObj.GetCreationTimestamp()
 		if pivotCreateTimestamp.UnixNano() > localCreateTimestamp.UnixNano() {
 			return deleteObjFunc()
 		}
