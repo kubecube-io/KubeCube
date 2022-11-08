@@ -18,17 +18,17 @@ package syncmgr
 
 import (
 	"context"
-	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"strconv"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
@@ -68,29 +68,33 @@ func (s *SyncManager) SetupCtrlWithManager(resource client.Object, objFunc Gener
 			clog.Info("sync: %s %v, name: %v, namespace: %v, err: %v", action, obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), obj.GetNamespace(), err)
 		}()
 
+		deleteObjFunc := func() (reconcile.Result, error) {
+			gvk, err := apiutil.GVKForObject(obj, s.Manager.GetScheme())
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			groupKind := gvk.GroupKind()
+			if groupKind.Group == tenantv1.GroupVersion.Group {
+				if groupKind.Kind == "Tenant" || groupKind.Kind == "Project" {
+					err = s.updateSpecialObjForDelete(obj, objFunc, ctx, req)
+					if err != nil {
+						return ctrl.Result{}, err
+					}
+				}
+			}
+			action = Delete
+			err = localClient.Delete(ctx, obj, &client.DeleteOptions{})
+			if err != nil && errors.IsNotFound(err) {
+				return reconcile.Result{}, nil
+			}
+			return reconcile.Result{}, err
+		}
+
 		if err = pivotClient.Get(ctx, req.NamespacedName, obj); err != nil {
 			// If the object is a tenant or project, add an annotation to inform the webhook to allow it to be deleted
 			// delete: when object is not exist in pivot cluster
 			if errors.IsNotFound(err) {
-				gvk, err := apiutil.GVKForObject(obj, s.Manager.GetScheme())
-				if err != nil {
-					return ctrl.Result{}, err
-				}
-				groupKind := gvk.GroupKind()
-				if groupKind.Group == tenantv1.GroupVersion.Group {
-					if groupKind.Kind == "Tenant" || groupKind.Kind == "Project" {
-						err = s.updateSpecialObjForDelete(obj, objFunc, ctx, req)
-						if err != nil {
-							return ctrl.Result{}, err
-						}
-					}
-				}
-				action = Delete
-				err = localClient.Delete(ctx, obj, &client.DeleteOptions{})
-				if err != nil && errors.IsNotFound(err) {
-					return reconcile.Result{}, nil
-				}
-				return reconcile.Result{}, err
+				return deleteObjFunc()
 			}
 			return reconcile.Result{}, err
 		}
@@ -114,6 +118,16 @@ func (s *SyncManager) SetupCtrlWithManager(resource client.Object, objFunc Gener
 				return reconcile.Result{}, nil
 			}
 			return reconcile.Result{}, err
+		}
+
+		//If it is the same resource, the managed resource must be created first than the local resource.
+		//Based on this, if the management and control creation time is later than the local creation time, it is a new resource
+		//Warning, this relies on the local clock, which can cause problems when the clock is wrong or when the clock goes backwards
+
+		pivotCreateTimestamp := obj.GetCreationTimestamp()
+		localCreateTimestamp := newObj.GetCreationTimestamp()
+		if pivotCreateTimestamp.UnixNano() > localCreateTimestamp.UnixNano() {
+			return deleteObjFunc()
 		}
 
 		pivotRsVersion, err := strconv.Atoi(obj.GetAnnotations()[pivotResourceVersion])
