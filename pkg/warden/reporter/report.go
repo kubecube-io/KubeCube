@@ -20,7 +20,7 @@ import (
 	"bytes"
 	"context"
 	"net/http"
-	"net/url"
+	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -112,20 +112,18 @@ func (r *Reporter) do(info scout.WardenInfo) (*http.Response, error) {
 
 	reader := bytes.NewReader(data)
 
-	uri, err := url.Parse(r.PivotCubeHost)
-	if err != nil {
-		return nil, err
+	url := r.PivotCubeHost
+	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
+		// default, use https as scheme
+		url = "https://" + url
+	}
+	if !strings.HasSuffix(url, "/") {
+		url = url + "/"
 	}
 
-	uri.Path = "api/v1/cube/scout/heartbeat"
+	url = url + "api/v1/cube/scout/heartbeat"
 
-	// default, use https as scheme
-	if len(uri.Host) == 0 {
-		uri.Scheme = "https"
-		uri.Host = r.PivotCubeHost
-	}
-
-	resp, err := r.Client.Post(uri.String(), "application/json", reader)
+	resp, err := r.Client.Post(url, "application/json", reader)
 	if err != nil {
 		return nil, err
 	}
