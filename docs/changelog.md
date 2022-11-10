@@ -6,6 +6,7 @@
 
 ## Bugfix
 - Fix: warden pivot url parse error [#194](https://github.com/kubecube-io/KubeCube/pull/194)
+- Fix: query pod list [#196](https://github.com/kubecube-io/KubeCube/pull/196)
 
 ## Dependencies
 
