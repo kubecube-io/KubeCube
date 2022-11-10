@@ -61,7 +61,7 @@ func Handle(param resourcemanage.ExtendParams) (interface{}, error) {
 		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
 	}
 	pod := NewPod(kubernetes, param.Namespace, param.Filter)
-	if pod.filter.EnableFilter {
+	if pod.filter.EnableFilter && pod.filter.Exact[ownerUidLabel].Len() > 0 {
 		err := pod.GetRs()
 		if err != nil {
 			return nil, errors.New(err.Error())
