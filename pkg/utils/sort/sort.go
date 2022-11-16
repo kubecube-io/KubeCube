@@ -20,7 +20,7 @@ import "strings"
 
 // ParseSort sortName=creationTimestamp, sortOrder=asc
 func ParseSort(name string, order string, sFunc string) (sortName, sortOrder, sortFunc string) {
-	sortName = ""
+	sortName = "metadata.name"
 	sortOrder = "asc"
 	sortFunc = "string"
 

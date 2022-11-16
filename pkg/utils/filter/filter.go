@@ -115,16 +115,16 @@ func (f *Filter) ModifyResponse(r *http.Response, filterCondition *Condition) er
 func (f *Filter) FilterObjectList(object runtime.Object, filterCondition *Condition) (*int, error) {
 	pageBean := PageBean{}
 	version := object.GetObjectKind().GroupVersionKind().Version
-	u := unstructured.Unstructured{}
-	err := f.Scheme.Convert(object, &u, version)
+	unstructuredObj := unstructured.Unstructured{}
+	err := f.Scheme.Convert(object, &unstructuredObj, version)
 	if err != nil {
 		return nil, err
 	}
-	if !u.IsList() {
+	if !unstructuredObj.IsList() {
 		return nil, nil
 	}
 	var listObject []unstructured.Unstructured
-	list, err := u.ToList()
+	list, err := unstructuredObj.ToList()
 	if err != nil {
 		return nil, err
 	}
@@ -133,12 +133,7 @@ func (f *Filter) FilterObjectList(object runtime.Object, filterCondition *Condit
 		return nil, nil
 	}
 	version = listObject[0].GroupVersionKind().Version
-	var temp Handler
-	if len(filterCondition.Exact) != 0 {
-		extract := ExtractFilterChain(filterCondition.Exact)
-		temp.setNext(extract)
-		temp = extract
-	}
+	listObject, err = ExactFilter(listObject, filterCondition.Exact)
 
 	if len(filterCondition.Fuzzy) != 0 {
 		fuzzy := FuzzyFilterChain(filterCondition.Fuzzy)

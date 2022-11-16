@@ -26,22 +26,17 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/clog"
 )
 
-func SortFilterChain(sortName string, sortOrder string, sortFunc string) *SortParam {
-	return &SortParam{
-		sortName:  sortName,
-		sortOrder: sortOrder,
-		sortFunc:  sortFunc,
-	}
-}
-
 type SortParam struct {
 	sortName  string
 	sortOrder string
 	sortFunc  string
 }
 
-func (param *SortParam) handle(items []unstructured.Unstructured) ([]unstructured.Unstructured, error) {
+func SortHandler(items []unstructured.Unstructured, param *SortParam) ([]unstructured.Unstructured, error) {
 	if len(items) == 0 {
+		return items, nil
+	}
+	if len(param.sortFunc) == 0 || len(param.sortName) == 0 {
 		return items, nil
 	}
 	sort.Slice(items, func(i, j int) bool {
