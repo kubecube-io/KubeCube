@@ -118,6 +118,9 @@ const (
 
 	// SyncAnnotation use for sync logic of warden
 	SyncAnnotation = "kubecube.io/sync"
+
+	// ForceDeleteAnnotation used to force deletion of some resources that are not allowed to be deleted
+	ForceDeleteAnnotation = "kubecube.io/force-delete"
 )
 
 const (

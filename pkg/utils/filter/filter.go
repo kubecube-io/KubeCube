@@ -331,6 +331,9 @@ func (f *Filter) fuzzyMatch(items K8sJsonArr) (result K8sJsonArr) {
 
 // sort by .metadata.name/.metadata.creationTimestamp
 func (f *Filter) sort(items K8sJsonArr) K8sJsonArr {
+	if len(f.SortName) == 0 {
+		return items
+	}
 	if len(items) == 0 {
 		return items
 	}

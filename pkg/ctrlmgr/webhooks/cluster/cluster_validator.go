@@ -64,7 +64,7 @@ func (c *ClusterValidator) ValidateCreate() error {
 		return err
 	}
 
-	if err = domain.ValidatorDomainSuffix([]string{c.Spec.IngressDomainSuffix}, log); err != nil {
+	if err = domain.ValidatorDomainSuffix([]string{c.Spec.IngressDomainSuffix}); err != nil {
 		return err
 	}
 	log.Debug("Create validate success")
@@ -79,7 +79,7 @@ func (c *ClusterValidator) ValidateUpdate(old runtime.Object) error {
 		return err
 	}
 
-	if err = domain.ValidatorDomainSuffix([]string{c.Spec.IngressDomainSuffix}, log); err != nil {
+	if err = domain.ValidatorDomainSuffix([]string{c.Spec.IngressDomainSuffix}); err != nil {
 		return err
 	}
 	log.Debug("Update validate success")
@@ -95,7 +95,7 @@ const qnameCharFmt string = "[A-Za-z0-9\u4e00-\u9fa5]"
 const qnameExtCharFmt string = "[-A-Za-z0-9_\u4e00-\u9fa5]"
 const qualifiedNameFmt string = "(" + qnameCharFmt + qnameExtCharFmt + "*)?" + qnameCharFmt
 const annotationCnValueErrMsg string = "must consist of alphanumeric or chinese characters, '-', '_' or '.', and must start and end with an alphanumeric or chinese character"
-const annotationCnValueLength int = 20
+const annotationCnValueLength int = 100
 const annotationCnValueFmt string = "(" + qualifiedNameFmt + ")?"
 
 var annotationCnValueRegexp = regexp.MustCompile("^" + annotationCnValueFmt + "$")

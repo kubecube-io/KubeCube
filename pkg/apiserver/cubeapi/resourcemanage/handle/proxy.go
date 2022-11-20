@@ -18,29 +18,23 @@ package resourcemanage
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
-	"strings"
+	url2 "net/url"
 
 	"github.com/gin-gonic/gin"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 
-	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
-	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/conversion"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-	"github.com/kubecube-io/kubecube/pkg/utils/ctls"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/filter"
-	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
 	"github.com/kubecube-io/kubecube/pkg/utils/page"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
 	"github.com/kubecube-io/kubecube/pkg/utils/selector"
@@ -146,21 +140,18 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 	filter := parseQueryParams(c)
 
 	c.Request.Header.Set(constants.ImpersonateUserKey, "admin")
-
-	// get cluster info by cluster name
-	host, certData, keyData, caData := getClusterInfo(cluster)
-	if host == "" {
-		response.FailReturn(c, errcode.ClusterNotFoundError(cluster))
-		return
-	}
-
-	ts, err := ctls.MakeMTlsTransportByPem(caData, certData, keyData)
+	internalCluster, err := multicluster.Interface().Get(cluster)
 	if err != nil {
 		clog.Error(err.Error())
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 		return
 	}
-
+	transport, err := multicluster.Interface().GetTransport(cluster)
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
+		return
+	}
 	_, _, gvr, err := conversion.ParseURL(url)
 	if err != nil {
 		clog.Error(err.Error())
@@ -177,10 +168,15 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 
 	// create director
 	director := func(req *http.Request) {
-		req.URL.Scheme = "https"
-		req.URL.Host = host
-		req.Host = host
-		req.URL.Path = url
+		uri, err := url2.ParseRequestURI(internalCluster.Config.Host)
+		if err != nil {
+			clog.Error("Could not parse host, host: %s , err: %v", internalCluster.Config.Host, err)
+			response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, "Could not parse host, host: %s , err: %v", internalCluster.Config.Host, err))
+		}
+		uri.RawQuery = c.Request.URL.RawQuery
+		uri.Path = url
+		req.URL = uri
+		req.Host = internalCluster.Config.Host
 
 		if needConvert {
 			// replace request body and url if need
@@ -217,39 +213,12 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 		filter.RawGvr = gvr
 	}
 
-	requestProxy := &httputil.ReverseProxy{Director: director, Transport: ts, ModifyResponse: filter.ModifyResponse, ErrorHandler: errorHandler}
+	requestProxy := &httputil.ReverseProxy{Director: director, Transport: transport, ModifyResponse: filter.ModifyResponse, ErrorHandler: errorHandler}
 
 	// trim auth token here
 	c.Request.Header.Del(constants.AuthorizationHeader)
 
 	requestProxy.ServeHTTP(c.Writer, c.Request)
-}
-
-// get cluster info by clusterName
-func getClusterInfo(clusterName string) (string, []byte, []byte, []byte) {
-
-	client := clients.Interface().Kubernetes(constants.LocalCluster)
-	if client == nil {
-		return "", nil, nil, nil
-	}
-	clusterInfo := clusterv1.Cluster{}
-	err := client.Cache().Get(context.Background(), types.NamespacedName{Name: clusterName}, &clusterInfo)
-	if err != nil {
-		clog.Info("the cluster %s is no exist: %v", clusterName, err)
-		return "", nil, nil, nil
-	}
-
-	host := clusterInfo.Spec.KubernetesAPIEndpoint
-	host = strings.TrimPrefix(host, "https://")
-	host = strings.TrimPrefix(host, "http://")
-
-	config, err := kubeconfig.LoadKubeConfigFromBytes(clusterInfo.Spec.KubeConfig)
-	if err != nil {
-		clog.Info("the cluster %s parser kubeconfig fail: %v", clusterName, err)
-		return "", nil, nil, nil
-	}
-
-	return host, config.CertData, config.KeyData, config.CAData
 }
 
 // product match/sort/page to other function

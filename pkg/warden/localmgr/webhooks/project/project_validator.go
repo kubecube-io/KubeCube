@@ -19,118 +19,44 @@ package project
 import (
 	"context"
 	"fmt"
+	"net/http"
 
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
+	v1 "k8s.io/api/admission/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
-	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-	"github.com/kubecube-io/kubecube/pkg/utils/domain"
 )
 
-var (
-	projectLog    clog.CubeLogger
-	projectClient client.Client
-)
-
-type ProjectValidator struct {
-	tenantv1.Project
+type Validator struct {
+	Client   client.Client
+	IsMember bool
+	decoder  *admission.Decoder
 }
 
-func NewProjectValidator(mgrClient client.Client) *ProjectValidator {
-	projectLog = clog.WithName("Webhook").WithName("ProjectValidate")
-	projectClient = mgrClient
-	return &ProjectValidator{}
-}
-
-func (p *ProjectValidator) GetObjectKind() schema.ObjectKind {
-
-	return p
-}
-
-func (p *ProjectValidator) DeepCopyObject() runtime.Object {
-	return &ProjectValidator{}
-}
-
-func (p *ProjectValidator) ValidateCreate() error {
-	log := projectLog.WithValues("ValidateCreate", p.Name)
-
-	tenantName := p.Labels[constants.TenantLabel]
-	if tenantName == "" {
-		log.Info("can not find .metadata.labels.kubecube.io/tenant label")
-		return fmt.Errorf("can not find .metadata.labels.kubecube.io/tenant label")
+func (r *Validator) Handle(ctx context.Context, req admission.Request) admission.Response {
+	project := tenantv1.Project{}
+	switch req.Operation {
+	case v1.Create:
+		return admission.Allowed("")
+	case v1.Update:
+		return admission.Allowed("")
+	case v1.Delete:
+		err := r.decoder.DecodeRaw(req.OldObject, &project)
+		if err != nil {
+			return admission.Errored(http.StatusBadRequest, err)
+		}
+		if r.IsMember && project.Annotations[constants.ForceDeleteAnnotation] != "true" {
+			return admission.Errored(http.StatusBadRequest, fmt.Errorf("member cluster does not allow deletion of project %s", project.Name))
+		}
+		return admission.Allowed("")
 	}
+	return admission.Allowed("")
+}
 
-	ctx := context.Background()
-	tenant := tenantv1.Tenant{}
-
-	if err := projectClient.Get(ctx, types.NamespacedName{Name: tenantName}, &tenant); err != nil {
-		log.Debug("The tenant %s is not exist", tenantName)
-		return fmt.Errorf("the tenant is not exist")
-	}
-
-	if err := domain.ValidatorDomainSuffix(p.Spec.IngressDomainSuffix, log); err != nil {
-		return err
-	}
-
-	log.Debug("Create validate success")
-
+// InjectDecoder injects the decoder.
+func (r *Validator) InjectDecoder(d *admission.Decoder) error {
+	r.decoder = d
 	return nil
-}
-
-func (p *ProjectValidator) ValidateUpdate(old runtime.Object) error {
-	log := projectLog.WithValues("ValidateUpdate", p.Name)
-
-	tenantName := p.Labels[constants.TenantLabel]
-	if tenantName == "" {
-		log.Info("can not find .metadata.labels.kubecube.io/tenant label")
-		return fmt.Errorf("can not find .metadata.labels.kubecube.io/tenant label")
-	}
-
-	ctx := context.Background()
-	tenant := tenantv1.Tenant{}
-
-	if err := projectClient.Get(ctx, types.NamespacedName{Name: tenantName}, &tenant); err != nil {
-		log.Info("The tenant %s is not exist", tenantName)
-		return fmt.Errorf("the tenant is not exist")
-	}
-
-	if err := domain.ValidatorDomainSuffix(p.Spec.IngressDomainSuffix, log); err != nil {
-		return err
-	}
-
-	log.Debug("Update validate success")
-
-	return nil
-}
-
-func (p *ProjectValidator) ValidateDelete() error {
-	log := projectLog.WithValues("ValidateDelete", p.Name)
-	// check the namespace we take over has been already deleted
-	ctx := context.Background()
-	namespaceList := v1.NamespaceList{}
-	if err := projectClient.List(ctx, &namespaceList, client.MatchingLabels{constants.ProjectLabel: p.Name}); err != nil {
-		log.Error("Can not list namespaces under this project: %v", err.Error())
-		return fmt.Errorf("can not list namespaces under this project")
-	}
-	if len(namespaceList.Items) > 0 {
-		childResExistErr := fmt.Errorf("there are still namespaces under this project")
-		log.Info("Delete fail: %v", childResExistErr.Error())
-		return childResExistErr
-	}
-
-	// check related namespace has been deleted
-	ns := v1.Namespace{}
-	err := projectClient.Get(ctx, types.NamespacedName{Name: p.Spec.Namespace}, &ns)
-	if errors.IsNotFound(err) {
-		log.Info("Delete validate success")
-		return nil
-	}
-
-	return fmt.Errorf("the namespace %s is still exist", p.Spec.Namespace)
 }

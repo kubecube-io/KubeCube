@@ -1,3 +1,70 @@
+# v1.5.2
+
+## Bugfix
+
+- optimize cluster info api and add query flag for simplify info [#187](https://github.com/kubecube-io/KubeCube/pull/187)
+
+## Dependencies
+
+- hnc v1.0
+- nginx-ingress v0.46.0
+- helm 3.5
+- metrics-server v0.4.1
+- elasticsearch 7.8
+- kubecube-monitoring 15.4.8
+- thanos 3.18.0
+- logseer v1.0.0
+- logagent v1.0.0
+- kubecube-audit v1.2.0
+- kubecube-webconsole v1.2.4
+
+# v1.5.1
+
+## Bugfix
+
+- if sorting is not required, return directly in the sorting method [#180](https://github.com/kubecube-io/KubeCube/pull/180)
+
+## Dependencies
+
+- hnc v1.0
+- nginx-ingress v0.46.0
+- helm 3.5
+- metrics-server v0.4.1
+- elasticsearch 7.8
+- kubecube-monitoring 15.4.8
+- thanos 3.18.0
+- logseer v1.0.0
+- logagent v1.0.0
+- kubecube-audit v1.2.0
+- kubecube-webconsole v1.2.4
+
+# v1.5.0
+
+## Feature
+
+- feat:<tenant> get namespaces and project by multi tenant [#175](https://github.com/kubecube-io/KubeCube/pull/175)
+- feat:<ingress> optimized port check implementation [#173](https://github.com/kubecube-io/KubeCube/pull/173)
+- create a NodePort Service to check whether ports conflict [#169](https://github.com/kubecube-io/KubeCube/pull/169)
+- support list pod by owner uid like deployment uid [#166](https://github.com/kubecube-io/KubeCube/pull/166) 
+
+## Bugfix
+
+- fix namespace display abnormal [#170](https://github.com/kubecube-io/KubeCube/pull/170)
+
+## Dependencies
+
+- hnc v1.0
+- nginx-ingress v0.46.0
+- helm 3.5
+- metrics-server v0.4.1
+- elasticsearch 7.8
+- kubecube-monitoring 15.4.8
+- thanos 3.18.0
+- logseer v1.0.0
+- logagent v1.0.0
+- kubecube-audit v1.2.0
+- kubecube-webconsole v1.2.4
+
 # v1.4.2
 
 ## Bugfix
