@@ -340,40 +340,31 @@ func (r responseBodyWriter) WriteString(s string) (n int, err error) {
 }
 
 func getPostObjectName(c *gin.Context) string {
-	// get request body
-	data, err := c.GetRawData()
-	if err != nil {
-		clog.Warn("[audit] get raw data err: %s", err.Error())
-		return ""
-	}
-	// put request body back
-	c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(data))
+	obj := struct {
+		Metadata struct {
+			Name string `json:"name"`
+		} `json:"metadata"`
+	}{}
+
 	// get resource name from metadata.name
-	body := make(map[string]interface{})
-	err = json.Unmarshal(data, &body)
-	if err != nil {
-		clog.Warn("[audit] unmarshal request body err: %s", err.Error())
-		return ""
-	}
-	metadata, exist := body["metadata"]
-	if !exist {
-		clog.Warn("[audit] the resource metadata is nil")
-		return ""
-	}
-	metadataMap, ok := metadata.(map[string]interface{})
-	if !ok {
-		clog.Warn("[audit] convert metadata to map failed")
-		return ""
-	}
-	name, exist := metadataMap["name"]
-	if !exist {
+	if err := ShouldBindWith(c, &obj); err != nil {
 		clog.Warn("[audit] the resource metadata.name is nil")
 		return ""
 	}
-	nameStr, ok := name.(string)
-	if !ok {
-		clog.Warn("[audit] convert name to string failed")
-		return ""
+
+	return obj.Metadata.Name
+}
+
+func ShouldBindWith(c *gin.Context, v interface{}) error {
+	data, err := c.GetRawData()
+	if err != nil {
+		return err
 	}
-	return nameStr
+
+	c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(data))
+	if err = json.Unmarshal(data, v); err != nil {
+		return err
+	}
+
+	return nil
 }
