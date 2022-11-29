@@ -139,7 +139,6 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 	url := c.Param("url")
 	filter := parseQueryParams(c)
 
-	c.Request.Header.Set(constants.ImpersonateUserKey, "admin")
 	internalCluster, err := multicluster.Interface().Get(cluster)
 	if err != nil {
 		clog.Error(err.Error())
