@@ -39,7 +39,7 @@ func ExactFilter(items []unstructured.Unstructured, exact map[string]sets.String
 			// key = .metadata.xxx.xxx， multi level
 			realValue, err := GetDeepValue(item, key)
 			if err != nil {
-				clog.Warn("parse value error, %s", err.Error())
+				clog.Debug("parse value error, %s", err)
 				flag = false
 				break
 			}

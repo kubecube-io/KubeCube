@@ -28,7 +28,7 @@ import (
 const isObjectIsList = "isList"
 
 type PageBean struct {
-	Total *int        `json:"total"`
+	Total int         `json:"total"`
 	Items interface{} `json:"items"`
 }
 

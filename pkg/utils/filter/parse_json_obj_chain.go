@@ -24,21 +24,14 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/clog"
 )
 
-func ParseJsonDataHandler(data []byte, scheme *runtime.Scheme) (isList bool, items []unstructured.Unstructured, err error) {
+func ParseJsonDataHandler(data []byte, scheme *runtime.Scheme) (unstructuredObj *unstructured.Unstructured, err error) {
 	codecFactory := serializer.NewCodecFactory(scheme)
 	decoder := codecFactory.UniversalDecoder()
 	object := unstructured.Unstructured{}
 	_, _, err = decoder.Decode(data, nil, &object)
 	if err != nil {
 		clog.Error("can not parser data to internalObject cause: %v ", err)
-		return false, nil, err
+		return nil, err
 	}
-	if object.IsList() {
-		list, err := object.ToList()
-		if err != nil {
-			return false, nil, err
-		}
-		return true, list.Items, nil
-	}
-	return false, []unstructured.Unstructured{object}, nil
+	return &object, nil
 }

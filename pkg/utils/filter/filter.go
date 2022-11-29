@@ -112,103 +112,34 @@ func (f *Filter) ModifyResponse(r *http.Response, filterCondition *Condition) er
 	return nil
 }
 
-func (f *Filter) FilterObjectList(object runtime.Object, filterCondition *Condition) (*int, error) {
-	pageBean := PageBean{}
+func (f *Filter) FilterObjectList(object runtime.Object, filterCondition *Condition) (int, error) {
 	version := object.GetObjectKind().GroupVersionKind().Version
 	unstructuredObj := unstructured.Unstructured{}
 	err := f.Scheme.Convert(object, &unstructuredObj, version)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	if !unstructuredObj.IsList() {
-		return nil, nil
+		return 0, nil
 	}
 	var listObject []unstructured.Unstructured
 	list, err := unstructuredObj.ToList()
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	listObject = list.Items
 	if len(listObject) == 0 {
-		return nil, nil
-	}
-	version = listObject[0].GroupVersionKind().Version
-	listObject, err = ExactFilter(listObject, filterCondition.Exact)
-
-	if len(filterCondition.Fuzzy) != 0 {
-		fuzzy := FuzzyFilterChain(filterCondition.Fuzzy)
-		temp.setNext(fuzzy)
-		temp = fuzzy
+		return 0, nil
 	}
 
-	if len(filterCondition.SortName) != 0 {
-		sortChain := SortFilterChain(filterCondition.SortName, filterCondition.SortOrder, filterCondition.SortFunc)
-		temp.setNext(sortChain)
-		temp = sortChain
-	}
-	if filterCondition.Limit != 0 {
-		pageChain := PageFilterChain(filterCondition.Limit, filterCondition.Offset)
-		pageBean.Total = pageChain.total
-		temp.setNext(pageChain)
-		temp = pageChain
-	}
-	if f.ConverterContext != nil && f.EnableConvert {
-		convert := ConvertFilterChain(f.EnableConvert, f.RawGvr, f.ConvertedGvr, f.Converter)
-		temp.setNext(convert)
-		temp = convert
-	}
-	res, err := temp.handle(listObject, context.WithValue(context.Background(), isObjectIsList, true))
-	if err != nil {
-		return nil, err
-	}
-	obj, err := res.ToList()
-	if err != nil {
-		return nil, err
-	}
-	list.Items = obj.Items
-	err = f.Scheme.Convert(list, object, version)
-	if err != nil {
-		return nil, err
-	}
-	return pageBean.Total, nil
 }
 
 func (f *Filter) doFilter(data []byte, filterCondition *Condition) (*unstructured.Unstructured, error) {
-	isList, items, err := ParseJsonDataHandler(data, f.Scheme)
+	obj, err := ParseJsonDataHandler(data, f.Scheme)
 	if err != nil {
 		return nil, err
 	}
-	if isList {
-		exactItems, err := ExactFilter(items, filterCondition.Exact)
-		if err != nil {
-			clog.Warn("exact filter error: %s", err.Error())
-		} else {
-			items = exactItems
-		}
-	}
 
-	if len(filterCondition.Fuzzy) != 0 {
-		fuzzy := FuzzyFilterChain(filterCondition.Fuzzy)
-		temp.setNext(fuzzy)
-		temp = fuzzy
-	}
-
-	if len(filterCondition.SortName) != 0 {
-		sortChain := SortFilterChain(filterCondition.SortName, filterCondition.SortOrder, filterCondition.SortFunc)
-		temp.setNext(sortChain)
-		temp = sortChain
-	}
-	if filterCondition.Limit != 0 {
-		pageChain := PageFilterChain(filterCondition.Limit, filterCondition.Offset)
-		total = pageChain.total
-		temp.setNext(pageChain)
-		temp = pageChain
-	}
-	if f.ConverterContext != nil && f.EnableConvert {
-		convert := ConvertFilterChain(f.EnableConvert, f.RawGvr, f.ConvertedGvr, f.Converter)
-		temp.setNext(convert)
-		temp = convert
-	}
 	object, err := temp.handle(nil, context.Background())
 	if err != nil {
 		return nil, err
@@ -217,4 +148,52 @@ func (f *Filter) doFilter(data []byte, filterCondition *Condition) (*unstructure
 		object.Object["total"] = total
 	}
 	return object, nil
+}
+
+func (f *Filter) filter(listObject []unstructured.Unstructured, filterCondition *Condition) (int, error) {
+	version := listObject[0].GroupVersionKind().Version
+	listObject, err := ExactFilter(listObject, filterCondition.Exact)
+	if err != nil {
+		clog.Debug("exact filter error: %s", err)
+	}
+
+	listObject, err = FuzzyFilter(listObject, filterCondition.Fuzzy)
+	if err != nil {
+		clog.Debug("fuzzy filter error: %s", err)
+	}
+
+	sortParam := SortParam{
+		sortName:  filterCondition.SortName,
+		sortFunc:  filterCondition.SortFunc,
+		sortOrder: filterCondition.SortOrder,
+	}
+	listObject, err = SortHandler(listObject, &sortParam)
+	if err != nil {
+		clog.Debug("sort items error: %s", err)
+	}
+
+	total := len(listObject)
+	listObject, err = PageHandler(listObject, filterCondition.Limit, filterCondition.Offset)
+	if err != nil {
+		clog.Debug("page items error: %s", err)
+	}
+
+	if f.ConverterContext != nil && f.EnableConvert {
+		convertParam := ConvertParam{
+			enableConvert: f.EnableConvert,
+			rawGvr:        f.RawGvr,
+			convertedGvr:  f.ConvertedGvr,
+			converter:     f.Converter,
+		}
+		listObject, err = ConvertHandler(listObject, &convertParam)
+		if err != nil {
+			clog.Error("convert obj error: %s", err)
+		}
+	}
+	list.Items = listObject
+	err = f.Scheme.Convert(list, object, version)
+	if err != nil {
+		return 0, err
+	}
+	return total, nil
 }
