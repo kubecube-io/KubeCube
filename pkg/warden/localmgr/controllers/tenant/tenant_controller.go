@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	v1 "github.com/kubecube-io/kubecube/pkg/apis/quota/v1"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -33,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	v1 "github.com/kubecube-io/kubecube/pkg/apis/quota/v1"
 	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
