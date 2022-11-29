@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	v1 "github.com/kubecube-io/kubecube/pkg/apis/quota/v1"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -147,7 +148,9 @@ func (r *TenantReconciler) deleteTenant(tenantName string) (ctrl.Result, error) 
 	if err := r.deleteNSofTenant(tenantName); err != nil {
 		return ctrl.Result{}, err
 	}
-	return ctrl.Result{}, nil
+	// delete cubeResourceQuota of tenant
+	err := r.deleteCubeResourceQuotaOfTenant(tenantName)
+	return ctrl.Result{}, err
 }
 
 func (r *TenantReconciler) deleteNSofTenant(tenantName string) error {
@@ -177,6 +180,16 @@ func (r *TenantReconciler) deleteNSofTenant(tenantName string) error {
 		})
 	if err != nil {
 		clog.Error("wait for delete namespace of tenant err: %s", err.Error())
+		return err
+	}
+	return nil
+}
+
+func (r *TenantReconciler) deleteCubeResourceQuotaOfTenant(tenantName string) error {
+	quota := v1.CubeResourceQuota{}
+	err := r.Client.DeleteAllOf(context.TODO(), &quota, client.MatchingLabels{constants.TenantLabel: tenantName})
+	if err != nil && !errors.IsNotFound(err) {
+		clog.Error("delete cube resource quota error， tenant name: %s, error: %s", tenantName, err.Error())
 		return err
 	}
 	return nil
