@@ -22,10 +22,8 @@ import (
 	"net/url"
 	"strings"
 	"unicode"
-)
 
-const (
-	FieldManager = "fieldManager"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
 func AddFieldManager(req *http.Request, username string) error {
@@ -41,7 +39,7 @@ func AddFieldManager(req *http.Request, username string) error {
 		return fmt.Errorf("username should not be longer than 128")
 	}
 
-	return AddQuery(req, FieldManager, username)
+	return AddQuery(req, constants.FieldManager, username)
 }
 
 func AddQuery(req *http.Request, key, value string) error {
