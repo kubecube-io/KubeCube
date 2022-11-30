@@ -36,6 +36,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 	"github.com/kubecube-io/kubecube/pkg/utils/page"
+	requestutil "github.com/kubecube-io/kubecube/pkg/utils/request"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
 	"github.com/kubecube-io/kubecube/pkg/utils/selector"
 	"github.com/kubecube-io/kubecube/pkg/utils/sort"
@@ -177,6 +178,15 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 		uri.Path = url
 		req.URL = uri
 		req.Host = internalCluster.Config.Host
+
+		username := c.GetString(constants.UserName)
+		if len(username) == 0 {
+			clog.Warn("username is empty")
+		}
+		err = requestutil.AddFieldManager(req, username)
+		if err != nil {
+			clog.Error("fail to add fieldManager due to %s", err.Error())
+		}
 
 		if needConvert {
 			// replace request body and url if need
