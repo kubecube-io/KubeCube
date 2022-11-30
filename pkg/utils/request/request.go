@@ -19,6 +19,8 @@ func AddFieldManager(req *http.Request, username string) error {
 		}
 	}
 
+	username = "cube-" + username
+
 	if len(username) > 128 {
 		return fmt.Errorf("username should not be longer than 128")
 	}
