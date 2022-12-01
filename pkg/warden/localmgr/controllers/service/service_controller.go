@@ -62,13 +62,13 @@ func (s *ServiceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 func (s *ServiceReconciler) UpdateExternalAccess(ctx context.Context, namespaceName types.NamespacedName, svc *v1.Service) (ctrl.Result, error) {
 	clog.Debug("start update service external access: %+v", namespaceName)
 	externalHandler := service.NewExternalAccess(s.Client, namespaceName.Namespace, namespaceName.Name, filter.Filter{Limit: 10}, s.NginxNamespace, s.NginxTcpServiceConfigMap, s.NginxUdpServiceConfigMap)
-	oldInfo, err := externalHandler.GetExternalAccess()
+	tcpInfo, udpInfo, err := externalHandler.GetExternalAccessConfigMap()
 	if err != nil {
 		clog.Error("get external access info fail, %+v", err)
 		return ctrl.Result{}, err
 	}
 	//if no need to update
-	if len(oldInfo) == 0 {
+	if len(tcpInfo) == 0 && len(udpInfo) == 0 {
 		return ctrl.Result{}, nil
 	}
 	for i, es := range oldInfo {

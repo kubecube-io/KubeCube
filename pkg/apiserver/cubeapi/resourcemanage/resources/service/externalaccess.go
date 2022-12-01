@@ -238,25 +238,25 @@ func (s *ExternalAccess) SetExternalAccess(externalServices []ExternalAccessInfo
 	return nil
 }
 
-// GetExternalAccess get external info
-func (s *ExternalAccess) GetExternalAccess() ([]ExternalAccessInfo, error) {
+func (s *ExternalAccess) GetExternalAccessConfigMap() (tcpResultMap map[int]ExternalAccessInfo, udpResultMap map[int]ExternalAccessInfo, err error) {
 	var tcpcm v1.ConfigMap
 	var udpcm v1.ConfigMap
-	err := s.client.Get(s.ctx, types.NamespacedName{Namespace: s.NginxNamespace, Name: s.NginxTcpServiceConfigMap}, &tcpcm)
+	tcpResultMap = make(map[int]ExternalAccessInfo)
+	udpResultMap = make(map[int]ExternalAccessInfo)
+	err = s.client.Get(s.ctx, types.NamespacedName{Namespace: s.NginxNamespace, Name: s.NginxTcpServiceConfigMap}, &tcpcm)
 	if err != nil {
-		return nil, fmt.Errorf("can not find configmap %s in %s from cluster, %v", s.NginxTcpServiceConfigMap, s.NginxNamespace, err)
+		return tcpResultMap, udpResultMap, fmt.Errorf("can not find configmap %s in %s from cluster, %v", s.NginxTcpServiceConfigMap, s.NginxNamespace, err)
 	}
 	err = s.client.Get(s.ctx, types.NamespacedName{Namespace: s.NginxNamespace, Name: s.NginxUdpServiceConfigMap}, &udpcm)
 	if err != nil {
-		return nil, fmt.Errorf("can not find configmap %s in %s from cluster, %v", s.NginxUdpServiceConfigMap, s.namespace, err)
+		return tcpResultMap, udpResultMap, fmt.Errorf("can not find configmap %s in %s from cluster, %v", s.NginxUdpServiceConfigMap, s.namespace, err)
 	}
 
 	// configmap.data:
 	//   2456: demo-ns/demo-service:8893
 	//   7676: demo-ns2/demo-service2:8893
 	//   5556: demo-ns2/demo-service2:7791
-	tcpResultMap := make(map[int]ExternalAccessInfo)
-	udpResultMap := make(map[int]ExternalAccessInfo)
+
 	valuePrefix := fmt.Sprintf("%s/%s", s.namespace, s.name)
 	for k, v := range tcpcm.Data {
 		split := strings.Split(v, ":")
@@ -295,6 +295,15 @@ func (s *ExternalAccess) GetExternalAccess() ([]ExternalAccessInfo, error) {
 			continue
 		}
 		udpResultMap[servicePort] = ExternalAccessInfo{servicePort, protocol, &externalPort}
+	}
+	return tcpResultMap, udpResultMap, nil
+}
+
+// GetExternalAccess get external info
+func (s *ExternalAccess) GetExternalAccess() ([]ExternalAccessInfo, error) {
+	tcpResultMap, udpResultMap, err := s.GetExternalAccessConfigMap()
+	if err != nil {
+		return nil, err
 	}
 	// not in configmap but in service.spec
 	var service v1.Service
