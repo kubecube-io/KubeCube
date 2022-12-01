@@ -191,8 +191,15 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 			}
 			req.URL.Path = convertedUrl
 		}
+
+		//In order to improve processing efficiency
+		//this method converts requests starting with metadata.labels in the selector into k8s labelSelector requests
+		// todo This method can be further optimized and extracted as a function to improve readability
 		if len(labelSelector) > 0 {
 			labelSelectorQueryString := ""
+			// Take out the query value in the selector and stitch it into the query field of labelSelector
+			// for example: selector=metadata.labels.key=value1|value2|value3
+			// then it should be converted to: key+in+(value1,value2,value3)
 			for key, value := range labelSelector {
 				if len(value) < 1 {
 					continue
@@ -203,21 +210,32 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 				labelSelectorQueryString += ")"
 			}
 			labelSelectorQueryString = url.PathEscape(labelSelectorQueryString)
+			// Old query parameters may have the following conditions:
+			// empty
+			// has selector: selector=key=value
+			// has selector and labelSelector: selector=key=value&labelSelector=key=value
+			// has selector and labelSelector and others: selector=key=value&labelSelector=key=value&fieldSelector=key=value
+			// so, use & to split it
 			queryArray := strings.Split(req.URL.RawQuery, "&")
 			queryString := ""
 			labelSelectorSet := false
 			for _, v := range queryArray {
+				//if it start with labelSelector=, then append converted labelSelector string
 				if strings.HasPrefix(v, "labelSelector=") {
 					queryString += v + "," + labelSelectorQueryString
 					labelSelectorSet = true
+					// else if url like: selector=key=value&labelSelector, then use converted labelSelector string replace it
 				} else if strings.HasPrefix(v, "labelSelector") {
 					queryString += "labelSelector=" + labelSelectorQueryString
 					labelSelectorSet = true
+					// else no need to do this
 				} else {
 					queryString += v
 				}
 				queryString += "&"
 			}
+			// If the query parameter does not exist labelSelector
+			// append converted labelSelector string
 			if len(queryString) > 0 && labelSelectorSet == false {
 				queryString += "&labelSelector=" + labelSelectorQueryString
 			}
