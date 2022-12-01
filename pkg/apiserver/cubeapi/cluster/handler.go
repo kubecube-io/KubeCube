@@ -400,33 +400,34 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 		user = c.GetString(constants.UserName)
 	}
 
-	listFunc := func(cli mgrclient.Client) (v1alpha2.SubnamespaceAnchorList, error) {
-		anchors := v1alpha2.SubnamespaceAnchorList{}
-		err := cli.Cache().List(ctx, &anchors)
-		return anchors, err
+	// list all hnc managed namespaces
+	listFunc := func(cli mgrclient.Client) (v1.NamespaceList, error) {
+		nsLIst := v1.NamespaceList{}
+		labelSelector, err := labels.Parse(constants.HncTenantLabel)
+		if err != nil {
+			return nsLIst, err
+		}
+		err = cli.Cache().List(ctx, &nsLIst, &client.ListOptions{LabelSelector: labelSelector})
+		return nsLIst, err
 	}
 
+	// list hnc managed namespaces by given tenants
 	if len(tenantList) > 0 {
-
-		listFunc = func(cli mgrclient.Client) (v1alpha2.SubnamespaceAnchorList, error) {
-			anchors := v1alpha2.SubnamespaceAnchorList{}
+		listFunc = func(cli mgrclient.Client) (v1.NamespaceList, error) {
+			nsLIst := v1.NamespaceList{}
 			for _, tenant := range tenantList {
-				tempAnchort := v1alpha2.SubnamespaceAnchorList{}
-				labelSelector, err := labels.Parse(fmt.Sprintf("%v=%v", constants.TenantLabel, tenant))
+				tempNsList := v1.NamespaceList{}
+				labelSelector, err := labels.Parse(fmt.Sprintf("%v=%v", constants.HncTenantLabel, tenant))
 				if err != nil {
-					clog.Error(err.Error())
-					response.FailReturn(c, errcode.CustomReturn(http.StatusInternalServerError, "label selector parse failed"))
-					return tempAnchort, err
+					return tempNsList, err
 				}
-				err = cli.Cache().List(ctx, &tempAnchort, &client.ListOptions{LabelSelector: labelSelector})
+				err = cli.Cache().List(ctx, &tempNsList, &client.ListOptions{LabelSelector: labelSelector})
 				if err != nil {
-					clog.Error(err.Error())
-					response.FailReturn(c, errcode.CustomReturn(http.StatusInternalServerError, "label selector parse failed"))
-					return tempAnchort, err
+					return tempNsList, err
 				}
-				anchors.Items = append(anchors.Items, tempAnchort.Items...)
+				nsLIst.Items = append(nsLIst.Items, tempNsList.Items...)
 			}
-			return anchors, nil
+			return nsLIst, nil
 		}
 	}
 
@@ -435,30 +436,29 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 	// search in every cluster
 	for _, cluster := range clusters {
 		cli := cluster.Client
-		anchors, err := listFunc(cli)
+		nsList, err := listFunc(cli) // these namespaces contain project ns and ns under project
 		if err != nil {
 			clog.Error(err.Error())
-			continue
+			response.FailReturn(c, errcode.CustomReturn(http.StatusInternalServerError, err.Error()))
+			return
 		}
 
-		for _, anchor := range anchors.Items {
-			project, ok1 := anchor.Labels[constants.ProjectLabel]
-			tenant, ok2 := anchor.Labels[constants.TenantLabel]
-			if ok1 && ok2 && anchor.ObjectMeta.DeletionTimestamp.IsZero() {
-
-				// fetch namespace under subNamespace
-				ns := v1.Namespace{}
-				err = cli.Direct().Get(ctx, types.NamespacedName{Name: anchor.Name}, &ns)
-				if err != nil {
-					clog.Error(err.Error())
+		for _, ns := range nsList.Items {
+			project, ok1 := ns.Labels[constants.HncProjectLabel]
+			tenant, ok2 := ns.Labels[constants.HncTenantLabel]
+			if ok1 && ok2 && ns.ObjectMeta.DeletionTimestamp.IsZero() {
+				// filter project ns(such as kubecube-project-project-1).
+				if ns.Labels[constants.ProjectNsPrefix+project+constants.HncSuffix] != constants.HncProjectDepth {
 					continue
 				}
 
-				// only care about ns the user can see
-				allowed, err := rbac.IsAllowResourceAccess(&rbac.DefaultResolver{Cache: cli.Cache()}, user, "pods", constants.GetVerb, ns.Name)
+				// only care about ns under project that the user can see
+				// todo: use better way
+				allowed, err := rbac.IsAllowResourceAccess(&rbac.DefaultResolver{Cache: cli.Cache()}, user, "pods", constants.GetVerb, constants.ProjectNsPrefix+project)
 				if err != nil {
 					clog.Error(err.Error())
-					continue
+					response.FailReturn(c, errcode.CustomReturn(http.StatusInternalServerError, err.Error()))
+					return
 				}
 
 				if !allowed {
@@ -470,7 +470,7 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 					clusterName = cluster.Name
 				}
 				item := respBody{
-					Namespace:     anchor.Name,
+					Namespace:     ns.Name,
 					Cluster:       cluster.Name,
 					ClusterName:   clusterName,
 					Project:       project,
