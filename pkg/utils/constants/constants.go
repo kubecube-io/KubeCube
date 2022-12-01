@@ -140,6 +140,8 @@ const (
 
 	HncProjectLabel = "kubecube.hnc.x-k8s.io/project"
 
+	HncIncludedNsLabel = "hnc.x-k8s.io/included-namespace"
+
 	/*
 		Namespace depth is relative to current namespace depth.
 		Example:
