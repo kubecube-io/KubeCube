@@ -55,6 +55,7 @@ func (h *handler) AddApisTo(root *gin.Engine) {
 	r := root.Group(constants.ApiPathRoot + subPath)
 	r.GET("info", h.getClusterInfo)
 	r.GET("/:cluster/monitor", h.getClusterMonitorInfo)
+	r.GET("/:cluster/livedata", h.getClusterLivedata)
 	r.GET("namespaces", h.getClusterNames)
 	r.GET("resources", h.getClusterResource)
 	r.GET("subnamespaces", h.getSubNamespaces)
@@ -68,7 +69,13 @@ type result struct {
 	Items []clusterInfo `json:"items"`
 }
 
+// clusterInfo contains meta info and livedata info
 type clusterInfo struct {
+	clusterMetaInfo
+	clusterLivedataInfo
+}
+
+type clusterMetaInfo struct {
 	ClusterName         string            `json:"clusterName"`
 	ClusterDescription  string            `json:"clusterDescription"`
 	NetworkType         string            `json:"networkType"`
@@ -81,8 +88,9 @@ type clusterInfo struct {
 	IngressDomainSuffix string            `json:"ingressDomainSuffix,omitempty"`
 	Labels              map[string]string `json:"labels,omitempty"`
 	Annotations         map[string]string `json:"annotations,omitempty"`
+}
 
-	// todo(weilaaa): move to monitor info
+type clusterLivedataInfo struct {
 	NodeCount             int `json:"nodeCount"`
 	NamespaceCount        int `json:"namespaceCount"`
 	UsedCPU               int `json:"usedCpu"`
@@ -95,11 +103,10 @@ type clusterInfo struct {
 	UsedStorageEphemeral  int `json:"usedStorageEphemeral"`
 	TotalGpu              int `json:"totalGpu"`
 	UsedGpu               int `json:"usedGpu"`
-
-	UsedCPURequest int `json:"usedCpuRequest"`
-	UsedCPULimit   int `json:"usedCpuLimit"`
-	UsedMemRequest int `json:"usedMemRequest"`
-	UsedMemLimit   int `json:"usedMemLimit"`
+	UsedCPURequest        int `json:"usedCpuRequest"`
+	UsedCPULimit          int `json:"usedCpuLimit"`
+	UsedMemRequest        int `json:"usedMemRequest"`
+	UsedMemLimit          int `json:"usedMemLimit"`
 }
 
 type handler struct {
@@ -135,7 +142,7 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 	clusterStatus := c.Query("status")
 	projectName := c.Query("project")
 	nodeLabelSelector := c.Query("nodeLabelSelector")
-	simplifyInfo := c.Query("simplify")
+	pruneInfo := c.Query("prune")
 
 	switch {
 	// find cluster by given name
@@ -177,7 +184,7 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 	}
 
 	opts := clusterInfoOpts{
-		simplifyInfo:      simplifyInfo == "true",
+		pruneInfo:         pruneInfo == "true",
 		statusFilter:      clusterStatus,
 		nodeLabelSelector: selector,
 	}
@@ -225,6 +232,38 @@ func (h *handler) getClusterMonitorInfo(c *gin.Context) {
 	}
 
 	info, err := makeMonitorInfo(c.Request.Context(), cluster)
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.CustomReturn(http.StatusInternalServerError, err.Error()))
+		return
+	}
+
+	response.SuccessReturn(c, info)
+}
+
+// getClusterLivedata fetch livedata infos of specified cluster.
+// temp not be used
+func (h *handler) getClusterLivedata(c *gin.Context) {
+	nodeLabelSelector := c.Query("nodeLabelSelector")
+	cluster := c.Param("cluster")
+	if len(cluster) == 0 {
+		response.FailReturn(c, errcode.InvalidBodyFormat)
+		return
+	}
+
+	selector, err := labels.Parse(nodeLabelSelector)
+	if err != nil {
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, "labels selector invalid: %v", err))
+		return
+	}
+
+	cli := clients.Interface().Kubernetes(cluster)
+	if cli == nil {
+		response.FailReturn(c, errcode.CustomReturn(http.StatusInternalServerError, "cluster %v abnormal", cluster))
+		return
+	}
+
+	info, err := makeLivedataInfo(c.Request.Context(), cli, cluster, clusterInfoOpts{nodeLabelSelector: selector})
 	if err != nil {
 		clog.Error(err.Error())
 		response.FailReturn(c, errcode.CustomReturn(http.StatusInternalServerError, err.Error()))
