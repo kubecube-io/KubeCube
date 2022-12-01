@@ -30,6 +30,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	requestutil "github.com/kubecube-io/kubecube/pkg/utils/request"
 	"github.com/kubecube-io/kubecube/pkg/warden/server/authproxy/proxy"
 )
 
@@ -95,6 +96,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// todo: do audit log here
 	clog.Debug("user(%v) access to %v with verb(%v)", user.Username, r.URL.Path, r.Method)
+	err = requestutil.AddFieldManager(r, user.Username)
+	if err != nil {
+		clog.Error("fail to add fieldManager due to %s", err.Error())
+	}
 
 	// impersonate given user to access k8s-apiserver
 	r.Header.Set(constants.ImpersonateUserKey, user.Username)

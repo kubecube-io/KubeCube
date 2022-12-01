@@ -182,3 +182,7 @@ const (
 	Writable = "writable"
 	Readable = "readable"
 )
+
+const (
+	FieldManager = "fieldManager"
+)
