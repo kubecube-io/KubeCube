@@ -98,6 +98,12 @@ func (m *LocalManager) Initialize() error {
 	}
 	m.ServiceReconciler = r
 
+	err = setupControllersWithManager(m)
+	if err != nil {
+		return err
+	}
+
+	setupWithWebhooks(m)
 	err = m.Manager.AddReadyzCheck("readyz", healthz.Ping)
 	if err != nil {
 		return err
