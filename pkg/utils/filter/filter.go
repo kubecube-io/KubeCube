@@ -263,7 +263,7 @@ func (f *Filter) exactMatch(items K8sJsonArr) (result K8sJsonArr) {
 			// key = .metadata.xxx.xxx， multi level
 			realValue, err := GetDeepValue(item, key)
 			if err != nil {
-				clog.Error("parse value error, %+v", err.Error())
+				clog.Debug("parse value error, %+v", err.Error())
 				flag = false
 				break
 			}
@@ -302,7 +302,7 @@ func (f *Filter) fuzzyMatch(items K8sJsonArr) (result K8sJsonArr) {
 			// key = metadata.xxx.xxx， multi level
 			realValue, err := GetDeepValue(item, key)
 			if err != nil {
-				clog.Error("parse value error, %+v", err)
+				clog.Debug("parse value error, %+v", err)
 				flag = false
 				break
 			}

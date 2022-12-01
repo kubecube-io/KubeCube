@@ -22,6 +22,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
+const k8sLabelPrefix = "metadata.labels"
+
 // ParseSelector exact query：selector=key1=value1,key2=value2,key3=value3
 // fuzzy query：selector=key1~value1,key2~value2,key3~value3
 // multi query: selector=key=value1|value2|value3
@@ -47,6 +49,39 @@ func ParseSelector(selectorStr string) (exact map[string]sets.String, fuzzy map[
 			} else {
 				values := strings.Split(label[i+1:], "|")
 				fuzzy[label[:i]] = values
+			}
+		}
+	}
+
+	return
+}
+
+// ParseLabelSelector exact query：selector=key1=value1,key2=value2,key3=value3
+// fuzzy query：selector=key1~value1,key2~value2,key3~value3
+// multi query: selector=key=value1|value2|value3
+// support mixed query：selector=key1~value1,key2=value2,key3=value3
+func ParseLabelSelector(selectorStr string) (labelSelector map[string][]string) {
+	labelSelector = make(map[string][]string, 0)
+
+	if selectorStr == "" {
+		return
+	}
+
+	labels := strings.Split(selectorStr, ",")
+	for _, label := range labels {
+		if i := strings.IndexAny(label, "~="); i > 0 {
+			if label[i] == '=' {
+				values := strings.Split(label[i+1:], "|")
+				var set []string
+				for _, value := range values {
+					set = append(set, value)
+				}
+				// can be convert labelSelector
+				if strings.HasPrefix(label[:i], k8sLabelPrefix) {
+					temp := label[:i]
+					labelValue := strings.Split(temp, k8sLabelPrefix+".")
+					labelSelector[labelValue[1]] = set
+				}
 			}
 		}
 	}
