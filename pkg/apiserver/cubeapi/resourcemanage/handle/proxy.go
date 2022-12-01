@@ -23,7 +23,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
-	url2 "net/url"
+	"net/url"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -137,7 +138,7 @@ func (h *ProxyHandler) tryVersionConvert(cluster, url string, req *http.Request)
 func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 	// http request params
 	cluster := c.Param("cluster")
-	url := c.Param("url")
+	proxyUrl := c.Param("url")
 	filter := parseQueryParams(c)
 
 	c.Request.Header.Set(constants.ImpersonateUserKey, "admin")
@@ -153,14 +154,14 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 		return
 	}
-	_, _, gvr, err := conversion.ParseURL(url)
+	_, _, gvr, err := conversion.ParseURL(proxyUrl)
 	if err != nil {
 		clog.Error(err.Error())
 		response.FailReturn(c, errcode.InternalServerError)
 		return
 	}
 
-	needConvert, convertedObj, convertedUrl, err := h.tryVersionConvert(cluster, url, c.Request)
+	needConvert, convertedObj, convertedUrl, err := h.tryVersionConvert(cluster, proxyUrl, c.Request)
 	if err != nil {
 		clog.Error(err.Error())
 		response.FailReturn(c, errcode.InternalServerError)
@@ -169,13 +170,15 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 
 	// create director
 	director := func(req *http.Request) {
-		uri, err := url2.ParseRequestURI(internalCluster.Config.Host)
+		labelSelector := selector.ParseLabelSelector(c.Query("selector"))
+
+		uri, err := url.ParseRequestURI(internalCluster.Config.Host)
 		if err != nil {
 			clog.Error("Could not parse host, host: %s , err: %v", internalCluster.Config.Host, err)
 			response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, "Could not parse host, host: %s , err: %v", internalCluster.Config.Host, err))
 		}
 		uri.RawQuery = c.Request.URL.RawQuery
-		uri.Path = url
+		uri.Path = proxyUrl
 		req.URL = uri
 		req.Host = internalCluster.Config.Host
 
@@ -198,11 +201,61 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 			}
 			req.URL.Path = convertedUrl
 		}
+
+		//In order to improve processing efficiency
+		//this method converts requests starting with metadata.labels in the selector into k8s labelSelector requests
+		// todo This method can be further optimized and extracted as a function to improve readability
+		if len(labelSelector) > 0 {
+			labelSelectorQueryString := ""
+			// Take out the query value in the selector and stitch it into the query field of labelSelector
+			// for example: selector=metadata.labels.key=value1|value2|value3
+			// then it should be converted to: key+in+(value1,value2,value3)
+			for key, value := range labelSelector {
+				if len(value) < 1 {
+					continue
+				}
+				labelSelectorQueryString += key
+				labelSelectorQueryString += "+in+("
+				labelSelectorQueryString += strings.Join(value, ",")
+				labelSelectorQueryString += ")"
+			}
+			labelSelectorQueryString = url.PathEscape(labelSelectorQueryString)
+			// Old query parameters may have the following conditions:
+			// empty
+			// has selector: selector=key=value
+			// has selector and labelSelector: selector=key=value&labelSelector=key=value
+			// has selector and labelSelector and others: selector=key=value&labelSelector=key=value&fieldSelector=key=value
+			// so, use & to split it
+			queryArray := strings.Split(req.URL.RawQuery, "&")
+			queryString := ""
+			labelSelectorSet := false
+			for _, v := range queryArray {
+				//if it start with labelSelector=, then append converted labelSelector string
+				if strings.HasPrefix(v, "labelSelector=") {
+					queryString += v + "," + labelSelectorQueryString
+					labelSelectorSet = true
+					// else if url like: selector=key=value&labelSelector, then use converted labelSelector string replace it
+				} else if strings.HasPrefix(v, "labelSelector") {
+					queryString += "labelSelector=" + labelSelectorQueryString
+					labelSelectorSet = true
+					// else no need to do this
+				} else {
+					queryString += v
+				}
+				queryString += "&"
+			}
+			// If the query parameter does not exist labelSelector
+			// append converted labelSelector string
+			if len(queryString) > 0 && labelSelectorSet == false {
+				queryString += "&labelSelector=" + labelSelectorQueryString
+			}
+			req.URL.RawQuery = queryString
+		}
 	}
 
 	errorHandler := func(resp http.ResponseWriter, req *http.Request, err error) {
 		if err != nil {
-			clog.Warn("cluster %s url %s proxy fail, %v", cluster, url, err)
+			clog.Warn("cluster %s url %s proxy fail, %v", cluster, proxyUrl, err)
 			response.FailReturn(c, errcode.ServerErr)
 			return
 		}
