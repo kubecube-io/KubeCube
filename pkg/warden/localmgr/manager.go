@@ -31,6 +31,7 @@ import (
 	multiclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	"github.com/kubecube-io/kubecube/pkg/utils/env"
 	"github.com/kubecube-io/kubecube/pkg/utils/exit"
+	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/service"
 	"github.com/kubecube-io/kubecube/pkg/warden/reporter"
 )
 
@@ -64,6 +65,7 @@ type LocalManager struct {
 	NginxTcpServiceConfigMap string
 	NginxUdpServiceConfigMap string
 	ctrl.Manager
+	ServiceReconciler *service.Reconciler
 }
 
 func (m *LocalManager) Initialize() error {
@@ -86,13 +88,22 @@ func (m *LocalManager) Initialize() error {
 
 	m.Manager = mgr
 
+	r, err := service.SetupWithManager(m.Manager, &service.NginxConfig{
+		NginxNamespace:           m.NginxNamespace,
+		NginxTcpServiceConfigMap: m.NginxTcpServiceConfigMap,
+		NginxUdpServiceConfigMap: m.NginxUdpServiceConfigMap,
+	})
+	if err != nil {
+		return err
+	}
+	m.ServiceReconciler = r
+
 	err = setupControllersWithManager(m)
 	if err != nil {
 		return err
 	}
 
 	setupWithWebhooks(m)
-
 	err = m.Manager.AddReadyzCheck("readyz", healthz.Ping)
 	if err != nil {
 		return err
@@ -125,7 +136,11 @@ func (m *LocalManager) readyzCheck() bool {
 
 func (m *LocalManager) Run(stop <-chan struct{}) {
 	ctx := exit.SetupCtxWithStop(context.Background(), stop)
-	err := m.Manager.Start(ctx)
+	err := m.ServiceReconciler.Start(ctx)
+	if err != nil {
+		log.Fatal("start service controller failed: %s", err)
+	}
+	err = m.Manager.Start(ctx)
 	if err != nil {
 		log.Fatal("start local controller manager failed: %s", err)
 	}

@@ -17,7 +17,6 @@ limitations under the License.
 package localmgr
 
 import (
-	project2 "github.com/kubecube-io/kubecube/pkg/warden/localmgr/webhooks/project"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	admisson "sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -25,9 +24,9 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/hotplug"
 	project "github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/project"
 	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/quota"
-	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/service"
 	tenant "github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/tenant"
 	hotplug2 "github.com/kubecube-io/kubecube/pkg/warden/localmgr/webhooks/hotplug"
+	project2 "github.com/kubecube-io/kubecube/pkg/warden/localmgr/webhooks/project"
 	quota2 "github.com/kubecube-io/kubecube/pkg/warden/localmgr/webhooks/quota"
 	tenant2 "github.com/kubecube-io/kubecube/pkg/warden/localmgr/webhooks/tenant"
 )
@@ -66,14 +65,6 @@ func setupControllersWithManager(m *LocalManager) error {
 		return err
 	}
 
-	err = service.SetupWithManager(m.Manager, &service.NginxConfig{
-		NginxNamespace:           m.NginxNamespace,
-		NginxTcpServiceConfigMap: m.NginxTcpServiceConfigMap,
-		NginxUdpServiceConfigMap: m.NginxUdpServiceConfigMap,
-	})
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
