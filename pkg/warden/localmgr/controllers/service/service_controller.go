@@ -91,7 +91,7 @@ func (s *Reconciler) OnServiceUpdate(oldObj, newObj interface{}) {
 					if newServicePort.Name == name && newServicePort.Protocol == v1.ProtocolTCP {
 						//update service port
 						value.ServicePort = int(newServicePort.Port)
-						result = append(result, value)
+						result = append(result, *value)
 						continue
 					}
 				}
@@ -105,7 +105,7 @@ func (s *Reconciler) OnServiceUpdate(oldObj, newObj interface{}) {
 				for _, newServicePort := range newService.Spec.Ports {
 					if newServicePort.Name == name && newServicePort.Protocol == v1.ProtocolUDP {
 						value.ServicePort = int(newServicePort.Port)
-						result = append(result, value)
+						result = append(result, *value)
 						continue
 					}
 				}
