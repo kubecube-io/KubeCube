@@ -218,6 +218,10 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 				labelSelectorQueryString += "+in+("
 				labelSelectorQueryString += strings.Join(value, ",")
 				labelSelectorQueryString += ")"
+				labelSelectorQueryString += ","
+			}
+			if len(labelSelectorQueryString) > 0 {
+				labelSelectorQueryString = strings.TrimRight(labelSelectorQueryString, ",")
 			}
 			labelSelectorQueryString = url.PathEscape(labelSelectorQueryString)
 			// Old query parameters may have the following conditions:
