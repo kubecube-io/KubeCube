@@ -22,6 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/controllers/binding"
 	cluster "github.com/kubecube-io/kubecube/pkg/ctrlmgr/controllers/cluster"
 	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/controllers/quota"
 	user "github.com/kubecube-io/kubecube/pkg/ctrlmgr/controllers/user"
@@ -36,6 +37,8 @@ func init() {
 	setupFns = append(setupFns, cluster.SetupWithManager)
 	setupFns = append(setupFns, user.SetupWithManager)
 	setupFns = append(setupFns, quota.SetupWithManager)
+	setupFns = append(setupFns, binding.SetupClusterRoleBindingReconcilerWithManager)
+	setupFns = append(setupFns, binding.SetupRoleBindingReconcilerWithManager)
 }
 
 // SetupWithManager set up controllers into manager

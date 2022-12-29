@@ -56,6 +56,18 @@ type UserStatus struct {
 	// The user status, normal/forbidden
 	LastLoginTime *metav1.Time `json:"lastLoginTime,omitempty"`
 	LastLoginIP   string       `json:"lastLoginIP,omitempty"`
+
+	// BelongTenants indicates the user belongs to those tenants.
+	// +optional
+	BelongTenants []string `json:"belongTenants,omitempty"`
+
+	// BelongProjects indicates the user belongs to those projects.
+	// +optional
+	BelongProjects []string `json:"belongProjects,omitempty"`
+
+	// PlatformAdmin indicates the user is platform admin or not.
+	// +optional
+	PlatformAdmin bool `json:"platformAdmin,omitempty"`
 }
 
 //+kubebuilder:object:root=true
