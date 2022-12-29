@@ -66,7 +66,7 @@ func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivot
 		if internalCluster != nil && err != nil {
 			metadataInfo.Status = string(clusterv1.ClusterAbnormal)
 		}
-		if internalCluster == nil {
+		if internalCluster == nil || metadataInfo.Status == string(clusterv1.ClusterAbnormal) {
 			if len(opts.statusFilter) == 0 {
 				infos = append(infos, clusterInfo{clusterMetaInfo: metadataInfo})
 			} else if metadataInfo.Status == opts.statusFilter {
