@@ -141,6 +141,12 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 	proxyUrl := c.Param("url")
 	filter := parseQueryParams(c)
 
+	username := c.GetString(constants.UserName)
+	if len(username) == 0 {
+		clog.Warn("username is empty")
+	}
+
+	// fixme: use correct user
 	c.Request.Header.Set(constants.ImpersonateUserKey, "admin")
 	internalCluster, err := multicluster.Interface().Get(cluster)
 	if err != nil {
@@ -168,6 +174,15 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 		return
 	}
 
+	// todo: open it when impersonate fixed.
+	//allowed, err := belongs.RelationshipDetermine(context.Background(), internalCluster.Client, proxyUrl, username)
+	//if err != nil {
+	//	clog.Warn(err.Error())
+	//} else if !allowed {
+	//	response.FailReturn(c, errcode.ForbiddenErr)
+	//	return
+	//}
+
 	// create director
 	director := func(req *http.Request) {
 		labelSelector := selector.ParseLabelSelector(c.Query("selector"))
@@ -182,10 +197,6 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 		req.URL = uri
 		req.Host = internalCluster.Config.Host
 
-		username := c.GetString(constants.UserName)
-		if len(username) == 0 {
-			clog.Warn("username is empty")
-		}
 		err = requestutil.AddFieldManager(req, username)
 		if err != nil {
 			clog.Error("fail to add fieldManager due to %s", err.Error())

@@ -68,12 +68,26 @@ spec:
           status:
             description: UserStatus defines the observed state of User
             properties:
+              belongProjects:
+                description: BelongProjects indicates the user belongs to those projects.
+                items:
+                  type: string
+                type: array
+              belongTenants:
+                description: BelongTenants indicates the user belongs to those tenants.
+                items:
+                  type: string
+                type: array
               lastLoginIP:
                 type: string
               lastLoginTime:
                 description: The user status, normal/forbidden
                 format: date-time
                 type: string
+              platformAdmin:
+                description: PlatformAdmin indicates the user is platform admin or
+                  not.
+                type: boolean
             type: object
         type: object
     served: true
