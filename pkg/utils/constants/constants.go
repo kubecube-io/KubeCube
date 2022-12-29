@@ -180,6 +180,13 @@ const (
 	ListVerb = "list"
 )
 
+// rbac binding subjects
+const (
+	SubjectUser  = "User"
+	SubjectGroup = "Group"
+	SubjectSA    = "ServiceAccount"
+)
+
 const (
 	Writable = "writable"
 	Readable = "readable"
@@ -187,4 +194,15 @@ const (
 
 const (
 	FieldManager = "fieldManager"
+)
+
+// node labels and values
+const (
+	LabelNodeTenant = "node.kubecube.io/tenant"
+	LabelNodeStatus = "node.kubecube.io/status"
+	LabelNodeNs     = "node.kubecube.io/ns"
+
+	ValueNodeShare      = "share"
+	ValueNodeAssigned   = "assigned"
+	ValueNodeUnassigned = "unassigned"
 )
