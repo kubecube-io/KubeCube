@@ -17,6 +17,8 @@ limitations under the License.
 package authproxy
 
 import (
+	"context"
+
 	"net/http"
 	"net/url"
 	"strings"
@@ -28,7 +30,9 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators"
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
+	"github.com/kubecube-io/kubecube/pkg/belongs"
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	requestutil "github.com/kubecube-io/kubecube/pkg/utils/request"
 	"github.com/kubecube-io/kubecube/pkg/warden/server/authproxy/proxy"
@@ -43,6 +47,8 @@ type Handler struct {
 	// cfg holds current cluster info
 	// cfg *rest.Config
 
+	cli client.Client
+
 	// proxy do real proxy action with any inbound stream
 	proxy *proxy.UpgradeAwareHandler
 }
@@ -56,6 +62,13 @@ func NewHandler(localClusterKubeConfig string) (*Handler, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	cli, err := client.NewClientFor(context.Background(), restConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	h.cli = cli
 
 	host := restConfig.Host
 	if !strings.HasSuffix(host, "/") {
@@ -88,21 +101,29 @@ func NewHandler(localClusterKubeConfig string) (*Handler, error) {
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// parse token transfer to user info
-	user, err := token.GetUserFromReq(r)
+	userInfo, err := token.GetUserFromReq(r)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
-	// todo: do audit log here
-	clog.Debug("user(%v) access to %v with verb(%v)", user.Username, r.URL.Path, r.Method)
-	err = requestutil.AddFieldManager(r, user.Username)
+	clog.Debug("user(%v) access to %v with verb(%v)", userInfo.Username, r.URL.Path, r.Method)
+
+	allowed, err := belongs.RelationshipDetermine(context.Background(), h.cli, r.URL.Path, userInfo.Username)
 	if err != nil {
-		clog.Error("fail to add fieldManager due to %s", err.Error())
+		clog.Warn(err.Error())
+	} else if !allowed {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	err = requestutil.AddFieldManager(r, userInfo.Username)
+	if err != nil {
+		clog.Error("fail to add fieldManager due to %s", err)
 	}
 
 	// impersonate given user to access k8s-apiserver
-	r.Header.Set(constants.ImpersonateUserKey, user.Username)
+	r.Header.Set(constants.ImpersonateUserKey, userInfo.Username)
 
 	h.proxy.ServeHTTP(w, r)
 }
