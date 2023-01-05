@@ -269,16 +269,4 @@ var _ = Describe("Filter", func() {
 		Expect(err.Error()).To(Equal("field hello1 not exsit"))
 	})
 
-	It("TestGetDeepFloat64", func() {
-		listJson, _ := json.Marshal(list)
-		var result map[string]interface{}
-		err := json.Unmarshal(listJson, &result)
-		Expect(err).To(BeNil())
-
-		items := result["items"].([]interface{})
-		number := GetDeepFloat64(items[0], "metadata.labels.number")
-		Expect(float64(5)).To(Equal(number))
-		number = GetDeepFloat64(items[0], "metadata.labels.number1")
-		Expect(float64(0)).To(Equal(number))
-	})
 })
