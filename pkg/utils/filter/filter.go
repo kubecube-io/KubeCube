@@ -129,7 +129,7 @@ func (f *Filter) doFilter(data []byte, filterCondition *Condition) (*unstructure
 		return nil, err
 	}
 	if len(object.Items) == 0 {
-		return nil, nil
+		return obj, nil
 	}
 	version := object.Items[0].GroupVersionKind().Version
 	temp, total, err := f.filter(object.Items, filterCondition)
