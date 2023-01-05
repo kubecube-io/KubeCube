@@ -82,7 +82,7 @@ var _ = Describe("Job", func() {
 		})
 		ret, err := job.GetExtendJobs()
 		Expect(err).To(BeNil())
-		Expect(*(ret.Object["total"].(*int))).To(Equal(2))
+		Expect(ret.Object["total"]).To(Equal(2))
 		items := ret.Object["items"].([]unstructured.Unstructured)
 		s := items[0].Object["extendInfo"].(map[string]interface{})["status"]
 		Expect(s).To(Equal("Complete"))
