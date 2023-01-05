@@ -35,10 +35,10 @@ import (
 )
 
 type Job struct {
-	ctx       context.Context
-	client    mgrclient.Client
-	namespace string
-	filter    *filter.Filter
+	ctx             context.Context
+	client          mgrclient.Client
+	namespace       string
+	filterCondition *filter.Condition
 }
 
 func init() {
@@ -54,17 +54,17 @@ func Handle(param resourcemanage.ExtendParams) (interface{}, error) {
 	if kubernetes == nil {
 		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
 	}
-	job := NewJob(kubernetes, param.Namespace, param.Filter)
+	job := NewJob(kubernetes, param.Namespace, param.FilterCondition)
 	return job.GetExtendJobs()
 }
 
-func NewJob(client mgrclient.Client, namespace string, filter *filter.Filter) Job {
+func NewJob(client mgrclient.Client, namespace string, condition *filter.Condition) Job {
 	ctx := context.Background()
 	return Job{
-		ctx:       ctx,
-		client:    client,
-		namespace: namespace,
-		filter:    filter,
+		ctx:             ctx,
+		client:          client,
+		namespace:       namespace,
+		filterCondition: condition,
 	}
 }
 
@@ -80,10 +80,10 @@ func (j *Job) GetExtendJobs() (*unstructured.Unstructured, error) {
 		return nil, err
 	}
 
-	// filter list by selector/sort/page
-	total, err := j.filter.FilterObjectList(&jobList)
+	// filterCondition list by selector/sort/page
+	total, err := filter.GetEmptyFilter().FilterObjectList(&jobList, j.filterCondition)
 	if err != nil {
-		clog.Error("filter jobList error, err: %s", err.Error())
+		clog.Error("filterCondition jobList error, err: %s", err.Error())
 		return nil, err
 	}
 

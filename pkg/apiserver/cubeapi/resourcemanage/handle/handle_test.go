@@ -95,7 +95,7 @@ var _ = Describe("Handle", func() {
 
 	})
 
-	It("test filter", func() {
+	It("test filterCondition", func() {
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
 		u, _ := url.Parse("https://example.org/api/v1/cube/clusters/pivot-cluster/api/v1/namespaces?selector=metadata.labels.test1=1,metadata.labels.test2~test&pageSize=10&pageNum=1&sortName=metadata.creatiomTimestamps&sortFunc=time&sortOrder=desc")

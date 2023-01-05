@@ -34,9 +34,9 @@ import (
 )
 
 type Node struct {
-	ctx    context.Context
-	client mgrclient.Client
-	filter *filter.Filter
+	ctx             context.Context
+	client          mgrclient.Client
+	filterCondition *filter.Condition
 }
 
 func init() {
@@ -52,16 +52,16 @@ func handle(param resourcemanage.ExtendParams) (interface{}, error) {
 	if kubernetes == nil {
 		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
 	}
-	node := NewNode(kubernetes, param.Filter)
+	node := NewNode(kubernetes, param.FilterCondition)
 	return node.GetExtendNodes()
 }
 
-func NewNode(client mgrclient.Client, filter *filter.Filter) Node {
+func NewNode(client mgrclient.Client, condition *filter.Condition) Node {
 	ctx := context.Background()
 	return Node{
-		ctx:    ctx,
-		client: client,
-		filter: filter,
+		ctx:             ctx,
+		client:          client,
+		filterCondition: condition,
 	}
 }
 
@@ -75,10 +75,10 @@ func (node *Node) GetExtendNodes() (*unstructured.Unstructured, error) {
 		clog.Error("can not find node in cluster, %v", err)
 		return nil, err
 	}
-	// filter list by selector/sort/page
-	total, err := node.filter.FilterObjectList(&nodeList)
+	// filterCondition list by selector/sort/page
+	total, err := filter.GetEmptyFilter().FilterObjectList(&nodeList, node.filterCondition)
 	if err != nil {
-		clog.Error("filter nodeList error, err: %s", err.Error())
+		clog.Error("filterCondition nodeList error, err: %s", err.Error())
 		return nil, err
 	}
 	resultMap["total"] = total

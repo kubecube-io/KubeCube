@@ -19,7 +19,6 @@ package filter
 import (
 	"bytes"
 	"compress/gzip"
-	"context"
 	"fmt"
 	"io/ioutil"
 
@@ -112,6 +111,40 @@ func (f *Filter) ModifyResponse(r *http.Response, filterCondition *Condition) er
 	return nil
 }
 
+func (f *Filter) doFilter(data []byte, filterCondition *Condition) (*unstructured.Unstructured, error) {
+	obj, err := ParseJsonDataHandler(data, f.Scheme)
+	if err != nil {
+		return nil, err
+	}
+	res := unstructured.Unstructured{}
+	if !obj.IsList() {
+		err := f.convertRes(obj, res, obj.GroupVersionKind().Version)
+		if err != nil {
+			return nil, err
+		}
+		return &res, nil
+	}
+	object, err := obj.ToList()
+	if err != nil {
+		return nil, err
+	}
+	if len(object.Items) == 0 {
+		return nil, nil
+	}
+	version := object.Items[0].GroupVersionKind().Version
+	temp, total, err := f.filter(object.Items, filterCondition)
+	if err != nil {
+		return nil, err
+	}
+	object.Items = temp
+	object.Object["total"] = total
+	err = f.convertRes(object, &res, version)
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
 func (f *Filter) FilterObjectList(object runtime.Object, filterCondition *Condition) (int, error) {
 	version := object.GetObjectKind().GroupVersionKind().Version
 	unstructuredObj := unstructured.Unstructured{}
@@ -122,36 +155,24 @@ func (f *Filter) FilterObjectList(object runtime.Object, filterCondition *Condit
 	if !unstructuredObj.IsList() {
 		return 0, nil
 	}
-	var listObject []unstructured.Unstructured
 	list, err := unstructuredObj.ToList()
 	if err != nil {
 		return 0, err
 	}
-	listObject = list.Items
-	if len(listObject) == 0 {
+	if len(list.Items) == 0 {
 		return 0, nil
 	}
-
+	version = list.Items[0].GroupVersionKind().Version
+	temp, total, err := f.filter(list.Items, filterCondition)
+	if err != nil {
+		return 0, err
+	}
+	list.Items = temp
+	err = f.convertRes(list, object, version)
+	return total, err
 }
 
-func (f *Filter) doFilter(data []byte, filterCondition *Condition) (*unstructured.Unstructured, error) {
-	obj, err := ParseJsonDataHandler(data, f.Scheme)
-	if err != nil {
-		return nil, err
-	}
-
-	object, err := temp.handle(nil, context.Background())
-	if err != nil {
-		return nil, err
-	}
-	if object.IsList() {
-		object.Object["total"] = total
-	}
-	return object, nil
-}
-
-func (f *Filter) filter(listObject []unstructured.Unstructured, filterCondition *Condition) (int, error) {
-	version := listObject[0].GroupVersionKind().Version
+func (f *Filter) filter(listObject []unstructured.Unstructured, filterCondition *Condition) ([]unstructured.Unstructured, int, error) {
 	listObject, err := ExactFilter(listObject, filterCondition.Exact)
 	if err != nil {
 		clog.Debug("exact filter error: %s", err)
@@ -190,10 +211,13 @@ func (f *Filter) filter(listObject []unstructured.Unstructured, filterCondition 
 			clog.Error("convert obj error: %s", err)
 		}
 	}
-	list.Items = listObject
-	err = f.Scheme.Convert(list, object, version)
+	return listObject, total, nil
+}
+
+func (f *Filter) convertRes(in, out, version interface{}) error {
+	err := f.Scheme.Convert(in, out, version)
 	if err != nil {
-		return 0, err
+		return err
 	}
-	return total, nil
+	return nil
 }

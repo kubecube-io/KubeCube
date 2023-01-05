@@ -83,8 +83,15 @@ var _ = Describe("Filter", func() {
 		fuzzy := make(map[string][]string)
 		fuzzy["metadata.name"] = []string{"a-name"}
 
-		filter := NewFilter(nil, fuzzy, 5, 5, "metadata.creationTimestamp", "asc", "time", nil)
-		err := filter.ModifyResponse(&r)
+		condition := &Condition{
+			Fuzzy:     fuzzy,
+			Limit:     5,
+			Offset:    5,
+			SortName:  "metadata.creationTimestamp",
+			SortFunc:  "time",
+			SortOrder: "asc",
+		}
+		err := GetEmptyFilter().ModifyResponse(&r, condition)
 		Expect(err).To(BeNil())
 
 		body, err := ioutil.ReadAll(r.Body)
@@ -106,9 +113,16 @@ var _ = Describe("Filter", func() {
 		fuzzy := make(map[string][]string)
 		fuzzy["metadata.name"] = []string{"a-name"}
 
-		filter := NewFilter(nil, fuzzy, 5, 5, "metadata.creationTimestamp", "asc", "time", nil)
+		condition := &Condition{
+			Fuzzy:     fuzzy,
+			Limit:     5,
+			Offset:    5,
+			SortName:  "metadata.creationTimestamp",
+			SortFunc:  "time",
+			SortOrder: "asc",
+		}
 
-		_, err := filter.FilterObjectList(&list)
+		_, err := GetEmptyFilter().FilterObjectList(&list, condition)
 		Expect(err).To(BeNil())
 
 		for i, item := range list.Items {
@@ -120,8 +134,10 @@ var _ = Describe("Filter", func() {
 		// create condition
 		exact := make(map[string]sets.String)
 		exact["metadata.name"] = sets.NewString("a-name2")
-		filter := NewFilter(exact, nil, 0, 0, "", "", "", nil)
-		_, err := filter.FilterObjectList(&list)
+		condition := &Condition{
+			Exact: exact,
+		}
+		_, err := GetEmptyFilter().FilterObjectList(&list, condition)
 		Expect(err).To(BeNil())
 		Expect(1).To(Equal(len(list.Items)))
 		Expect("a-name2").To(Equal(list.Items[0].Name))
@@ -131,8 +147,10 @@ var _ = Describe("Filter", func() {
 		// create condition
 		exact := make(map[string]sets.String)
 		exact["metadata.annotations.kubecube.test.io/app"] = sets.NewString("a-name2", "b-name2")
-		filter := NewFilter(exact, nil, 0, 0, "", "", "", nil)
-		_, err := filter.FilterObjectList(&list)
+		condition := &Condition{
+			Exact: exact,
+		}
+		_, err := GetEmptyFilter().FilterObjectList(&list, condition)
 		Expect(err).To(BeNil())
 		Expect(1).To(Equal(len(list.Items)))
 		Expect("a-name2").To(Equal(list.Items[0].Name))
@@ -142,8 +160,10 @@ var _ = Describe("Filter", func() {
 		// create condition
 		exact := make(map[string]sets.String)
 		exact["metadata.annotations.kubecube.test.io/app"] = sets.NewString("a-name1", "a-name2")
-		filter := NewFilter(exact, nil, 0, 0, "", "", "", nil)
-		_, err := filter.FilterObjectList(&list)
+		condition := &Condition{
+			Exact: exact,
+		}
+		_, err := GetEmptyFilter().FilterObjectList(&list, condition)
 		Expect(err).To(BeNil())
 		Expect(2).To(Equal(len(list.Items)))
 		Expect("a-name1").To(Equal(list.Items[0].Name))
@@ -154,8 +174,10 @@ var _ = Describe("Filter", func() {
 		// create condition
 		fuzzy := make(map[string][]string)
 		fuzzy["metadata.name"] = []string{"b-name"}
-		filter := NewFilter(nil, fuzzy, 0, 0, "", "", "", nil)
-		_, err := filter.FilterObjectList(&list)
+		condition := &Condition{
+			Fuzzy: fuzzy,
+		}
+		_, err := GetEmptyFilter().FilterObjectList(&list, condition)
 		Expect(err).To(BeNil())
 		for i, item := range list.Items {
 			Expect("b-name" + strconv.Itoa(i+11)).To(Equal(item.Name))
@@ -166,8 +188,10 @@ var _ = Describe("Filter", func() {
 		// create condition
 		fuzzy := make(map[string][]string)
 		fuzzy["metadata.annotations.kubecube.test.io/app"] = []string{"-name2"}
-		filter := NewFilter(nil, fuzzy, 0, 0, "", "", "", nil)
-		_, err := filter.FilterObjectList(&list)
+		condition := &Condition{
+			Fuzzy: fuzzy,
+		}
+		_, err := GetEmptyFilter().FilterObjectList(&list, condition)
 		Expect(err).To(BeNil())
 		Expect(1).To(Equal(len(list.Items)))
 		Expect("a-name2").To(Equal(list.Items[0].Name))
@@ -178,8 +202,10 @@ var _ = Describe("Filter", func() {
 		fuzzy := make(map[string][]string)
 		fuzzy["metadata.name"] = []string{"-name11", "-name12"}
 
-		filter := NewFilter(nil, fuzzy, 0, 0, "", "", "", nil)
-		_, err := filter.FilterObjectList(&list)
+		condition := &Condition{
+			Fuzzy: fuzzy,
+		}
+		_, err := GetEmptyFilter().FilterObjectList(&list, condition)
 		Expect(err).To(BeNil())
 		Expect(2).To(Equal(len(list.Items)))
 		Expect("b-name11").To(Equal(list.Items[0].Name))
@@ -192,9 +218,14 @@ var _ = Describe("Filter", func() {
 		exact["metadata.name"] = sets.NewString("a-name2")
 		fuzzy := make(map[string][]string)
 		fuzzy["metadata.name"] = []string{"b-name"}
-
-		filter := NewFilter(exact, fuzzy, 0, 0, "metadata.index", "desc", "number", nil)
-		_, err := filter.FilterObjectList(&list)
+		condition := &Condition{
+			Exact:     exact,
+			Fuzzy:     fuzzy,
+			SortName:  "metadata.index",
+			SortFunc:  "number",
+			SortOrder: "desc",
+		}
+		_, err := GetEmptyFilter().FilterObjectList(&list, condition)
 		Expect(err).To(BeNil())
 
 		for i, item := range list.Items {
@@ -209,8 +240,14 @@ var _ = Describe("Filter", func() {
 
 	It("TestPage", func() {
 		// create condition
-		filter := NewFilter(nil, nil, 2, 2, "metadata.index", "desc", "number", nil)
-		_, err := filter.FilterObjectList(&list)
+		condition := &Condition{
+			Limit:     2,
+			Offset:    2,
+			SortName:  "metadata.index",
+			SortFunc:  "number",
+			SortOrder: "desc",
+		}
+		_, err := GetEmptyFilter().FilterObjectList(&list, condition)
 		Expect(err).To(BeNil())
 		Expect(2).To(Equal(len(list.Items)))
 		Expect("a-name2").To(Equal(list.Items[0].Name))

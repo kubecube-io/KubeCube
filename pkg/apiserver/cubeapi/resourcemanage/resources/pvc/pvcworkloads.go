@@ -34,10 +34,10 @@ import (
 )
 
 type Pvc struct {
-	ctx       context.Context
-	client    mgrclient.Client
-	namespace string
-	filter    *filter.Filter
+	ctx             context.Context
+	client          mgrclient.Client
+	namespace       string
+	filterCondition *filter.Condition
 }
 
 func init() {
@@ -53,17 +53,17 @@ func Handle(param resourcemanage.ExtendParams) (interface{}, error) {
 	if kubernetes == nil {
 		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
 	}
-	pvc := NewPvc(kubernetes, param.Namespace, param.Filter)
+	pvc := NewPvc(kubernetes, param.Namespace, param.FilterCondition)
 	return pvc.GetPvcWorkloads(param.ResourceName)
 }
 
-func NewPvc(client mgrclient.Client, namespace string, filter *filter.Filter) Pvc {
+func NewPvc(client mgrclient.Client, namespace string, condition *filter.Condition) Pvc {
 	ctx := context.Background()
 	return Pvc{
-		ctx:       ctx,
-		client:    client,
-		namespace: namespace,
-		filter:    filter,
+		ctx:             ctx,
+		client:          client,
+		namespace:       namespace,
+		filterCondition: condition,
 	}
 }
 

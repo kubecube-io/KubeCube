@@ -52,20 +52,20 @@ type ExternalAccess struct {
 	client                   client.Client
 	namespace                string
 	name                     string
-	filter                   *filter.Filter
+	filterCondition          *filter.Condition
 	NginxNamespace           string
 	NginxTcpServiceConfigMap string
 	NginxUdpServiceConfigMap string
 }
 
-func NewExternalAccess(client client.Client, namespace string, name string, filter *filter.Filter, nginxNs string, tcpCm string, udpCm string) ExternalAccess {
+func NewExternalAccess(client client.Client, namespace string, name string, condition *filter.Condition, nginxNs string, tcpCm string, udpCm string) ExternalAccess {
 	ctx := context.Background()
 	return ExternalAccess{
 		ctx:                      ctx,
 		client:                   client,
 		namespace:                namespace,
 		name:                     name,
-		filter:                   filter,
+		filterCondition:          condition,
 		NginxNamespace:           nginxNs,
 		NginxTcpServiceConfigMap: tcpCm,
 		NginxUdpServiceConfigMap: udpCm,
@@ -89,7 +89,7 @@ func ExternalHandle(param resourcemanage.ExtendParams) (interface{}, error) {
 	if kubernetes == nil {
 		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
 	}
-	externalAccess := NewExternalAccess(kubernetes.Direct(), param.Namespace, param.ResourceName, param.Filter, param.NginxNamespace, param.NginxTcpServiceConfigMap, param.NginxUdpServiceConfigMap)
+	externalAccess := NewExternalAccess(kubernetes.Direct(), param.Namespace, param.ResourceName, param.FilterCondition, param.NginxNamespace, param.NginxTcpServiceConfigMap, param.NginxUdpServiceConfigMap)
 	switch param.Action {
 	case http.MethodGet:
 		if allow := access.AccessAllow("", "services", "list"); !allow {

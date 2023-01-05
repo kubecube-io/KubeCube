@@ -39,10 +39,10 @@ import (
 )
 
 type CronJob struct {
-	ctx       context.Context
-	client    mgrclient.Client
-	namespace string
-	filter    *filter.Filter
+	ctx             context.Context
+	client          mgrclient.Client
+	namespace       string
+	filterCondition *filter.Condition
 }
 
 func init() {
@@ -58,7 +58,7 @@ func Handle(param resourcemanage.ExtendParams) (interface{}, error) {
 	if kubernetes == nil {
 		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
 	}
-	cronjob := NewCronJob(kubernetes, param.Namespace, param.Filter)
+	cronjob := NewCronJob(kubernetes, param.Namespace, param.FilterCondition)
 	if param.ResourceName == "" {
 		return cronjob.GetExtendCronJobs()
 	} else {
@@ -66,13 +66,13 @@ func Handle(param resourcemanage.ExtendParams) (interface{}, error) {
 	}
 }
 
-func NewCronJob(client mgrclient.Client, namespace string, filter *filter.Filter) CronJob {
+func NewCronJob(client mgrclient.Client, namespace string, condition *filter.Condition) CronJob {
 	ctx := context.Background()
 	return CronJob{
-		ctx:       ctx,
-		client:    client,
-		namespace: namespace,
-		filter:    filter,
+		ctx:             ctx,
+		client:          client,
+		namespace:       namespace,
+		filterCondition: condition,
 	}
 }
 
@@ -89,7 +89,7 @@ func (c *CronJob) GetExtendCronJobs() (*unstructured.Unstructured, error) {
 	}
 
 	// filter list by selector/sort/page
-	total, err := c.filter.FilterObjectList(&cronJobList)
+	total, err := filter.GetEmptyFilter().FilterObjectList(&cronJobList, c.filterCondition)
 	if err != nil {
 		clog.Error("can not filter cronjob, err: %s", err.Error())
 		return nil, err

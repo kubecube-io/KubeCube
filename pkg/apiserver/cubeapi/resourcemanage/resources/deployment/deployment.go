@@ -39,10 +39,10 @@ import (
 )
 
 type Deployment struct {
-	ctx       context.Context
-	client    mgrclient.Client
-	namespace string
-	filter    *filter.Filter
+	ctx             context.Context
+	client          mgrclient.Client
+	namespace       string
+	filterCondition *filter.Condition
 }
 
 func init() {
@@ -58,17 +58,17 @@ func Handle(param resourcemanage.ExtendParams) (interface{}, error) {
 	if kubernetes == nil {
 		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
 	}
-	deployment := NewDeployment(kubernetes, param.Namespace, param.Filter)
+	deployment := NewDeployment(kubernetes, param.Namespace, param.FilterCondition)
 	return deployment.GetExtendDeployments()
 }
 
-func NewDeployment(client mgrclient.Client, namespace string, filter *filter.Filter) Deployment {
+func NewDeployment(client mgrclient.Client, namespace string, condition *filter.Condition) Deployment {
 	ctx := context.Background()
 	return Deployment{
-		ctx:       ctx,
-		client:    client,
-		namespace: namespace,
-		filter:    filter,
+		ctx:             ctx,
+		client:          client,
+		namespace:       namespace,
+		filterCondition: condition,
 	}
 }
 
@@ -83,10 +83,10 @@ func (d *Deployment) GetExtendDeployments() (*unstructured.Unstructured, error) 
 		clog.Error("can not find info from cluster, %v", err)
 		return nil, err
 	}
-	// filter list by selector/sort/page
-	total, err := d.filter.FilterObjectList(&deploymentList)
+	// filterCondition list by selector/sort/page
+	total, err := filter.GetEmptyFilter().FilterObjectList(&deploymentList, d.filterCondition)
 	if err != nil {
-		clog.Error("filter deploymentList error, err: %s", err.Error())
+		clog.Error("filterCondition deploymentList error, err: %s", err.Error())
 		return nil, err
 	}
 	// add pod status info

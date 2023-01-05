@@ -35,10 +35,10 @@ import (
 )
 
 type Service struct {
-	ctx       context.Context
-	client    mgrclient.Client
-	namespace string
-	filter    *filter.Filter
+	ctx             context.Context
+	client          mgrclient.Client
+	namespace       string
+	filterCondition *filter.Condition
 }
 
 func init() {
@@ -54,17 +54,17 @@ func Handle(param resourcemanage.ExtendParams) (interface{}, error) {
 	if kubernetes == nil {
 		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
 	}
-	service := NewService(kubernetes, param.Namespace, param.Filter)
+	service := NewService(kubernetes, param.Namespace, param.FilterCondition)
 	return service.GetExtendServices()
 }
 
-func NewService(client mgrclient.Client, namespace string, filter *filter.Filter) Service {
+func NewService(client mgrclient.Client, namespace string, condition *filter.Condition) Service {
 	ctx := context.Background()
 	return Service{
-		ctx:       ctx,
-		client:    client,
-		namespace: namespace,
-		filter:    filter,
+		ctx:             ctx,
+		client:          client,
+		namespace:       namespace,
+		filterCondition: condition,
 	}
 }
 
@@ -77,9 +77,9 @@ func (s *Service) GetExtendServices() (map[string]interface{}, error) {
 		clog.Error("can not find service from cluster, %v", err)
 		return nil, err
 	}
-	total, err := s.filter.FilterObjectList(&serviceList)
+	total, err := filter.GetEmptyFilter().FilterObjectList(&serviceList, s.filterCondition)
 	if err != nil {
-		clog.Error("can not filter service, err: %s", err)
+		clog.Error("can not filterCondition service, err: %s", err)
 	}
 	// add pod status info
 	resultList := s.addExtendInfo(serviceList)

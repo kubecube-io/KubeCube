@@ -29,6 +29,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
+	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 )
 
 type PvcExtend struct {
@@ -50,7 +51,7 @@ func PvcHandle(param resourcemanage.ExtendParams) (interface{}, error) {
 	if kubernetes == nil {
 		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
 	}
-	pvc := NewPvc(kubernetes, param.Namespace, param.Filter)
+	pvc := NewPvc(kubernetes, param.Namespace, param.FilterCondition)
 	return pvc.GetPvc()
 }
 
@@ -65,9 +66,9 @@ func (p *Pvc) GetPvc() (*unstructured.Unstructured, error) {
 		return nil, err
 	}
 
-	total, err := p.filter.FilterObjectList(&pvcList)
+	total, err := filter.GetEmptyFilter().FilterObjectList(&pvcList, p.filterCondition)
 	if err != nil {
-		clog.Error("filter pvcList error, err: %s", err.Error())
+		clog.Error("filterCondition pvcList error, err: %s", err.Error())
 		return nil, err
 	}
 

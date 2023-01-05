@@ -76,7 +76,10 @@ var _ = Describe("Job", func() {
 	It("test get job extend info", func() {
 		client := clients.Interface().Kubernetes(constants.LocalCluster)
 		Expect(client).NotTo(BeNil())
-		job := job.NewJob(client, ns, filter.NewPageFilter(10, 0))
+		job := job.NewJob(client, ns, &filter.Condition{
+			Limit:  10,
+			Offset: 0,
+		})
 		ret, err := job.GetExtendJobs()
 		Expect(err).To(BeNil())
 		Expect(*(ret.Object["total"].(*int))).To(Equal(2))

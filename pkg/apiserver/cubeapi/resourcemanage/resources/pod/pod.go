@@ -41,10 +41,10 @@ var json = jsoniter.ConfigCompatibleWithStandardLibrary
 const ownerUidLabel = "metadata.ownerReferences.uid"
 
 type Pod struct {
-	ctx       context.Context
-	client    mgrclient.Client
-	namespace string
-	filter    *filter.Filter
+	ctx             context.Context
+	client          mgrclient.Client
+	namespace       string
+	filterCondition *filter.Condition
 }
 
 func init() {
@@ -60,8 +60,8 @@ func Handle(param resourcemanage.ExtendParams) (interface{}, error) {
 	if kubernetes == nil {
 		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
 	}
-	pod := NewPod(kubernetes, param.Namespace, param.Filter)
-	if pod.filter.Exact[ownerUidLabel].Len() > 0 {
+	pod := NewPod(kubernetes, param.Namespace, param.FilterCondition)
+	if pod.filterCondition.Exact[ownerUidLabel].Len() > 0 {
 		err := pod.GetRs()
 		if err != nil {
 			return nil, errors.New(err.Error())
@@ -71,18 +71,18 @@ func Handle(param resourcemanage.ExtendParams) (interface{}, error) {
 	return result, err
 }
 
-func NewPod(client mgrclient.Client, namespace string, filter *filter.Filter) Pod {
+func NewPod(client mgrclient.Client, namespace string, filter *filter.Condition) Pod {
 	ctx := context.Background()
 	return Pod{
-		ctx:       ctx,
-		client:    client,
-		namespace: namespace,
-		filter:    filter,
+		ctx:             ctx,
+		client:          client,
+		namespace:       namespace,
+		filterCondition: filter,
 	}
 }
 
 func (d *Pod) GetRs() error {
-	if len(d.filter.Exact) == 0 && len(d.filter.Exact) == 0 {
+	if len(d.filterCondition.Exact) == 0 && len(d.filterCondition.Exact) == 0 {
 		return nil
 	}
 	rsList := appsv1.ReplicaSetList{}
@@ -91,14 +91,14 @@ func (d *Pod) GetRs() error {
 		clog.Error("can not find rs from cluster, %v", err)
 		return err
 	}
-	// filter list by selector/sort/page
-	rsFilter := filter.NewFilter(d.filter.Exact, d.filter.Fuzzy, 0, 0, "", "", "", d.filter.ConverterContext)
-	_, err = rsFilter.FilterObjectList(&rsList)
+	// filterCondition list by selector/sort/page
+
+	_, err = filter.GetEmptyFilter().FilterObjectList(&rsList, d.filterCondition)
 	if err != nil {
-		clog.Error("filter rsList error, err: %s", err.Error())
+		clog.Error("filterCondition rsList error, err: %s", err.Error())
 		return err
 	}
-	set := d.filter.Exact[ownerUidLabel]
+	set := d.filterCondition.Exact[ownerUidLabel]
 	for _, rs := range rsList.Items {
 		if set == nil {
 			set = sets.NewString()
@@ -108,7 +108,7 @@ func (d *Pod) GetRs() error {
 			set.Insert(string(uid))
 		}
 	}
-	d.filter.Exact[ownerUidLabel] = set
+	d.filterCondition.Exact[ownerUidLabel] = set
 	return nil
 }
 
@@ -124,10 +124,10 @@ func (d *Pod) GetPods() (*unstructured.Unstructured, error) {
 		return nil, err
 	}
 
-	// filter list by selector/sort/page
-	total, err := d.filter.FilterObjectList(&podList)
+	// filterCondition list by selector/sort/page
+	total, err := filter.GetEmptyFilter().FilterObjectList(&podList, d.filterCondition)
 	if err != nil {
-		clog.Error("filter podList error, err: %s", err.Error())
+		clog.Error("filterCondition podList error, err: %s", err.Error())
 		return nil, err
 	}
 
