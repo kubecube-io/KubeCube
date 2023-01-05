@@ -19,7 +19,7 @@ package pod
 import (
 	"context"
 	"errors"
-	jsoniter "github.com/json-iterator/go"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -35,8 +35,6 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 )
-
-var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 const ownerUidLabel = "metadata.ownerReferences.uid"
 
@@ -82,7 +80,7 @@ func NewPod(client mgrclient.Client, namespace string, filter *filter.Condition)
 }
 
 func (d *Pod) GetRs() error {
-	if len(d.filterCondition.Exact) == 0 && len(d.filterCondition.Exact) == 0 {
+	if len(d.filterCondition.Exact) == 0 {
 		return nil
 	}
 	rsList := appsv1.ReplicaSetList{}

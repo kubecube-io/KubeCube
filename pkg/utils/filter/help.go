@@ -25,8 +25,6 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/clog"
 )
 
-const isObjectIsList = "isList"
-
 type PageBean struct {
 	Total int         `json:"total"`
 	Items interface{} `json:"items"`
@@ -181,10 +179,4 @@ func GetDeepFloat64(item unstructured.Unstructured, keyStr string) (value float6
 	key := strings.Join(keys[i:], ".")
 	value = temp[key].(float64)
 	return
-}
-
-func GetUnstructured(items []unstructured.Unstructured) *unstructured.Unstructured {
-	object := unstructured.UnstructuredList{Items: items}
-	content := object.UnstructuredContent()
-	return &unstructured.Unstructured{Object: content}
 }

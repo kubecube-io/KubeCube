@@ -117,10 +117,10 @@ var _ = Describe("Deployment", func() {
 	It("test get deployment extend info", func() {
 		client := clients.Interface().Kubernetes(constants.LocalCluster)
 		Expect(client).NotTo(BeNil())
-		deploy := deployment.NewDeployment(client, ns, filter.NewPageFilter(10, 0))
+		deploy := deployment.NewDeployment(client, ns, &filter.Condition{Limit: 10, Offset: 0})
 		ret, err := deploy.GetExtendDeployments()
 		Expect(err).To(BeNil())
-		Expect(*ret.Object["total"].(*int)).To(Equal(1))
+		Expect(ret.Object["total"]).To(Equal(1))
 		items := ret.Object["items"]
 		dpInfo := items.([]unstructured.Unstructured)[0].Object
 		dpInfoname := dpInfo["metadata"].(metav1.ObjectMeta).Name
