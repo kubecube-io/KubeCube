@@ -130,7 +130,6 @@ func NewInternalCluster(cluster clusterv1.Cluster) (*InternalCluster, error) {
 	if err != nil {
 		return nil, fmt.Errorf("load RoundTripper failed: %v", err)
 	}
-
 	// allocate mem address to avoid nil
 	cluster.Status.State = new(clusterv1.ClusterState)
 
@@ -228,6 +227,7 @@ func (m *MultiClustersMgr) GetClient(cluster string) (client.Client, error) {
 
 	return c.Client, err
 }
+
 func (m *MultiClustersMgr) GetTransport(cluster string) (http.RoundTripper, error) {
 	c, err := m.Get(cluster)
 	if err != nil {
