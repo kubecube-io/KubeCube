@@ -20,8 +20,8 @@ import (
 	"context"
 	"errors"
 
-	jsoniter "github.com/json-iterator/go"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	resourcemanage "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
@@ -33,12 +33,10 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 )
 
-var json = jsoniter.ConfigCompatibleWithStandardLibrary
-
 type Node struct {
-	ctx    context.Context
-	client mgrclient.Client
-	filter filter.Filter
+	ctx             context.Context
+	client          mgrclient.Client
+	filterCondition *filter.Condition
 }
 
 func init() {
@@ -54,21 +52,21 @@ func handle(param resourcemanage.ExtendParams) (interface{}, error) {
 	if kubernetes == nil {
 		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
 	}
-	node := NewNode(kubernetes, param.Filter)
+	node := NewNode(kubernetes, param.FilterCondition)
 	return node.GetExtendNodes()
 }
 
-func NewNode(client mgrclient.Client, filter filter.Filter) Node {
+func NewNode(client mgrclient.Client, condition *filter.Condition) Node {
 	ctx := context.Background()
 	return Node{
-		ctx:    ctx,
-		client: client,
-		filter: filter,
+		ctx:             ctx,
+		client:          client,
+		filterCondition: condition,
 	}
 }
 
-func (node *Node) GetExtendNodes() (filter.K8sJson, error) {
-	resultMap := make(filter.K8sJson)
+func (node *Node) GetExtendNodes() (*unstructured.Unstructured, error) {
+	resultMap := make(map[string]interface{})
 
 	// get deployment list from k8s cluster
 	nodeList := corev1.NodeList{}
@@ -77,43 +75,38 @@ func (node *Node) GetExtendNodes() (filter.K8sJson, error) {
 		clog.Error("can not find node in cluster, %v", err)
 		return nil, err
 	}
-	resultMap["total"] = len(nodeList.Items)
+	// filterCondition list by selector/sort/page
+	total, err := filter.GetEmptyFilter().FilterObjectList(&nodeList, node.filterCondition)
+	if err != nil {
+		clog.Error("filterCondition nodeList error, err: %s", err.Error())
+		return nil, err
+	}
+	resultMap["total"] = total
 	resultMap["items"] = addExtendInfo(&nodeList)
-	// filter list by selector/sort/page
-	resultMapJson, err := json.Marshal(resultMap)
-	if err != nil {
-		clog.Error("convert nodeExtendList to json fail,nodeExtendList: %+v, err: %+v", resultMap, err)
-		return nil, err
-	}
-	filterResult := node.filter.FilterResult(resultMapJson)
-	resultMap = make(filter.K8sJson)
-	err = json.Unmarshal(filterResult, &resultMap)
-	if err != nil {
-		clog.Error("convert json to result map fail, %v", err)
-		return nil, err
-	}
-	return resultMap, nil
+	return &unstructured.Unstructured{
+		Object: resultMap,
+	}, nil
 }
 
-func addExtendInfo(nodeList *corev1.NodeList) filter.K8sJsonArr {
-	items := make(filter.K8sJsonArr, 0)
+func addExtendInfo(nodeList *corev1.NodeList) []unstructured.Unstructured {
+	items := make([]unstructured.Unstructured, 0)
 	for _, node := range nodeList.Items {
 		// parse job status
 		status := ParseNodeStatus(node)
 
 		// add extend info
-		extendInfo := make(filter.K8sJson)
+		extendInfo := make(map[string]interface{})
 		extendInfo["status"] = status
 
 		// add node info and extend info
-		result := make(filter.K8sJson)
+		result := make(map[string]interface{})
 		result["metadata"] = node.ObjectMeta
 		result["spec"] = node.Spec
 		result["status"] = node.Status
 		result["extendInfo"] = extendInfo
 
 		//add to list
-		items = append(items, result)
+		items = append(items, unstructured.Unstructured{Object: extendInfo})
 	}
 	return items
 }

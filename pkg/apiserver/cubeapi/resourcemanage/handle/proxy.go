@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"k8s.io/apimachinery/pkg/runtime"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -139,14 +140,12 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 	// http request params
 	cluster := c.Param("cluster")
 	proxyUrl := c.Param("url")
-	filter := parseQueryParams(c)
-
 	username := c.GetString(constants.UserName)
 	if len(username) == 0 {
 		clog.Warn("username is empty")
 	}
-
-	// fixme: use correct user
+	condition := parseQueryParams(c)
+	converterContext := filter.ConverterContext{}
 	c.Request.Header.Set(constants.ImpersonateUserKey, "admin")
 	internalCluster, err := multicluster.Interface().Get(cluster)
 	if err != nil {
@@ -163,7 +162,7 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 	_, _, gvr, err := conversion.ParseURL(proxyUrl)
 	if err != nil {
 		clog.Error(err.Error())
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 		return
 	}
 
@@ -201,7 +200,6 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 		if err != nil {
 			clog.Error("fail to add fieldManager due to %s", err.Error())
 		}
-
 		if needConvert {
 			// replace request body and url if need
 			if convertedObj != nil {
@@ -277,7 +275,7 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 	}
 
 	if needConvert {
-		// open response filter convert
+		// open response filterCondition convert
 		_, _, convertedGvr, err := conversion.ParseURL(convertedUrl)
 		if err != nil {
 			clog.Error(err.Error())
@@ -285,13 +283,20 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 			return
 		}
 
-		filter.ConvertedGvr = convertedGvr
-		filter.EnableConvert = true
-		filter.Converter, _ = h.converter.GetVersionConvert(cluster)
-		filter.RawGvr = gvr
+		converter, _ := h.converter.GetVersionConvert(cluster)
+		converterContext = filter.ConverterContext{
+			EnableConvert: true,
+			Converter:     converter,
+			ConvertedGvr:  convertedGvr,
+			RawGvr:        gvr,
+		}
 	}
 
-	requestProxy := &httputil.ReverseProxy{Director: director, Transport: transport, ModifyResponse: filter.ModifyResponse, ErrorHandler: errorHandler}
+	filter := ResponseFilter{
+		Condition:        condition,
+		ConverterContext: &converterContext,
+	}
+	requestProxy := &httputil.ReverseProxy{Director: director, Transport: transport, ModifyResponse: filter.filterResponse, ErrorHandler: errorHandler}
 
 	// trim auth token here
 	c.Request.Header.Del(constants.AuthorizationHeader)
@@ -300,32 +305,30 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 }
 
 // product match/sort/page to other function
-func Filter(c *gin.Context, result []byte) []byte {
-	resources := parseQueryParams(c)
-	return resources.FilterResult(result)
+func Filter(c *gin.Context, object runtime.Object) (*int, error) {
+	condition := parseQueryParams(c)
+	total, err := filter.GetEmptyFilter().FilterObjectList(object, condition)
+	if err != nil {
+		clog.Error("filterCondition userList error, err: %s", err.Error())
+		return nil, err
+	}
+	return &total, nil
 }
 
 // parse request params, include selector, sort and page
-func parseQueryParams(c *gin.Context) filter.Filter {
+
+func parseQueryParams(c *gin.Context) *filter.Condition {
 	exact, fuzzy := selector.ParseSelector(c.Query("selector"))
 	limit, offset := page.ParsePage(c.Query("pageSize"), c.Query("pageNum"))
 	sortName, sortOrder, sortFunc := sort.ParseSort(c.Query("sortName"), c.Query("sortOrder"), c.Query("sortFunc"))
-
-	filter := filter.Filter{
-		EnableFilter: needFilter(c),
-		Exact:        exact,
-		Fuzzy:        fuzzy,
-		Limit:        limit,
-		Offset:       offset,
-		SortName:     sortName,
-		SortOrder:    sortOrder,
-		SortFunc:     sortFunc,
+	condition := filter.Condition{
+		Exact:     exact,
+		Fuzzy:     fuzzy,
+		Limit:     limit,
+		Offset:    offset,
+		SortName:  sortName,
+		SortOrder: sortOrder,
+		SortFunc:  sortFunc,
 	}
-
-	return filter
-}
-
-func needFilter(c *gin.Context) bool {
-	return c.Query("selector")+c.Query("pageSize")+c.Query("pageNum")+
-		c.Query("sortName")+c.Query("sortOrder")+c.Query("sortFunc") != ""
+	return &condition
 }
