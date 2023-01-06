@@ -127,7 +127,16 @@ func (s *SyncManager) SetupCtrlWithManager(resource client.Object, objFunc Gener
 		pivotCreateTimestamp := obj.GetCreationTimestamp()
 		localCreateTimestamp := newObj.GetCreationTimestamp()
 		if pivotCreateTimestamp.UnixNano() > localCreateTimestamp.UnixNano() {
-			return deleteObjFunc()
+			result, err := deleteObjFunc()
+			if err != nil {
+				return result, err
+			}
+			action = Create
+			err = localClient.Create(ctx, obj, &client.CreateOptions{})
+			if err != nil {
+				return reconcile.Result{Requeue: true}, err
+			}
+			return reconcile.Result{}, nil
 		}
 
 		pivotRsVersion, err := strconv.Atoi(obj.GetAnnotations()[pivotResourceVersion])
