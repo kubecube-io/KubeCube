@@ -30,7 +30,6 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 )
 
 var _ = Describe("Pvc", func() {
@@ -79,13 +78,12 @@ var _ = Describe("Pvc", func() {
 	It("test get pvc workloads (pod which used this pvc)", func() {
 		client := clients.Interface().Kubernetes(constants.LocalCluster)
 		Expect(client).NotTo(BeNil())
-		pvc := pvc.NewPvc(client, ns, filter.Filter{Limit: 10})
+		pvc := pvc.NewPvc(client, ns, nil)
 		ret, err := pvc.GetPvcWorkloads(pvcName)
 		Expect(err).To(BeNil())
-		Expect(ret["total"]).To(Equal(1))
-		pods := ret["pods"].([]corev1.Pod)
+		Expect(ret.Object["total"]).To(Equal(1))
+		pods := ret.Object["pods"].([]corev1.Pod)
 		s := pods[0].Name
 		Expect(s).To(Equal("pod2"))
-
 	})
 })

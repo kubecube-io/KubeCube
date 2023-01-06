@@ -40,19 +40,19 @@ import (
 // We have expanded some function and delete some we did not use, such as HandleLogs.
 
 type PodLog struct {
-	ctx       context.Context
-	client    client.Client
-	namespace string
-	filter    filter.Filter
+	ctx             context.Context
+	client          client.Client
+	namespace       string
+	filterCondition *filter.Condition
 }
 
-func NewPodLog(client client.Client, namespace string, filter filter.Filter) PodLog {
+func NewPodLog(client client.Client, namespace string, condition *filter.Condition) PodLog {
 	ctx := context.Background()
 	return PodLog{
-		ctx:       ctx,
-		client:    client,
-		namespace: namespace,
-		filter:    filter,
+		ctx:             ctx,
+		client:          client,
+		namespace:       namespace,
+		filterCondition: condition,
 	}
 }
 

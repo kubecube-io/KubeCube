@@ -44,7 +44,7 @@ func AddressHandle(param resourcemanage.ExtendParams) (interface{}, error) {
 	if kubernetes == nil {
 		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
 	}
-	externalAccess := NewExternalAccess(kubernetes.Direct(), param.Namespace, param.ResourceName, param.Filter, param.NginxNamespace, param.NginxTcpServiceConfigMap, param.NginxUdpServiceConfigMap)
+	externalAccess := NewExternalAccess(kubernetes.Direct(), param.Namespace, param.ResourceName, param.FilterCondition, param.NginxNamespace, param.NginxTcpServiceConfigMap, param.NginxUdpServiceConfigMap)
 	return externalAccess.GetExternalIP()
 }
 
