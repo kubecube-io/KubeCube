@@ -16,6 +16,7 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -329,17 +330,18 @@ func isRelateWith(namespace string, cli cache.Cache, depth string, ctx context.C
 	hncLabel := namespace + constants.HncSuffix
 	nsList := corev1.NamespaceList{}
 
-	err := cli.List(ctx, &nsList)
+	selector, err := labels.Parse(fmt.Sprintf("%v=%v", hncLabel, depth))
 	if err != nil {
 		return false, err
 	}
 
-	for _, ns := range nsList.Items {
-		if d, ok := ns.Labels[hncLabel]; ok {
-			if d == depth {
-				return true, nil
-			}
-		}
+	err = cli.List(ctx, &nsList, &client.ListOptions{LabelSelector: selector})
+	if err != nil {
+		return false, err
+	}
+
+	if len(nsList.Items) > 0 {
+		return true, nil
 	}
 
 	return false, nil
@@ -378,21 +380,22 @@ func getClustersByNamespace(namespace string, ctx context.Context) ([]string, er
 			return nil, err
 		}
 
-		// if namespace is tenant hnc
-		if t, ok := ns.Labels[constants.HncTenantLabel]; ok {
-			isRelated, err = isRelateWith(constants.TenantNsPrefix+t, cli, constants.HncTenantDepth, ctx)
-			if err != nil {
-				clog.Error("judge relationship of cluster % v and namespace %v failed: %v", cluster.Name, key.Name, err)
-				return nil, err
-			}
-		}
-
-		// if namespace is project hnc
-		if p, ok := ns.Labels[constants.HncProjectLabel]; ok {
-			isRelated, err = isRelateWith(constants.ProjectNsPrefix+p, cli, constants.HncProjectDepth, ctx)
-			if err != nil {
-				clog.Error("judge relationship of cluster % v and namespace %v failed: %v", cluster.Name, key.Name, err)
-				return nil, err
+		// kubecube-tenant-tenant1.tree.hnc.x-k8s.io/depth: "0"
+		if depth, ok := ns.Labels[namespace+constants.HncSuffix]; ok && depth == constants.HncCurrentDepth {
+			if strings.HasPrefix(namespace, constants.TenantNsPrefix) {
+				// if namespace is tenant hnc
+				isRelated, err = isRelateWith(namespace, cli, constants.HncTenantDepth, ctx)
+				if err != nil {
+					clog.Error("judge relationship of cluster % v and namespace %v failed: %v", cluster.Name, key.Name, err)
+					return nil, err
+				}
+			} else if strings.HasPrefix(namespace, constants.ProjectNsPrefix) {
+				// if namespace is project hnc
+				isRelated, err = isRelateWith(namespace, cli, constants.HncProjectDepth, ctx)
+				if err != nil {
+					clog.Error("judge relationship of cluster % v and namespace %v failed: %v", cluster.Name, key.Name, err)
+					return nil, err
+				}
 			}
 		}
 
