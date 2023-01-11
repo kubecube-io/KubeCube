@@ -379,8 +379,8 @@ func getClustersByNamespace(namespace string, ctx context.Context) ([]string, er
 		}
 
 		// if namespace is tenant hnc
-		if t, ok := ns.Labels[constants.TenantLabel]; ok {
-			isRelated, err = isRelateWith(t, cli, constants.HncTenantDepth, ctx)
+		if t, ok := ns.Labels[constants.HncTenantLabel]; ok {
+			isRelated, err = isRelateWith(constants.TenantNsPrefix+t, cli, constants.HncTenantDepth, ctx)
 			if err != nil {
 				clog.Error("judge relationship of cluster % v and namespace %v failed: %v", cluster.Name, key.Name, err)
 				return nil, err
@@ -388,8 +388,8 @@ func getClustersByNamespace(namespace string, ctx context.Context) ([]string, er
 		}
 
 		// if namespace is project hnc
-		if p, ok := ns.Labels[constants.ProjectLabel]; ok {
-			isRelated, err = isRelateWith(p, cli, constants.HncProjectDepth, ctx)
+		if p, ok := ns.Labels[constants.HncProjectLabel]; ok {
+			isRelated, err = isRelateWith(constants.ProjectNsPrefix+p, cli, constants.HncProjectDepth, ctx)
 			if err != nil {
 				clog.Error("judge relationship of cluster % v and namespace %v failed: %v", cluster.Name, key.Name, err)
 				return nil, err
