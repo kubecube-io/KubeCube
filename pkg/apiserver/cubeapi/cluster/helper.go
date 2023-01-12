@@ -377,24 +377,24 @@ func getClustersByNamespace(namespace string, ctx context.Context) ([]string, er
 				continue
 			}
 			clog.Error("get namespace %v from cluster %v failed: %v", key.Name, cluster.Name, err)
-			return nil, err
+			continue
 		}
 
-		// kubecube-tenant-tenant1.tree.hnc.x-k8s.io/depth: "0"
+		// example: kubecube-tenant-tenant1.tree.hnc.x-k8s.io/depth: "0"
 		if depth, ok := ns.Labels[namespace+constants.HncSuffix]; ok && depth == constants.HncCurrentDepth {
 			if strings.HasPrefix(namespace, constants.TenantNsPrefix) {
 				// if namespace is tenant hnc
 				isRelated, err = isRelateWith(namespace, cli, constants.HncTenantDepth, ctx)
 				if err != nil {
 					clog.Error("judge relationship of cluster % v and namespace %v failed: %v", cluster.Name, key.Name, err)
-					return nil, err
+					continue
 				}
 			} else if strings.HasPrefix(namespace, constants.ProjectNsPrefix) {
 				// if namespace is project hnc
 				isRelated, err = isRelateWith(namespace, cli, constants.HncProjectDepth, ctx)
 				if err != nil {
 					clog.Error("judge relationship of cluster % v and namespace %v failed: %v", cluster.Name, key.Name, err)
-					return nil, err
+					continue
 				}
 			}
 		}
