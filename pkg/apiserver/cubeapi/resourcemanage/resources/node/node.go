@@ -106,7 +106,7 @@ func addExtendInfo(nodeList *corev1.NodeList) []unstructured.Unstructured {
 		result["extendInfo"] = extendInfo
 
 		//add to list
-		items = append(items, unstructured.Unstructured{Object: extendInfo})
+		items = append(items, unstructured.Unstructured{Object: result})
 	}
 	return items
 }
