@@ -64,7 +64,7 @@ func isExceedParent(current, old, parent *quotav1.CubeResourceQuota) (bool, stri
 		currentHard, ok := cHard[rs]
 		if !ok {
 			clog.Warn("less resource(%v) but parent quota had", rs)
-			return true, ""
+			return false, ""
 		}
 
 		oldHard := ensureValue(old, rs)
