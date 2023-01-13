@@ -60,10 +60,11 @@ func isExceedParent(current, old, parent *quotav1.CubeResourceQuota) (bool, stri
 		}
 
 		// if this resource kind parent quota hard has but current quota has not
-		// we consider the current quota is exceed parent limit
+		// we allowed this action.
 		currentHard, ok := cHard[rs]
 		if !ok {
-			return true, fmt.Sprintf("less resource(%v) but parent quota had", rs)
+			clog.Warn("less resource(%v) but parent quota had", rs)
+			return true, ""
 		}
 
 		oldHard := ensureValue(old, rs)
