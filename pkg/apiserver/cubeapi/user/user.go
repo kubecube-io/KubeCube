@@ -251,7 +251,7 @@ func ListUsers(c *gin.Context) {
 	}
 	res := make(map[string]interface{})
 	res["total"] = total
-	res["items"] = filterList
+	res["items"] = filterList.Items
 	response.SuccessReturn(c, res)
 	return
 }
