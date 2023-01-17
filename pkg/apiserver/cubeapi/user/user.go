@@ -251,7 +251,18 @@ func ListUsers(c *gin.Context) {
 	}
 	res := make(map[string]interface{})
 	res["total"] = total
-	res["items"] = filterList
+	var userList = &UserList{}
+	for _, user := range filterList.Items {
+		if query == "" || strings.Contains(user.Spec.DisplayName, query) || strings.Contains(user.Name, query) {
+			var userResp UserItem
+			userResp.Spec = user.Spec
+			userResp.Spec.Password = ""
+			userResp.Status = user.Status
+			userResp.Name = user.Name
+			userList.Items = append(userList.Items, userResp)
+		}
+	}
+	res["items"] = userList.Items
 	response.SuccessReturn(c, res)
 	return
 }
