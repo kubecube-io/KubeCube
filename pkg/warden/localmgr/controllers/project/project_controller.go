@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -34,6 +35,7 @@ import (
 	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/env"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	hnc "sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
 )
@@ -138,7 +140,8 @@ func (r *ProjectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			log.Warn("create project subnamespaces fail, %v", err)
 			return ctrl.Result{}, err
 		}
-		subnamesapceAchor = hnc.SubnamespaceAnchor{
+
+		newSubnamesapceAchor := hnc.SubnamespaceAnchor{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "SubnamespaceAnchor",
 				APIVersion: "hnc.x-k8s.io/v1alpha2",
@@ -163,9 +166,52 @@ func (r *ProjectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 				},
 			},
 		}
-		err = r.Client.Create(ctx, &subnamesapceAchor)
+		err = r.Client.Create(ctx, &newSubnamesapceAchor)
 		if err != nil {
 			log.Warn("create project subnamespaces fail, %v", err)
+			return ctrl.Result{}, err
+		}
+	}
+
+	projectNs := corev1.Namespace{}
+	projectNsName := constants.ProjectNsPrefix + project.Name
+	err = r.Client.Get(ctx, types.NamespacedName{Name: projectNsName}, &projectNs)
+	if err != nil && !errors.IsNotFound(err) {
+		log.Error(err.Error())
+		return ctrl.Result{}, err
+	}
+	if errors.IsNotFound(err) {
+		err = wait.Poll(2*time.Second, 120*time.Second, func() (done bool, err error) {
+			err = r.Client.Get(ctx, types.NamespacedName{Name: constants.ProjectNsPrefix + project.Name}, &projectNs)
+			if err != nil {
+				return false, nil
+			} else {
+				return true, nil
+			}
+		})
+		if err != nil {
+			log.Error("wait for hnc spread ns %v failed: %v", projectNsName, err)
+			return ctrl.Result{}, err
+		}
+	}
+
+	needUpdate := false
+	if projectNs.Labels != nil {
+		for k, v := range env.HncManagedLabels {
+			if projectNs.Labels[k] != v {
+				projectNs.Labels[k] = v
+				needUpdate = true
+			}
+		}
+	} else {
+		projectNs.Labels = env.HncManagedLabels
+		needUpdate = true
+	}
+
+	if needUpdate {
+		err = r.Client.Update(ctx, &projectNs, &client.UpdateOptions{})
+		if err != nil {
+			log.Warn("update project namespace %v labels failed: %v", projectNs.Name, err)
 			return ctrl.Result{}, err
 		}
 	}
