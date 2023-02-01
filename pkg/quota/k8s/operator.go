@@ -88,9 +88,6 @@ func (o *QuotaOperator) Parent() (*quotav1.CubeResourceQuota, error) {
 }
 
 func (o *QuotaOperator) Overload() (bool, string, error) {
-	currentQuota := o.CurrentQuota
-	oldQuota := o.OldQuota
-
 	parentQuota, err := o.Parent()
 	if err == nil && parentQuota == nil {
 		return false, "", nil
@@ -99,7 +96,7 @@ func (o *QuotaOperator) Overload() (bool, string, error) {
 		return false, "", err
 	}
 
-	isOverload, reason := isExceedParent(currentQuota, oldQuota, parentQuota)
+	isOverload, reason := o.isExceedParent(parentQuota)
 
 	return isOverload, reason, nil
 }

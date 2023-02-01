@@ -126,6 +126,10 @@ func RetainMemberClusterResource() bool {
 	return false
 }
 
+func DetachedNamespaceLabelKey() string {
+	return os.Getenv("DETACHED_NS_LABEL_KEY")
+}
+
 var (
 	once          sync.Once
 	cubeNamespace = "kubecube-system"
