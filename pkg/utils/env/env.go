@@ -19,6 +19,7 @@ package env
 import (
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/kubecube-io/kubecube/pkg/clog"
@@ -144,4 +145,27 @@ func CubeNamespace() string {
 		clog.Info("kubecube running in namespace %v", cubeNamespace)
 	})
 	return cubeNamespace
+}
+
+// HncManagedLabels is read-only
+var HncManagedLabels = hncManagedLabels()
+
+func hncManagedLabels() map[string]string {
+	labels := make(map[string]string)
+
+	labelsStr := os.Getenv("HNC_MANAGED_LABELS")
+	if len(labelsStr) == 0 {
+		return labels
+	}
+
+	// parse labels, format as: labelKey1@labelValue1;labelKey2@labelValue2
+	kvs := strings.Split(labelsStr, ";")
+	for _, kv := range kvs {
+		res := strings.Split(kv, "@")
+		if len(res) != 2 {
+			clog.Fatal("labels string invalid: %s", labelsStr)
+		}
+		labels[res[0]] = res[1]
+	}
+	return labels
 }
