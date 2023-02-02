@@ -150,6 +150,16 @@ func CubeNamespace() string {
 // HncManagedLabels is read-only
 var HncManagedLabels = hncManagedLabels()
 
+func EnsureManagedLabels(labels map[string]string) map[string]string {
+	res := make(map[string]string)
+	for k, v := range labels {
+		if v != "-" {
+			res[k] = v
+		}
+	}
+	return res
+}
+
 func hncManagedLabels() map[string]string {
 	labels := make(map[string]string)
 
@@ -158,7 +168,9 @@ func hncManagedLabels() map[string]string {
 		return labels
 	}
 
-	// parse labels, format as: labelKey1@labelValue1;labelKey2@labelValue2
+	// parse labels, format as:
+	// add and update: labelKey1@labelValue1;labelKey2@labelValue2
+	// delete: labelKey1@-;labelKey2@-
 	kvs := strings.Split(labelsStr, ";")
 	for _, kv := range kvs {
 		res := strings.Split(kv, "@")
