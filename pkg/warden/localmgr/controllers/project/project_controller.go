@@ -198,13 +198,18 @@ func (r *ProjectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	needUpdate := false
 	if projectNs.Labels != nil {
 		for k, v := range env.HncManagedLabels {
+			if _, ok := projectNs.Labels[k]; ok && v == "-" {
+				delete(projectNs.Labels, k)
+				needUpdate = true
+				continue
+			}
 			if projectNs.Labels[k] != v {
 				projectNs.Labels[k] = v
 				needUpdate = true
 			}
 		}
 	} else {
-		projectNs.Labels = env.HncManagedLabels
+		projectNs.Labels = env.EnsureManagedLabels(env.HncManagedLabels)
 		needUpdate = true
 	}
 
