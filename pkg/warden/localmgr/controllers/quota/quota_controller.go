@@ -35,6 +35,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/quota"
 	"github.com/kubecube-io/kubecube/pkg/quota/k8s"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
 type QuotaReconciler struct {
@@ -125,6 +126,17 @@ func (r *QuotaReconciler) removeFinalizer(ctx context.Context, currentQuota *v1.
 	return nil
 }
 
+func isManagedResourceQuota(obj client.Object) bool {
+	labels := obj.GetLabels()
+	if labels == nil {
+		return false
+	}
+	if _, ok := labels[constants.CubeQuotaLabel]; ok {
+		return true
+	}
+	return false
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func SetupWithManager(mgr ctrl.Manager, pivotClient client.Client) error {
 	r, err := newReconciler(mgr, pivotClient)
@@ -135,7 +147,7 @@ func SetupWithManager(mgr ctrl.Manager, pivotClient client.Client) error {
 	// filter update event
 	predicateFunc := predicate.Funcs{
 		CreateFunc: func(event event.CreateEvent) bool {
-			return true
+			return isManagedResourceQuota(event.Object)
 		},
 		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
 			oldObj, ok := updateEvent.ObjectOld.(*v1.ResourceQuota)
@@ -147,18 +159,18 @@ func SetupWithManager(mgr ctrl.Manager, pivotClient client.Client) error {
 				return false
 			}
 			if oldObj.DeletionTimestamp != nil || newObj.DeletionTimestamp != nil {
-				return true
+				return isManagedResourceQuota(updateEvent.ObjectNew)
 			}
 			if reflect.DeepEqual(oldObj.Spec, newObj.Spec) {
 				return false
 			}
-			return true
+			return isManagedResourceQuota(updateEvent.ObjectNew)
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			return true
+			return isManagedResourceQuota(deleteEvent.Object)
 		},
 		GenericFunc: func(genericEvent event.GenericEvent) bool {
-			return true
+			return false
 		},
 	}
 
