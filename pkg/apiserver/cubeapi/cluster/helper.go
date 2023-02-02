@@ -1,9 +1,12 @@
 /*
 Copyright 2021 KubeCube Authors
+
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
+
     http://www.apache.org/licenses/LICENSE-2.0
+
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -16,6 +19,7 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -289,17 +293,18 @@ func isRelateWith(namespace string, cli cache.Cache, depth string, ctx context.C
 	hncLabel := namespace + constants.HncSuffix
 	nsList := corev1.NamespaceList{}
 
-	err := cli.List(ctx, &nsList)
+	selector, err := labels.Parse(fmt.Sprintf("%v=%v", hncLabel, depth))
 	if err != nil {
 		return false, err
 	}
 
-	for _, ns := range nsList.Items {
-		if d, ok := ns.Labels[hncLabel]; ok {
-			if d == depth {
-				return true, nil
-			}
-		}
+	err = cli.List(ctx, &nsList, &client.ListOptions{LabelSelector: selector})
+	if err != nil {
+		return false, err
+	}
+
+	if len(nsList.Items) > 0 {
+		return true, nil
 	}
 
 	return false, nil
@@ -335,24 +340,25 @@ func getClustersByNamespace(namespace string, ctx context.Context) ([]string, er
 				continue
 			}
 			clog.Error("get namespace %v from cluster %v failed: %v", key.Name, cluster.Name, err)
-			return nil, err
+			continue
 		}
 
-		// if namespace is tenant hnc
-		if t, ok := ns.Labels[constants.TenantLabel]; ok {
-			isRelated, err = isRelateWith(t, cli, constants.HncTenantDepth, ctx)
-			if err != nil {
-				clog.Error("judge relationship of cluster % v and namespace %v failed: %v", cluster.Name, key.Name, err)
-				return nil, err
-			}
-		}
-
-		// if namespace is project hnc
-		if p, ok := ns.Labels[constants.ProjectLabel]; ok {
-			isRelated, err = isRelateWith(p, cli, constants.HncProjectDepth, ctx)
-			if err != nil {
-				clog.Error("judge relationship of cluster % v and namespace %v failed: %v", cluster.Name, key.Name, err)
-				return nil, err
+		// example: kubecube-tenant-tenant1.tree.hnc.x-k8s.io/depth: "0"
+		if depth, ok := ns.Labels[namespace+constants.HncSuffix]; ok && depth == constants.HncCurrentDepth {
+			if strings.HasPrefix(namespace, constants.TenantNsPrefix) {
+				// if namespace is tenant hnc
+				isRelated, err = isRelateWith(namespace, cli, constants.HncTenantDepth, ctx)
+				if err != nil {
+					clog.Error("judge relationship of cluster % v and namespace %v failed: %v", cluster.Name, key.Name, err)
+					continue
+				}
+			} else if strings.HasPrefix(namespace, constants.ProjectNsPrefix) {
+				// if namespace is project hnc
+				isRelated, err = isRelateWith(namespace, cli, constants.HncProjectDepth, ctx)
+				if err != nil {
+					clog.Error("judge relationship of cluster % v and namespace %v failed: %v", cluster.Name, key.Name, err)
+					continue
+				}
 			}
 		}
 
