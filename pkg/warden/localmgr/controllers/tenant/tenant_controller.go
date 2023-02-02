@@ -132,7 +132,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 					constants.SyncAnnotation: "1",
 					"hnc.x-k8s.io/ns":        "true", // todo: deprecated annotation
 				},
-				Labels: env.HncManagedLabels,
+				Labels: env.EnsureManagedLabels(env.HncManagedLabels),
 			},
 		}
 		err = r.Client.Create(ctx, &newNamespace)
@@ -146,6 +146,11 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if namespace.Labels != nil {
 		needUpdate := false
 		for k, v := range env.HncManagedLabels {
+			if _, ok := namespace.Labels[k]; ok && v == "-" {
+				delete(namespace.Labels, k)
+				needUpdate = true
+				continue
+			}
 			if namespace.Labels[k] != v {
 				namespace.Labels[k] = v
 				needUpdate = true
