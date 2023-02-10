@@ -18,7 +18,9 @@ package resourcemanage
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"github.com/kubecube-io/kubecube/pkg/belongs"
 	"io"
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -146,7 +148,7 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 	}
 	condition := parseQueryParams(c)
 	converterContext := filter.ConverterContext{}
-	c.Request.Header.Set(constants.ImpersonateUserKey, "admin")
+	c.Request.Header.Set(constants.ImpersonateUserKey, username)
 	internalCluster, err := multicluster.Interface().Get(cluster)
 	if err != nil {
 		clog.Error(err.Error())
@@ -173,14 +175,13 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 		return
 	}
 
-	// todo: open it when impersonate fixed.
-	//allowed, err := belongs.RelationshipDetermine(context.Background(), internalCluster.Client, proxyUrl, username)
-	//if err != nil {
-	//	clog.Warn(err.Error())
-	//} else if !allowed {
-	//	response.FailReturn(c, errcode.ForbiddenErr)
-	//	return
-	//}
+	allowed, err := belongs.RelationshipDetermine(context.Background(), internalCluster.Client, proxyUrl, username)
+	if err != nil {
+		clog.Warn(err.Error())
+	} else if !allowed {
+		response.FailReturn(c, errcode.ForbiddenErr)
+		return
+	}
 
 	// create director
 	director := func(req *http.Request) {
