@@ -30,7 +30,7 @@ func PageHandler(items []unstructured.Unstructured, limit int, offset int) ([]un
 	}
 	size := len(items)
 	if offset >= size {
-		return items, nil
+		return nil, nil
 	}
 	end := offset + limit
 	if end > size {
