@@ -43,20 +43,20 @@ func SortHandler(items []unstructured.Unstructured, param *SortParam) ([]unstruc
 		getStringFunc := func(items []unstructured.Unstructured, i int, j int) (string, string, error) {
 			si, err := GetDeepValue(items[i], param.sortName)
 			if err != nil {
-				clog.Error("get sort value error, err: %+v", err)
+				clog.Warn("get sort value error, err: %s", err)
 				return "", "", err
 			}
 			if len(si) > 1 {
-				clog.Error("not support array value, val: %+v", si)
+				clog.Warn("not support array value, val: %s", si)
 				return "", "", err
 			}
 			sj, err := GetDeepValue(items[j], param.sortName)
 			if err != nil {
-				clog.Error("get sort value error, err: %+v", err)
+				clog.Warn("get sort value error, err: %s", err)
 				return "", "", err
 			}
 			if len(sj) > 1 {
-				clog.Error("not support array value, val: %+v", sj)
+				clog.Warn("not support array value, val: %s", sj)
 				return "", "", err
 			}
 			before := si[0]
@@ -79,12 +79,14 @@ func SortHandler(items []unstructured.Unstructured, param *SortParam) ([]unstruc
 			if err != nil {
 				return false
 			}
-			ti, err := time.Parse("2006-01-02T15:04:05Z", before)
+			ti, err := time.ParseInLocation("2006-01-02T15:04:05Z", before, time.UTC)
 			if err != nil {
+				clog.Warn("parse time error, time %s, err: %s", before, err.Error())
 				return false
 			}
-			tj, err := time.Parse("2006-01-02T15:04:05Z", after)
+			tj, err := time.ParseInLocation("2006-01-02T15:04:05Z", after, time.UTC)
 			if err != nil {
+				clog.Warn("parse time error, time %s, err: %s", after, err.Error())
 				return false
 			} else if param.sortOrder == "asc" {
 				return ti.Before(tj)
