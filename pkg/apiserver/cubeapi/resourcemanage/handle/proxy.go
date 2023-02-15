@@ -20,10 +20,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/kubecube-io/kubecube/pkg/belongs"
 	"io"
 	"io/ioutil"
-	"k8s.io/apimachinery/pkg/runtime"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -31,8 +29,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	"github.com/kubecube-io/kubecube/pkg/belongs"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/conversion"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
