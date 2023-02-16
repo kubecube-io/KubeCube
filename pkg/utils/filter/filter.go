@@ -116,13 +116,13 @@ func (f *Filter) doFilter(data []byte, filterCondition *Condition) (*unstructure
 	if err != nil {
 		return nil, err
 	}
-	res := unstructured.Unstructured{}
+	res := &unstructured.Unstructured{}
 	if !obj.IsList() {
 		err := f.convertRes(obj, res, obj.GroupVersionKind().Version)
 		if err != nil {
 			return nil, err
 		}
-		return &res, nil
+		return res, nil
 	}
 	object, err := obj.ToList()
 	if err != nil {
@@ -142,7 +142,7 @@ func (f *Filter) doFilter(data []byte, filterCondition *Condition) (*unstructure
 	if err != nil {
 		return nil, err
 	}
-	return &res, nil
+	return res, nil
 }
 
 func (f *Filter) FilterObjectList(object runtime.Object, filterCondition *Condition) (int, error) {
