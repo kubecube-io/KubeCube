@@ -18,15 +18,24 @@ package filter
 
 import (
 	"fmt"
+	"sync"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 )
 
-func ParseJsonDataHandler(data []byte, scheme *runtime.Scheme) (unstructuredObj *unstructured.Unstructured, err error) {
-	codecFactory := serializer.NewCodecFactory(scheme)
-	decoder := codecFactory.UniversalDecoder()
+var decoder runtime.Decoder
+
+func SetDecoder(scheme *runtime.Scheme) {
+	once := sync.Once{}
+	once.Do(func() {
+		codecFactory := serializer.NewCodecFactory(scheme)
+		decoder = codecFactory.UniversalDecoder()
+	})
+}
+
+func ParseJsonDataHandler(data []byte) (unstructuredObj *unstructured.Unstructured, err error) {
 	object := unstructured.Unstructured{}
 	_, _, err = decoder.Decode(data, nil, &object)
 	if err != nil {

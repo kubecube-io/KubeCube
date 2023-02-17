@@ -46,6 +46,7 @@ func NewFilter(
 	installFunc ...InstallFunc) *Filter {
 	scheme := runtime.NewScheme()
 	install(scheme, installFunc...)
+	SetDecoder(scheme)
 	return &Filter{
 		Scheme:           scheme,
 		ConverterContext: ctx,
@@ -112,8 +113,8 @@ func (f *Filter) ModifyResponse(r *http.Response, filterCondition *Condition) er
 }
 
 func (f *Filter) doFilter(data []byte, filterCondition *Condition) (*unstructured.Unstructured, error) {
-	obj, err := ParseJsonDataHandler(data, f.Scheme)
-	if err != nil {
+	obj, err := ParseJsonDataHandler(data)
+	if err != nil && !runtime.IsMissingKind(err) {
 		return nil, err
 	}
 	res := &unstructured.Unstructured{}
@@ -138,7 +139,7 @@ func (f *Filter) doFilter(data []byte, filterCondition *Condition) (*unstructure
 	}
 	object.Items = temp
 	object.Object["total"] = total
-	err = f.convertRes(object, &res, version)
+	err = f.convertRes(object, res, version)
 	if err != nil {
 		return nil, err
 	}
