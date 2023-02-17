@@ -114,7 +114,7 @@ func (f *Filter) ModifyResponse(r *http.Response, filterCondition *Condition) er
 
 func (f *Filter) doFilter(data []byte, filterCondition *Condition) (*unstructured.Unstructured, error) {
 	obj, err := ParseJsonDataHandler(data)
-	if err != nil && !runtime.IsMissingKind(err) {
+	if err != nil {
 		return nil, err
 	}
 	res := &unstructured.Unstructured{}

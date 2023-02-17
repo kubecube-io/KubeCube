@@ -26,9 +26,9 @@ import (
 )
 
 var decoder runtime.Decoder
+var once = sync.Once{}
 
 func SetDecoder(scheme *runtime.Scheme) {
-	once := sync.Once{}
 	once.Do(func() {
 		codecFactory := serializer.NewCodecFactory(scheme)
 		decoder = codecFactory.UniversalDecoder()
