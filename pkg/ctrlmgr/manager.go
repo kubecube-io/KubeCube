@@ -84,7 +84,7 @@ func NewCtrlMgrWithOpts(options *Config) *ControllerManager {
 }
 
 func (m *ControllerManager) Initialize() error {
-	err := controllers.SetupWithManager(m.CtrlMgr)
+	err := controllers.SetupWithManager(m.CtrlMgr, m.EnableControllers)
 	if err != nil {
 		return err
 	}
