@@ -107,7 +107,7 @@ var (
 		},
 		&cli.StringFlag{
 			Name:        "enable-controllers",
-			Value:       "*;-hotplug",
+			Value:       "*",
 			Destination: &WardenOpts.GenericWardenOpts.EnableControllers,
 		},
 
