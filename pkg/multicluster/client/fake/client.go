@@ -37,11 +37,12 @@ var _ mgrclient.Client = &FakerClient{}
 
 // FakerClient implement kubernetes.client
 type FakerClient struct {
-	client       client.Client
-	cache        cache.Cache
-	rawClientSet kubernetes.Interface
-	metrics      versioned.Interface
-	discovery    discovery.DiscoveryInterface
+	client         client.Client
+	cache          cache.Cache
+	rawClientSet   kubernetes.Interface
+	metrics        versioned.Interface
+	discovery      discovery.DiscoveryInterface
+	cacheDiscovery discovery.CachedDiscoveryInterface
 	//restful      rest.Interface
 
 	// restMapper map GroupVersionKinds to Resources
@@ -104,4 +105,8 @@ func (c *FakerClient) RESTMapper() meta.RESTMapper {
 
 func (c *FakerClient) Discovery() discovery.DiscoveryInterface {
 	return c.discovery
+}
+
+func (c *FakerClient) CacheDiscovery() discovery.CachedDiscoveryInterface {
+	return c.cacheDiscovery
 }
