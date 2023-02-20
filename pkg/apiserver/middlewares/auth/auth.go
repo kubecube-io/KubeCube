@@ -63,13 +63,13 @@ func Auth() gin.HandlerFunc {
 				h := generic.GetProvider()
 				user, err := h.Authenticate(c.Request.Header)
 				if err != nil {
-					clog.Error("generic auth error: %v", err)
+					clog.Warn("generic auth error: %v", err)
 					response.FailReturn(c, errcode.AuthenticateError)
 					return
 				}
 				newToken, err := authJwtImpl.GenerateToken(&v1beta1.UserInfo{Username: user.GetUserName()})
 				if err != nil {
-					clog.Error(err.Error())
+					clog.Warn(err.Error())
 					response.FailReturn(c, errcode.AuthenticateError)
 					return
 				}
