@@ -17,21 +17,29 @@ limitations under the License.
 package filter
 
 import (
+	"fmt"
+	"sync"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
-
-	"github.com/kubecube-io/kubecube/pkg/clog"
 )
 
-func ParseJsonDataHandler(data []byte, scheme *runtime.Scheme) (unstructuredObj *unstructured.Unstructured, err error) {
-	codecFactory := serializer.NewCodecFactory(scheme)
-	decoder := codecFactory.UniversalDecoder()
+var decoder runtime.Decoder
+var once = sync.Once{}
+
+func SetDecoder(scheme *runtime.Scheme) {
+	once.Do(func() {
+		codecFactory := serializer.NewCodecFactory(scheme)
+		decoder = codecFactory.UniversalDecoder()
+	})
+}
+
+func ParseJsonDataHandler(data []byte) (unstructuredObj *unstructured.Unstructured, err error) {
 	object := unstructured.Unstructured{}
 	_, _, err = decoder.Decode(data, nil, &object)
 	if err != nil {
-		clog.Error("can not parser data to internalObject cause: %v ", err)
-		return nil, err
+		return nil, fmt.Errorf("can not parser data to internalObject cause: %s ", err.Error())
 	}
 	return &object, nil
 }
