@@ -1,9 +1,7 @@
 # v1.7.6
 
-## Feature
-- add cache discovery [#240](https://github.com/kubecube-io/KubeCube/pull/240)
-
 ## Bugfix
+- add cache discovery [#240](https://github.com/kubecube-io/KubeCube/pull/240)
 - Fix filter bug [#239](https://github.com/kubecube-io/KubeCube/pull/239)
 - fix sort func [#238](https://github.com/kubecube-io/KubeCube/pull/238)
 - update proxy identity [#237](https://github.com/kubecube-io/KubeCube/pull/238)
