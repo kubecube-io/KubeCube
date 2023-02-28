@@ -30,6 +30,7 @@ import (
 
 	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
 	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
+	"github.com/kubecube-io/kubecube/pkg/authorizer/mapping"
 	"github.com/kubecube-io/kubecube/pkg/authorizer/rbac"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
@@ -82,7 +83,7 @@ func getAccessTenants(rbac rbac.Interface, user string, cli mgrclient.Client, ct
 	}
 
 	for _, t := range tenantList.Items {
-		if isAllowedAccess(rbac, user, t.Spec.Namespace, auth) {
+		if isAllowedAccessNs(rbac, user, t.Spec.Namespace, auth) {
 			tenantSet.Insert(t.Name)
 		}
 	}
@@ -95,7 +96,7 @@ func getAccessTenants(rbac rbac.Interface, user string, cli mgrclient.Client, ct
 
 	// get tenant of project if user is project scope
 	for _, p := range projectList.Items {
-		if isAllowedAccess(rbac, user, p.Spec.Namespace, auth) {
+		if isAllowedAccessNs(rbac, user, p.Spec.Namespace, auth) {
 			t, ok := p.Labels[constants.TenantLabel]
 			if !ok {
 				continue
@@ -135,7 +136,7 @@ func getAccessProjects(rbac rbac.Interface, user string, cli mgrclient.Client, c
 	}
 
 	for _, p := range projectList.Items {
-		if isAllowedAccess(rbac, user, p.Spec.Namespace, auth) {
+		if isAllowedAccessNs(rbac, user, p.Spec.Namespace, auth) {
 			lists = append(lists, p)
 		}
 	}
@@ -165,9 +166,9 @@ func filterBy(tenant []string, projects []tenantv1.Project) (res []tenantv1.Proj
 	return
 }
 
-// isAllowedAccess consider user has visible view of given namespace
+// isAllowedAccessNs consider user has visible view of given namespace
 // if user can get pods in that namespace.
-func isAllowedAccess(rbac rbac.Interface, user, namespace, auth string) bool {
+func isAllowedAccessNs(rbac rbac.Interface, user, namespace, auth string) bool {
 	verb := constants.GetVerb
 	if auth == constants.Writable {
 		verb = constants.CreateVerb
@@ -359,4 +360,50 @@ func isProjectAdmin(r rbac.Interface, cli mgrclient.Client, user string) bool {
 	}
 
 	return false
+}
+
+func isAllowedAccess(rbac rbac.Interface, user, resource, namespace, auth string) bool {
+	read, write, res1, res2 := false, false, true, true
+
+	switch auth {
+	case mapping.Read:
+		read = true
+	case mapping.Write:
+		write = true
+	case mapping.Both:
+		read, write = true, true
+	}
+
+	// note:we just sort up auth to write and read, take care of it
+	if read {
+		a := authorizer.AttributesRecord{
+			User:            &userinfo.DefaultInfo{Name: user},
+			Verb:            "get",
+			Namespace:       namespace,
+			Resource:        resource,
+			ResourceRequest: true,
+		}
+		d, _, err := rbac.Authorize(context.Background(), a)
+		if err != nil {
+			clog.Error(err.Error())
+		}
+		res1 = d == authorizer.DecisionAllow
+	}
+
+	if write {
+		a := authorizer.AttributesRecord{
+			User:            &userinfo.DefaultInfo{Name: user},
+			Verb:            "create",
+			Namespace:       namespace,
+			Resource:        resource,
+			ResourceRequest: true,
+		}
+		d, _, err := rbac.Authorize(context.Background(), a)
+		if err != nil {
+			clog.Error(err.Error())
+		}
+		res2 = d == authorizer.DecisionAllow
+	}
+
+	return res1 && res2
 }

@@ -17,11 +17,13 @@ limitations under the License.
 package authorization
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,8 +31,10 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	userinfo "k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/apiserver/pkg/authorization/authorizer"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/kubecube-io/kubecube/pkg/authorizer/mapping"
 	"github.com/kubecube-io/kubecube/pkg/authorizer/rbac"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
@@ -55,6 +59,9 @@ func (h *handler) AddApisTo(root *gin.Engine) {
 	r.DELETE("bindings", h.deleteBinds)
 	r.POST("access", h.authorization)
 	r.POST("resources", h.resourcesGate)
+	r.GET("authitems/:clusterrole", h.getAuthItems)
+	r.POST("authitems/:clusterrole", h.setAuthItems)
+	r.GET("authitems/permissions", h.getPermissions)
 }
 
 type result struct {
@@ -65,13 +72,124 @@ type result struct {
 type handler struct {
 	rbac.Interface
 	mgrclient.Client
+	cmData map[string]string
 }
 
 func NewHandler() *handler {
 	h := new(handler)
 	h.Interface = rbac.NewDefaultResolver(constants.LocalCluster)
 	h.Client = clients.Interface().Kubernetes(constants.LocalCluster)
+
+	cm := corev1.ConfigMap{}
+	nn := types.NamespacedName{}
+	err := h.Client.Direct().Get(context.Background(), nn, &cm)
+	if err != nil {
+		clog.Fatal("get auth item configmap %v failed: %v", nn, err)
+	}
+
+	h.cmData = cm.Data
+
 	return h
+}
+
+func (h *handler) getAuthItems(c *gin.Context) {
+	clusterRoleName := c.Param("clusterrole")
+	verbose := c.Param("verbose")
+
+	clusterRole := &rbacv1.ClusterRole{}
+	err := h.Cache().Get(context.Background(), types.NamespacedName{Name: clusterRoleName}, clusterRole)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			response.FailReturn(c, errcode.CustomReturn(http.StatusNotFound, err.Error()))
+			return
+		}
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.InternalServerError)
+		return
+	}
+
+	roleAuths := mapping.ClusterRoleMapping(clusterRole, h.cmData, verbose == "true")
+
+	response.SuccessReturn(c, roleAuths)
+}
+
+func (h *handler) setAuthItems(c *gin.Context) {
+	body := &mapping.RoleAuthBody{}
+	if err := c.ShouldBindJSON(body); err != nil {
+		response.FailReturn(c, errcode.InvalidBodyFormat)
+		return
+	}
+
+	if len(body.ClusterRoleName) == 0 || len(body.AuthItems) == 0 {
+		response.FailReturn(c, errcode.InvalidBodyFormat)
+		return
+	}
+
+	clusterRole := mapping.RoleAuthMapping(body, h.cmData)
+	_, err := controllerruntime.CreateOrUpdate(context.Background(), h.Client.Direct(), clusterRole, func() error {
+		return nil
+	})
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.InternalServerError)
+		return
+	}
+
+	response.SuccessReturn(c, nil)
+}
+
+type authItemAccessInfos struct {
+	Cluster string `json:"cluster"`
+	User    string `json:"user,omitempty"`
+	Infos   []struct {
+		AuthItem  string `json:"authItem"`
+		Operator  string `json:"operator"`
+		Namespace string `json:"namespace"`
+	} `json:"infos"`
+}
+
+func (h *handler) getPermissions(c *gin.Context) {
+	data := &authItemAccessInfos{}
+	err := c.ShouldBindJSON(data)
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.InvalidBodyFormat)
+		return
+	}
+
+	if len(data.User) == 0 {
+		data.User = c.GetString(constants.UserName)
+	}
+
+	res := make(map[string]bool)
+
+	if data.Cluster == "" {
+		response.FailReturn(c, errcode.InvalidBodyFormat)
+		return
+	}
+
+	r := rbac.NewDefaultResolver(data.Cluster)
+
+	for _, info := range data.Infos {
+		if info.AuthItem == "" || info.Operator == "" {
+			continue
+		}
+
+		resources, ok := h.cmData[info.AuthItem]
+		if !ok {
+			res[info.AuthItem] = false
+			continue
+		}
+
+		allowed := true
+		for _, resource := range strings.Split(resources, ";") {
+			allowed = isAllowedAccess(r, data.User, resource, info.Namespace, info.Operator)
+		}
+
+		res[info.AuthItem] = allowed
+	}
+
+	response.SuccessReturn(c, res)
 }
 
 // getRolesByUser return roles if namespace specified role and
