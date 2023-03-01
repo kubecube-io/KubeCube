@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	rbacv1 "k8s.io/api/rbac/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	"github.com/kubecube-io/kubecube/pkg/clog"
@@ -19,9 +20,10 @@ const (
 type VerbRepresent string
 
 var (
-	readVerbs  = sets.NewString("get", "list", "watch")
-	writeVerbs = sets.NewString("create", "delete", "patch", "update", "deletecollection") // todo: to consider verb
-	bothVerbs  = readVerbs.Union(writeVerbs)
+	readVerbs        = sets.NewString("get", "list", "watch")
+	writeVerbs       = sets.NewString("create", "delete", "patch", "update", "deletecollection")
+	legacyWriteVerbs = sets.NewString("create", "delete", "patch", "update")
+	bothVerbs        = readVerbs.Union(writeVerbs)
 )
 
 // RoleAuthBody the another transformed form of ClusterRole.
@@ -79,6 +81,8 @@ func verbsAssert(verbs []string) VerbRepresent {
 	case currentVerbs.IsSuperset(readVerbs):
 		return Read
 	case currentVerbs.IsSuperset(writeVerbs):
+		return Write
+	case currentVerbs.IsSuperset(legacyWriteVerbs):
 		return Write
 	}
 	return Null
@@ -152,6 +156,7 @@ func ClusterRoleMapping(clusterRole *rbacv1.ClusterRole, cmData map[string]strin
 	return res
 }
 
+// RoleAuthMapping mapping RoleAuthBody as ClusterRole by configmap data.
 func RoleAuthMapping(roleAuths *RoleAuthBody, cmData map[string]string) *rbacv1.ClusterRole {
 	if roleAuths == nil || cmData == nil || len(cmData) == 0 {
 		return nil
@@ -173,7 +178,7 @@ func RoleAuthMapping(roleAuths *RoleAuthBody, cmData map[string]string) *rbacv1.
 		for _, resource := range strings.Split(resources, ";") {
 			verb, ok := rules[resource]
 			if !ok {
-				rules[resource] = verb
+				rules[resource] = v.Verb
 				continue
 			}
 			if verb != v.Verb {
@@ -202,5 +207,5 @@ func RoleAuthMapping(roleAuths *RoleAuthBody, cmData map[string]string) *rbacv1.
 		policyRules = append(policyRules, r)
 	}
 
-	return &rbacv1.ClusterRole{Rules: policyRules}
+	return &rbacv1.ClusterRole{ObjectMeta: v1.ObjectMeta{Name: roleAuths.ClusterRoleName}, Rules: policyRules}
 }

@@ -8,8 +8,8 @@ import (
 )
 
 var cmData = map[string]string{
-	"deployment.manage": "deployments;pods;pods/logs",
-	"services.manage":   "services;endpoints;pods/logs",
+	"deployment.manage": "deployments;pods;pods/log",
+	"services.manage":   "services;endpoints;pods/log",
 	"cxk.manage":        "sing;jump;rap",
 }
 
@@ -26,7 +26,7 @@ func TestClusterRoleMapping(t *testing.T) {
 			clusterRole: &rbacv1.ClusterRole{
 				Rules: []rbacv1.PolicyRule{
 					{
-						Resources: []string{"deployments", "pods", "pods/logs"},
+						Resources: []string{"deployments", "pods", "pods/log"},
 						Verbs:     []string{"get", "list", "watch"},
 					},
 					{
@@ -50,7 +50,7 @@ func TestClusterRoleMapping(t *testing.T) {
 						Resources: map[string]VerbRepresent{
 							"deployments": Read,
 							"pods":        Read,
-							"pods/logs":   Read,
+							"pods/log":    Read,
 						},
 					},
 					"services.manage": {
@@ -58,7 +58,7 @@ func TestClusterRoleMapping(t *testing.T) {
 						Resources: map[string]VerbRepresent{
 							"services":  Read,
 							"endpoints": Read,
-							"pods/logs": Read,
+							"pods/log":  Read,
 						},
 					},
 					"cxk.manage": {
@@ -78,7 +78,7 @@ func TestClusterRoleMapping(t *testing.T) {
 			clusterRole: &rbacv1.ClusterRole{
 				Rules: []rbacv1.PolicyRule{
 					{
-						Resources: []string{"deployments", "pods", "pods/logs"},
+						Resources: []string{"deployments", "pods", "pods/log"},
 						Verbs:     []string{"create", "delete", "patch", "update", "deletecollection", "get", "list", "watch"},
 					},
 					{
@@ -102,7 +102,7 @@ func TestClusterRoleMapping(t *testing.T) {
 						Resources: map[string]VerbRepresent{
 							"deployments": Both,
 							"pods":        Both,
-							"pods/logs":   Both,
+							"pods/log":    Both,
 						},
 					},
 					"services.manage": {
@@ -110,7 +110,7 @@ func TestClusterRoleMapping(t *testing.T) {
 						Resources: map[string]VerbRepresent{
 							"services":  Both,
 							"endpoints": Both,
-							"pods/logs": Both,
+							"pods/log":  Both,
 						},
 					},
 					"cxk.manage": {
@@ -138,7 +138,7 @@ func TestClusterRoleMapping(t *testing.T) {
 						Verbs:     []string{"create", "delete", "patch", "update", "deletecollection"},
 					},
 					{
-						Resources: []string{"services", "pods/logs"},
+						Resources: []string{"services", "pods/log"},
 						Verbs:     []string{"create", "delete", "patch", "update", "deletecollection", "get", "list", "watch"},
 					},
 					{
@@ -158,7 +158,7 @@ func TestClusterRoleMapping(t *testing.T) {
 						Resources: map[string]VerbRepresent{
 							"deployments": Read,
 							"pods":        Write,
-							"pods/logs":   Both,
+							"pods/log":    Both,
 						},
 					},
 					"services.manage": {
@@ -166,7 +166,7 @@ func TestClusterRoleMapping(t *testing.T) {
 						Resources: map[string]VerbRepresent{
 							"services":  Both,
 							"endpoints": Write,
-							"pods/logs": Both,
+							"pods/log":  Both,
 						},
 					},
 					"cxk.manage": {
@@ -186,7 +186,7 @@ func TestClusterRoleMapping(t *testing.T) {
 			clusterRole: &rbacv1.ClusterRole{
 				Rules: []rbacv1.PolicyRule{
 					{
-						Resources: []string{"deployments", "pods", "pods/logs"},
+						Resources: []string{"deployments", "pods", "pods/log"},
 						Verbs:     []string{"get", "list", "watch"},
 					},
 					{
@@ -226,3 +226,72 @@ func TestClusterRoleMapping(t *testing.T) {
 		})
 	}
 }
+
+//func TestRoleAuthMapping(t *testing.T) {
+//	tests := []struct {
+//		name      string
+//		roleAuths *RoleAuthBody
+//		want      *rbacv1.ClusterRole
+//	}{
+//		{
+//			name: "normal",
+//			roleAuths: &RoleAuthBody{
+//				AuthItems: map[string]AuthItem{
+//					"cxk.manage": {Verb: Read},
+//					"deployment.manage": {Verb: Write},
+//				},
+//			},
+//			want: &rbacv1.ClusterRole{
+//				Rules: []rbacv1.PolicyRule{
+//					{
+//						APIGroups: []string{"*"},
+//						Resources: []string{"deployments"},
+//						Verbs:     writeVerbs.List(),
+//					},
+//					{
+//						APIGroups: []string{"*"},
+//						Resources: []string{"pods"},
+//						Verbs:     writeVerbs.List(),
+//					},
+//					{
+//						APIGroups: []string{"*"},
+//						Resources: []string{"pods/log"},
+//						Verbs:     bothVerbs.List(),
+//					},
+//					{
+//						APIGroups: []string{"*"},
+//						Resources: []string{"services"},
+//						Verbs:     bothVerbs.List(),
+//					},
+//					{
+//						APIGroups: []string{"*"},
+//						Resources: []string{"endpoints"},
+//						Verbs:     bothVerbs.List(),
+//					},
+//					{
+//						APIGroups: []string{"*"},
+//						Resources: []string{"sing"},
+//						Verbs:     readVerbs.List(),
+//					},
+//					{
+//						APIGroups: []string{"*"},
+//						Resources: []string{"jump"},
+//						Verbs:     readVerbs.List(),
+//					},
+//					{
+//						APIGroups: []string{"*"},
+//						Resources: []string{"rap"},
+//						Verbs:     readVerbs.List(),
+//					},
+//				},
+//			},
+//		},
+//	}
+//	for _, tt := range tests {
+//		t.Run(tt.name, func(t *testing.T) {
+//			if got := RoleAuthMapping(tt.roleAuths, cmData); !reflect.DeepEqual(got.Rules, tt.want.Rules) {
+//				t.Errorf("RoleAuthMapping() = %v, want %v", got.Rules, tt.want.Rules)
+//			}
+//		})
+//	}
+//}

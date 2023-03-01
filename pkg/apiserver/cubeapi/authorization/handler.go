@@ -41,6 +41,7 @@ import (
 	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	"github.com/kubecube-io/kubecube/pkg/utils/access"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/env"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
 )
@@ -60,8 +61,8 @@ func (h *handler) AddApisTo(root *gin.Engine) {
 	r.POST("access", h.authorization)
 	r.POST("resources", h.resourcesGate)
 	r.GET("authitems/:clusterrole", h.getAuthItems)
-	r.POST("authitems/:clusterrole", h.setAuthItems)
-	r.GET("authitems/permissions", h.getPermissions)
+	r.POST("authitems", h.setAuthItems)
+	r.POST("authitems/permissions", h.getPermissions)
 }
 
 type result struct {
@@ -81,10 +82,10 @@ func NewHandler() *handler {
 	h.Client = clients.Interface().Kubernetes(constants.LocalCluster)
 
 	cm := corev1.ConfigMap{}
-	nn := types.NamespacedName{}
+	nn := types.NamespacedName{Name: constants.AuthMappingCM, Namespace: env.CubeNamespace()}
 	err := h.Client.Direct().Get(context.Background(), nn, &cm)
 	if err != nil {
-		clog.Fatal("get auth item configmap %v failed: %v", nn, err)
+		clog.Warn("get auth item configmap %v failed: %v", nn, err)
 	}
 
 	h.cmData = cm.Data
@@ -92,9 +93,10 @@ func NewHandler() *handler {
 	return h
 }
 
+// getAuthItems get auth items by ClusterRole name.
 func (h *handler) getAuthItems(c *gin.Context) {
 	clusterRoleName := c.Param("clusterrole")
-	verbose := c.Param("verbose")
+	verbose := c.Query("verbose")
 
 	clusterRole := &rbacv1.ClusterRole{}
 	err := h.Cache().Get(context.Background(), types.NamespacedName{Name: clusterRoleName}, clusterRole)
@@ -113,6 +115,7 @@ func (h *handler) getAuthItems(c *gin.Context) {
 	response.SuccessReturn(c, roleAuths)
 }
 
+// setAuthItems transfer auth item to ClusterRole into k8s.
 func (h *handler) setAuthItems(c *gin.Context) {
 	body := &mapping.RoleAuthBody{}
 	if err := c.ShouldBindJSON(body); err != nil {
@@ -126,7 +129,9 @@ func (h *handler) setAuthItems(c *gin.Context) {
 	}
 
 	clusterRole := mapping.RoleAuthMapping(body, h.cmData)
-	_, err := controllerruntime.CreateOrUpdate(context.Background(), h.Client.Direct(), clusterRole, func() error {
+	runtimeObject := clusterRole.DeepCopy()
+	_, err := controllerruntime.CreateOrUpdate(context.Background(), h.Client.Direct(), runtimeObject, func() error {
+		runtimeObject.Rules = clusterRole.Rules
 		return nil
 	})
 	if err != nil {
@@ -148,6 +153,7 @@ type authItemAccessInfos struct {
 	} `json:"infos"`
 }
 
+// getPermissions query access permissions by asking k8s.
 func (h *handler) getPermissions(c *gin.Context) {
 	data := &authItemAccessInfos{}
 	err := c.ShouldBindJSON(data)
