@@ -46,136 +46,50 @@ import (
 type clusterInfoOpts struct {
 	statusFilter      string
 	nodeLabelSelector labels.Selector
-	simplifyInfo      bool
+	pruneInfo         bool
 }
 
 // makeClusterInfos make cluster info with clusters given
-// todo split metric and cluster info into two apis
 func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivotCli mgrclient.Client, opts clusterInfoOpts) ([]clusterInfo, error) {
 	// populate cluster info one by one
 	infos := make([]clusterInfo, 0)
 	for _, item := range clusters.Items {
-		v := item.Name
-		info := clusterInfo{ClusterName: v}
+		info := clusterInfo{}
+		clusterName := item.Name
 
-		cluster := clusterv1.Cluster{}
-		clusterKey := types.NamespacedName{Name: v}
-		err := pivotCli.Direct().Get(ctx, clusterKey, &cluster)
+		// populate metadata of cluster
+		metadataInfo, err := makeMetadataInfo(ctx, pivotCli, clusterName, opts)
 		if err != nil {
-			clog.Warn("get cluster %v failed: %v", v, err)
-			continue
+			clog.Warn(err.Error())
+			continue // ignore query error and continue now
 		}
+		info.clusterMetaInfo = metadataInfo
 
-		state := cluster.Status.State
-		if state == nil {
-			processState := clusterv1.ClusterProcessing
-			state = &processState
-		}
-
-		info.Status = string(*state)
-		info.ClusterDescription = cluster.Spec.Description
-		info.CreateTime = cluster.CreationTimestamp.Time
-		info.IsMemberCluster = cluster.Spec.IsMemberCluster
-		info.IsWritable = cluster.Spec.IsWritable
-		info.HarborAddr = cluster.Spec.HarborAddr
-		info.KubeApiServer = cluster.Spec.KubernetesAPIEndpoint
-		info.NetworkType = cluster.Spec.NetworkType
-		info.IngressDomainSuffix = cluster.Spec.IngressDomainSuffix
-		info.Labels = cluster.Labels
-		info.Annotations = cluster.Annotations
-
-		if info.Annotations == nil {
-			info.Annotations = make(map[string]string)
-		}
-
-		if _, ok := info.Annotations[constants.CubeCnAnnotation]; !ok {
-			info.Annotations[constants.CubeCnAnnotation] = cluster.Name
-		}
-
-		internalCluster, err := multicluster.Interface().Get(v)
+		// set cluster status and do not populate livedata if abnormal
+		internalCluster, err := multicluster.Interface().Get(clusterName)
 		if internalCluster != nil && err != nil {
-			info.Status = string(clusterv1.ClusterAbnormal)
+			metadataInfo.Status = string(clusterv1.ClusterAbnormal)
 		}
-		if internalCluster == nil {
+		if internalCluster == nil || metadataInfo.Status == string(clusterv1.ClusterAbnormal) {
 			if len(opts.statusFilter) == 0 {
-				infos = append(infos, info)
-			} else if info.Status == opts.statusFilter {
-				infos = append(infos, info)
+				infos = append(infos, clusterInfo{clusterMetaInfo: metadataInfo})
+			} else if metadataInfo.Status == opts.statusFilter {
+				infos = append(infos, clusterInfo{clusterMetaInfo: metadataInfo})
 			}
 			continue
 		}
 
-		cli := internalCluster.Client
-
-		if !opts.simplifyInfo {
-			// todo(weilaaa): context may be exceed if metrics query timeout
-			// will deprecated in v2.0.x
-			metricListCtx, cancel := context.WithTimeout(ctx, time.Second)
-			nodesMc, err := cli.Metrics().MetricsV1beta1().NodeMetricses().List(metricListCtx, metav1.ListOptions{LabelSelector: opts.nodeLabelSelector.String()})
-			if err != nil {
-				// record error from metric server, but ensure return normal
-				clog.Warn("get cluster %v nodes metrics failed: %v", v, err)
-			} else {
-				for _, m := range nodesMc.Items {
-					info.UsedCPU += int(m.Usage.Cpu().MilliValue())                                         // 1000 m
-					info.UsedMem += int(m.Usage.Memory().ScaledValue(resource.Mega))                        // 1024 Mi
-					info.UsedStorage += int(m.Usage.Storage().ScaledValue(resource.Mega))                   // 1024 Mi
-					info.UsedStorageEphemeral += int(m.Usage.StorageEphemeral().ScaledValue(resource.Mega)) // 1024 Mi
-				}
-			}
-
-			// releases resources if call metric api completes before timeout elapses
-			// or any errors occurred
-			cancel()
-		}
-
-		nodes := corev1.NodeList{}
-		err = cli.Cache().List(ctx, &nodes, &client.ListOptions{LabelSelector: opts.nodeLabelSelector})
-		if err != nil {
-			return nil, fmt.Errorf("get cluster %v nodes failed: %v", v, err)
-		}
-
-		info.NodeCount = len(nodes.Items)
-
-		for _, n := range nodes.Items {
-			info.TotalCPU += int(n.Status.Capacity.Cpu().MilliValue())                                         // 1000 m
-			info.TotalMem += int(n.Status.Capacity.Memory().ScaledValue(resource.Mega))                        // 1024 Mi
-			info.TotalStorage += int(n.Status.Capacity.Storage().ScaledValue(resource.Mega))                   // 1024 Mi
-			info.TotalStorageEphemeral += int(n.Status.Capacity.StorageEphemeral().ScaledValue(resource.Mega)) // 1024 Mi
-		}
-
-		ns := corev1.NamespaceList{}
-		err = cli.Cache().List(ctx, &ns)
-		if err != nil {
-			return nil, fmt.Errorf("get cluster %v namespace failed: %v", v, err)
-		}
-
-		info.NamespaceCount = len(ns.Items)
-
-		if !opts.simplifyInfo {
-			podList := &corev1.PodList{}
-			err := cli.Cache().List(context.TODO(), podList)
+		// populate livedata of cluster
+		if !opts.pruneInfo {
+			cli := internalCluster.Client
+			livedataInfo, err := makeLivedataInfo(ctx, cli, clusterName, opts)
 			if err != nil {
 				return nil, err
 			}
-			nodesName := sets.NewString()
-			for i := range nodes.Items {
-				nodesName.Insert(nodes.Items[i].Name)
-			}
-
-			for i := range podList.Items {
-				statusPhase := podList.Items[i].Status.Phase
-				if nodesName.Has(podList.Items[i].Spec.NodeName) && statusPhase != corev1.PodSucceeded && statusPhase != corev1.PodFailed {
-					req, limit := podRequestsAndLimits(&podList.Items[i])
-					cpuReq, cpuLimit, memoryReq, memoryLimit := req[corev1.ResourceCPU], limit[corev1.ResourceCPU], req[corev1.ResourceMemory], limit[corev1.ResourceMemory]
-					info.UsedCPURequest += int(cpuReq.MilliValue())                  // 1000 m
-					info.UsedCPULimit += int(cpuLimit.MilliValue())                  // 1000 m
-					info.UsedMemRequest += int(memoryReq.ScaledValue(resource.Mega)) // 1024 Mi
-					info.UsedMemLimit += int(memoryLimit.ScaledValue(resource.Mega)) // 1024 Mi
-				}
-			}
+			info.clusterLivedataInfo = livedataInfo
 		}
 
+		// filter by query status param
 		if len(opts.statusFilter) == 0 {
 			infos = append(infos, info)
 		} else if info.Status == opts.statusFilter {
@@ -282,6 +196,132 @@ func makeMonitorInfo(ctx context.Context, cluster string) (*monitorInfo, error) 
 	info.NamespaceCount = len(ns.Items)
 
 	return info, nil
+}
+
+// makeMetadataInfo just get metadata of cluster.
+func makeMetadataInfo(ctx context.Context, pivotCli mgrclient.Client, clusterName string, opts clusterInfoOpts) (clusterMetaInfo, error) {
+	info := clusterMetaInfo{}
+
+	cluster := clusterv1.Cluster{}
+	clusterKey := types.NamespacedName{Name: clusterName}
+	err := pivotCli.Direct().Get(ctx, clusterKey, &cluster)
+	if err != nil {
+		return info, fmt.Errorf("get cluster %v failed: %v", clusterName, err)
+	}
+
+	state := cluster.Status.State
+	if state == nil {
+		processState := clusterv1.ClusterProcessing
+		state = &processState
+	}
+
+	// set up cluster meta info
+	info.ClusterName = clusterName
+	info.Status = string(*state)
+	info.ClusterDescription = cluster.Spec.Description
+	info.CreateTime = cluster.CreationTimestamp.Time
+	info.IsMemberCluster = cluster.Spec.IsMemberCluster
+	info.IsWritable = cluster.Spec.IsWritable
+	info.HarborAddr = cluster.Spec.HarborAddr
+	info.KubeApiServer = cluster.Spec.KubernetesAPIEndpoint
+	info.NetworkType = cluster.Spec.NetworkType
+	info.IngressDomainSuffix = cluster.Spec.IngressDomainSuffix
+	info.Labels = cluster.Labels
+	info.Annotations = cluster.Annotations
+
+	if info.Annotations == nil {
+		info.Annotations = make(map[string]string)
+	}
+
+	// set cluster cn name same as en name by default
+	if _, ok := info.Annotations[constants.CubeCnAnnotation]; !ok {
+		info.Annotations[constants.CubeCnAnnotation] = cluster.Name
+	}
+
+	return info, nil
+}
+
+// makeLivedataInfo populate livedata of cluster, sometimes be slow.
+func makeLivedataInfo(ctx context.Context, cli mgrclient.Client, cluster string, opts clusterInfoOpts) (clusterLivedataInfo, error) {
+	info := clusterLivedataInfo{}
+
+	// populate nodes used resources info by metrics api
+	metricListCtx, cancel := context.WithTimeout(ctx, time.Second)
+	nodesMc, err := cli.Metrics().MetricsV1beta1().NodeMetricses().List(metricListCtx, metav1.ListOptions{LabelSelector: opts.nodeLabelSelector.String()})
+	if err != nil {
+		// record error from metric server, but ensure return normal
+		clog.Warn("get cluster %v nodes metrics failed: %v", cluster, err)
+	} else {
+		for _, m := range nodesMc.Items {
+			info.UsedCPU += int(m.Usage.Cpu().MilliValue())                                           // 1000 m
+			info.UsedMem += convertUnit(m.Usage.Memory().String(), strproc.Mi)                        // 1024 Mi
+			info.UsedStorage += convertUnit(m.Usage.Storage().String(), strproc.Mi)                   // 1024 Mi
+			info.UsedStorageEphemeral += convertUnit(m.Usage.StorageEphemeral().String(), strproc.Mi) // 1024 Mi
+		}
+	}
+
+	// releases resources if call metric api completes before timeout elapses
+	// or any errors occurred
+	cancel()
+
+	// populate node resources info
+	nodes := corev1.NodeList{}
+	err = cli.Cache().List(ctx, &nodes, &client.ListOptions{LabelSelector: opts.nodeLabelSelector})
+	if err != nil {
+		return info, fmt.Errorf("get cluster %v nodes failed: %v", cluster, err)
+	}
+
+	info.NodeCount = len(nodes.Items)
+
+	for _, n := range nodes.Items {
+		info.TotalCPU += int(n.Status.Capacity.Cpu().MilliValue())                                           // 1000 m
+		info.TotalMem += convertUnit(n.Status.Capacity.Memory().String(), strproc.Mi)                        // 1024 Mi
+		info.TotalStorage += convertUnit(n.Status.Capacity.Storage().String(), strproc.Mi)                   // 1024 Mi
+		info.TotalStorageEphemeral += convertUnit(n.Status.Capacity.StorageEphemeral().String(), strproc.Mi) // 1024 Mi
+	}
+
+	ns := corev1.NamespaceList{}
+	err = cli.Cache().List(ctx, &ns)
+	if err != nil {
+		return info, fmt.Errorf("get cluster %v namespace failed: %v", cluster, err)
+	}
+
+	info.NamespaceCount = len(ns.Items)
+
+	podList := &corev1.PodList{}
+	err = cli.Cache().List(context.TODO(), podList)
+	if err != nil {
+		return info, err
+	}
+	nodesName := sets.NewString()
+	for i := range nodes.Items {
+		nodesName.Insert(nodes.Items[i].Name)
+	}
+
+	for i := range podList.Items {
+		statusPhase := podList.Items[i].Status.Phase
+		if nodesName.Has(podList.Items[i].Spec.NodeName) && statusPhase != corev1.PodSucceeded && statusPhase != corev1.PodFailed {
+			req, limit := podRequestsAndLimits(&podList.Items[i])
+			cpuReq, cpuLimit, memoryReq, memoryLimit := req[corev1.ResourceCPU], limit[corev1.ResourceCPU], req[corev1.ResourceMemory], limit[corev1.ResourceMemory]
+			info.UsedCPURequest += int(cpuReq.MilliValue())                    // 1000 m
+			info.UsedCPULimit += int(cpuLimit.MilliValue())                    // 1000 m
+			info.UsedMemRequest += convertUnit(memoryReq.String(), strproc.Mi) // 1024 Mi
+			info.UsedMemLimit += convertUnit(memoryLimit.String(), strproc.Mi) // 1024 Mi
+		}
+	}
+
+	return info, nil
+}
+
+func convertUnit(data, expectedUnit string) int {
+	value, err := strproc.BinaryUnitConvert(data, expectedUnit)
+	if err != nil {
+		// error should not occur here
+		clog.Warn(err.Error())
+	}
+
+	// note: decimal point will be truncated.
+	return int(value)
 }
 
 // isRelateWith return true if third level namespace exist under of ancestor namespace
