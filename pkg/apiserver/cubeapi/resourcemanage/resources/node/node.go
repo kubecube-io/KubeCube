@@ -24,7 +24,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	resourcemanage "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/enum"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
@@ -46,10 +45,10 @@ func init() {
 }
 
 func handle(param resourcemanage.ExtendParams) (interface{}, error) {
-	access := resources.NewSimpleAccess(param.Cluster, param.Username, param.Namespace)
-	if allow := access.AccessAllow("", "nodes", "list"); !allow {
-		return nil, errors.New(errcode.ForbiddenErr.Message)
-	}
+	//access := resources.NewSimpleAccess(param.Cluster, param.Username, param.Namespace)
+	//if allow := access.AccessAllow("", "nodes", "list"); !allow {
+	//	return nil, errors.New(errcode.ForbiddenErr.Message)
+	//}
 	kubernetes := clients.Interface().Kubernetes(param.Cluster)
 	if kubernetes == nil {
 		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)

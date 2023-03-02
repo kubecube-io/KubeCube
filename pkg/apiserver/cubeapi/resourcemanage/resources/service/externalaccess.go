@@ -33,7 +33,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	resourcemanage "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/enum"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
@@ -83,7 +82,7 @@ func init() {
 }
 
 func ExternalHandle(param resourcemanage.ExtendParams) (interface{}, error) {
-	access := resources.NewSimpleAccess(param.Cluster, param.Username, param.Namespace)
+	//access := resources.NewSimpleAccess(param.Cluster, param.Username, param.Namespace)
 	kubernetes := clients.Interface().Kubernetes(param.Cluster)
 	if kubernetes == nil {
 		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
@@ -91,14 +90,14 @@ func ExternalHandle(param resourcemanage.ExtendParams) (interface{}, error) {
 	externalAccess := NewExternalAccess(kubernetes.Direct(), param.Namespace, param.ResourceName, param.Filter, param.NginxNamespace, param.NginxTcpServiceConfigMap, param.NginxUdpServiceConfigMap)
 	switch param.Action {
 	case http.MethodGet:
-		if allow := access.AccessAllow("", "services", "list"); !allow {
-			return nil, errors.New(errcode.ForbiddenErr.Message)
-		}
+		//if allow := access.AccessAllow("", "services", "list"); !allow {
+		//	return nil, errors.New(errcode.ForbiddenErr.Message)
+		//}
 		return externalAccess.GetExternalAccess()
 	case http.MethodPost:
-		if allow := access.AccessAllow("", "services", "create"); !allow {
-			return nil, errors.New(errcode.ForbiddenErr.Message)
-		}
+		//if allow := access.AccessAllow("", "services", "create"); !allow {
+		//	return nil, errors.New(errcode.ForbiddenErr.Message)
+		//}
 		var externalServices []ExternalAccessInfo
 		err := json.Unmarshal(param.Body, &externalServices)
 		if err != nil {

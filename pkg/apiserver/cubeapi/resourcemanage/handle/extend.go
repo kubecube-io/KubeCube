@@ -29,7 +29,6 @@ import (
 
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
 	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/enum"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
@@ -135,12 +134,12 @@ func GetPodContainerLog(c *gin.Context) {
 		return
 	}
 	// access
-	username := c.GetString(constants.EventAccountId)
-	access := resources.NewSimpleAccess(cluster, username, namespace)
-	if allow := access.AccessAllow("", "pods", "list"); !allow {
-		response.FailReturn(c, errcode.ForbiddenErr)
-		return
-	}
+	//username := c.GetString(constants.EventAccountId)
+	//access := resources.NewSimpleAccess(cluster, username, namespace)
+	//if allow := access.AccessAllow("", "pods", "list"); !allow {
+	//	response.FailReturn(c, errcode.ForbiddenErr)
+	//	return
+	//}
 	podLog := NewPodLog(client, namespace, filter)
 	podLog.HandleLogs(c)
 }

@@ -24,7 +24,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	resourcemanage "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/enum"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
@@ -43,10 +42,10 @@ func init() {
 }
 
 func PvcHandle(param resourcemanage.ExtendParams) (interface{}, error) {
-	access := resources.NewSimpleAccess(param.Cluster, param.Username, param.Namespace)
-	if allow := access.AccessAllow("", "persistentvolumeclaims", "list"); !allow {
-		return nil, errors.New(errcode.ForbiddenErr.Message)
-	}
+	//access := resources.NewSimpleAccess(param.Cluster, param.Username, param.Namespace)
+	//if allow := access.AccessAllow("", "persistentvolumeclaims", "list"); !allow {
+	//	return nil, errors.New(errcode.ForbiddenErr.Message)
+	//}
 	kubernetes := clients.Interface().Kubernetes(param.Cluster)
 	if kubernetes == nil {
 		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
@@ -55,7 +54,7 @@ func PvcHandle(param resourcemanage.ExtendParams) (interface{}, error) {
 	return pvc.GetPvc()
 }
 
-//GetPvc list pvcs, and add extend info that which pod mount this pvc
+// GetPvc list pvcs, and add extend info that which pod mount this pvc
 func (p *Pvc) GetPvc() (filter.K8sJson, error) {
 	result := make(filter.K8sJson)
 	pvcList := v1.PersistentVolumeClaimList{}
