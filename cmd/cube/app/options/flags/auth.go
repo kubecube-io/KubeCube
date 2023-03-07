@@ -103,6 +103,14 @@ func init() {
 			Destination: &generic.Config.InsecureSkipVerify,
 		},
 		&cli.StringFlag{
+			Name:        "generic-auth-ca-cert",
+			Destination: &generic.Config.CACert,
+		},
+		&cli.StringFlag{
+			Name:        "generic-auth-ca-key",
+			Destination: &generic.Config.CAKey,
+		},
+		&cli.StringFlag{
 			Name:        "generic-auth-tls-cert",
 			Destination: &generic.Config.TLSCert,
 		},
