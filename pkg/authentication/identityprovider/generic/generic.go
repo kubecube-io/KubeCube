@@ -105,9 +105,9 @@ func GetProvider() *HeaderProvider {
 			tr, err := ctls.MakeMTlsTransportByFile(Config.CACert, Config.TLSCert, Config.TLSKey)
 			if err != nil {
 				clog.Warn("make mtls transport failed, use insecure by default: %v", err)
-			} else {
-				authProvider.Client.Transport = tr
+				return
 			}
+			authProvider.Client.Transport = tr
 		default:
 			clog.Warn("less mtls config file, caCert: %v, tlsCert: %v, tlsKey: %v, use insecure",
 				Config.CACert, Config.TLSCert, Config.TLSKey)
