@@ -23,7 +23,6 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/crds"
 	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/hotplug"
 	project "github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/project"
-	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/quota"
 	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/service"
 	tenant "github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/tenant"
 	hotplug2 "github.com/kubecube-io/kubecube/pkg/warden/localmgr/webhooks/hotplug"
@@ -61,10 +60,10 @@ func setupControllersWithManager(m *LocalManager) error {
 		return err
 	}
 
-	err = quota.SetupWithManager(m.Manager, m.PivotClient.Direct())
-	if err != nil {
-		return err
-	}
+	//err = quota.SetupWithManager(m.Manager, m.PivotClient.Direct())
+	//if err != nil {
+	//	return err
+	//}
 
 	err = service.SetupWithManager(m.Manager, &service.NginxConfig{
 		NginxNamespace:           m.NginxNamespace,
