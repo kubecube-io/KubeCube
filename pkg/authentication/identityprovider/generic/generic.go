@@ -93,23 +93,24 @@ func GetProvider() *HeaderProvider {
 		// use transport without tls by default
 		authProvider.Client = &http.Client{Timeout: 30 * time.Second, Transport: ctls.DefaultTransport()}
 
-		// here we should use tls config
-		if Config.Scheme == "https" {
-			// use insecure transport by default
-			authProvider.Client.Transport = ctls.MakeInsecureTransport()
-			switch {
-			case Config.InsecureSkipVerify:
-			case Config.CACert != "" && Config.TLSCert != "" && Config.TLSKey != "":
-				tr, err := ctls.MakeMTlsTransportByFile(Config.CACert, Config.TLSCert, Config.TLSKey)
-				if err != nil {
-					clog.Warn("make mtls transport failed, use insecure by default: %v", err)
-				} else {
-					authProvider.Client.Transport = tr
-				}
-			default:
-				clog.Warn("less mtls config file, caCert: %v, tlsCert: %v, tlsKey: %v, use insecure",
-					Config.CACert, Config.TLSCert, Config.TLSKey)
+		if Config.Scheme != "https" {
+			return
+		}
+
+		// here we should use tls config and use insecure transport by default
+		authProvider.Client.Transport = ctls.MakeInsecureTransport()
+		switch {
+		case Config.InsecureSkipVerify:
+		case Config.CACert != "" && Config.TLSCert != "" && Config.TLSKey != "":
+			tr, err := ctls.MakeMTlsTransportByFile(Config.CACert, Config.TLSCert, Config.TLSKey)
+			if err != nil {
+				clog.Warn("make mtls transport failed, use insecure by default: %v", err)
+			} else {
+				authProvider.Client.Transport = tr
 			}
+		default:
+			clog.Warn("less mtls config file, caCert: %v, tlsCert: %v, tlsKey: %v, use insecure",
+				Config.CACert, Config.TLSCert, Config.TLSKey)
 		}
 	})
 
