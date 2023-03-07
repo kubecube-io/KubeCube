@@ -20,8 +20,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/kubecube-io/kubecube/pkg/clog"
-	"github.com/kubecube-io/kubecube/pkg/utils/ctls"
 	"io/ioutil"
 	"net/http"
 	"sync"
@@ -29,6 +27,8 @@ import (
 
 	"github.com/kubecube-io/kubecube/pkg/authentication"
 	"github.com/kubecube-io/kubecube/pkg/authentication/identityprovider"
+	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/ctls"
 )
 
 var (
@@ -90,26 +90,26 @@ func GetProvider() *HeaderProvider {
 			CAKey:              Config.CAKey,
 		}
 
-		client := &http.Client{Timeout: 30 * time.Second, Transport: ctls.DefaultTransport()}
+		authProvider.Client = &http.Client{Timeout: 30 * time.Second, Transport: ctls.DefaultTransport()}
 
 		if Config.Scheme == "https" {
-			client.Transport = ctls.MakeInsecureTransport()
-			if !Config.InsecureSkipVerify {
-				if Config.CACert != "" && Config.TLSCert != "" && Config.TLSKey != "" {
-					tr, err := ctls.MakeMTlsTransportByFile(Config.CACert, Config.TLSCert, Config.TLSKey)
-					if err != nil {
-						clog.Warn("make mtls transport failed, use insecure by default: %v", err)
-					} else {
-						client.Transport = tr
-					}
+			switch {
+			case Config.InsecureSkipVerify:
+				authProvider.Client.Transport = ctls.MakeInsecureTransport()
+			case Config.CACert != "" && Config.TLSCert != "" && Config.TLSKey != "":
+				tr, err := ctls.MakeMTlsTransportByFile(Config.CACert, Config.TLSCert, Config.TLSKey)
+				if err != nil {
+					clog.Warn("make mtls transport failed, use insecure by default: %v", err)
+					authProvider.Client.Transport = ctls.MakeInsecureTransport()
 				} else {
-					clog.Warn("less mtls config file, caCert: %v, tlsCert: %v, tlsKey: %v, use insecure",
-						Config.CACert, Config.TLSCert, Config.TLSKey)
+					authProvider.Client.Transport = tr
 				}
+			default:
+				clog.Warn("less mtls config file, caCert: %v, tlsCert: %v, tlsKey: %v, use insecure",
+					Config.CACert, Config.TLSCert, Config.TLSKey)
+				authProvider.Client.Transport = ctls.MakeInsecureTransport()
 			}
 		}
-
-		authProvider.Client = client
 	})
 
 	return authProvider
