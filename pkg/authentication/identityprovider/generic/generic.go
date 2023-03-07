@@ -99,19 +99,16 @@ func GetProvider() *HeaderProvider {
 
 		// here we should use tls config and use insecure transport by default
 		authProvider.Client.Transport = ctls.MakeInsecureTransport()
-		switch {
-		case Config.InsecureSkipVerify:
-		case Config.CACert != "" && Config.TLSCert != "" && Config.TLSKey != "":
-			tr, err := ctls.MakeMTlsTransportByFile(Config.CACert, Config.TLSCert, Config.TLSKey)
-			if err != nil {
-				clog.Warn("make mtls transport failed, use insecure by default: %v", err)
-				return
-			}
-			authProvider.Client.Transport = tr
-		default:
-			clog.Warn("less mtls config file, caCert: %v, tlsCert: %v, tlsKey: %v, use insecure",
-				Config.CACert, Config.TLSCert, Config.TLSKey)
+
+		if Config.InsecureSkipVerify {
+			return
 		}
+		tr, err := ctls.MakeMTlsTransportByFile(Config.CACert, Config.TLSCert, Config.TLSKey)
+		if err != nil {
+			clog.Warn("make mtls transport failed, use insecure by default: %v", err)
+			return
+		}
+		authProvider.Client.Transport = tr
 	})
 
 	return authProvider
