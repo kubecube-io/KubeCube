@@ -365,12 +365,12 @@ func isProjectAdmin(r rbac.Interface, cli mgrclient.Client, user string) bool {
 func isAllowedAccess(rbac rbac.Interface, user, resource, namespace, auth string) bool {
 	read, write, res1, res2 := false, false, true, true
 
-	switch auth {
+	switch mapping.VerbRepresent(auth) {
 	case mapping.Read:
 		read = true
 	case mapping.Write:
 		write = true
-	case mapping.Both:
+	case mapping.All:
 		read, write = true, true
 	}
 

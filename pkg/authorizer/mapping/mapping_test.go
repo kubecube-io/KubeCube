@@ -73,7 +73,7 @@ func TestClusterRoleMapping(t *testing.T) {
 			},
 		},
 		{
-			name:    "all Both",
+			name:    "all All",
 			verbose: true,
 			clusterRole: &rbacv1.ClusterRole{
 				Rules: []rbacv1.PolicyRule{
@@ -98,27 +98,27 @@ func TestClusterRoleMapping(t *testing.T) {
 			want: &RoleAuthBody{
 				AuthItems: map[string]AuthItem{
 					"deployment.manage": {
-						Verb: Both,
+						Verb: All,
 						Resources: map[string]VerbRepresent{
-							"deployments": Both,
-							"pods":        Both,
-							"pods/log":    Both,
+							"deployments": All,
+							"pods":        All,
+							"pods/log":    All,
 						},
 					},
 					"services.manage": {
-						Verb: Both,
+						Verb: All,
 						Resources: map[string]VerbRepresent{
-							"services":  Both,
-							"endpoints": Both,
-							"pods/log":  Both,
+							"services":  All,
+							"endpoints": All,
+							"pods/log":  All,
 						},
 					},
 					"cxk.manage": {
-						Verb: Both,
+						Verb: All,
 						Resources: map[string]VerbRepresent{
-							"sing": Both,
-							"jump": Both,
-							"rap":  Both,
+							"sing": All,
+							"jump": All,
+							"rap":  All,
 						},
 					},
 				},
@@ -158,15 +158,15 @@ func TestClusterRoleMapping(t *testing.T) {
 						Resources: map[string]VerbRepresent{
 							"deployments": Read,
 							"pods":        Write,
-							"pods/log":    Both,
+							"pods/log":    All,
 						},
 					},
 					"services.manage": {
 						Verb: Write,
 						Resources: map[string]VerbRepresent{
-							"services":  Both,
+							"services":  All,
 							"endpoints": Write,
-							"pods/log":  Both,
+							"pods/log":  All,
 						},
 					},
 					"cxk.manage": {

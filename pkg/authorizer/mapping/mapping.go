@@ -12,9 +12,9 @@ import (
 
 const (
 	Null  VerbRepresent = "null"
-	Read                = "read"
-	Write               = "write"
-	Both                = "both"
+	Read  VerbRepresent = "read"
+	Write VerbRepresent = "write"
+	All   VerbRepresent = "all"
 )
 
 type VerbRepresent string
@@ -41,7 +41,7 @@ type AuthItem struct {
 type ClusterRoleSplit map[string]VerbRepresent
 
 // SplitClusterRole split ClusterRole as into format:
-// deployments: Both
+// deployments: All
 // services: Read
 // clusters: Write
 func SplitClusterRole(clusterRole *rbacv1.ClusterRole) ClusterRoleSplit {
@@ -67,7 +67,7 @@ func verbsMerge(v1, v2 VerbRepresent) VerbRepresent {
 		return v1
 	}
 	if (v1 != v2) && (v1 != Null) && (v2 != Null) {
-		return Both
+		return All
 	}
 	return Null
 }
@@ -77,7 +77,7 @@ func verbsAssert(verbs []string) VerbRepresent {
 	currentVerbs := sets.NewString(verbs...)
 	switch {
 	case bothVerbs.Equal(currentVerbs):
-		return Both
+		return All
 	case currentVerbs.IsSuperset(readVerbs):
 		return Read
 	case currentVerbs.IsSuperset(writeVerbs):
@@ -124,13 +124,13 @@ func ClusterRoleMapping(clusterRole *rbacv1.ClusterRole, cmData map[string]strin
 			// 1. Write != Read
 			// 3. Null != Read
 			// 3. Null != Write
-			if (verb != Both) && (visitVerb != Both) && (verb != visitVerb) && (visitVerb != "") {
+			if (verb != All) && (visitVerb != All) && (verb != visitVerb) && (visitVerb != "") {
 				interruptVerb = Null
 				continue
 			}
 
 			// placeVerb will be Null, Write, Read
-			if placeVerb == "" || placeVerb == Both {
+			if placeVerb == "" || placeVerb == All {
 				placeVerb = verb
 			}
 
@@ -182,7 +182,7 @@ func RoleAuthMapping(roleAuths *RoleAuthBody, cmData map[string]string) *rbacv1.
 				continue
 			}
 			if verb != v.Verb {
-				rules[resource] = Both
+				rules[resource] = All
 			}
 		}
 	}
@@ -192,7 +192,7 @@ func RoleAuthMapping(roleAuths *RoleAuthBody, cmData map[string]string) *rbacv1.
 	for resource, verb := range rules {
 		verbs := []string{}
 		switch verb {
-		case Both:
+		case All:
 			verbs = bothVerbs.List()
 		case Read:
 			verbs = readVerbs.List()
