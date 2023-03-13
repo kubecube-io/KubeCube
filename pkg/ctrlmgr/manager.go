@@ -75,7 +75,7 @@ func NewCtrlMgrWithOpts(options *Config) *ControllerManager {
 		clog.Fatal("unable to set up controller manager: %v", err)
 	}
 
-	syncMgr, err := multicluster.NewSyncMgrWithDefaultSetting(cfg, true)
+	syncMgr, err := multicluster.NewSyncMgrWithDefaultSetting(cfg, false)
 	if err != nil {
 		clog.Fatal("unable to set up subsidiary sync manager: %v", err)
 	}

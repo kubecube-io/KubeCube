@@ -44,6 +44,9 @@ type Scout struct {
 	// WaitTimeoutSeconds that heartbeat not receive timeout
 	WaitTimeoutSeconds int
 
+	// IntervalSeconds that interval seconds to visit heartbeat
+	IntervalSeconds int
+
 	// InitialDelaySeconds the time that wait for warden start
 	InitialDelaySeconds int
 
@@ -105,7 +108,7 @@ func (s *Scout) ClusterHealth() v1.ClusterState {
 
 // Collect will scout a specified warden of cluster
 func (s *Scout) Collect(ctx context.Context) {
-	ticker := time.NewTicker(time.Duration(s.WaitTimeoutSeconds) * time.Second)
+	ticker := time.NewTicker(time.Duration(s.IntervalSeconds) * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
@@ -119,6 +122,28 @@ func (s *Scout) Collect(ctx context.Context) {
 			clog.Warn("scout of %v warden stopped: %v", s.Cluster, ctx.Err())
 			return
 		}
+	}
+}
+
+func (s *Scout) VisitHeartBeat(ctx context.Context, timeout int) {
+	cluster := &v1.Cluster{}
+	err := s.client.Get(ctx, types.NamespacedName{Name: s.Cluster}, cluster)
+	if err != nil {
+		clog.Error(err.Error())
+		return
+	}
+
+	normal := true
+
+	// has no LastHeartbeat return directly
+	if cluster.Status.LastHeartbeat == nil {
+		normal = false
+	}
+
+	// if sub time less than timeout setting, we consider the cluster is healthy
+	if time.Now().Sub(cluster.Status.LastHeartbeat.Time).Milliseconds() <
+		(time.Duration(s.WaitTimeoutSeconds) * time.Second).Milliseconds() {
+		normal = true
 	}
 }
 
