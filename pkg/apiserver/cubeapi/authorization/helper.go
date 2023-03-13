@@ -362,10 +362,10 @@ func isProjectAdmin(r rbac.Interface, cli mgrclient.Client, user string) bool {
 	return false
 }
 
-func isAllowedAccess(rbac rbac.Interface, user, resource, namespace, auth string) bool {
+func isAllowedAccess(rbac rbac.Interface, user, resource, namespace string, auth mapping.VerbRepresent) bool {
 	read, write, res1, res2 := false, false, true, true
 
-	switch mapping.VerbRepresent(auth) {
+	switch auth {
 	case mapping.Read:
 		read = true
 	case mapping.Write:

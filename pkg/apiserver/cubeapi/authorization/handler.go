@@ -148,7 +148,6 @@ type authItemAccessInfos struct {
 	User    string `json:"user,omitempty"`
 	Infos   []struct {
 		AuthItem  string `json:"authItem"`
-		Operator  string `json:"operator"`
 		Namespace string `json:"namespace"`
 	} `json:"infos"`
 }
@@ -167,7 +166,7 @@ func (h *handler) getPermissions(c *gin.Context) {
 		data.User = c.GetString(constants.UserName)
 	}
 
-	res := make(map[string]bool)
+	res := make(map[string]mapping.VerbRepresent)
 
 	if data.Cluster == "" {
 		response.FailReturn(c, errcode.InvalidBodyFormat)
@@ -177,22 +176,38 @@ func (h *handler) getPermissions(c *gin.Context) {
 	r := rbac.NewDefaultResolver(data.Cluster)
 
 	for _, info := range data.Infos {
-		if info.AuthItem == "" || info.Operator == "" {
+		if info.AuthItem == "" {
 			continue
 		}
 
 		resources, ok := h.cmData[info.AuthItem]
 		if !ok {
-			res[info.AuthItem] = false
+			res[info.AuthItem] = mapping.Null
 			continue
 		}
 
-		allowed := true
+		allowedRead, allowedWrite := true, true
 		for _, resource := range strings.Split(resources, ";") {
-			allowed = isAllowedAccess(r, data.User, resource, info.Namespace, info.Operator)
+			allowedRead = isAllowedAccess(r, data.User, resource, info.Namespace, mapping.Read)
 		}
 
-		res[info.AuthItem] = allowed
+		for _, resource := range strings.Split(resources, ";") {
+			allowedWrite = isAllowedAccess(r, data.User, resource, info.Namespace, mapping.Write)
+		}
+
+		verb := mapping.Null
+
+		if allowedRead && allowedWrite {
+			verb = mapping.All
+		}
+		if allowedWrite {
+			verb = mapping.Write
+		}
+		if allowedRead {
+			verb = mapping.Read
+		}
+
+		res[info.AuthItem] = verb
 	}
 
 	response.SuccessReturn(c, res)
