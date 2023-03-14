@@ -182,10 +182,9 @@ func (s *Scout) illWarden(ctx context.Context) {
 			state := v1.ClusterAbnormal
 			obj.Status.State = &state
 			obj.Status.Reason = reason
-			obj.Status.LastHeartbeat = &metav1.Time{Time: s.LastHeartbeat}
 		}
 
-		clog.Warn("%v, last heartbeat: %v", reason, s.LastHeartbeat)
+		clog.Warn("%v, last heartbeat: %v", reason, cluster.Status.LastHeartbeat.Time)
 
 		err := utils.UpdateClusterStatus(ctx, s.client, cluster, updateFn)
 		if err != nil {
