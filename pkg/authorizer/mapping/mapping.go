@@ -128,6 +128,9 @@ func ClusterRoleMapping(clusterRole *rbacv1.ClusterRole, cmData map[string]strin
 		// v: deployments;services;pods;pods/logs
 		for _, resource := range resources {
 			verb, hasRule := processedClusterRole[resource]
+			if verb == "" {
+				verb = Null
+			}
 			authItem.Resources[resource] = verb
 
 			// if ClusterRole had no this auth item, early set interruptVerb Null.

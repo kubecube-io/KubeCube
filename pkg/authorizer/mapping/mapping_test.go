@@ -37,6 +37,41 @@ func TestClusterRoleMapping(t *testing.T) {
 		want        *RoleAuthBody
 	}{
 		{
+			name:    "all null",
+			verbose: true,
+			clusterRole: &rbacv1.ClusterRole{
+				Rules: nil,
+			},
+			want: &RoleAuthBody{
+				AuthItems: map[string]AuthItem{
+					"deployment.manage": {
+						Verb: Null,
+						Resources: map[string]VerbRepresent{
+							"deployments": Null,
+							"pods":        Null,
+							"pods/log":    Null,
+						},
+					},
+					"services.manage": {
+						Verb: Null,
+						Resources: map[string]VerbRepresent{
+							"services":  Null,
+							"endpoints": Null,
+							"pods/log":  Null,
+						},
+					},
+					"cxk.manage": {
+						Verb: Null,
+						Resources: map[string]VerbRepresent{
+							"sing": Null,
+							"jump": Null,
+							"rap":  Null,
+						},
+					},
+				},
+			},
+		},
+		{
 			name:    "all Read",
 			verbose: true,
 			clusterRole: &rbacv1.ClusterRole{

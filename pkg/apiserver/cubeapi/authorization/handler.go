@@ -94,7 +94,7 @@ func NewHandler() *handler {
 	return h
 }
 
-// getAuthItems get auth items by ClusterRole name.
+// getAuthItemsByLabelSelector get auth items by label selector.
 func (h *handler) getAuthItemsByLabelSelector(c *gin.Context) {
 	labelSelector := c.Query("labelSelector")
 	verbose := c.Query("verbose")
