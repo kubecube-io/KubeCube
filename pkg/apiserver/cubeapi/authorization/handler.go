@@ -61,6 +61,7 @@ func (h *handler) AddApisTo(root *gin.Engine) {
 	r.POST("access", h.authorization)
 	r.POST("resources", h.resourcesGate)
 	r.GET("authitems/:clusterrole", h.getAuthItems)
+	r.GET("authitems", h.getAuthItemsByLabelSelector)
 	r.POST("authitems", h.setAuthItems)
 	r.POST("authitems/permissions", h.getPermissions)
 }
@@ -94,11 +95,41 @@ func NewHandler() *handler {
 }
 
 // getAuthItems get auth items by ClusterRole name.
+func (h *handler) getAuthItemsByLabelSelector(c *gin.Context) {
+	labelSelector := c.Query("labelSelector")
+	verbose := c.Query("verbose")
+
+	selector, err := labels.Parse(labelSelector)
+	if err != nil {
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, "labels selector invalid: %v", err))
+		return
+	}
+
+	clusterRoleList := &rbacv1.ClusterRoleList{}
+	err = h.Cache().List(context.Background(), clusterRoleList, &client.ListOptions{LabelSelector: selector})
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.InternalServerError)
+		return
+	}
+
+	res := make([]*mapping.RoleAuthBody, 0, len(clusterRoleList.Items))
+
+	for _, clusterRole := range clusterRoleList.Items {
+		v := mapping.ClusterRoleMapping(clusterRole.DeepCopy(), h.cmData, verbose == "true")
+		res = append(res, v)
+	}
+
+	response.SuccessReturn(c, res)
+}
+
+// getAuthItems get auth items by ClusterRole name.
 func (h *handler) getAuthItems(c *gin.Context) {
 	clusterRoleName := c.Param("clusterrole")
 	verbose := c.Query("verbose")
 
 	clusterRole := &rbacv1.ClusterRole{}
+
 	err := h.Cache().Get(context.Background(), types.NamespacedName{Name: clusterRoleName}, clusterRole)
 	if err != nil {
 		if errors.IsNotFound(err) {
