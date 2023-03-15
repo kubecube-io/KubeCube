@@ -106,7 +106,7 @@ func (h *handler) getAuthItemsByLabelSelector(c *gin.Context) {
 	}
 
 	clusterRoleList := &rbacv1.ClusterRoleList{}
-	err = h.Cache().List(context.Background(), clusterRoleList, &client.ListOptions{LabelSelector: selector})
+	err = h.Direct().List(context.Background(), clusterRoleList, &client.ListOptions{LabelSelector: selector})
 	if err != nil {
 		clog.Error(err.Error())
 		response.FailReturn(c, errcode.InternalServerError)
@@ -130,7 +130,7 @@ func (h *handler) getAuthItems(c *gin.Context) {
 
 	clusterRole := &rbacv1.ClusterRole{}
 
-	err := h.Cache().Get(context.Background(), types.NamespacedName{Name: clusterRoleName}, clusterRole)
+	err := h.Direct().Get(context.Background(), types.NamespacedName{Name: clusterRoleName}, clusterRole)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			response.FailReturn(c, errcode.CustomReturn(http.StatusNotFound, err.Error()))
