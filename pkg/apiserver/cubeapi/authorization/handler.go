@@ -228,14 +228,14 @@ func (h *handler) getPermissions(c *gin.Context) {
 
 		verb := mapping.Null
 
-		if allowedRead && allowedWrite {
-			verb = mapping.All
-		}
 		if allowedWrite {
 			verb = mapping.Write
 		}
 		if allowedRead {
 			verb = mapping.Read
+		}
+		if allowedRead && allowedWrite {
+			verb = mapping.All
 		}
 
 		res[info.AuthItem] = verb
