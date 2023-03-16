@@ -68,7 +68,7 @@ func (s *Reconciler) OnServiceUpdate(oldObj, newObj interface{}) {
 	oldService := oldObj.(*v1.Service)
 	newService := newObj.(*v1.Service)
 
-	clog.Info("start update service external access: %+v", oldService)
+	clog.Debug("start update service external access: %+v", oldService)
 	externalHandler := service.NewExternalAccess(s.Client, oldService.Namespace, oldService.Name, &filter.Condition{Limit: 10}, s.NginxNamespace, s.NginxTcpServiceConfigMap, s.NginxUdpServiceConfigMap)
 	tcpInfo, udpInfo, err := externalHandler.GetExternalAccessConfigMap()
 
