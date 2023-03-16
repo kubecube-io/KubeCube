@@ -17,11 +17,13 @@ limitations under the License.
 package authorization
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,14 +31,17 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	userinfo "k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/apiserver/pkg/authorization/authorizer"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/kubecube-io/kubecube/pkg/authorizer/mapping"
 	"github.com/kubecube-io/kubecube/pkg/authorizer/rbac"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	"github.com/kubecube-io/kubecube/pkg/utils/access"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/env"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
 )
@@ -55,6 +60,10 @@ func (h *handler) AddApisTo(root *gin.Engine) {
 	r.DELETE("bindings", h.deleteBinds)
 	r.POST("access", h.authorization)
 	r.POST("resources", h.resourcesGate)
+	r.GET("authitems/:clusterrole", h.getAuthItems)
+	r.GET("authitems", h.getAuthItemsByLabelSelector)
+	r.POST("authitems", h.setAuthItems)
+	r.POST("authitems/permissions", h.getPermissions)
 }
 
 type result struct {
@@ -65,13 +74,174 @@ type result struct {
 type handler struct {
 	rbac.Interface
 	mgrclient.Client
+	cmData map[string]string
 }
 
 func NewHandler() *handler {
 	h := new(handler)
 	h.Interface = rbac.NewDefaultResolver(constants.LocalCluster)
 	h.Client = clients.Interface().Kubernetes(constants.LocalCluster)
+
+	cm := corev1.ConfigMap{}
+	nn := types.NamespacedName{Name: constants.AuthMappingCM, Namespace: env.CubeNamespace()}
+	err := h.Client.Direct().Get(context.Background(), nn, &cm)
+	if err != nil {
+		clog.Warn("get auth item configmap %v failed: %v", nn, err)
+	}
+
+	h.cmData = cm.Data
+
 	return h
+}
+
+// getAuthItemsByLabelSelector get auth items by label selector.
+func (h *handler) getAuthItemsByLabelSelector(c *gin.Context) {
+	labelSelector := c.Query("labelSelector")
+	verbose := c.Query("verbose")
+
+	selector, err := labels.Parse(labelSelector)
+	if err != nil {
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, "labels selector invalid: %v", err))
+		return
+	}
+
+	clusterRoleList := &rbacv1.ClusterRoleList{}
+	err = h.Direct().List(context.Background(), clusterRoleList, &client.ListOptions{LabelSelector: selector})
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.InternalServerError)
+		return
+	}
+
+	res := make([]*mapping.RoleAuthBody, 0, len(clusterRoleList.Items))
+
+	for _, clusterRole := range clusterRoleList.Items {
+		v := mapping.ClusterRoleMapping(clusterRole.DeepCopy(), h.cmData, verbose == "true")
+		res = append(res, v)
+	}
+
+	response.SuccessReturn(c, res)
+}
+
+// getAuthItems get auth items by ClusterRole name.
+func (h *handler) getAuthItems(c *gin.Context) {
+	clusterRoleName := c.Param("clusterrole")
+	verbose := c.Query("verbose")
+
+	clusterRole := &rbacv1.ClusterRole{}
+
+	err := h.Direct().Get(context.Background(), types.NamespacedName{Name: clusterRoleName}, clusterRole)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			response.FailReturn(c, errcode.CustomReturn(http.StatusNotFound, err.Error()))
+			return
+		}
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.InternalServerError)
+		return
+	}
+
+	roleAuths := mapping.ClusterRoleMapping(clusterRole, h.cmData, verbose == "true")
+
+	response.SuccessReturn(c, roleAuths)
+}
+
+// setAuthItems transfer auth item to ClusterRole into k8s.
+func (h *handler) setAuthItems(c *gin.Context) {
+	body := &mapping.RoleAuthBody{}
+	if err := c.ShouldBindJSON(body); err != nil {
+		response.FailReturn(c, errcode.InvalidBodyFormat)
+		return
+	}
+
+	if len(body.ClusterRoleName) == 0 || len(body.AuthItems) == 0 {
+		response.FailReturn(c, errcode.InvalidBodyFormat)
+		return
+	}
+
+	clusterRole := mapping.RoleAuthMapping(body, h.cmData)
+	runtimeObject := clusterRole.DeepCopy()
+	_, err := controllerruntime.CreateOrUpdate(context.Background(), h.Client.Direct(), runtimeObject, func() error {
+		runtimeObject.Rules = clusterRole.Rules
+		return nil
+	})
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.InternalServerError)
+		return
+	}
+
+	response.SuccessReturn(c, nil)
+}
+
+type authItemAccessInfos struct {
+	Cluster string `json:"cluster"`
+	User    string `json:"user,omitempty"`
+	Infos   []struct {
+		AuthItem  string `json:"authItem"`
+		Namespace string `json:"namespace"`
+	} `json:"infos"`
+}
+
+// getPermissions query access permissions by asking k8s.
+func (h *handler) getPermissions(c *gin.Context) {
+	data := &authItemAccessInfos{}
+	err := c.ShouldBindJSON(data)
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.InvalidBodyFormat)
+		return
+	}
+
+	if len(data.User) == 0 {
+		data.User = c.GetString(constants.UserName)
+	}
+
+	res := make(map[string]mapping.VerbRepresent)
+
+	if data.Cluster == "" {
+		response.FailReturn(c, errcode.InvalidBodyFormat)
+		return
+	}
+
+	r := rbac.NewDefaultResolver(data.Cluster)
+
+	for _, info := range data.Infos {
+		if info.AuthItem == "" {
+			continue
+		}
+
+		resources, ok := h.cmData[info.AuthItem]
+		if !ok {
+			res[info.AuthItem] = mapping.Null
+			continue
+		}
+
+		allowedRead, allowedWrite := true, true
+		for _, resource := range strings.Split(resources, ";") {
+			allowedRead = isAllowedAccess(r, data.User, resource, info.Namespace, mapping.Read)
+		}
+
+		for _, resource := range strings.Split(resources, ";") {
+			allowedWrite = isAllowedAccess(r, data.User, resource, info.Namespace, mapping.Write)
+		}
+
+		verb := mapping.Null
+
+		if allowedWrite {
+			verb = mapping.Write
+		}
+		if allowedRead {
+			verb = mapping.Read
+		}
+		if allowedRead && allowedWrite {
+			verb = mapping.All
+		}
+
+		res[info.AuthItem] = verb
+	}
+
+	response.SuccessReturn(c, res)
 }
 
 // getRolesByUser return roles if namespace specified role and

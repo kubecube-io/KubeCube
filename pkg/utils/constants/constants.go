@@ -206,3 +206,8 @@ const (
 	ValueNodeAssigned   = "assigned"
 	ValueNodeUnassigned = "unassigned"
 )
+
+const (
+	// AuthMappingCM auth configmap name
+	AuthMappingCM = "kubecube-auth-mapping"
+)
