@@ -42,6 +42,7 @@ type Config struct {
 	LeaderElect       bool
 	WebhookCert       string
 	WebhookServerPort int
+	EnableControllers string
 
 	// nginx ingress controller param
 	NginxNamespace           string

@@ -17,14 +17,12 @@ limitations under the License.
 package ctrlmgr
 
 type Config struct {
-	KubernetesConfig string
-
-	AllowPrivileged bool
-
-	LeaderElect bool
-
+	KubernetesConfig  string
+	AllowPrivileged   bool
+	LeaderElect       bool
 	WebhookCert       string
 	WebhookServerPort int
+	EnableControllers string
 }
 
 func (c *Config) Validate() []error {

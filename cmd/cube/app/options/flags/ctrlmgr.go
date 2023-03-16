@@ -38,5 +38,10 @@ func init() {
 			Name:        "allow-privileged",
 			Destination: &CubeOpts.CtrlMgrOpts.AllowPrivileged,
 		},
+		&cli.StringFlag{
+			Name:        "enable-controllers",
+			Value:       "*",
+			Destination: &CubeOpts.CtrlMgrOpts.EnableControllers,
+		},
 	}...)
 }
