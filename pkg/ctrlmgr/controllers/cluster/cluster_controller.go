@@ -34,6 +34,7 @@ import (
 
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/options"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	"github.com/kubecube-io/kubecube/pkg/utils"
 	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
@@ -54,23 +55,27 @@ type ClusterReconciler struct {
 	Scheme *runtime.Scheme
 	// todo: remove this field in the future
 	pivotCluster *clusterv1.Cluster
-
 	// retryQueue holds all retrying cluster that has the way to stop retrying
 	retryQueue sync.Map
-
 	// Affected is a channel of event.GenericEvent (see "Watching Channels" in
 	// https://book-v1.book.kubebuilder.io/beyond_basics/controller_watches.html) that is used to
 	// enqueue additional objects that need updating.
 	Affected chan event.GenericEvent
+	// WaitTimeoutSeconds that heartbeat not receive timeout
+	ScoutWaitTimeoutSeconds int
+	// InitialDelaySeconds the time that wait for warden start
+	ScoutInitialDelaySeconds int
 }
 
-func newReconciler(mgr manager.Manager) (*ClusterReconciler, error) {
+func newReconciler(mgr manager.Manager, opts *options.Options) (*ClusterReconciler, error) {
 	log = clog.WithName("cluster")
 
 	r := &ClusterReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		Affected: make(chan event.GenericEvent),
+		Client:                   mgr.GetClient(),
+		Scheme:                   mgr.GetScheme(),
+		Affected:                 make(chan event.GenericEvent),
+		ScoutWaitTimeoutSeconds:  opts.ScoutWaitTimeoutSeconds,
+		ScoutInitialDelaySeconds: opts.ScoutInitialDelaySeconds,
 	}
 	return r, nil
 }
@@ -147,7 +152,7 @@ func (r *ClusterReconciler) syncCluster(ctx context.Context, cluster clusterv1.C
 
 	// generate internal cluster for current cluster and add
 	// it to the cache of multi cluster manager
-	err = multicluster.AddInternalClusterWithScout(cluster)
+	err = multicluster.AddInternalClusterWithScoutOpts(cluster, r.ScoutInitialDelaySeconds, r.ScoutWaitTimeoutSeconds)
 	if err != nil {
 		log.Error(err.Error())
 		_ = utils.UpdateClusterStatusByState(ctx, r.Client, &cluster, clusterv1.ClusterInitFailed)
@@ -221,8 +226,8 @@ func (r *ClusterReconciler) enqueue(cluster clusterv1.Cluster) {
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func SetupWithManager(mgr ctrl.Manager) error {
-	r, err := newReconciler(mgr)
+func SetupWithManager(mgr ctrl.Manager, opts *options.Options) error {
+	r, err := newReconciler(mgr, opts)
 	if err != nil {
 		return err
 	}

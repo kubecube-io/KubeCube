@@ -38,5 +38,17 @@ func init() {
 			Name:        "allow-privileged",
 			Destination: &CubeOpts.CtrlMgrOpts.AllowPrivileged,
 		},
+		&cli.IntFlag{
+			Name:        "scout-wait-timeout-seconds",
+			Destination: &CubeOpts.CtrlMgrOpts.ScoutWaitTimeoutSeconds,
+			Value:       20,
+			Usage:       "timeout wait for warden report heartbeat",
+		},
+		&cli.IntFlag{
+			Name:        "scout-initial-delay-seconds",
+			Destination: &CubeOpts.CtrlMgrOpts.ScoutInitialDelaySeconds,
+			Value:       10,
+			Usage:       "the time that wait for warden start",
+		},
 	}...)
 }
