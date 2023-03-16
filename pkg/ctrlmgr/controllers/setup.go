@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"errors"
+	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/options"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -42,12 +43,12 @@ func init() {
 }
 
 // SetupWithManager set up controllers into manager
-func SetupWithManager(m manager.Manager, controllers string) error {
+func SetupWithManager(m manager.Manager, controllers string, opts *options.Options) error {
 	for name, f := range setupFns {
 		if !ctrlopts.IsControllerEnabled(name, ctrlopts.ParseControllers(controllers)) {
 			continue
 		}
-		if err := f(m); err != nil {
+		if err := f(m, opts); err != nil {
 			var kindMatchErr *meta.NoKindMatchError
 			if errors.As(err, &kindMatchErr) {
 				clog.Warn("CRD %v is not installed, its controller will dry run!", kindMatchErr.GroupKind)

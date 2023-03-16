@@ -26,6 +26,44 @@ import (
 	"time"
 )
 
+func DefaultTransport() *http.Transport {
+	return &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          50,
+		IdleConnTimeout:       60 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+}
+
+func DefaultTransportOpts(tr *http.Transport) {
+	tr.DialContext = (&net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}).DialContext
+	tr.ForceAttemptHTTP2 = true
+	tr.MaxIdleConns = 50
+	tr.IdleConnTimeout = 60 * time.Second
+	tr.TLSHandshakeTimeout = 10 * time.Second
+	tr.ExpectContinueTimeout = 1 * time.Second
+}
+
+func MakeInsecureTransport() *http.Transport {
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
+	}
+
+	DefaultTransportOpts(tr)
+
+	return tr
+}
+
 func MakeTlsTransportByFile(caFile string) (*http.Transport, error) {
 	caCert, err := ioutil.ReadFile(caFile)
 	if err != nil {
@@ -55,9 +93,13 @@ func MakeTlsTransport(caCert []byte) (*http.Transport, error) {
 		return nil, fmt.Errorf("parse cert failed: %v", caCert)
 	}
 
-	return &http.Transport{TLSClientConfig: &tls.Config{
+	tr := &http.Transport{TLSClientConfig: &tls.Config{
 		RootCAs: pool,
-	}}, nil
+	}}
+
+	DefaultTransportOpts(tr)
+
+	return tr, nil
 }
 
 func MakeMTlsTransportByPem(caCert, certData, keyData []byte) (*http.Transport, error) {
@@ -75,18 +117,12 @@ func MakeMTlsTransport(caCert []byte, clientCert tls.Certificate) (*http.Transpo
 		return nil, fmt.Errorf("parse cert failed: %v", caCert)
 	}
 
-	return &http.Transport{TLSClientConfig: &tls.Config{
+	tr := &http.Transport{TLSClientConfig: &tls.Config{
 		RootCAs:      pool,
 		Certificates: []tls.Certificate{clientCert},
-	},
-		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).DialContext,
-		ForceAttemptHTTP2:     true,
-		MaxIdleConns:          50,
-		IdleConnTimeout:       60 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-	}, nil
+	}}
+
+	DefaultTransportOpts(tr)
+
+	return tr, nil
 }
