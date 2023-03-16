@@ -18,7 +18,6 @@ package reporter
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -26,6 +25,7 @@ import (
 
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	multiclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
+	"github.com/kubecube-io/kubecube/pkg/utils/ctls"
 )
 
 var log clog.CubeLogger
@@ -76,10 +76,8 @@ func (r *Reporter) Initialize() error {
 
 	// todo:(vela) support tls
 	r.Client = &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		},
-		Timeout: 5 * time.Second,
+		Transport: ctls.MakeInsecureTransport(),
+		Timeout:   5 * time.Second,
 	}
 
 	b, err := ioutil.ReadFile(r.LocalClusterKubeConfig)

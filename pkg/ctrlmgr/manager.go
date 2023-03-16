@@ -32,6 +32,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/apis"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/controllers"
+	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/options"
 	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/webhooks"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	"github.com/kubecube-io/kubecube/pkg/utils/env"
@@ -75,7 +76,7 @@ func NewCtrlMgrWithOpts(options *Config) *ControllerManager {
 		clog.Fatal("unable to set up controller manager: %v", err)
 	}
 
-	syncMgr, err := multicluster.NewSyncMgrWithDefaultSetting(cfg, true)
+	syncMgr, err := multicluster.NewSyncMgrWithScoutSetting(cfg, options.ScoutInitialDelaySeconds, options.ScoutWaitTimeoutSeconds)
 	if err != nil {
 		clog.Fatal("unable to set up subsidiary sync manager: %v", err)
 	}
@@ -84,7 +85,7 @@ func NewCtrlMgrWithOpts(options *Config) *ControllerManager {
 }
 
 func (m *ControllerManager) Initialize() error {
-	err := controllers.SetupWithManager(m.CtrlMgr, m.EnableControllers)
+	err := controllers.SetupWithManager(m.CtrlMgr, m.EnableControllers, &options.Options{ScoutWaitTimeoutSeconds: m.ScoutWaitTimeoutSeconds, ScoutInitialDelaySeconds: m.ScoutInitialDelaySeconds})
 	if err != nil {
 		return err
 	}

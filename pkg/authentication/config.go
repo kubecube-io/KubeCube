@@ -51,6 +51,8 @@ type GenericConfig struct {
 	Method              string
 	Scheme              string
 	InsecureSkipVerify  bool
+	CAKey               string
+	CACert              string
 	TLSCert             string
 	TLSKey              string
 }

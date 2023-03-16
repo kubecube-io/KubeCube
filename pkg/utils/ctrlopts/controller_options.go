@@ -19,11 +19,12 @@ package ctrlopts
 import (
 	"strings"
 
+	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/options"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 // ControllerInitFns represent controller init func.
-type ControllerInitFns map[string]func(manager manager.Manager) error
+type ControllerInitFns map[string]func(manager manager.Manager, opts *options.Options) error
 
 // IsControllerEnabled check if a specified controller enabled or not.
 func IsControllerEnabled(name string, controllers []string) bool {

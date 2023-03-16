@@ -34,6 +34,7 @@ import (
 
 	quotav1 "github.com/kubecube-io/kubecube/pkg/apis/quota/v1"
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/options"
 	"github.com/kubecube-io/kubecube/pkg/quota"
 	"github.com/kubecube-io/kubecube/pkg/quota/cube"
 )
@@ -195,7 +196,7 @@ func (r *CubeResourceQuotaReconciler) ifUpdateUsed(hard, used v1.ResourceList) (
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func SetupWithManager(mgr ctrl.Manager) error {
+func SetupWithManager(mgr ctrl.Manager, _ *options.Options) error {
 	r, err := newReconciler(mgr)
 	if err != nil {
 		return err

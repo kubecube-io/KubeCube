@@ -30,6 +30,7 @@ import (
 
 	v12 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/options"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
@@ -129,7 +130,7 @@ func (r *RoleBindingReconciler) syncUserOnDelete(ctx context.Context, name, name
 	return ctrl.Result{}, nil
 }
 
-func SetupRoleBindingReconcilerWithManager(mgr ctrl.Manager) error {
+func SetupRoleBindingReconcilerWithManager(mgr ctrl.Manager, _ *options.Options) error {
 	r, err := newRoleBindingReconciler(mgr)
 	if err != nil {
 		return err
