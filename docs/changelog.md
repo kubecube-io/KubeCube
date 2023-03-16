@@ -1,3 +1,28 @@
+# v1.8.0
+
+## Feature
+- add replicaset func [#250](https://github.com/kubecube-io/KubeCube/pull/250)
+- feat: allowed to enable controllers by options [#241](https://github.com/kubecube-io/KubeCube/pull/241)
+- modify svc controller log level to debug [#253](https://github.com/kubecube-io/KubeCube/pull/253)
+
+## Bugfix
+- fix heartbeat report and merge 1.7.7 back to main [#252](https://github.com/kubecube-io/KubeCube/pull/252)
+- update proxy user [#249](https://github.com/kubecube-io/KubeCube/pull/249)
+
+## Dependencies
+
+- hnc v1.0
+- nginx-ingress v0.46.0
+- helm 3.5
+- metrics-server v0.4.1
+- elasticsearch 7.8
+- kubecube-monitoring 15.4.8
+- thanos 3.18.0
+- logseer v1.0.0
+- logagent v1.0.0
+- kubecube-audit v1.2.0
+- kubecube-webconsole v1.2.4
+
 # v1.7.7
 
 ## Bugfix
