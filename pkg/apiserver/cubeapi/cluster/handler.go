@@ -30,12 +30,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	userinfo "k8s.io/apiserver/pkg/authentication/user"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
 
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
+	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
 	"github.com/kubecube-io/kubecube/pkg/authorizer/rbac"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
@@ -400,6 +402,17 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 		user = c.GetString(constants.UserName)
 	}
 
+	userImpl := userv1.User{}
+	err := h.Client.Cache().Get(ctx, types.NamespacedName{Name: user}, &userImpl)
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.CustomReturn(http.StatusNotFound, err.Error()))
+		return
+	}
+
+	tenantSet := sets.NewString(userImpl.Status.BelongTenants...)
+	projectSet := sets.NewString(userImpl.Status.BelongProjects...)
+
 	// list all hnc managed namespaces
 	listFunc := func(cli mgrclient.Client) (v1.NamespaceList, error) {
 		nsLIst := v1.NamespaceList{}
@@ -452,16 +465,7 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 					continue
 				}
 
-				// only care about ns under project that the user can see
-				// todo: use better way
-				allowed, err := rbac.IsAllowResourceAccess(&rbac.DefaultResolver{Cache: cli.Cache()}, user, "pods", constants.GetVerb, constants.ProjectNsPrefix+project)
-				if err != nil {
-					clog.Error(err.Error())
-					response.FailReturn(c, errcode.CustomReturn(http.StatusInternalServerError, err.Error()))
-					return
-				}
-
-				if !allowed {
+				if !userImpl.Status.PlatformAdmin && !tenantSet.Has(tenant) && !projectSet.Has(project) {
 					continue
 				}
 
