@@ -195,21 +195,19 @@ func (h *handler) setAuthItems(c *gin.Context) {
 		return
 	}
 
-	newClusterRole := mapping.RoleAuthMapping(body, cmData)
-	newClusterRole.Annotations = map[string]string{constants.SyncAnnotation: "true"}
-	newClusterRole.Labels = map[string]string{constants.RbacLabel: "true"}
-
+	labels := map[string]string{constants.RbacLabel: "true"}
+	annotations := map[string]string{constants.SyncAnnotation: "true"}
 	if errors.IsNotFound(err) {
 		if body.Scope == constants.ClusterRolePlatform {
-			newClusterRole.Labels[constants.RoleLabel] = constants.ClusterRolePlatform
+			labels[constants.RoleLabel] = constants.ClusterRolePlatform
 			cmData = h.platformCmData
 		}
 		if body.Scope == constants.ClusterRoleTenant {
-			newClusterRole.Labels[constants.RoleLabel] = constants.ClusterRoleTenant
+			labels[constants.RoleLabel] = constants.ClusterRoleTenant
 			cmData = h.cmData
 		}
 		if body.Scope == constants.ClusterRoleProject {
-			newClusterRole.Labels[constants.RoleLabel] = constants.ClusterRoleProject
+			labels[constants.RoleLabel] = constants.ClusterRoleProject
 			cmData = h.cmData
 		}
 	} else {
@@ -220,10 +218,13 @@ func (h *handler) setAuthItems(c *gin.Context) {
 		}
 	}
 
+	newClusterRole := mapping.RoleAuthMapping(body, cmData)
+	newClusterRole.Annotations = annotations
+	newClusterRole.Labels = labels
 	runtimeObject := newClusterRole.DeepCopy()
 
 	_, err = controllerruntime.CreateOrUpdate(context.Background(), h.Client.Direct(), runtimeObject, func() error {
-		runtimeObject.Rules = clusterRole.Rules
+		runtimeObject.Rules = newClusterRole.Rules
 		return nil
 	})
 	if err != nil {
@@ -527,6 +528,10 @@ func (h *handler) getProjectByUser(c *gin.Context) {
 	res := []tenantv1.Project{}
 	for _, p := range projectList.Items {
 		if !user.Status.PlatformAdmin && !projectSet.Has(p.Name) {
+			continue
+		}
+		if tenants == nil {
+			res = append(res, p)
 			continue
 		}
 		t, ok := p.Labels[constants.TenantLabel]

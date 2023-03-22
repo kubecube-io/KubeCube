@@ -179,7 +179,7 @@ func ClusterRoleMapping(clusterRole *rbacv1.ClusterRole, cmData map[string]strin
 // RoleAuthMapping mapping RoleAuthBody as ClusterRole by configmap data.
 func RoleAuthMapping(roleAuths *RoleAuthBody, cmData map[string]string) *rbacv1.ClusterRole {
 	if roleAuths == nil || cmData == nil || len(cmData) == 0 {
-		return nil
+		return &rbacv1.ClusterRole{ObjectMeta: v1.ObjectMeta{Name: roleAuths.ClusterRoleName}}
 	}
 
 	rules := make(map[string]VerbRepresent)
