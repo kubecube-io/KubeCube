@@ -464,24 +464,24 @@ func (h *handler) getTenantByUser(c *gin.Context) {
 		return
 	}
 
-	res := result{
-		Total: len(user.Status.BelongTenants),
-		Items: user.Status.BelongTenants,
+	tenants := tenantv1.TenantList{}
+	err = h.Client.Cache().List(ctx, &tenants)
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.CustomReturn(http.StatusNotFound, err.Error()))
+		return
 	}
 
-	if user.Status.PlatformAdmin {
-		tenants := tenantv1.TenantList{}
-		err := h.Client.Cache().List(ctx, &tenants)
-		if err != nil {
-			clog.Error(err.Error())
-			response.FailReturn(c, errcode.CustomReturn(http.StatusNotFound, err.Error()))
-			return
+	tenantSet := sets.NewString(user.Status.BelongTenants...)
+	res := []tenantv1.Tenant{}
+	for _, t := range tenants.Items {
+		if !user.Status.PlatformAdmin && !tenantSet.Has(t.Name) {
+			continue
 		}
-		res.Total = len(tenants.Items)
-		res.Items = tenants.Items
+		res = append(res, t)
 	}
 
-	response.SuccessReturn(c, res)
+	response.SuccessReturn(c, result{Total: len(res), Items: res})
 }
 
 // getProjectByUser get all visible project for user under tenant
