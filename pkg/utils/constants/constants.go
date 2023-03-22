@@ -209,5 +209,12 @@ const (
 
 const (
 	// AuthMappingCM auth configmap name
-	AuthMappingCM = "kubecube-auth-mapping"
+	AuthMappingCM         = "kubecube-auth-mapping"
+	AuthPlatformMappingCM = "kubecube-auth-platform-mapping"
+)
+
+const (
+	ClusterRolePlatform = "platform"
+	ClusterRoleTenant   = "tenant"
+	ClusterRoleProject  = "project"
 )
