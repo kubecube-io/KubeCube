@@ -45,6 +45,7 @@ var (
 // RoleAuthBody the another transformed form of ClusterRole.
 type RoleAuthBody struct {
 	ClusterRoleName string              `json:"clusterRoleName,omitempty"`
+	Scope           string              `json:"scope"`
 	AuthItems       map[string]AuthItem `json:"authItems"`
 }
 

@@ -126,46 +126,6 @@ func getAccessTenants(rbac rbac.Interface, user string, cli mgrclient.Client, ct
 	return res, nil
 }
 
-// getAccessProjects get visible projects of user
-func getAccessProjects(rbac rbac.Interface, user string, cli mgrclient.Client, ctx context.Context, tenant []string, auth string) (result, error) {
-	var lists []tenantv1.Project
-	projectList := tenantv1.ProjectList{}
-	err := cli.Cache().List(ctx, &projectList)
-	if err != nil {
-		return result{}, err
-	}
-
-	for _, p := range projectList.Items {
-		if isAllowedAccessNs(rbac, user, p.Spec.Namespace, auth) {
-			lists = append(lists, p)
-		}
-	}
-
-	if len(tenant) != 0 {
-		lists = filterBy(tenant, lists)
-	}
-	res := result{
-		Total: len(lists),
-		Items: lists,
-	}
-
-	return res, nil
-}
-
-func filterBy(tenant []string, projects []tenantv1.Project) (res []tenantv1.Project) {
-	tenantSet := sets.NewString(tenant...)
-	for _, p := range projects {
-		t, ok := p.Labels[constants.TenantLabel]
-		if !ok {
-			continue
-		}
-		if _, ok := tenantSet[t]; ok {
-			res = append(res, p)
-		}
-	}
-	return
-}
-
 // isAllowedAccessNs consider user has visible view of given namespace
 // if user can get pods in that namespace.
 func isAllowedAccessNs(rbac rbac.Interface, user, namespace, auth string) bool {
@@ -406,4 +366,11 @@ func isAllowedAccess(rbac rbac.Interface, user, resource, namespace string, auth
 	}
 
 	return res1 && res2
+}
+
+func isPlatformRole(labels map[string]string) bool {
+	if labels == nil {
+		return false
+	}
+	return labels[constants.RoleLabel] == constants.ClusterRolePlatform
 }

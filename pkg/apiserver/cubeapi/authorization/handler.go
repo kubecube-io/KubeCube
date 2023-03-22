@@ -29,11 +29,14 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	userinfo "k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/apiserver/pkg/authorization/authorizer"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
+	user "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
 	"github.com/kubecube-io/kubecube/pkg/authorizer/mapping"
 	"github.com/kubecube-io/kubecube/pkg/authorizer/rbac"
 	"github.com/kubecube-io/kubecube/pkg/clients"
@@ -74,7 +77,8 @@ type result struct {
 type handler struct {
 	rbac.Interface
 	mgrclient.Client
-	cmData map[string]string
+	cmData         map[string]string
+	platformCmData map[string]string
 }
 
 func NewHandler() *handler {
@@ -89,7 +93,15 @@ func NewHandler() *handler {
 		clog.Warn("get auth item configmap %v failed: %v", nn, err)
 	}
 
+	platformCm := corev1.ConfigMap{}
+	nn1 := types.NamespacedName{Name: constants.AuthPlatformMappingCM, Namespace: env.CubeNamespace()}
+	err = h.Client.Direct().Get(context.Background(), nn1, &platformCm)
+	if err != nil {
+		clog.Warn("get platform auth item configmap %v failed: %v", nn1, err)
+	}
+
 	h.cmData = cm.Data
+	h.platformCmData = platformCm.Data
 
 	return h
 }
@@ -116,7 +128,13 @@ func (h *handler) getAuthItemsByLabelSelector(c *gin.Context) {
 	res := make([]*mapping.RoleAuthBody, 0, len(clusterRoleList.Items))
 
 	for _, clusterRole := range clusterRoleList.Items {
-		v := mapping.ClusterRoleMapping(clusterRole.DeepCopy(), h.cmData, verbose == "true")
+		var cmData map[string]string
+		if isPlatformRole(clusterRole.Labels) {
+			cmData = h.platformCmData
+		} else {
+			cmData = h.cmData
+		}
+		v := mapping.ClusterRoleMapping(clusterRole.DeepCopy(), cmData, verbose == "true")
 		res = append(res, v)
 	}
 
@@ -141,7 +159,15 @@ func (h *handler) getAuthItems(c *gin.Context) {
 		return
 	}
 
-	roleAuths := mapping.ClusterRoleMapping(clusterRole, h.cmData, verbose == "true")
+	var cmData map[string]string
+
+	if isPlatformRole(clusterRole.Labels) {
+		cmData = h.platformCmData
+	} else {
+		cmData = h.cmData
+	}
+
+	roleAuths := mapping.ClusterRoleMapping(clusterRole, cmData, verbose == "true")
 
 	response.SuccessReturn(c, roleAuths)
 }
@@ -159,9 +185,44 @@ func (h *handler) setAuthItems(c *gin.Context) {
 		return
 	}
 
-	clusterRole := mapping.RoleAuthMapping(body, h.cmData)
-	runtimeObject := clusterRole.DeepCopy()
-	_, err := controllerruntime.CreateOrUpdate(context.Background(), h.Client.Direct(), runtimeObject, func() error {
+	var cmData map[string]string
+
+	clusterRole := &rbacv1.ClusterRole{}
+	err := h.Cache().Get(context.Background(), types.NamespacedName{Name: body.ClusterRoleName}, clusterRole)
+	if err != nil && !errors.IsNotFound(err) {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.InternalServerError)
+		return
+	}
+
+	newClusterRole := mapping.RoleAuthMapping(body, cmData)
+	newClusterRole.Annotations = map[string]string{constants.SyncAnnotation: "true"}
+	newClusterRole.Labels = map[string]string{constants.RbacLabel: "true"}
+
+	if errors.IsNotFound(err) {
+		if body.Scope == constants.ClusterRolePlatform {
+			newClusterRole.Labels[constants.RoleLabel] = constants.ClusterRolePlatform
+			cmData = h.platformCmData
+		}
+		if body.Scope == constants.ClusterRoleTenant {
+			newClusterRole.Labels[constants.RoleLabel] = constants.ClusterRoleTenant
+			cmData = h.cmData
+		}
+		if body.Scope == constants.ClusterRoleProject {
+			newClusterRole.Labels[constants.RoleLabel] = constants.ClusterRoleProject
+			cmData = h.cmData
+		}
+	} else {
+		if isPlatformRole(clusterRole.Labels) {
+			cmData = h.platformCmData
+		} else {
+			cmData = h.cmData
+		}
+	}
+
+	runtimeObject := newClusterRole.DeepCopy()
+
+	_, err = controllerruntime.CreateOrUpdate(context.Background(), h.Client.Direct(), runtimeObject, func() error {
 		runtimeObject.Rules = clusterRole.Rules
 		return nil
 	})
@@ -220,10 +281,16 @@ func (h *handler) getPermissions(c *gin.Context) {
 		allowedRead, allowedWrite := true, true
 		for _, resource := range strings.Split(resources, ";") {
 			allowedRead = isAllowedAccess(r, data.User, resource, info.Namespace, mapping.Read)
+			if !allowedRead {
+				break
+			}
 		}
 
 		for _, resource := range strings.Split(resources, ";") {
 			allowedWrite = isAllowedAccess(r, data.User, resource, info.Namespace, mapping.Write)
+			if !allowedWrite {
+				break
+			}
 		}
 
 		verb := mapping.Null
@@ -381,27 +448,39 @@ func (h *handler) getUsersByRole(c *gin.Context) {
 // @Failure 500 {object} errcode.ErrorInfo
 // @Router /api/v1/cube/authorization/tenants [get]
 func (h *handler) getTenantByUser(c *gin.Context) {
-	user := c.Query("user")
-	auth := c.Query("auth")
+	userName := c.Query("user")
 	ctx := c.Request.Context()
-	cli := h.Client
 
-	if len(user) == 0 {
-		user = c.GetString(constants.UserName)
+	if len(userName) == 0 {
+		userName = c.GetString(constants.UserName)
 	}
 
-	if len(auth) == 0 {
-		auth = constants.Readable
-	}
-
-	tenants, err := getAccessTenants(h.Interface, user, cli, ctx, auth)
+	user := user.User{}
+	err := h.Client.Cache().Get(ctx, types.NamespacedName{Name: userName}, &user)
 	if err != nil {
 		clog.Error(err.Error())
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.CustomReturn(http.StatusNotFound, err.Error()))
 		return
 	}
 
-	response.SuccessReturn(c, tenants)
+	res := result{
+		Total: len(user.Status.BelongTenants),
+		Items: user.Status.BelongTenants,
+	}
+
+	if user.Status.PlatformAdmin {
+		tenants := tenantv1.TenantList{}
+		err := h.Client.Cache().List(ctx, &tenants)
+		if err != nil {
+			clog.Error(err.Error())
+			response.FailReturn(c, errcode.CustomReturn(http.StatusNotFound, err.Error()))
+			return
+		}
+		res.Total = len(tenants.Items)
+		res.Items = tenants.Items
+	}
+
+	response.SuccessReturn(c, res)
 }
 
 // getProjectByUser get all visible project for user under tenant
@@ -414,32 +493,52 @@ func (h *handler) getTenantByUser(c *gin.Context) {
 // @Failure 500 {object} errcode.ErrorInfo
 // @Router /api/v1/cube/authorization/projects [get]
 func (h *handler) getProjectByUser(c *gin.Context) {
-	user := c.Query("user")
+	userName := c.Query("user")
 	tenantArray := c.Query("tenant")
-	auth := c.Query("auth")
 	ctx := c.Request.Context()
 	cli := h.Client
-	tenant := strings.Split(tenantArray, "|")
+	tenants := strings.Split(tenantArray, "|")
 	if len(tenantArray) == 0 {
-		tenant = nil
+		tenants = nil
 	}
-	if len(user) == 0 {
-		user = c.GetString(constants.UserName)
-	}
-
-	if len(auth) == 0 {
-		// default use readable access
-		auth = constants.Readable
+	if len(userName) == 0 {
+		userName = c.GetString(constants.UserName)
 	}
 
-	projects, err := getAccessProjects(h.Interface, user, cli, ctx, tenant, auth)
+	user := user.User{}
+	err := h.Client.Cache().Get(ctx, types.NamespacedName{Name: userName}, &user)
 	if err != nil {
 		clog.Error(err.Error())
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.CustomReturn(http.StatusNotFound, err.Error()))
 		return
 	}
 
-	response.SuccessReturn(c, projects)
+	projectList := tenantv1.ProjectList{}
+	err = cli.Cache().List(ctx, &projectList)
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.CustomReturn(http.StatusNotFound, err.Error()))
+		return
+	}
+
+	tenantSet := sets.NewString(tenants...)
+	projectSet := sets.NewString(user.Status.BelongProjects...)
+
+	res := []tenantv1.Project{}
+	for _, p := range projectList.Items {
+		if !user.Status.PlatformAdmin && !projectSet.Has(p.Name) {
+			continue
+		}
+		t, ok := p.Labels[constants.TenantLabel]
+		if !ok {
+			continue
+		}
+		if tenantSet.Has(t) {
+			res = append(res, p)
+		}
+	}
+
+	response.SuccessReturn(c, result{Total: len(res), Items: res})
 }
 
 // getIdentity show a user identity of platform, tenant or project
