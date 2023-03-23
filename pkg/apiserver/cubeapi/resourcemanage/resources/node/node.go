@@ -76,13 +76,16 @@ func (node *Node) GetExtendNodes() (*unstructured.Unstructured, error) {
 		return nil, err
 	}
 	// filterCondition list by selector/sort/page
-	total, err := filter.GetEmptyFilter().FilterObjectList(&nodeList, node.filterCondition)
+	extendInfo := addExtendInfo(&nodeList)
+	u := &unstructured.UnstructuredList{}
+	u.Items = extendInfo
+	total, err := filter.GetEmptyFilter().FilterObjectList(u, node.filterCondition)
 	if err != nil {
 		clog.Error("filterCondition nodeList error, err: %s", err.Error())
 		return nil, err
 	}
 	resultMap["total"] = total
-	resultMap["items"] = addExtendInfo(&nodeList)
+	resultMap["items"] = u.Items
 	return &unstructured.Unstructured{
 		Object: resultMap,
 	}, nil
