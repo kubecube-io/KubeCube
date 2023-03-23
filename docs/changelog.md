@@ -2,7 +2,8 @@
 
 ## Bugfix
 - Fix auth get permission [#256](https://github.com/kubecube-io/KubeCube/pull/256)
-- 
+- fix node status filter [#258](https://github.com/kubecube-io/KubeCube/pull/258)
+
 ## Dependencies
 
 - hnc v1.0
