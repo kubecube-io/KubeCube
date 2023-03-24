@@ -3,6 +3,7 @@
 ## Bugfix
 - Fix auth get permission [#256](https://github.com/kubecube-io/KubeCube/pull/256)
 - fix node status filter [#258](https://github.com/kubecube-io/KubeCube/pull/258)
+- fix fuzzy filter bug [#259](https://github.com/kubecube-io/KubeCube/pull/259)
 
 ## Dependencies
 
