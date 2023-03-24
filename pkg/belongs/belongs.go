@@ -59,7 +59,7 @@ func nodeJudgment(user *v1.User, obj runtime.Object) (bool, error) {
 	NodeTenant, ok := meatObj.GetLabels()[constants.LabelNodeTenant]
 	if ok {
 		if NodeTenant == constants.ValueNodeShare {
-			return false, nil
+			return true, nil
 		}
 		if v1.BelongsToTenant(user, NodeTenant) {
 			return true, nil
