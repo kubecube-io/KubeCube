@@ -67,6 +67,11 @@ func (h *ProxyHandler) tryVersionConvert(cluster, url string, req *http.Request)
 	if err != nil {
 		return false, nil, "", err
 	}
+
+	if gvr.Resource != "ingresses" {
+		return false, nil, "", nil
+	}
+
 	converter, err := h.converter.GetVersionConvert(cluster)
 	if err != nil {
 		return false, nil, "", err
