@@ -273,7 +273,7 @@ func (h *handler) getPermissions(c *gin.Context) {
 			continue
 		}
 
-		resources, ok := h.cmData[info.AuthItem]
+		resources, ok := h.platformCmData[info.AuthItem]
 		if !ok {
 			res[info.AuthItem] = mapping.Null
 			continue
