@@ -5,6 +5,7 @@
 - fix node status filter [#258](https://github.com/kubecube-io/KubeCube/pull/258)
 - fix fuzzy filter bug [#259](https://github.com/kubecube-io/KubeCube/pull/259)
 - modify permission cm data [#260](https://github.com/kubecube-io/KubeCube/pull/260)
+- modify node judgement [#262](https://github.com/kubecube-io/KubeCube/pull/262)
 
 ## Dependencies
 
