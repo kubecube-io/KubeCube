@@ -131,7 +131,7 @@ func getRes(item interface{}, index int, fields []string) (interface{}, error) {
 		for _, info := range arr {
 			res, err := getRes(info, index, fields)
 			if err != nil {
-				clog.Error(err.Error())
+				clog.Debug(err.Error())
 				continue
 			}
 			result = append(result, res)
@@ -143,7 +143,7 @@ func getRes(item interface{}, index int, fields []string) (interface{}, error) {
 		for _, info := range arr.Items {
 			res, err := getRes(info, index, fields)
 			if err != nil {
-				clog.Error(err.Error())
+				clog.Debug(err.Error())
 				continue
 			}
 			result = append(result, res)
@@ -151,7 +151,41 @@ func getRes(item interface{}, index int, fields []string) (interface{}, error) {
 		return result, nil
 	// for other value,we not support now
 	default:
-		return nil, fmt.Errorf("not map value of field is not support")
+		data, err := json.Marshal(item)
+		if err != nil {
+			return nil, err
+		}
+		var info map[string]interface{}
+		err = json.Unmarshal(data, &info)
+		if err != nil {
+			return nil, err
+		}
+		n := len(fields)
+		//In special cases, such as label, key exists "." At this time, the following key is directly spliced into a complete key and the value is obtained
+		if fields[index] == Labels || fields[index] == Annotations {
+			key := strings.Join(fields[index+1:], ".")
+			// any field not found return directly
+			next, ok := info[fields[index]]
+			if !ok {
+				return nil, fmt.Errorf("field %v not exsit", fields[index])
+			}
+			return getRes(next, 0, []string{key})
+		}
+		// the end out of loop
+		if index == n-1 {
+			v, ok := info[fields[index]]
+			if !ok {
+				return nil, fmt.Errorf("field %v not exsit", fields[index])
+			}
+			return v, nil
+		}
+
+		// any field not found return directly
+		next, ok := info[fields[index]]
+		if !ok {
+			return nil, fmt.Errorf("field %v not exsit", fields[index])
+		}
+		return getRes(next, index+1, fields)
 	}
 
 }
