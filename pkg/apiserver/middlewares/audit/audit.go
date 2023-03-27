@@ -31,6 +31,7 @@ import (
 	"github.com/gogf/gf/v2/i18n/gi18n"
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/kubecube-io/kubecube/pkg/apiserver/middlewares/auth"
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
@@ -340,31 +341,20 @@ func (r responseBodyWriter) WriteString(s string) (n int, err error) {
 }
 
 func getPostObjectName(c *gin.Context) string {
-	obj := struct {
-		Metadata struct {
-			Name string `json:"name"`
-		} `json:"metadata"`
-	}{}
+	// get request body
+	data, err := c.GetRawData()
+	if err != nil {
+		clog.Warn("[audit] get raw data err: %s", err.Error())
+		return ""
+	}
+	// put request body back
+	c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(data))
 
-	// get resource name from metadata.name
-	if err := ShouldBindWith(c, &obj); err != nil {
-		clog.Warn("[audit] the resource metadata.name is nil")
+	obj := unstructured.Unstructured{}
+	if err = json.Unmarshal(data, &obj); err != nil {
+		clog.Warn("[audit] unmarshal request body err: %s", err.Error())
 		return ""
 	}
 
-	return obj.Metadata.Name
-}
-
-func ShouldBindWith(c *gin.Context, v interface{}) error {
-	data, err := c.GetRawData()
-	if err != nil {
-		return err
-	}
-
-	c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(data))
-	if err = json.Unmarshal(data, v); err != nil {
-		return err
-	}
-
-	return nil
+	return obj.GetName()
 }
