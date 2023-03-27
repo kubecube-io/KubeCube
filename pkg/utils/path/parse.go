@@ -29,6 +29,7 @@ type ResourceIdentity struct {
 	IsCoreApi    bool
 	IsNamespaced bool
 	Gvr          schema.GroupVersionResource
+	SubResource  string
 }
 
 // Parse parse k8s api url into gvr
@@ -57,6 +58,7 @@ func Parse(url string) (*ResourceIdentity, error) {
 	switch {
 	case isCoreApi && isNamespaced:
 		// like: /api/v1/namespaces/{namespace}/pods
+		// like: /api/v1/namespaces/{namespace}/pods/status
 		if len(ss) < 5 {
 			return nil, invalidUrlErr
 		}
@@ -66,8 +68,12 @@ func Parse(url string) (*ResourceIdentity, error) {
 		if len(ss) > 5 {
 			ri.Name = ss[5]
 		}
+		if len(ss) > 6 {
+			ri.SubResource = ss[6]
+		}
 	case isCoreApi && !isNamespaced:
 		// like: /api/v1/namespaces/{name}
+		// like: /api/v1/namespaces/{name}/status
 		if len(ss) < 3 {
 			return nil, invalidUrlErr
 		}
@@ -76,19 +82,28 @@ func Parse(url string) (*ResourceIdentity, error) {
 		if len(ss) > 3 {
 			ri.Name = ss[3]
 		}
+		if len(ss) > 4 {
+			ri.Name = ss[4]
+		}
 	case isNonCoreApi && isNamespaced:
 		// like: /apis/batch/v1/namespaces/{namespace}/jobs
+		// like: /apis/batch/v1/namespaces/{namespace}/jobs/status
 		if len(ss) < 6 {
 			return nil, invalidUrlErr
 		}
 		ri.Gvr.Group = ss[1]
 		ri.Gvr.Version = ss[2]
+		ri.Namespace = ss[4]
 		ri.Gvr.Resource = ss[5]
 		if len(ss) > 6 {
 			ri.Name = ss[6]
 		}
+		if len(ss) > 7 {
+			ri.SubResource = ss[7]
+		}
 	case isNonCoreApi && !isNamespaced:
 		// like: /apis/rbac.authorization.k8s.io/v1/clusterroles/{name}
+		// like: /apis/rbac.authorization.k8s.io/v1/clusterroles/{name}/status
 		if len(ss) < 4 {
 			return nil, invalidUrlErr
 		}
@@ -97,6 +112,9 @@ func Parse(url string) (*ResourceIdentity, error) {
 		ri.Gvr.Resource = ss[3]
 		if len(ss) > 4 {
 			ri.Name = ss[4]
+		}
+		if len(ss) > 5 {
+			ri.SubResource = ss[5]
 		}
 	default:
 		return nil, invalidUrlErr

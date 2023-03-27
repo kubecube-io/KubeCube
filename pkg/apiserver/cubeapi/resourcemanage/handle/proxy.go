@@ -26,12 +26,18 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strings"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
 	"github.com/kubecube-io/kubecube/pkg/belongs"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/conversion"
@@ -40,11 +46,14 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 	"github.com/kubecube-io/kubecube/pkg/utils/page"
+	"github.com/kubecube-io/kubecube/pkg/utils/path"
 	requestutil "github.com/kubecube-io/kubecube/pkg/utils/request"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
 	"github.com/kubecube-io/kubecube/pkg/utils/selector"
 	"github.com/kubecube-io/kubecube/pkg/utils/sort"
 )
+
+var lock sync.RWMutex
 
 type ProxyHandler struct {
 	// enableConvert means proxy handler will convert resources
@@ -146,35 +155,12 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 	if len(username) == 0 {
 		clog.Warn("username is empty")
 	}
-	condition := parseQueryParams(c)
-	converterContext := filter.ConverterContext{}
-	c.Request.Header.Set(constants.ImpersonateUserKey, username)
 	internalCluster, err := multicluster.Interface().Get(cluster)
 	if err != nil {
 		clog.Error(err.Error())
 		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 		return
 	}
-	transport, err := multicluster.Interface().GetTransport(cluster)
-	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
-		return
-	}
-	_, _, gvr, err := conversion.ParseURL(proxyUrl)
-	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
-		return
-	}
-
-	needConvert, convertedObj, convertedUrl, err := h.tryVersionConvert(cluster, proxyUrl, c.Request)
-	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.InternalServerError)
-		return
-	}
-
 	allowed, err := belongs.RelationshipDetermine(context.Background(), internalCluster.Client, proxyUrl, username)
 	if err != nil {
 		clog.Warn(err.Error())
@@ -182,6 +168,126 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 		response.FailReturn(c, errcode.ForbiddenErr)
 		return
 	}
+
+	if c.Request.Method == http.MethodGet {
+		h.cacheProxy(c, proxyUrl, username, internalCluster)
+		return
+	}
+	h.directProxy(c, proxyUrl, username, internalCluster)
+}
+
+func (h *ProxyHandler) cacheProxy(c *gin.Context, proxyUrl string, username string, internalCluster *multicluster.InternalCluster) {
+	parse, err := path.Parse(proxyUrl)
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
+		return
+	}
+	if len(parse.SubResource) != 0 {
+		h.directProxy(c, proxyUrl, username, internalCluster)
+		return
+	}
+	field := c.Query("fieldSelector")
+	if len(field) != 0 {
+		h.directProxy(c, proxyUrl, username, internalCluster)
+		return
+	}
+	access := resources.NewSimpleAccess(internalCluster.Name, username, parse.Namespace)
+	if allow := access.AccessAllow(parse.Gvr.Group, parse.Gvr.Resource, "get"); !allow {
+		response.FailReturn(c, errcode.ForbiddenErr)
+		return
+	}
+	gvk, err := conversion.Gvr2Gvk(internalCluster.Client.RESTMapper(), &parse.Gvr)
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
+		return
+	}
+	getFunc := func(ns string) (*unstructured.Unstructured, error) {
+		u := &unstructured.Unstructured{}
+		u.SetGroupVersionKind(*gvk)
+		err = internalCluster.Client.Cache().Get(context.Background(), types.NamespacedName{
+			Name:      parse.Name,
+			Namespace: ns,
+		}, u)
+		return u, err
+	}
+
+	listFunc := func(ns string, options ...client.ListOption) (*unstructured.Unstructured, error) {
+		u := &unstructured.UnstructuredList{}
+		if !strings.HasSuffix(gvk.Kind, "List") {
+			gvk.Kind = gvk.Kind + "List"
+		}
+		u.SetGroupVersionKind(*gvk)
+		if len(ns) != 0 {
+			options = append(options, client.InNamespace(ns))
+		}
+		label := c.Query("labelSelector")
+		if len(label) != 0 {
+			labelSelector, err := labels.Parse(label)
+			if err != nil {
+				return nil, err
+			}
+			options = append(options, client.MatchingLabelsSelector{Selector: labelSelector})
+		}
+		err = internalCluster.Client.Cache().List(context.Background(), u, options...)
+		if err != nil {
+			return nil, err
+		}
+		content := u.UnstructuredContent()
+		res := &unstructured.Unstructured{Object: content}
+		return res, nil
+	}
+
+	if parse.IsNamespaced {
+		if len(parse.Namespace) == 0 {
+			parse.Namespace = "default"
+		}
+	}
+
+	var u *unstructured.Unstructured
+	if len(parse.Name) == 0 {
+		u, err = listFunc(parse.Namespace)
+		if err != nil {
+			response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
+			return
+		}
+	} else {
+		u, err = getFunc(parse.Namespace)
+		if err != nil {
+			response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
+			return
+		}
+	}
+	condition := parseQueryParams(c)
+	total, err := filter.GetEmptyFilter().FilterObjectList(u, condition)
+	u.Object["total"] = total
+	response.SuccessReturn(c, u)
+}
+
+func (h *ProxyHandler) directProxy(c *gin.Context, proxyUrl string, username string, internalCluster *multicluster.InternalCluster) {
+	_, _, gvr, err := conversion.ParseURL(proxyUrl)
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
+		return
+	}
+	converterContext := filter.ConverterContext{}
+	c.Request.Header.Set(constants.ImpersonateUserKey, username)
+
+	transport, err := multicluster.Interface().GetTransport(internalCluster.Name)
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
+		return
+	}
+	needConvert, convertedObj, convertedUrl, err := h.tryVersionConvert(internalCluster.Name, proxyUrl, c.Request)
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.InternalServerError)
+		return
+	}
+	condition := parseQueryParams(c)
 
 	// create director
 	director := func(req *http.Request) {
@@ -269,7 +375,7 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 
 	errorHandler := func(resp http.ResponseWriter, req *http.Request, err error) {
 		if err != nil {
-			clog.Warn("cluster %s url %s proxy fail, %v", cluster, proxyUrl, err)
+			clog.Warn("cluster %s url %s proxy fail, %v", internalCluster.Name, proxyUrl, err)
 			response.FailReturn(c, errcode.ServerErr)
 			return
 		}
@@ -284,7 +390,7 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 			return
 		}
 
-		converter, _ := h.converter.GetVersionConvert(cluster)
+		converter, _ := h.converter.GetVersionConvert(internalCluster.Name)
 		converterContext = filter.ConverterContext{
 			EnableConvert: true,
 			Converter:     converter,
