@@ -52,20 +52,20 @@ type ExternalAccess struct {
 	client                   client.Client
 	namespace                string
 	name                     string
-	filter                   filter.Filter
+	filterCondition          *filter.Condition
 	NginxNamespace           string
 	NginxTcpServiceConfigMap string
 	NginxUdpServiceConfigMap string
 }
 
-func NewExternalAccess(client client.Client, namespace string, name string, filter filter.Filter, nginxNs string, tcpCm string, udpCm string) ExternalAccess {
+func NewExternalAccess(client client.Client, namespace string, name string, condition *filter.Condition, nginxNs string, tcpCm string, udpCm string) ExternalAccess {
 	ctx := context.Background()
 	return ExternalAccess{
 		ctx:                      ctx,
 		client:                   client,
 		namespace:                namespace,
 		name:                     name,
-		filter:                   filter,
+		filterCondition:          condition,
 		NginxNamespace:           nginxNs,
 		NginxTcpServiceConfigMap: tcpCm,
 		NginxUdpServiceConfigMap: udpCm,
@@ -73,9 +73,10 @@ func NewExternalAccess(client client.Client, namespace string, name string, filt
 }
 
 type ExternalAccessInfo struct {
-	ServicePort  int    `json:"servicePort,omitempty"`
-	Protocol     string `json:"protocol,omitempty"`
-	ExternalPort *int   `json:"externalPort,omitempty"`
+	ServicePort     int    `json:"servicePort,omitempty"`
+	Protocol        string `json:"protocol,omitempty"`
+	ExternalPort    *int   `json:"externalPort,omitempty"`
+	ServicePortName string `json:"servicePortName,omitempty"`
 }
 
 func init() {
@@ -88,7 +89,7 @@ func ExternalHandle(param resourcemanage.ExtendParams) (interface{}, error) {
 	if kubernetes == nil {
 		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
 	}
-	externalAccess := NewExternalAccess(kubernetes.Direct(), param.Namespace, param.ResourceName, param.Filter, param.NginxNamespace, param.NginxTcpServiceConfigMap, param.NginxUdpServiceConfigMap)
+	externalAccess := NewExternalAccess(kubernetes.Direct(), param.Namespace, param.ResourceName, param.FilterCondition, param.NginxNamespace, param.NginxTcpServiceConfigMap, param.NginxUdpServiceConfigMap)
 	switch param.Action {
 	case http.MethodGet:
 		if allow := access.AccessAllow("", "services", "list"); !allow {
@@ -238,25 +239,25 @@ func (s *ExternalAccess) SetExternalAccess(externalServices []ExternalAccessInfo
 	return nil
 }
 
-// GetExternalAccess get external info
-func (s *ExternalAccess) GetExternalAccess() ([]ExternalAccessInfo, error) {
+func (s *ExternalAccess) GetExternalAccessConfigMap() (tcpResultMap map[int]*ExternalAccessInfo, udpResultMap map[int]*ExternalAccessInfo, err error) {
 	var tcpcm v1.ConfigMap
 	var udpcm v1.ConfigMap
-	err := s.client.Get(s.ctx, types.NamespacedName{Namespace: s.NginxNamespace, Name: s.NginxTcpServiceConfigMap}, &tcpcm)
+	tcpResultMap = make(map[int]*ExternalAccessInfo)
+	udpResultMap = make(map[int]*ExternalAccessInfo)
+	err = s.client.Get(s.ctx, types.NamespacedName{Namespace: s.NginxNamespace, Name: s.NginxTcpServiceConfigMap}, &tcpcm)
 	if err != nil {
-		return nil, fmt.Errorf("can not find configmap %s in %s from cluster, %v", s.NginxTcpServiceConfigMap, s.NginxNamespace, err)
+		return tcpResultMap, udpResultMap, fmt.Errorf("can not find configmap %s in %s from cluster, %v", s.NginxTcpServiceConfigMap, s.NginxNamespace, err)
 	}
 	err = s.client.Get(s.ctx, types.NamespacedName{Namespace: s.NginxNamespace, Name: s.NginxUdpServiceConfigMap}, &udpcm)
 	if err != nil {
-		return nil, fmt.Errorf("can not find configmap %s in %s from cluster, %v", s.NginxUdpServiceConfigMap, s.namespace, err)
+		return tcpResultMap, udpResultMap, fmt.Errorf("can not find configmap %s in %s from cluster, %v", s.NginxUdpServiceConfigMap, s.namespace, err)
 	}
 
 	// configmap.data:
 	//   2456: demo-ns/demo-service:8893
 	//   7676: demo-ns2/demo-service2:8893
 	//   5556: demo-ns2/demo-service2:7791
-	tcpResultMap := make(map[int]ExternalAccessInfo)
-	udpResultMap := make(map[int]ExternalAccessInfo)
+
 	valuePrefix := fmt.Sprintf("%s/%s", s.namespace, s.name)
 	for k, v := range tcpcm.Data {
 		split := strings.Split(v, ":")
@@ -275,7 +276,7 @@ func (s *ExternalAccess) GetExternalAccess() ([]ExternalAccessInfo, error) {
 		if err != nil {
 			continue
 		}
-		tcpResultMap[servicePort] = ExternalAccessInfo{servicePort, protocol, &externalPort}
+		tcpResultMap[servicePort] = &ExternalAccessInfo{ServicePort: servicePort, Protocol: protocol, ExternalPort: &externalPort}
 	}
 	for k, v := range udpcm.Data {
 		split := strings.Split(v, ":")
@@ -294,7 +295,16 @@ func (s *ExternalAccess) GetExternalAccess() ([]ExternalAccessInfo, error) {
 		if err != nil {
 			continue
 		}
-		udpResultMap[servicePort] = ExternalAccessInfo{servicePort, protocol, &externalPort}
+		udpResultMap[servicePort] = &ExternalAccessInfo{ServicePort: servicePort, Protocol: protocol, ExternalPort: &externalPort}
+	}
+	return tcpResultMap, udpResultMap, nil
+}
+
+// GetExternalAccess get external info
+func (s *ExternalAccess) GetExternalAccess() ([]ExternalAccessInfo, error) {
+	tcpResultMap, udpResultMap, err := s.GetExternalAccessConfigMap()
+	if err != nil {
+		return nil, err
 	}
 	// not in configmap but in service.spec
 	var service v1.Service
@@ -305,21 +315,27 @@ func (s *ExternalAccess) GetExternalAccess() ([]ExternalAccessInfo, error) {
 	for _, items := range service.Spec.Ports {
 		if items.Protocol == TCP {
 			if _, ok := tcpResultMap[int(items.Port)]; !ok {
-				tcpResultMap[int(items.Port)] = ExternalAccessInfo{int(items.Port), TCP, nil}
+				tcpResultMap[int(items.Port)] = &ExternalAccessInfo{ServicePort: int(items.Port), Protocol: TCP, ServicePortName: items.Name}
+			} else {
+				info := tcpResultMap[int(items.Port)]
+				info.ServicePortName = items.Name
 			}
 		} else if items.Protocol == UDP {
 			if _, ok := udpResultMap[int(items.Port)]; !ok {
-				udpResultMap[int(items.Port)] = ExternalAccessInfo{int(items.Port), UDP, nil}
+				udpResultMap[int(items.Port)] = &ExternalAccessInfo{ServicePort: int(items.Port), Protocol: UDP, ServicePortName: items.Name}
+			} else {
+				info := udpResultMap[int(items.Port)]
+				info.ServicePortName = items.Name
 			}
 		}
 	}
 	// change map to list
 	var result []ExternalAccessInfo
 	for _, v := range tcpResultMap {
-		result = append(result, v)
+		result = append(result, *v)
 	}
 	for _, v := range udpResultMap {
-		result = append(result, v)
+		result = append(result, *v)
 	}
 
 	return result, nil

@@ -17,10 +17,12 @@ limitations under the License.
 package strproc
 
 import (
+	"fmt"
 	"regexp"
 	"strconv"
 
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 func Str2int(str string) int {
@@ -39,4 +41,43 @@ func Str2int(str string) int {
 	}
 
 	return i
+}
+
+const (
+	Ki = "Ki" // 1*1024
+	Mi = "Mi" // 1*1024*1024
+	Gi = "Gi" // 1*1024*1024*1024
+	Ti = "Ti" // 1*1024*1024*1024*1024
+	Pi = "Pi" // 1*1024*1024*1024*1024*1024
+	Ei = "Ei" // 1*1024*1024*1024*1024*1024*1024
+)
+
+// BinaryUnitConvert convert data by given expect unit.
+func BinaryUnitConvert(data, expectUnit string) (float64, error) {
+	q, err := resource.ParseQuantity(data)
+	if err != nil {
+		return 0, err
+	}
+	v := float64(q.Value())
+
+	var res float64
+
+	switch expectUnit {
+	case Ki:
+		res = v / 1024
+	case Mi:
+		res = v / (1024 * 1024)
+	case Gi:
+		res = v / (1024 * 1024 * 1024)
+	case Ti:
+		res = v / (1024 * 1024 * 1024 * 1024)
+	case Pi:
+		res = v / (1024 * 1024 * 1024 * 1024 * 1024)
+	case Ei:
+		res = v / (1024 * 1024 * 1024 * 1024 * 1024 * 1024)
+	default:
+		return 0, fmt.Errorf("not support binary unit \"%v\"", expectUnit)
+	}
+
+	return res, nil
 }

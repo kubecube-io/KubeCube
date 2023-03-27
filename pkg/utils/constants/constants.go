@@ -140,6 +140,8 @@ const (
 
 	HncProjectLabel = "kubecube.hnc.x-k8s.io/project"
 
+	HncIncludedNsLabel = "hnc.x-k8s.io/included-namespace"
+
 	/*
 		Namespace depth is relative to current namespace depth.
 		Example:
@@ -178,7 +180,34 @@ const (
 	ListVerb = "list"
 )
 
+// rbac binding subjects
+const (
+	SubjectUser  = "User"
+	SubjectGroup = "Group"
+	SubjectSA    = "ServiceAccount"
+)
+
 const (
 	Writable = "writable"
 	Readable = "readable"
+)
+
+const (
+	FieldManager = "fieldManager"
+)
+
+// node labels and values
+const (
+	LabelNodeTenant = "node.kubecube.io/tenant"
+	LabelNodeStatus = "node.kubecube.io/status"
+	LabelNodeNs     = "node.kubecube.io/ns"
+
+	ValueNodeShare      = "share"
+	ValueNodeAssigned   = "assigned"
+	ValueNodeUnassigned = "unassigned"
+)
+
+const (
+	// AuthMappingCM auth configmap name
+	AuthMappingCM = "kubecube-auth-mapping"
 )

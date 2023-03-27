@@ -18,17 +18,21 @@ package resourcemanage
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
-	url2 "net/url"
+	"net/url"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	"github.com/kubecube-io/kubecube/pkg/belongs"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/conversion"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
@@ -36,6 +40,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 	"github.com/kubecube-io/kubecube/pkg/utils/page"
+	requestutil "github.com/kubecube-io/kubecube/pkg/utils/request"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
 	"github.com/kubecube-io/kubecube/pkg/utils/selector"
 	"github.com/kubecube-io/kubecube/pkg/utils/sort"
@@ -136,10 +141,14 @@ func (h *ProxyHandler) tryVersionConvert(cluster, url string, req *http.Request)
 func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 	// http request params
 	cluster := c.Param("cluster")
-	url := c.Param("url")
-	filter := parseQueryParams(c)
-
-	c.Request.Header.Set(constants.ImpersonateUserKey, "admin")
+	proxyUrl := c.Param("url")
+	username := c.GetString(constants.UserName)
+	if len(username) == 0 {
+		clog.Warn("username is empty")
+	}
+	condition := parseQueryParams(c)
+	converterContext := filter.ConverterContext{}
+	c.Request.Header.Set(constants.ImpersonateUserKey, username)
 	internalCluster, err := multicluster.Interface().Get(cluster)
 	if err != nil {
 		clog.Error(err.Error())
@@ -152,32 +161,46 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 		return
 	}
-	_, _, gvr, err := conversion.ParseURL(url)
+	_, _, gvr, err := conversion.ParseURL(proxyUrl)
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
+		return
+	}
+
+	needConvert, convertedObj, convertedUrl, err := h.tryVersionConvert(cluster, proxyUrl, c.Request)
 	if err != nil {
 		clog.Error(err.Error())
 		response.FailReturn(c, errcode.InternalServerError)
 		return
 	}
 
-	needConvert, convertedObj, convertedUrl, err := h.tryVersionConvert(cluster, url, c.Request)
+	allowed, err := belongs.RelationshipDetermine(context.Background(), internalCluster.Client, proxyUrl, username)
 	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.InternalServerError)
+		clog.Warn(err.Error())
+	} else if !allowed {
+		response.FailReturn(c, errcode.ForbiddenErr)
 		return
 	}
 
 	// create director
 	director := func(req *http.Request) {
-		uri, err := url2.ParseRequestURI(internalCluster.Config.Host)
+		labelSelector := selector.ParseLabelSelector(c.Query("selector"))
+
+		uri, err := url.ParseRequestURI(internalCluster.Config.Host)
 		if err != nil {
 			clog.Error("Could not parse host, host: %s , err: %v", internalCluster.Config.Host, err)
 			response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, "Could not parse host, host: %s , err: %v", internalCluster.Config.Host, err))
 		}
 		uri.RawQuery = c.Request.URL.RawQuery
-		uri.Path = url
+		uri.Path = proxyUrl
 		req.URL = uri
 		req.Host = internalCluster.Config.Host
 
+		err = requestutil.AddFieldManager(req, username)
+		if err != nil {
+			clog.Error("fail to add fieldManager due to %s", err.Error())
+		}
 		if needConvert {
 			// replace request body and url if need
 			if convertedObj != nil {
@@ -188,18 +211,72 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 			}
 			req.URL.Path = convertedUrl
 		}
+
+		//In order to improve processing efficiency
+		//this method converts requests starting with metadata.labels in the selector into k8s labelSelector requests
+		// todo This method can be further optimized and extracted as a function to improve readability
+		if len(labelSelector) > 0 {
+			labelSelectorQueryString := ""
+			// Take out the query value in the selector and stitch it into the query field of labelSelector
+			// for example: selector=metadata.labels.key=value1|value2|value3
+			// then it should be converted to: key+in+(value1,value2,value3)
+			for key, value := range labelSelector {
+				if len(value) < 1 {
+					continue
+				}
+				labelSelectorQueryString += key
+				labelSelectorQueryString += "+in+("
+				labelSelectorQueryString += strings.Join(value, ",")
+				labelSelectorQueryString += ")"
+				labelSelectorQueryString += ","
+			}
+			if len(labelSelectorQueryString) > 0 {
+				labelSelectorQueryString = strings.TrimRight(labelSelectorQueryString, ",")
+			}
+			labelSelectorQueryString = url.PathEscape(labelSelectorQueryString)
+			// Old query parameters may have the following conditions:
+			// empty
+			// has selector: selector=key=value
+			// has selector and labelSelector: selector=key=value&labelSelector=key=value
+			// has selector and labelSelector and others: selector=key=value&labelSelector=key=value&fieldSelector=key=value
+			// so, use & to split it
+			queryArray := strings.Split(req.URL.RawQuery, "&")
+			queryString := ""
+			labelSelectorSet := false
+			for _, v := range queryArray {
+				//if it start with labelSelector=, then append converted labelSelector string
+				if strings.HasPrefix(v, "labelSelector=") {
+					queryString += v + "," + labelSelectorQueryString
+					labelSelectorSet = true
+					// else if url like: selector=key=value&labelSelector, then use converted labelSelector string replace it
+				} else if strings.HasPrefix(v, "labelSelector") {
+					queryString += "labelSelector=" + labelSelectorQueryString
+					labelSelectorSet = true
+					// else no need to do this
+				} else {
+					queryString += v
+				}
+				queryString += "&"
+			}
+			// If the query parameter does not exist labelSelector
+			// append converted labelSelector string
+			if len(queryString) > 0 && labelSelectorSet == false {
+				queryString += "&labelSelector=" + labelSelectorQueryString
+			}
+			req.URL.RawQuery = queryString
+		}
 	}
 
 	errorHandler := func(resp http.ResponseWriter, req *http.Request, err error) {
 		if err != nil {
-			clog.Warn("cluster %s url %s proxy fail, %v", cluster, url, err)
+			clog.Warn("cluster %s url %s proxy fail, %v", cluster, proxyUrl, err)
 			response.FailReturn(c, errcode.ServerErr)
 			return
 		}
 	}
 
 	if needConvert {
-		// open response filter convert
+		// open response filterCondition convert
 		_, _, convertedGvr, err := conversion.ParseURL(convertedUrl)
 		if err != nil {
 			clog.Error(err.Error())
@@ -207,13 +284,20 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 			return
 		}
 
-		filter.ConvertedGvr = convertedGvr
-		filter.EnableConvert = true
-		filter.Converter, _ = h.converter.GetVersionConvert(cluster)
-		filter.RawGvr = gvr
+		converter, _ := h.converter.GetVersionConvert(cluster)
+		converterContext = filter.ConverterContext{
+			EnableConvert: true,
+			Converter:     converter,
+			ConvertedGvr:  convertedGvr,
+			RawGvr:        gvr,
+		}
 	}
 
-	requestProxy := &httputil.ReverseProxy{Director: director, Transport: transport, ModifyResponse: filter.ModifyResponse, ErrorHandler: errorHandler}
+	filter := ResponseFilter{
+		Condition:        condition,
+		ConverterContext: &converterContext,
+	}
+	requestProxy := &httputil.ReverseProxy{Director: director, Transport: transport, ModifyResponse: filter.filterResponse, ErrorHandler: errorHandler}
 
 	// trim auth token here
 	c.Request.Header.Del(constants.AuthorizationHeader)
@@ -222,32 +306,30 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 }
 
 // product match/sort/page to other function
-func Filter(c *gin.Context, result []byte) []byte {
-	resources := parseQueryParams(c)
-	return resources.FilterResult(result)
+func Filter(c *gin.Context, object runtime.Object) (*int, error) {
+	condition := parseQueryParams(c)
+	total, err := filter.GetEmptyFilter().FilterObjectList(object, condition)
+	if err != nil {
+		clog.Error("filterCondition userList error, err: %s", err.Error())
+		return nil, err
+	}
+	return &total, nil
 }
 
 // parse request params, include selector, sort and page
-func parseQueryParams(c *gin.Context) filter.Filter {
+
+func parseQueryParams(c *gin.Context) *filter.Condition {
 	exact, fuzzy := selector.ParseSelector(c.Query("selector"))
 	limit, offset := page.ParsePage(c.Query("pageSize"), c.Query("pageNum"))
 	sortName, sortOrder, sortFunc := sort.ParseSort(c.Query("sortName"), c.Query("sortOrder"), c.Query("sortFunc"))
-
-	filter := filter.Filter{
-		EnableFilter: needFilter(c),
-		Exact:        exact,
-		Fuzzy:        fuzzy,
-		Limit:        limit,
-		Offset:       offset,
-		SortName:     sortName,
-		SortOrder:    sortOrder,
-		SortFunc:     sortFunc,
+	condition := filter.Condition{
+		Exact:     exact,
+		Fuzzy:     fuzzy,
+		Limit:     limit,
+		Offset:    offset,
+		SortName:  sortName,
+		SortOrder: sortOrder,
+		SortFunc:  sortFunc,
 	}
-
-	return filter
-}
-
-func needFilter(c *gin.Context) bool {
-	return c.Query("selector")+c.Query("pageSize")+c.Query("pageNum")+
-		c.Query("sortName")+c.Query("sortOrder")+c.Query("sortFunc") != ""
+	return &condition
 }

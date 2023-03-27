@@ -17,28 +17,32 @@ limitations under the License.
 package localmgr
 
 import (
-	project2 "github.com/kubecube-io/kubecube/pkg/warden/localmgr/webhooks/project"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	admisson "sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
+	"github.com/kubecube-io/kubecube/pkg/utils/ctrlopts"
 	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/crds"
 	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/hotplug"
 	project "github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/project"
 	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/quota"
-	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/service"
 	tenant "github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/tenant"
 	hotplug2 "github.com/kubecube-io/kubecube/pkg/warden/localmgr/webhooks/hotplug"
+	project2 "github.com/kubecube-io/kubecube/pkg/warden/localmgr/webhooks/project"
 	quota2 "github.com/kubecube-io/kubecube/pkg/warden/localmgr/webhooks/quota"
 	tenant2 "github.com/kubecube-io/kubecube/pkg/warden/localmgr/webhooks/tenant"
 )
 
 // setupControllersWithManager set up controllers into manager
-func setupControllersWithManager(m *LocalManager) error {
+func setupControllersWithManager(m *LocalManager, controllers string) error {
 	var err error
 
-	err = hotplug.SetupWithManager(m.Manager, m.IsMemberCluster, m.Cluster)
-	if err != nil {
-		return err
+	ctrls := ctrlopts.ParseControllers(controllers)
+
+	if ctrlopts.IsControllerEnabled("hotplug", ctrls) {
+		err = hotplug.SetupWithManager(m.Manager, m.IsMemberCluster, m.Cluster)
+		if err != nil {
+			return err
+		}
 	}
 
 	//err = olm.SetupWithManager(m.Manager)
@@ -46,34 +50,34 @@ func setupControllersWithManager(m *LocalManager) error {
 	//	return err
 	//}
 
-	err = tenant.SetupWithManager(m.Manager)
-	if err != nil {
-		return err
+	if ctrlopts.IsControllerEnabled("tenant", ctrls) {
+		err = tenant.SetupWithManager(m.Manager)
+		if err != nil {
+			return err
+		}
 	}
 
-	err = project.SetupWithManager(m.Manager)
-	if err != nil {
-		return err
+	if ctrlopts.IsControllerEnabled("project", ctrls) {
+		err = project.SetupWithManager(m.Manager)
+		if err != nil {
+			return err
+		}
 	}
 
-	err = crds.SetupWithManager(m.Manager, m.PivotClient.Direct())
-	if err != nil {
-		return err
+	if ctrlopts.IsControllerEnabled("crd", ctrls) {
+		err = crds.SetupWithManager(m.Manager, m.PivotClient.Direct())
+		if err != nil {
+			return err
+		}
 	}
 
-	err = quota.SetupWithManager(m.Manager, m.PivotClient.Direct())
-	if err != nil {
-		return err
+	if ctrlopts.IsControllerEnabled("quota", ctrls) {
+		err = quota.SetupWithManager(m.Manager, m.PivotClient.Direct())
+		if err != nil {
+			return err
+		}
 	}
 
-	err = service.SetupWithManager(m.Manager, &service.NginxConfig{
-		NginxNamespace:           m.NginxNamespace,
-		NginxTcpServiceConfigMap: m.NginxTcpServiceConfigMap,
-		NginxUdpServiceConfigMap: m.NginxUdpServiceConfigMap,
-	})
-	if err != nil {
-		return err
-	}
 	return nil
 }
 

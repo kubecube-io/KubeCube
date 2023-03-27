@@ -32,9 +32,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	v1 "github.com/kubecube-io/kubecube/pkg/apis/quota/v1"
 	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/env"
 )
 
 var _ reconcile.Reconciler = &TenantReconciler{}
@@ -101,8 +103,8 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if ano == nil {
 		ano = make(map[string]string)
 	}
-	if _, ok := ano["kubecube.io/sync"]; !ok {
-		ano["kubecube.io/sync"] = "1"
+	if _, ok := ano[constants.SyncAnnotation]; !ok {
+		ano[constants.SyncAnnotation] = "1"
 		tenant.Annotations = ano
 		err = r.Client.Update(ctx, &tenant)
 		if err != nil {
@@ -119,7 +121,7 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			log.Warn("get tenant namespaces fail, %v", err)
 			return ctrl.Result{}, err
 		}
-		namespace := corev1.Namespace{
+		newNamespace := corev1.Namespace{
 			TypeMeta: metav1.TypeMeta{
 				Kind:       "Namespace",
 				APIVersion: "v1",
@@ -127,15 +129,39 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			ObjectMeta: metav1.ObjectMeta{
 				Name: nsName,
 				Annotations: map[string]string{
-					"kubecube.io/sync": "1",
-					"hnc.x-k8s.io/ns":  "true",
+					constants.SyncAnnotation: "1",
+					"hnc.x-k8s.io/ns":        "true", // todo: deprecated annotation
 				},
+				Labels: env.EnsureManagedLabels(env.HncManagedLabels),
 			},
 		}
-		err = r.Client.Create(ctx, &namespace)
+		err = r.Client.Create(ctx, &newNamespace)
 		if err != nil {
 			log.Warn("create tenant namespaces fail, %v", err)
 			return ctrl.Result{}, err
+		}
+	}
+
+	// ensure namespace has hnc managed labels
+	if namespace.Labels != nil {
+		needUpdate := false
+		for k, v := range env.HncManagedLabels {
+			if _, ok := namespace.Labels[k]; ok && v == "-" {
+				delete(namespace.Labels, k)
+				needUpdate = true
+				continue
+			}
+			if namespace.Labels[k] != v {
+				namespace.Labels[k] = v
+				needUpdate = true
+			}
+		}
+		if needUpdate {
+			err = r.Client.Update(ctx, &namespace, &client.UpdateOptions{})
+			if err != nil {
+				log.Warn("update tenant namespace %v labels failed: $v", namespace.Name, err)
+				return ctrl.Result{}, err
+			}
 		}
 	}
 
@@ -147,7 +173,9 @@ func (r *TenantReconciler) deleteTenant(tenantName string) (ctrl.Result, error) 
 	if err := r.deleteNSofTenant(tenantName); err != nil {
 		return ctrl.Result{}, err
 	}
-	return ctrl.Result{}, nil
+	// delete cubeResourceQuota of tenant
+	err := r.deleteCubeResourceQuotaOfTenant(tenantName)
+	return ctrl.Result{}, err
 }
 
 func (r *TenantReconciler) deleteNSofTenant(tenantName string) error {
@@ -177,6 +205,16 @@ func (r *TenantReconciler) deleteNSofTenant(tenantName string) error {
 		})
 	if err != nil {
 		clog.Error("wait for delete namespace of tenant err: %s", err.Error())
+		return err
+	}
+	return nil
+}
+
+func (r *TenantReconciler) deleteCubeResourceQuotaOfTenant(tenantName string) error {
+	quota := v1.CubeResourceQuota{}
+	err := r.Client.DeleteAllOf(context.TODO(), &quota, client.MatchingLabels{constants.TenantLabel: tenantName})
+	if err != nil && !errors.IsNotFound(err) {
+		clog.Error("delete cube resource quota error， tenant name: %s, error: %s", tenantName, err.Error())
 		return err
 	}
 	return nil

@@ -105,6 +105,11 @@ var (
 			Value:       true,
 			Destination: &WardenOpts.GenericWardenOpts.AllowPrivileged,
 		},
+		&cli.StringFlag{
+			Name:        "enable-controllers",
+			Value:       "*",
+			Destination: &WardenOpts.GenericWardenOpts.EnableControllers,
+		},
 
 		// rotate flags
 		&cli.StringFlag{

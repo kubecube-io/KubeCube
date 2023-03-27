@@ -30,10 +30,19 @@ import (
 	quotav1 "github.com/kubecube-io/kubecube/pkg/apis/quota/v1"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/quota"
+	"github.com/kubecube-io/kubecube/pkg/utils/env"
 	"github.com/kubecube-io/kubecube/pkg/utils/strslice"
 )
 
-func isExceedParent(current, old *v1.ResourceQuota, parent *quotav1.CubeResourceQuota) (bool, string) {
+func (o *QuotaOperator) isExceedParent(parent *quotav1.CubeResourceQuota) (bool, string) {
+	current := o.CurrentQuota
+	old := o.OldQuota
+
+	allowedUnsetField, err := o.allowQuotaUnsetField()
+	if err != nil {
+		return true, fmt.Sprintf("can not get namespace of ResourceQuota(%v/%v)", o.CurrentQuota.Name, o.CurrentQuota.Namespace)
+	}
+
 	for _, rs := range quota.ResourceNames {
 		pHard := parent.Spec.Hard
 		pUsed := parent.Status.Used
@@ -63,7 +72,12 @@ func isExceedParent(current, old *v1.ResourceQuota, parent *quotav1.CubeResource
 		// we consider the current quota is exceed parent limit
 		currentHard, ok := cHard[rs]
 		if !ok {
-			return true, fmt.Sprintf("less resource(%v) but parent quota had", rs)
+			if allowedUnsetField {
+				clog.Warn("allowed ResourceQuota(%v/%v) unset field %v", current.Name, current.Namespace, rs)
+				return false, ""
+			} else {
+				return true, fmt.Sprintf("less resource(%v) but parent quota had", rs)
+			}
 		}
 
 		oldHard := ensureValue(old, rs)
@@ -77,6 +91,27 @@ func isExceedParent(current, old *v1.ResourceQuota, parent *quotav1.CubeResource
 	}
 
 	return false, ""
+}
+
+func (o *QuotaOperator) allowQuotaUnsetField() (bool, error) {
+	labelKey := env.DetachedNamespaceLabelKey()
+	if labelKey == "" {
+		return false, nil
+	}
+
+	ns := v1.Namespace{}
+	err := o.LocalClient.Get(context.Background(), types.NamespacedName{Name: o.CurrentQuota.Namespace}, &ns)
+	if err != nil {
+		return false, err
+	}
+
+	if ns.Labels != nil {
+		if _, ok := ns.Labels[labelKey]; ok {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 func refreshUsedResource(current, old *v1.ResourceQuota, parent *quotav1.CubeResourceQuota, cli client.Client) (*quotav1.CubeResourceQuota, error) {

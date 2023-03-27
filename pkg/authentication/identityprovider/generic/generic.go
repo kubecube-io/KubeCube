@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,28 +17,37 @@ limitations under the License.
 package generic
 
 import (
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/kubecube-io/kubecube/pkg/authentication"
 	"github.com/kubecube-io/kubecube/pkg/authentication/identityprovider"
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/ctls"
 )
 
-var Config = authentication.GenericConfig{}
+var (
+	Config       authentication.GenericConfig
+	once         sync.Once
+	authProvider *HeaderProvider
+)
 
 type HeaderProvider struct {
 	URL                string
 	Method             string
 	Scheme             string
 	InsecureSkipVerify bool
+	CACert             string
+	CAKey              string
 	TLSCert            string
 	TLSKey             string
+
+	Client *http.Client
 }
 
 type GenericIdentity struct {
@@ -68,9 +77,41 @@ func (g *GenericIdentity) GetAccountId() string {
 	return g.AccountId
 }
 
-func GetProvider() HeaderProvider {
-	return HeaderProvider{Config.URL, Config.Method, Config.Scheme,
-		Config.InsecureSkipVerify, Config.TLSCert, Config.TLSKey}
+func GetProvider() *HeaderProvider {
+	once.Do(func() {
+		authProvider = &HeaderProvider{
+			URL:                Config.URL,
+			Method:             Config.Method,
+			Scheme:             Config.Scheme,
+			InsecureSkipVerify: Config.InsecureSkipVerify,
+			TLSCert:            Config.TLSCert,
+			TLSKey:             Config.TLSKey,
+			CACert:             Config.CACert,
+			CAKey:              Config.CAKey,
+		}
+
+		// use transport without tls by default
+		authProvider.Client = &http.Client{Timeout: 30 * time.Second, Transport: ctls.DefaultTransport()}
+
+		if Config.Scheme != "https" {
+			return
+		}
+
+		// here we should use tls config and use insecure transport by default
+		authProvider.Client.Transport = ctls.MakeInsecureTransport()
+
+		if Config.InsecureSkipVerify {
+			return
+		}
+		tr, err := ctls.MakeMTlsTransportByFile(Config.CACert, Config.TLSCert, Config.TLSKey)
+		if err != nil {
+			clog.Warn("make mtls transport failed, use insecure by default: %v", err)
+			return
+		}
+		authProvider.Client.Transport = tr
+	})
+
+	return authProvider
 }
 
 func (g *GenericIdentity) GetUserID() string {
@@ -81,37 +122,13 @@ func (g *GenericIdentity) GetUsername() string {
 	return g.Username
 }
 
-func (h HeaderProvider) Authenticate(headers map[string][]string) (identityprovider.Identity, error) {
-
+func (h *HeaderProvider) Authenticate(headers map[string][]string) (identityprovider.Identity, error) {
 	req, err := http.NewRequest(h.Method, h.URL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("new http request (%v/%v) err: %v", h.URL, h.Method, err)
 	}
 	req.Header = headers
-	tr := &http.Transport{}
-	if h.Scheme == "https" {
-		cfg := &tls.Config{}
-		if h.InsecureSkipVerify == true {
-			cfg.InsecureSkipVerify = true
-		} else {
-			if h.TLSCert == "" || h.TLSKey == "" {
-				return nil, fmt.Errorf("generic auth cert is %s, key is %s", h.TLSCert, h.TLSKey)
-			}
-			certBytes := []byte(h.TLSCert)
-			ketBytes := []byte(h.TLSKey)
-			c, err := tls.X509KeyPair(certBytes, ketBytes)
-			if err != nil {
-				clog.Error("%v", err)
-				return nil, err
-			}
-			cfg.Certificates = []tls.Certificate{c}
-		}
-		tr = &http.Transport{
-			TLSClientConfig: cfg,
-		}
-	}
-	client := &http.Client{Timeout: 30 * time.Second, Transport: tr}
-	resp, err := client.Do(req)
+	resp, err := h.Client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("request to generic auth error: %v", err)
 	}

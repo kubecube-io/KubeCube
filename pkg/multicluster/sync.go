@@ -19,9 +19,7 @@ package multicluster
 import (
 	"context"
 	"fmt"
-	"github.com/kubecube-io/kubecube/pkg/utils/informer"
 
-	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -30,7 +28,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kubecube-io/kubecube/pkg/apis"
+	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/informer"
 	"github.com/kubecube-io/kubecube/pkg/utils/keys"
 	"github.com/kubecube-io/kubecube/pkg/utils/worker"
 )
@@ -41,9 +41,13 @@ type SyncMgr struct {
 	Informer    cache.Informer
 	Worker      worker.Interface
 	isWithScout bool
+	// ScoutWaitTimeoutSeconds that heartbeat not receive timeout
+	ScoutWaitTimeoutSeconds int
+	// ScoutInitialDelaySeconds the time that wait for warden start
+	ScoutInitialDelaySeconds int
 }
 
-func NewSyncMgr(config *rest.Config, isWithScout bool) (*SyncMgr, error) {
+func NewSyncMgr(config *rest.Config, isWithScout bool, scoutInitialDelaySeconds, scoutWaitTimeoutSeconds int) (*SyncMgr, error) {
 	scheme := runtime.NewScheme()
 	utilruntime.Must(apis.AddToScheme(scheme))
 
@@ -58,11 +62,22 @@ func NewSyncMgr(config *rest.Config, isWithScout bool) (*SyncMgr, error) {
 		return nil, err
 	}
 
-	return &SyncMgr{cache: c, Informer: im, isWithScout: isWithScout}, nil
+	return &SyncMgr{cache: c, Informer: im, isWithScout: isWithScout, ScoutInitialDelaySeconds: scoutInitialDelaySeconds, ScoutWaitTimeoutSeconds: scoutWaitTimeoutSeconds}, nil
 }
 
 func NewSyncMgrWithDefaultSetting(config *rest.Config, isWithScout bool) (*SyncMgr, error) {
-	m, err := NewSyncMgr(config, isWithScout)
+	m, err := NewSyncMgr(config, isWithScout, 0, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	m.Informer.AddEventHandler(informer.NewHandlerOnEvents(m.OnClusterAdd, m.OnClusterUpdate, m.OnClusterDelete))
+	m.Worker = worker.New("cluster", 0, ClusterWideKeyFunc, m.ReconcileCluster)
+	return m, nil
+}
+
+func NewSyncMgrWithScoutSetting(config *rest.Config, scoutInitialDelaySeconds, scoutWaitTimeoutSeconds int) (*SyncMgr, error) {
+	m, err := NewSyncMgr(config, true, scoutInitialDelaySeconds, scoutWaitTimeoutSeconds)
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +182,7 @@ func (m *SyncMgr) ReconcileCluster(key worker.QueueKey) error {
 	}
 
 	if m.isWithScout {
-		err = AddInternalClusterWithScout(*cluster)
+		err = AddInternalClusterWithScoutOpts(*cluster, m.ScoutInitialDelaySeconds, m.ScoutWaitTimeoutSeconds)
 		if err != nil {
 			clog.Error("add internal cluster %v failed: %v", cluster.Name, err)
 			return err

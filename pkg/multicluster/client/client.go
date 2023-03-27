@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/discovery/cached/memory"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -62,15 +63,19 @@ type Client interface {
 	ClientSet() kubernetes.Interface
 
 	Discovery() discovery.DiscoveryInterface
+
+	CacheDiscovery() discovery.CachedDiscoveryInterface
+
 	RESTMapper() meta.RESTMapper
 }
 
 type InternalClient struct {
-	client       client.Client
-	cache        cache.Cache
-	rawClientSet kubernetes.Interface
-	metrics      versioned.Interface
-	discovery    discovery.DiscoveryInterface
+	client         client.Client
+	cache          cache.Cache
+	rawClientSet   kubernetes.Interface
+	metrics        versioned.Interface
+	discovery      discovery.DiscoveryInterface
+	cacheDiscovery discovery.CachedDiscoveryInterface
 
 	// restMapper map GroupVersionKinds to Resources
 	restMapper meta.RESTMapper
@@ -107,6 +112,8 @@ func NewClientFor(ctx context.Context, cfg *rest.Config) (Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("new discovery client failed: %v", err)
 	}
+
+	c.cacheDiscovery = memory.NewMemCacheClient(c.discovery)
 
 	c.restMapper, err = apiutil.NewDynamicRESTMapper(cfg)
 	if err != nil {
@@ -147,6 +154,10 @@ func (c *InternalClient) RESTMapper() meta.RESTMapper {
 
 func (c *InternalClient) Discovery() discovery.DiscoveryInterface {
 	return c.discovery
+}
+
+func (c *InternalClient) CacheDiscovery() discovery.CachedDiscoveryInterface {
+	return c.cacheDiscovery
 }
 
 // WithSchemes allow add extensions scheme to client

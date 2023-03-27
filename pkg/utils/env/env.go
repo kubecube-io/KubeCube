@@ -19,6 +19,7 @@ package env
 import (
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/kubecube-io/kubecube/pkg/clog"
@@ -126,6 +127,10 @@ func RetainMemberClusterResource() bool {
 	return false
 }
 
+func DetachedNamespaceLabelKey() string {
+	return os.Getenv("DETACHED_NS_LABEL_KEY")
+}
+
 var (
 	once          sync.Once
 	cubeNamespace = "kubecube-system"
@@ -140,4 +145,39 @@ func CubeNamespace() string {
 		clog.Info("kubecube running in namespace %v", cubeNamespace)
 	})
 	return cubeNamespace
+}
+
+// HncManagedLabels is read-only
+var HncManagedLabels = hncManagedLabels()
+
+func EnsureManagedLabels(labels map[string]string) map[string]string {
+	res := make(map[string]string)
+	for k, v := range labels {
+		if v != "-" {
+			res[k] = v
+		}
+	}
+	return res
+}
+
+func hncManagedLabels() map[string]string {
+	labels := make(map[string]string)
+
+	labelsStr := os.Getenv("HNC_MANAGED_LABELS")
+	if len(labelsStr) == 0 {
+		return labels
+	}
+
+	// parse labels, format as:
+	// add and update: labelKey1@labelValue1;labelKey2@labelValue2
+	// delete: labelKey1@-;labelKey2@-
+	kvs := strings.Split(labelsStr, ";")
+	for _, kv := range kvs {
+		res := strings.Split(kv, "@")
+		if len(res) != 2 {
+			clog.Fatal("labels string invalid: %s", labelsStr)
+		}
+		labels[res[0]] = res[1]
+	}
+	return labels
 }

@@ -30,4 +30,5 @@ const (
 	PvcResourceType                   ResourceTypeEnum = "pvc"
 	NodeResourceType                  ResourceTypeEnum = "nodes"
 	NodeExportResourceType            ResourceTypeEnum = "nodeExport"
+	ReplicasetType                    ResourceTypeEnum = "replicasets"
 )

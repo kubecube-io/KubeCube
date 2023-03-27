@@ -72,7 +72,7 @@ func (e *ExtendHandler) ExtendHandle(c *gin.Context) {
 	namespace := c.Param("namespace")
 	resourceType := c.Param("resourceType")
 	resourceName := c.Param("resourceName")
-	filter := parseQueryParams(c)
+	condition := parseQueryParams(c)
 	httpMethod := c.Request.Method
 
 	if httpMethod != http.MethodGet {
@@ -92,7 +92,7 @@ func (e *ExtendHandler) ExtendHandle(c *gin.Context) {
 		Cluster:                  cluster,
 		Namespace:                namespace,
 		ResourceName:             resourceName,
-		Filter:                   filter,
+		FilterCondition:          condition,
 		Action:                   httpMethod,
 		Username:                 username,
 		NginxNamespace:           e.NginxNamespace,
@@ -113,7 +113,7 @@ func (e *ExtendHandler) ExtendHandle(c *gin.Context) {
 	if extendFunc, ok := extendFuncMap[resourceType]; ok {
 		result, err := extendFunc(param)
 		if err != nil {
-			clog.Error("get extend res err, resourceType: %s, error: %+v", resourceType, err)
+			clog.Error("get extend res err, resourceType: %s, error: %s", resourceType, err.Error())
 			response.FailReturn(c, errcode.BadRequest(err))
 			return
 		}
@@ -127,7 +127,7 @@ func (e *ExtendHandler) ExtendHandle(c *gin.Context) {
 func GetPodContainerLog(c *gin.Context) {
 	cluster := c.Param("cluster")
 	namespace := c.Param("namespace")
-	filter := parseQueryParams(c)
+	condition := parseQueryParams(c)
 	// k8s client
 	client := clients.Interface().Kubernetes(cluster)
 	if client == nil {
@@ -141,7 +141,7 @@ func GetPodContainerLog(c *gin.Context) {
 		response.FailReturn(c, errcode.ForbiddenErr)
 		return
 	}
-	podLog := NewPodLog(client, namespace, filter)
+	podLog := NewPodLog(client, namespace, condition)
 	podLog.HandleLogs(c)
 }
 

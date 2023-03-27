@@ -19,11 +19,11 @@ package pod
 import (
 	"context"
 	"errors"
-	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
 
-	jsoniter "github.com/json-iterator/go"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	resourcemanage "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
@@ -36,15 +36,13 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 )
 
-var json = jsoniter.ConfigCompatibleWithStandardLibrary
-
 const ownerUidLabel = "metadata.ownerReferences.uid"
 
 type Pod struct {
-	ctx       context.Context
-	client    mgrclient.Client
-	namespace string
-	filter    filter.Filter
+	ctx             context.Context
+	client          mgrclient.Client
+	namespace       string
+	filterCondition *filter.Condition
 }
 
 func init() {
@@ -60,8 +58,8 @@ func Handle(param resourcemanage.ExtendParams) (interface{}, error) {
 	if kubernetes == nil {
 		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
 	}
-	pod := NewPod(kubernetes, param.Namespace, param.Filter)
-	if pod.filter.EnableFilter {
+	pod := NewPod(kubernetes, param.Namespace, param.FilterCondition)
+	if pod.filterCondition.Exact[ownerUidLabel].Len() > 0 {
 		err := pod.GetRs()
 		if err != nil {
 			return nil, errors.New(err.Error())
@@ -71,42 +69,34 @@ func Handle(param resourcemanage.ExtendParams) (interface{}, error) {
 	return result, err
 }
 
-func NewPod(client mgrclient.Client, namespace string, filter filter.Filter) Pod {
+func NewPod(client mgrclient.Client, namespace string, filter *filter.Condition) Pod {
 	ctx := context.Background()
 	return Pod{
-		ctx:       ctx,
-		client:    client,
-		namespace: namespace,
-		filter:    filter,
+		ctx:             ctx,
+		client:          client,
+		namespace:       namespace,
+		filterCondition: filter,
 	}
 }
 
 func (d *Pod) GetRs() error {
+	if len(d.filterCondition.Exact) == 0 {
+		return nil
+	}
 	rsList := appsv1.ReplicaSetList{}
 	err := d.client.Cache().List(d.ctx, &rsList, client.InNamespace(d.namespace))
 	if err != nil {
 		clog.Error("can not find rs from cluster, %v", err)
 		return err
 	}
-	// filter list by selector/sort/page
-	rsListJson, err := json.Marshal(rsList)
+	// filterCondition list by selector/sort/page
+
+	_, err = filter.GetEmptyFilter().FilterObjectList(&rsList, d.filterCondition)
 	if err != nil {
-		clog.Error("convert replicaSetList to json fail, %v", err)
+		clog.Error("filterCondition rsList error, err: %s", err.Error())
 		return err
 	}
-	rsListMap := d.filter.FilterResultToMap(rsListJson, false, false)
-	rsList = appsv1.ReplicaSetList{}
-	reListMapJson, err := json.Marshal(rsListMap)
-	if err != nil {
-		clog.Error("convert replicaSetList to json fail, %v", err)
-		return err
-	}
-	err = json.Unmarshal(reListMapJson, &rsList)
-	if err != nil {
-		clog.Error("convert replicaSetList from json fail, %v", err)
-		return err
-	}
-	set := d.filter.Exact[ownerUidLabel]
+	set := d.filterCondition.Exact[ownerUidLabel]
 	for _, rs := range rsList.Items {
 		if set == nil {
 			set = sets.NewString()
@@ -116,15 +106,15 @@ func (d *Pod) GetRs() error {
 			set.Insert(string(uid))
 		}
 	}
-	d.filter.Exact[ownerUidLabel] = set
+	d.filterCondition.Exact[ownerUidLabel] = set
 	return nil
 }
 
 // get pods
-func (d *Pod) GetPods() (filter.K8sJson, error) {
+func (d *Pod) GetPods() (*unstructured.Unstructured, error) {
 
-	//resultMap := make(resources.K8sJson)
 	// get pod list from k8s cluster
+	resultMap := make(map[string]interface{})
 	var podList corev1.PodList
 	err := d.client.Cache().List(d.ctx, &podList, client.InNamespace(d.namespace))
 	if err != nil {
@@ -132,13 +122,16 @@ func (d *Pod) GetPods() (filter.K8sJson, error) {
 		return nil, err
 	}
 
-	// filter list by selector/sort/page
-	podListJson, err := json.Marshal(podList)
+	// filterCondition list by selector/sort/page
+	total, err := filter.GetEmptyFilter().FilterObjectList(&podList, d.filterCondition)
 	if err != nil {
-		clog.Error("convert deploymentList to json fail, %v", err)
+		clog.Error("filterCondition podList error, err: %s", err.Error())
 		return nil, err
 	}
-	podListMap := d.filter.FilterResultToMap(podListJson, true, true)
 
-	return podListMap, nil
+	// add pod status info
+
+	resultMap["total"] = total
+	resultMap["items"] = podList.Items
+	return &unstructured.Unstructured{Object: resultMap}, nil
 }

@@ -35,10 +35,10 @@ import (
 )
 
 type Service struct {
-	ctx       context.Context
-	client    mgrclient.Client
-	namespace string
-	filter    filter.Filter
+	ctx             context.Context
+	client          mgrclient.Client
+	namespace       string
+	filterCondition *filter.Condition
 }
 
 func init() {
@@ -54,56 +54,45 @@ func Handle(param resourcemanage.ExtendParams) (interface{}, error) {
 	if kubernetes == nil {
 		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
 	}
-	service := NewService(kubernetes, param.Namespace, param.Filter)
+	service := NewService(kubernetes, param.Namespace, param.FilterCondition)
 	return service.GetExtendServices()
 }
 
-func NewService(client mgrclient.Client, namespace string, filter filter.Filter) Service {
+func NewService(client mgrclient.Client, namespace string, condition *filter.Condition) Service {
 	ctx := context.Background()
 	return Service{
-		ctx:       ctx,
-		client:    client,
-		namespace: namespace,
-		filter:    filter,
+		ctx:             ctx,
+		client:          client,
+		namespace:       namespace,
+		filterCondition: condition,
 	}
 }
 
-func (s *Service) GetExtendServices() (filter.K8sJson, error) {
-	resultMap := make(filter.K8sJson)
+func (s *Service) GetExtendServices() (map[string]interface{}, error) {
 	// get service list from k8s cluster
 	var serviceList corev1.ServiceList
+	resultMap := make(map[string]interface{})
 	err := s.client.Cache().List(s.ctx, &serviceList, client.InNamespace(s.namespace))
 	if err != nil {
 		clog.Error("can not find service from cluster, %v", err)
 		return nil, err
 	}
-	resultMap["total"] = len(serviceList.Items)
-
-	// filter list by selector/sort/page
-	serviceListJson, err := json.Marshal(serviceList)
+	total, err := filter.GetEmptyFilter().FilterObjectList(&serviceList, s.filterCondition)
 	if err != nil {
-		clog.Error("convert serviceList to json fail, %v", err)
-		return nil, err
+		clog.Error("can not filterCondition service, err: %s", err)
 	}
-	serviceListJson = s.filter.FilterResult(serviceListJson)
-	serviceList = corev1.ServiceList{}
-	err = json.Unmarshal(serviceListJson, &serviceList)
-	if err != nil {
-		clog.Error("convert json to serviceList fail, %v", err)
-		return nil, err
-	}
-
 	// add pod status info
 	resultList := s.addExtendInfo(serviceList)
 
+	resultMap["total"] = total
 	resultMap["items"] = resultList
 
 	return resultMap, nil
 }
 
 // get external ips
-func (s *Service) addExtendInfo(serviceList corev1.ServiceList) filter.K8sJsonArr {
-	resultList := make(filter.K8sJsonArr, 0)
+func (s *Service) addExtendInfo(serviceList corev1.ServiceList) []interface{} {
+	resultList := make([]interface{}, 0)
 
 	for _, service := range serviceList.Items {
 		ips := make([]string, 0)
@@ -166,7 +155,7 @@ func (s *Service) addExtendInfo(serviceList corev1.ServiceList) filter.K8sJsonAr
 		}
 
 		// create result map
-		result := make(filter.K8sJson)
+		result := make(map[string]interface{})
 		result["metadata"] = service.ObjectMeta
 		result["spec"] = service.Spec
 		result["status"] = service.Status

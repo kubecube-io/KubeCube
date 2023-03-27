@@ -1,3 +1,247 @@
+# v1.7.7
+
+## Bugfix
+- fix auth new transport  [#247](https://github.com/kubecube-io/KubeCube/pull/247)
+
+## Dependencies
+
+- hnc v1.0
+- nginx-ingress v0.46.0
+- helm 3.5
+- metrics-server v0.4.1
+- elasticsearch 7.8
+- kubecube-monitoring 15.4.8
+- thanos 3.18.0
+- logseer v1.0.0
+- logagent v1.0.0
+- kubecube-audit v1.2.0
+- kubecube-webconsole v1.2.4
+
+# v1.7.6
+
+## Bugfix
+- add cache discovery [#240](https://github.com/kubecube-io/KubeCube/pull/240)
+- Fix filter bug [#239](https://github.com/kubecube-io/KubeCube/pull/239)
+- fix sort func [#238](https://github.com/kubecube-io/KubeCube/pull/238)
+- update proxy identity [#237](https://github.com/kubecube-io/KubeCube/pull/238)
+
+## Dependencies
+
+- hnc v1.0
+- nginx-ingress v0.46.0
+- helm 3.5
+- metrics-server v0.4.1
+- elasticsearch 7.8
+- kubecube-monitoring 15.4.8
+- thanos 3.18.0
+- logseer v1.0.0
+- logagent v1.0.0
+- kubecube-audit v1.2.0
+- kubecube-webconsole v1.2.4
+
+# v1.7.5
+
+## Bugfix
+- Support delete hnc ns labels [#235](https://github.com/kubecube-io/KubeCube/pull/235)
+- support customize ns labels [#234](https://github.com/kubecube-io/KubeCube/pull/234)
+- fix resourcequota controller filter [#233](https://github.com/kubecube-io/KubeCube/pull/233)
+- fix ns cluster judge [#232](https://github.com/kubecube-io/KubeCube/pull/232)
+- fix resourcequota set [#231](https://github.com/kubecube-io/KubeCube/pull/231)
+
+## Dependencies
+
+- hnc v1.0
+- nginx-ingress v0.46.0
+- helm 3.5
+- metrics-server v0.4.1
+- elasticsearch 7.8
+- kubecube-monitoring 15.4.8
+- thanos 3.18.0
+- logseer v1.0.0
+- logagent v1.0.0
+- kubecube-audit v1.2.0
+- kubecube-webconsole v1.2.4
+
+# v1.7.4
+
+## Bugfix
+- fix node result [#227](https://github.com/kubecube-io/KubeCube/pull/227)
+
+## Dependencies
+
+- hnc v1.0
+- nginx-ingress v0.46.0
+- helm 3.5
+- metrics-server v0.4.1
+- elasticsearch 7.8
+- kubecube-monitoring 15.4.8
+- thanos 3.18.0
+- logseer v1.0.0
+- logagent v1.0.0
+- kubecube-audit v1.2.0
+- kubecube-webconsole v1.2.4
+
+# v1.7.3
+
+## Feature
+- Update filter method [#168](https://github.com/kubecube-io/KubeCube/pull/168)
+
+## Bugfix
+- fix warden sync [#220](https://github.com/kubecube-io/KubeCube/pull/220)
+
+## Dependencies
+
+- hnc v1.0
+- nginx-ingress v0.46.0
+- helm 3.5
+- metrics-server v0.4.1
+- elasticsearch 7.8
+- kubecube-monitoring 15.4.8
+- thanos 3.18.0
+- logseer v1.0.0
+- logagent v1.0.0
+- kubecube-audit v1.2.0
+- kubecube-webconsole v1.2.4
+
+# v1.7.2
+
+## Bugfix
+- fix cluster info abnormal return [#215](https://github.com/kubecube-io/KubeCube/pull/215)
+- Add user raletionship [#214](https://github.com/kubecube-io/KubeCube/pull/214)
+
+## Dependencies
+
+- hnc v1.0
+- nginx-ingress v0.46.0
+- helm 3.5
+- metrics-server v0.4.1
+- elasticsearch 7.8
+- kubecube-monitoring 15.4.8
+- thanos 3.18.0
+- logseer v1.0.0
+- logagent v1.0.0
+- kubecube-audit v1.2.0
+- kubecube-webconsole v1.2.4
+
+# v1.7.1
+
+## Bugfix
+- fix proxy func label selector  [#212](https://github.com/kubecube-io/KubeCube/pull/212)
+
+## Dependencies
+
+- hnc v1.0
+- nginx-ingress v0.46.0
+- helm 3.5
+- metrics-server v0.4.1
+- elasticsearch 7.8
+- kubecube-monitoring 15.4.8
+- thanos 3.18.0
+- logseer v1.0.0
+- logagent v1.0.0
+- kubecube-audit v1.2.0
+- kubecube-webconsole v1.2.4
+
+# v1.7.0
+
+## Feature
+- Feat fieldmanager [#201](https://github.com/kubecube-io/KubeCube/pull/201)
+- feature: add cluster livedata api [#199](https://github.com/kubecube-io/KubeCube/pull/199)
+- Enhance: update wechat image[#198](https://github.com/kubecube-io/KubeCube/pull/198)
+
+## Bugfix
+- Fix service extend  [#209](https://github.com/kubecube-io/KubeCube/pull/209)
+
+## Dependencies
+
+- hnc v1.0
+- nginx-ingress v0.46.0
+- helm 3.5
+- metrics-server v0.4.1
+- elasticsearch 7.8
+- kubecube-monitoring 15.4.8
+- thanos 3.18.0
+- logseer v1.0.0
+- logagent v1.0.0
+- kubecube-audit v1.2.0
+- kubecube-webconsole v1.2.4
+
+# v1.6.2
+
+## Bugfix
+- Fix get ns apis [#203](https://github.com/kubecube-io/KubeCube/pull/203)
+- in proxy filter, use label selector first [#202](https://github.com/kubecube-io/KubeCube/pull/202)
+- Bugfix delete tenant [#200](https://github.com/kubecube-io/KubeCube/pull/200)
+
+## Dependencies
+
+- hnc v1.0
+- nginx-ingress v0.46.0
+- helm 3.5
+- metrics-server v0.4.1
+- elasticsearch 7.8
+- kubecube-monitoring 15.4.8
+- thanos 3.18.0
+- logseer v1.0.0
+- logagent v1.0.0
+- kubecube-audit v1.2.0
+- kubecube-webconsole v1.2.4
+# v1.6.1
+
+## Feature
+
+- update warden resource sync [#194](https://github.com/kubecube-io/KubeCube/pull/194)
+
+## Bugfix
+- Fix: warden pivot url parse error [#194](https://github.com/kubecube-io/KubeCube/pull/194)
+- Fix: query pod list [#196](https://github.com/kubecube-io/KubeCube/pull/196)
+
+## Dependencies
+
+- hnc v1.0
+- nginx-ingress v0.46.0
+- helm 3.5
+- metrics-server v0.4.1
+- elasticsearch 7.8
+- kubecube-monitoring 15.4.8
+- thanos 3.18.0
+- logseer v1.0.0
+- logagent v1.0.0
+- kubecube-audit v1.2.0
+- kubecube-webconsole v1.2.4
+
+
+# v1.6.0
+
+## Feature
+
+- update proxy transport [#188](https://github.com/kubecube-io/KubeCube/pull/188)
+- warden support special kubecube scheme [#186](https://github.com/kubecube-io/KubeCube/pull/186)
+- widen the number of characters in the cluster name to 100 [#178](https://github.com/kubecube-io/KubeCube/pull/178)
+- Feature delete tenant project [#177](https://github.com/kubecube-io/KubeCube/pull/177)
+
+
+## Bugfix
+- Fix: workflow error, missing build in makefile [#184](https://github.com/kubecube-io/KubeCube/pull/184)
+- [typos] Fix the swag annotations for HealthyCheck [#183](https://github.com/kubecube-io/KubeCube/pull/183)
+- feat: ci-lint [#181](https://github.com/kubecube-io/KubeCube/pull/181)
+- fix audit eventTime and userIdentity field [#176](https://github.com/kubecube-io/KubeCube/pull/176)
+
+## Dependencies
+
+- hnc v1.0
+- nginx-ingress v0.46.0
+- helm 3.5
+- metrics-server v0.4.1
+- elasticsearch 7.8
+- kubecube-monitoring 15.4.8
+- thanos 3.18.0
+- logseer v1.0.0
+- logagent v1.0.0
+- kubecube-audit v1.2.0
+- kubecube-webconsole v1.2.4
+
+
 # v1.5.2
 
 ## Bugfix
