@@ -31,6 +31,7 @@ import (
 	"github.com/gogf/gf/v2/i18n/gi18n"
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/kubecube-io/kubecube/pkg/apiserver/middlewares/auth"
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
@@ -348,32 +349,12 @@ func getPostObjectName(c *gin.Context) string {
 	}
 	// put request body back
 	c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(data))
-	// get resource name from metadata.name
-	body := make(map[string]interface{})
-	err = json.Unmarshal(data, &body)
-	if err != nil {
+
+	obj := unstructured.Unstructured{}
+	if err = json.Unmarshal(data, &obj); err != nil {
 		clog.Warn("[audit] unmarshal request body err: %s", err.Error())
 		return ""
 	}
-	metadata, exist := body["metadata"]
-	if !exist {
-		clog.Warn("[audit] the resource metadata is nil")
-		return ""
-	}
-	metadataMap, ok := metadata.(map[string]interface{})
-	if !ok {
-		clog.Warn("[audit] convert metadata to map failed")
-		return ""
-	}
-	name, exist := metadataMap["name"]
-	if !exist {
-		clog.Warn("[audit] the resource metadata.name is nil")
-		return ""
-	}
-	nameStr, ok := name.(string)
-	if !ok {
-		clog.Warn("[audit] convert name to string failed")
-		return ""
-	}
-	return nameStr
+
+	return obj.GetName()
 }
