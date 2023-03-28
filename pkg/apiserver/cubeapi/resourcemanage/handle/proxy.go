@@ -20,22 +20,20 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/gin-gonic/gin"
 	"io"
 	"io/ioutil"
-	"net/http"
-	"net/http/httputil"
-	"net/url"
-	"strings"
-	"sync"
-
-	"github.com/gin-gonic/gin"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"strings"
 
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
 	"github.com/kubecube-io/kubecube/pkg/belongs"
@@ -52,8 +50,6 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/selector"
 	"github.com/kubecube-io/kubecube/pkg/utils/sort"
 )
-
-var lock sync.RWMutex
 
 type ProxyHandler struct {
 	// enableConvert means proxy handler will convert resources
