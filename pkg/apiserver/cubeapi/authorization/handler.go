@@ -522,23 +522,24 @@ func (h *handler) getProjectByUser(c *gin.Context) {
 		return
 	}
 
-	tenantSet := sets.NewString(tenants...)
+	tenantQuerySet := sets.NewString(tenants...)
 	projectSet := sets.NewString(user.Status.BelongProjects...)
+	tenantSet := sets.NewString(user.Status.BelongTenants...)
 
 	res := []tenantv1.Project{}
 	for _, p := range projectList.Items {
-		if !user.Status.PlatformAdmin && !projectSet.Has(p.Name) {
+		t, ok := p.Labels[constants.TenantLabel]
+		if !ok {
+			continue
+		}
+		if !user.Status.PlatformAdmin && !projectSet.Has(p.Name) && !tenantSet.Has(t) {
 			continue
 		}
 		if tenants == nil {
 			res = append(res, p)
 			continue
 		}
-		t, ok := p.Labels[constants.TenantLabel]
-		if !ok {
-			continue
-		}
-		if tenantSet.Has(t) {
+		if tenantQuerySet.Has(t) {
 			res = append(res, p)
 		}
 	}
