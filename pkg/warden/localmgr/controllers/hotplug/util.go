@@ -92,7 +92,7 @@ func MergeYamlString(ayaml, byaml string) (string, error) {
 	return string(retb), nil
 }
 
-// merge hotplug config
+// MergeHotplug use clusterConfig to cover commonConfig.
 func MergeHotplug(commonConfig, clusterConfig hotplugv1.Hotplug) hotplugv1.Hotplug {
 	clusterComponentMap := make(map[string]hotplugv1.ComponentConfig)
 	for _, item := range clusterConfig.Spec.Component {
@@ -190,23 +190,23 @@ func convertYaml(yamlStr string) string {
 }
 
 // update feature configmap
-func updateConfigMap(ctx context.Context, cli client.Client, result *hotplugv1.DeployResult) {
+func updateConfigMap(ctx context.Context, cli client.Client, results []*hotplugv1.DeployResult) error {
 	cm := corev1.ConfigMap{}
 	err := cli.Get(ctx, types.NamespacedName{Namespace: env.CubeNamespace(), Name: featureConfigMap}, &cm)
 	if err != nil {
-		clog.Error("can not find configmap kubecube-system/kubecube-feature-config, %v", err)
-		return
+		return err
 	}
 	if cm.Data == nil {
-		m := make(map[string]string)
-		m[result.Name] = result.Status
-		cm.Data = m
-	} else {
-		cm.Data[result.Name] = result.Status
+		cm.Data = make(map[string]string)
 	}
+	for _, r := range results {
+		cm.Data[r.Name] = r.Status
+	}
+
 	err = cli.Update(ctx, &cm)
 	if err != nil {
-		clog.Error("can not find configmap kubecube-system/kubecube-feature-config, %v", err)
-		return
+		return err
 	}
+
+	return nil
 }

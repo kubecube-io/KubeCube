@@ -79,15 +79,18 @@ func (r *RoleBindingReconciler) syncUserOnCreate(ctx context.Context, roleBindin
 	}
 
 	if len(tenant) > 0 {
-		addUserToTenant(user, tenant)
+		err = updateUserStatus(ctx, r.Client, user, constants.ClusterRoleTenant)
+		if err != nil {
+			clog.Error("update user %v status failed: %v", user, err)
+			return ctrl.Result{}, err
+		}
 	} else if len(project) > 0 {
 		addUserToProject(user, project)
-	}
-
-	err = updateUserStatus(ctx, r.Client, user)
-	if err != nil {
-		clog.Error("update user %v status failed: %v", user, err)
-		return ctrl.Result{}, err
+		err = updateUserStatus(ctx, r.Client, user, constants.ClusterRoleProject)
+		if err != nil {
+			clog.Error("update user %v status failed: %v", user, err)
+			return ctrl.Result{}, err
+		}
 	}
 
 	return ctrl.Result{}, nil
@@ -116,15 +119,18 @@ func (r *RoleBindingReconciler) syncUserOnDelete(ctx context.Context, name, name
 	}
 
 	if len(tenant) > 0 {
-		moveUserFromTenant(user, tenant)
+		err = updateUserStatus(ctx, r.Client, user, constants.ClusterRoleTenant)
+		if err != nil {
+			clog.Error("update user %v status failed: %v", user, err)
+			return ctrl.Result{}, err
+		}
 	} else if len(project) > 0 {
 		moveUserFromProject(user, project)
-	}
-
-	err = updateUserStatus(ctx, r.Client, user)
-	if err != nil {
-		clog.Error("update user %v status failed: %v", user, err)
-		return ctrl.Result{}, err
+		err = updateUserStatus(ctx, r.Client, user, constants.ClusterRoleProject)
+		if err != nil {
+			clog.Error("update user %v status failed: %v", user, err)
+			return ctrl.Result{}, err
+		}
 	}
 
 	return ctrl.Result{}, nil

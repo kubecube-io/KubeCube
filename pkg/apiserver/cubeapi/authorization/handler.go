@@ -19,8 +19,10 @@ package authorization
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	corev1 "k8s.io/api/core/v1"
@@ -522,23 +524,24 @@ func (h *handler) getProjectByUser(c *gin.Context) {
 		return
 	}
 
-	tenantSet := sets.NewString(tenants...)
+	tenantQuerySet := sets.NewString(tenants...)
 	projectSet := sets.NewString(user.Status.BelongProjects...)
+	tenantSet := sets.NewString(user.Status.BelongTenants...)
 
 	res := []tenantv1.Project{}
 	for _, p := range projectList.Items {
-		if !user.Status.PlatformAdmin && !projectSet.Has(p.Name) {
+		t, ok := p.Labels[constants.TenantLabel]
+		if !ok {
+			continue
+		}
+		if !user.Status.PlatformAdmin && !projectSet.Has(p.Name) && !tenantSet.Has(t) {
 			continue
 		}
 		if tenants == nil {
 			res = append(res, p)
 			continue
 		}
-		t, ok := p.Labels[constants.TenantLabel]
-		if !ok {
-			continue
-		}
-		if tenantSet.Has(t) {
+		if tenantQuerySet.Has(t) {
 			res = append(res, p)
 		}
 	}
@@ -627,6 +630,21 @@ func (h *handler) createBinds(c *gin.Context) {
 			clusterRoleBinding.RoleRef.Name = constants.ProjectAdminCluster
 		}
 		// platform level ignored
+	}
+
+	// wait for sub ns create done, remove it when delete hnc dependence.
+	err = wait.Poll(100*time.Second, 1*time.Second, func() (done bool, err error) {
+		namespace := corev1.Namespace{}
+		err = cli.Direct().Get(ctx, types.NamespacedName{Name: roleBinding.Namespace}, &namespace)
+		if err != nil {
+			return false, nil
+		}
+		return true, nil
+	})
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.CustomReturn(http.StatusInternalServerError, err.Error()))
+		return
 	}
 
 	err = cli.Direct().Create(ctx, roleBinding)
