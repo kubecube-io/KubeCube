@@ -184,7 +184,11 @@ func (h *HotplugReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 				continue
 			}
 			if JudgeJsonEqual(envs, values) {
-				addSuccessResult(result, "release is running")
+				if release.Info.Status != helmrelease.StatusDeployed {
+					addSuccessResult(result, "release is existing but status not ok please check")
+				} else {
+					addSuccessResult(result, "release is running")
+				}
 				continue
 			}
 			log.Info("upgrade helm chart (%v/%v)", name, namespace)
