@@ -172,7 +172,7 @@ func (m *SyncMgr) ReconcileCluster(key worker.QueueKey) error {
 	if err != nil {
 		// delete internal cluster if cluster was deleted
 		if errors.IsNotFound(err) {
-			err = ManagerImpl.Del(cluster.Name)
+			err = ManagerImpl.Del(ckey.Name)
 			if err != nil {
 				clog.Warn(err.Error())
 			}
