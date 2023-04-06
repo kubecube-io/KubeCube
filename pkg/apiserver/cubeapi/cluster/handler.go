@@ -387,6 +387,7 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 		NamespaceBody v1.Namespace `json:"namespaceBody"`
 	}
 
+	fuzzyName := c.Query("fuzzyname")
 	tenantArray := c.Query("tenant")
 	tenantList := strings.Split(tenantArray, "|")
 	if len(tenantArray) == 0 {
@@ -449,6 +450,10 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 			if ok1 && ok2 && ns.ObjectMeta.DeletionTimestamp.IsZero() {
 				// filter project ns(such as kubecube-project-project-1).
 				if ns.Labels[constants.ProjectNsPrefix+project+constants.HncSuffix] != constants.HncProjectDepth {
+					continue
+				}
+
+				if fuzzyName != "" && !strings.Contains(ns.Name, fuzzyName) {
 					continue
 				}
 
