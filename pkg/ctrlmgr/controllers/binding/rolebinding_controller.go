@@ -79,6 +79,7 @@ func (r *RoleBindingReconciler) syncUserOnCreate(ctx context.Context, roleBindin
 	}
 
 	if len(tenant) > 0 {
+		addUserToTenant(user, tenant)
 		err = updateUserStatus(ctx, r.Client, user, constants.ClusterRoleTenant)
 		if err != nil {
 			clog.Error("update user %v status failed: %v", user, err)
@@ -119,6 +120,7 @@ func (r *RoleBindingReconciler) syncUserOnDelete(ctx context.Context, name, name
 	}
 
 	if len(tenant) > 0 {
+		moveUserFromTenant(user, tenant)
 		err = updateUserStatus(ctx, r.Client, user, constants.ClusterRoleTenant)
 		if err != nil {
 			clog.Error("update user %v status failed: %v", user, err)
