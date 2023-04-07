@@ -532,13 +532,21 @@ func (h *handler) getProjectByUser(c *gin.Context) {
 		if !ok {
 			continue
 		}
+		// project will be added if matched conditions follow:
+		// 1. user is platform admin
+		// 2. user's belong projects had this queried project
+		// 3. user's belong tenants had this queried tenant
 		if !user.Status.PlatformAdmin && !projectSet.Has(p.Name) && !tenantSet.Has(t) {
 			continue
 		}
+
+		// no need tenants filter
 		if tenants == nil {
 			res = append(res, p)
 			continue
 		}
+
+		// do tenants filter: only added projects under tenants
 		if tenantQuerySet.Has(t) {
 			res = append(res, p)
 		}
