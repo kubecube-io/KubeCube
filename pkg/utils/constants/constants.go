@@ -218,3 +218,8 @@ const (
 	ClusterRoleTenant   = "tenant"
 	ClusterRoleProject  = "project"
 )
+
+// node gpu keys
+const (
+	GpuNvidia = "nvidia.com/gpu"
+)
