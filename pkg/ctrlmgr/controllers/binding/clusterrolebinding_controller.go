@@ -75,7 +75,7 @@ func (r *ClusterRoleBindingReconciler) syncUserOnCreate(ctx context.Context, clu
 
 	appointUserAdmin(user)
 
-	err = updateUserStatus(ctx, r.Client, user)
+	err = updateUserStatus(ctx, r.Client, user, constants.ClusterRolePlatform)
 	if err != nil {
 		clog.Error("update user %v status failed: %v", user, err)
 		return ctrl.Result{}, err
@@ -103,7 +103,7 @@ func (r *ClusterRoleBindingReconciler) syncUserOnDelete(ctx context.Context, nam
 
 	impeachUserAdmin(user)
 
-	err = updateUserStatus(ctx, r.Client, user)
+	err = updateUserStatus(ctx, r.Client, user, constants.ClusterRolePlatform)
 	if err != nil {
 		clog.Error("update user %v status failed: %v", user, err)
 		return ctrl.Result{}, err
