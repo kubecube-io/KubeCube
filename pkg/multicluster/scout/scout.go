@@ -165,7 +165,9 @@ func (s *Scout) illWarden(ctx context.Context) {
 		return
 	}
 
-	s.LastHeartbeat = cluster.Status.LastHeartbeat.Time
+	if cluster.Status.LastHeartbeat != nil {
+		s.LastHeartbeat = cluster.Status.LastHeartbeat.Time
+	}
 
 	if !isDisconnected(cluster, s.WaitTimeoutSeconds) {
 		// going here means cluster heartbeat is normal
