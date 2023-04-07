@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	corev1 "k8s.io/api/core/v1"
@@ -30,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/apimachinery/pkg/util/wait"
 	userinfo "k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/apiserver/pkg/authorization/authorizer"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -627,6 +629,21 @@ func (h *handler) createBinds(c *gin.Context) {
 			clusterRoleBinding.RoleRef.Name = constants.ProjectAdminCluster
 		}
 		// platform level ignored
+	}
+
+	// wait for sub ns create done, remove it when delete hnc dependence.
+	err = wait.Poll(100*time.Second, 1*time.Second, func() (done bool, err error) {
+		namespace := corev1.Namespace{}
+		err = cli.Direct().Get(ctx, types.NamespacedName{Name: roleBinding.Namespace}, &namespace)
+		if err != nil {
+			return false, nil
+		}
+		return true, nil
+	})
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.CustomReturn(http.StatusInternalServerError, err.Error()))
+		return
 	}
 
 	err = cli.Direct().Create(ctx, roleBinding)
