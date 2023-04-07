@@ -1,12 +1,9 @@
 /*
 Copyright 2021 KubeCube Authors
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-
     http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -18,21 +15,22 @@ package hotplug
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	helmrelease "helm.sh/helm/v3/pkg/release"
+	"helm.sh/helm/v3/pkg/storage/driver"
+	apierros "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	hotplugv1 "github.com/kubecube-io/kubecube/pkg/apis/hotplug/v1"
-	"github.com/kubecube-io/kubecube/pkg/warden/utils"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
-
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/warden/utils"
 )
 
 const (
@@ -81,7 +79,7 @@ func (h *HotplugReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	case common:
 		err := h.Client.Get(ctx, req.NamespacedName, &commonConfig)
 		if err != nil {
-			if errors.IsNotFound(err) {
+			if apierros.IsNotFound(err) {
 				return ctrl.Result{}, nil
 			}
 			log.Error("get common hotplug fail, %v", err)
@@ -89,7 +87,7 @@ func (h *HotplugReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		}
 		err = h.Client.Get(ctx, types.NamespacedName{Name: utils.Cluster}, &clusterConfig)
 		if err != nil {
-			if !errors.IsNotFound(err) {
+			if !apierros.IsNotFound(err) {
 				log.Error("get cluster hotplug fail, %v", err)
 				return ctrl.Result{}, err
 			}
@@ -101,7 +99,7 @@ func (h *HotplugReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	case utils.Cluster:
 		err := h.Client.Get(ctx, req.NamespacedName, &clusterConfig)
 		if err != nil {
-			if errors.IsNotFound(err) {
+			if apierros.IsNotFound(err) {
 				return ctrl.Result{}, nil
 			}
 			log.Error("get cluster hotplug fail, %v", err)
@@ -126,88 +124,95 @@ func (h *HotplugReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		name := c.Name
 		result := &hotplugv1.DeployResult{Name: name, Status: c.Status}
 		results = append(results, result)
-		// audit not use helm
-		if name == "audit" {
-			addSuccessResult(result, fmt.Sprintf("audit is %v", c.Status))
-			continue
-		}
 
-		// release status
+		// query release status
 		isReleaseExist := false
 		release, err := helm.Status(namespace, name)
 		if err != nil {
-			log.Info("%v can not get status from release info, %v", name, err)
-			isReleaseExist = false
-		} else {
-			if release.Info.Status == "deployed" {
-				isReleaseExist = true
+			if !errors.As(err, &driver.ErrReleaseNotFound) {
+				log.Info("get release %v failed: %v", name, err)
+				return ctrl.Result{}, err
 			}
 		}
 
-		// start helm doing
-		if !isReleaseExist {
-			if c.Status != enabled {
-				// release no exist & disabled, do nothing
-				addSuccessResult(result, "uninstalled")
+		// any way we found release about chart, we think it exists
+		if release != nil && release.Info.Status != helmrelease.StatusUninstalled {
+			isReleaseExist = true
+			log.Info("release (%v/%v) exist and status is %v", release.Name, release.Namespace, release.Info.Status)
+		}
+
+		switch {
+		case !isReleaseExist && c.Status != enabled: // release no exist & disabled, do nothing
+			addSuccessResult(result, "clear")
+			continue
+		case !isReleaseExist && c.Status == enabled: // release no exist & enable, need install
+			envs, err := YamlStringToJson(c.Env)
+			if err != nil {
+				addFailResult(result, fmt.Sprintf("parse env yaml fail, %v", err))
 				continue
-			} else {
-				// release no exist & enable, need install
-				envs, err := YamlStringToJson(c.Env)
-				if err != nil {
-					addFailResult(result, fmt.Sprintf("parse env yaml fail, %v", err))
-					continue
-				}
-				_, err = helm.Install(namespace, name, c.PkgName, envs)
-				if err != nil {
-					addFailResult(result, fmt.Sprintf("helm install fail, %v", err))
-					continue
-				}
-				addSuccessResult(result, "helm install success")
 			}
-		} else {
-			if c.Status != enabled {
-				// release exist & disabled, need uninstall
-				err := helm.Uninstall(namespace, name)
-				if err != nil {
-					addFailResult(result, fmt.Sprintf("helm uninstall fail, %v", err))
-					continue
-				}
-				addSuccessResult(result, "helm uninstall success")
-			} else {
-				// release exist & enabled, need upgrade
-				envs, err := YamlStringToJson(c.Env)
-				if err != nil {
-					addFailResult(result, fmt.Sprintf("parse env yaml fail, %v", err))
-					continue
-				}
-				// get release values
-				values, err := helm.GetValues(namespace, name)
-				if err != nil {
-					addFailResult(result, fmt.Sprintf("helm get values fail, %v", err))
-					continue
-				}
-				if JudgeJsonEqual(envs, values) {
+			log.Info("install helm chart (%v/%v)", name, namespace)
+			_, err = helm.Install(namespace, name, c.PkgName, envs)
+			if err != nil {
+				log.Info("install helm chart (%v/%v) failed: %v", name, namespace, err)
+				addFailResult(result, fmt.Sprintf("helm install fail, %v", err))
+				continue
+			}
+			addSuccessResult(result, "helm install success")
+		case isReleaseExist && c.Status != enabled: // release exist & disabled, need uninstall
+			log.Info("uninstall helm chart (%v/%v)", name, namespace)
+			err := helm.Uninstall(namespace, name)
+			if err != nil {
+				log.Info("uninstall helm chart (%v/%v) failed", name, namespace, err)
+				addFailResult(result, fmt.Sprintf("helm uninstall fail, %v", err))
+				continue
+			}
+			addSuccessResult(result, "helm uninstall success")
+		case isReleaseExist && c.Status == enabled: // release exist & enabled, need upgrade
+			envs, err := YamlStringToJson(c.Env)
+			if err != nil {
+				addFailResult(result, fmt.Sprintf("parse env yaml fail, %v", err))
+				continue
+			}
+			// get release values
+			values, err := helm.GetValues(namespace, name)
+			if err != nil {
+				addFailResult(result, fmt.Sprintf("helm get values fail, %v", err))
+				continue
+			}
+			if JudgeJsonEqual(envs, values) {
+				if release.Info.Status != helmrelease.StatusDeployed {
+					addSuccessResult(result, "release is existing but status not ok please check")
+				} else {
 					addSuccessResult(result, "release is running")
-					continue
 				}
-				_, err = helm.Upgrade(namespace, name, c.PkgName, envs)
-				if err != nil {
-					addFailResult(result, fmt.Sprintf("helm upgrade fail, %v", err))
-					continue
-				}
-				addSuccessResult(result, "upgrade success")
+				continue
 			}
+			log.Info("upgrade helm chart (%v/%v)", name, namespace)
+			_, err = helm.Upgrade(namespace, name, c.PkgName, envs)
+			if err != nil {
+				log.Info("upgrade helm chart (%v/%v) failed", name, namespace, err)
+				addFailResult(result, fmt.Sprintf("helm upgrade fail, %v", err))
+				continue
+			}
+			addSuccessResult(result, "upgrade success")
 		}
 	}
 
+	// set final status phase of hotplug
 	phase := success
 	for _, r := range results {
 		if r.Result == fail {
 			phase = fail
 			continue
 		}
-		if !h.isMemberCluster {
-			updateConfigMap(ctx, h.Client, r)
+	}
+
+	// update feature configmap if need
+	if !h.isMemberCluster {
+		if err := updateConfigMap(ctx, h.Client, results); err != nil {
+			log.Warn("update feature config failed and will keep retry: %v", err)
+			return ctrl.Result{}, err
 		}
 	}
 
@@ -216,7 +221,7 @@ func (h *HotplugReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	commonConfig.Status.Results = results
 	err := h.Client.Status().Update(ctx, &commonConfig)
 	if err != nil {
-		log.Error("update common hotplug fail, %v", err)
+		log.Warn("update common hotplug fail and will keep retry: %v", err)
 		return ctrl.Result{}, err
 	}
 	if req.Name == utils.Cluster {
@@ -224,7 +229,7 @@ func (h *HotplugReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		clusterConfig.Status.Results = results
 		err := h.Client.Status().Update(ctx, &clusterConfig)
 		if err != nil {
-			log.Error("update cluster %v hotplug fail, %v", req.Name, err)
+			log.Warn("update cluster %v hotplug fail and will keep retry: %v", req.Name, err)
 			return ctrl.Result{}, err
 		}
 	}
