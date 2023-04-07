@@ -116,7 +116,7 @@ func impeachUserAdmin(user *v1.User) {
 	clog.Info("impeach platform admin of user %v", user.Name)
 }
 
-func updateUserStatus(ctx context.Context, cli client.Client, user *v1.User) error {
+func updateUserStatus(ctx context.Context, cli client.Client, user *v1.User, scope string) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		newUser := &v1.User{}
 		err := cli.Get(ctx, types.NamespacedName{Name: user.Name}, newUser)
@@ -124,7 +124,14 @@ func updateUserStatus(ctx context.Context, cli client.Client, user *v1.User) err
 			return err
 		}
 
-		newUser.Status = user.Status
+		switch scope {
+		case constants.ClusterRolePlatform:
+			newUser.Status.PlatformAdmin = user.Status.PlatformAdmin
+		case constants.ClusterRoleTenant:
+			newUser.Status.BelongTenants = user.Status.BelongTenants
+		case constants.ClusterRoleProject:
+			newUser.Status.BelongProjects = user.Status.BelongProjects
+		}
 
 		err = cli.Status().Update(ctx, newUser)
 		if err != nil {
