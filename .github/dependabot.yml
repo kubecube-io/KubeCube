@@ -2,7 +2,7 @@
 
 version: 2
 updates:
-  - package-ecosystem: "vendor"
+  - package-ecosystem: "bundler"
     directory: "/"
     schedule:
       interval: "daily"
