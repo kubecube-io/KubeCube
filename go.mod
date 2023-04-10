@@ -33,7 +33,7 @@ require (
 	golang.org/x/net v0.0.0-20220906165146-f3363e06e74c
 	gopkg.in/asn1-ber.v1 v1.0.0-20181015200546-f715ec2f112d // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
-	helm.sh/helm/v3 v3.5.0
+	helm.sh/helm/v3 v3.5.2
 	k8s.io/api v0.23.2
 	k8s.io/apiextensions-apiserver v0.23.2
 	k8s.io/apimachinery v0.23.2
@@ -42,10 +42,9 @@ require (
 	k8s.io/client-go v0.23.2
 	k8s.io/klog/v2 v2.30.0
 	k8s.io/kubectl v0.20.5
-	k8s.io/kubernetes v1.13.0
+	k8s.io/kubernetes v1.20.6
 	k8s.io/metrics v0.20.6
 	k8s.io/sample-controller v0.20.4
-	rsc.io/letsencrypt v0.0.3 // indirect
 	sigs.k8s.io/controller-runtime v0.11.0
 	sigs.k8s.io/hierarchical-namespaces v1.0.0
 	sigs.k8s.io/yaml v1.3.0
@@ -53,6 +52,8 @@ require (
 
 replace (
 	github.com/containerd/containerd => github.com/containerd/containerd v1.4.11
+	github.com/docker/distribution => github.com/docker/distribution v0.0.0-20191216044856-a8371794149d
+	github.com/docker/docker => github.com/moby/moby v17.12.0-ce-rc1.0.20200618181300-9dc6525e6118+incompatible
 	// we must controll pkg version manually see issues: https://github.com/kubernetes/client-go/issues/874
 	github.com/go-logr/logr => github.com/go-logr/logr v0.4.0
 	k8s.io/api => k8s.io/api v0.20.6

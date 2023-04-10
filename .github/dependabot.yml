@@ -2,8 +2,8 @@
 
 version: 2
 updates:
-  - package-ecosystem: "gomod"
+  - package-ecosystem: "vendor"
     directory: "/"
     schedule:
       interval: "daily"
-    target-branch: "fix-dependence"
+    target-branch: "master"
