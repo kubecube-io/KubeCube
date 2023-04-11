@@ -1,9 +1,13 @@
-# Specify a non-default branch for pull requests for pip
-
 version: 2
 updates:
   - package-ecosystem: "bundler"
     directory: "/"
     schedule:
       interval: "daily"
-    target-branch: "master"
+    target-branch: "main"
+
+  - package-ecosystem: "bundler"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    target-branch: "security-dependence"
