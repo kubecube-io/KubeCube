@@ -21,7 +21,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	uuid "github.com/satori/go.uuid"
+	uuid "github.com/google/uuid"
 	"k8s.io/api/authentication/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -239,7 +239,6 @@ func GetTokenByKey(c *gin.Context) {
 }
 
 func GetUUID() string {
-	uuid := uuid.NewV4().String()
-
-	return strings.ReplaceAll(uuid, "-", "")
+	s := uuid.NewString()
+	return strings.ReplaceAll(s, "-", "")
 }
