@@ -18,11 +18,11 @@ package controllers
 
 import (
 	"context"
-
+	"github.com/kubecube-io/kubecube/pkg/clog"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -31,12 +31,19 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/options"
 )
 
+const (
+	// labelRelationship mark a RoleBinding or ClusterRoleBindings belongs
+	labelRelationship = "user.kubecube.io/relationship"
+
+	// finalizerUser is used to clean up RoleBindings or ClusterRoleBindings which are under scope bindings
+	finalizerUser = "user.finalizers.kubecube.io"
+)
+
 var _ reconcile.Reconciler = &UserReconciler{}
 
 // UserReconciler reconciles a User object
 type UserReconciler struct {
 	client.Client
-	Log    logr.Logger
 	Scheme *runtime.Scheme
 }
 
@@ -61,23 +68,40 @@ func newReconciler(mgr manager.Manager) (*UserReconciler, error) {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.0/pkg/reconcile
 func (r *UserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	user := &userv1.User{}
+
+	err := r.Get(ctx, req.NamespacedName, user)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// delete binding
+			return ctrl.Result{}, nil
+		}
+		clog.Error("get user %v failed: %v", req.Name, err)
+		return ctrl.Result{}, err
+	}
+
+	return r.syncUser(ctx, user)
+}
+
+func (r *UserReconciler) syncUser(ctx context.Context, user *userv1.User) (ctrl.Result, error) {
+	calculateUserRelationShip(user)
+
+	err := r.updateUserRelationship(user)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	return ctrl.Result{}, nil
+}
+
+func (r *UserReconciler) updateUserRelationship(user *userv1.User) error {
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func SetupWithManager(mgr ctrl.Manager, _ *options.Options) error {
 	r, err := newReconciler(mgr)
 	if err != nil {
-		return err
-	}
-
-	// todo: register index func here
-	const userIndexKey = "todo"
-
-	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &userv1.User{}, userIndexKey, func(rawObj client.Object) []string {
-		_ = rawObj.(*userv1.User)
-		return nil
-	}); err != nil {
 		return err
 	}
 

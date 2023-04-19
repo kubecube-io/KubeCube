@@ -246,3 +246,13 @@ const (
 	UnknownPodStatus     = "Unknown"
 	TerminatingPodStatus = "Terminating"
 )
+
+const (
+	TrueStr  = "true"
+	FalseStr = "false"
+)
+
+const (
+	// LabelRelationship mark a RoleBinding or ClusterRoleBindings belongs
+	LabelRelationship = "user.kubecube.io/relationship"
+)
