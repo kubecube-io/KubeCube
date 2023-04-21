@@ -35,6 +35,7 @@ func DeepHashObject(hasher hash.Hash, objectToWrite interface{}) {
 
 // GenerateBindingName will generate ClusterRoleBinding name or RoleBinding name.
 // sample: {userName}-{hash}
+// todo: checkout name
 func GenerateBindingName(user, role, namespace string) string {
 	var bindingName string
 	if len(namespace) == 0 {

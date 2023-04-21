@@ -20,9 +20,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kubecube-io/kubecube/pkg/clog"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-	"github.com/kubecube-io/kubecube/pkg/utils/hash"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -42,7 +39,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
+	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/options"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/hash"
 )
 
 const (
@@ -91,7 +91,6 @@ func (r *UserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	}
 
 	// user cr lifecycle is under warden control
-	// todo:// consider what if deletion happened in control plane
 	if user.DeletionTimestamp == nil {
 		if err := r.ensureFinalizer(ctx, user); err != nil {
 			return ctrl.Result{}, err
@@ -118,22 +117,73 @@ func (r *UserReconciler) syncUser(ctx context.Context, user *userv1.User) (ctrl.
 
 // refreshBindings refresh related RoleBindings under binding scope.
 func (r *UserReconciler) refreshBindings(ctx context.Context, user *userv1.User) error {
-	var errs []error
+	var (
+		errs                  []error
+		needGenTenantBinding  bool
+		needGenProjectBinding bool
+	)
+
 	// ignore any errors happen in refreshing, return all errors if had.
 	for _, binding := range user.Spec.ScopeBindings {
 		if binding.ScopeType == userv1.PlatformScope {
 			errs = append(errs, r.refreshPlatformBinding(ctx, user.Name, binding))
 		}
-		if binding.ScopeType == userv1.TenantScope || binding.ScopeType == userv1.ProjectScope {
+		if binding.ScopeType == userv1.TenantScope {
+			needGenTenantBinding = true
+			errs = append(errs, r.refreshNsBinding(ctx, user.Name, binding))
+		}
+		if binding.ScopeType == userv1.ProjectScope {
+			needGenProjectBinding = true
 			errs = append(errs, r.refreshNsBinding(ctx, user.Name, binding))
 		}
 	}
+
+	if needGenTenantBinding {
+		errs = append(errs, r.generateClusterRoleBinding(ctx, user.Name, userv1.TenantScope))
+	}
+
+	if needGenProjectBinding {
+		errs = append(errs, r.generateClusterRoleBinding(ctx, user.Name, userv1.ProjectScope))
+	}
+
 	if len(errs) > 0 {
 		// any error occurs when refreshing bindings will do retry
 		return utilerrors.NewAggregate(errs)
 	}
 
 	return nil
+}
+
+// generateClusterRoleBinding will generate default build-in ClusterRoleBinding for user who belongs to tenant or project.
+func (r *UserReconciler) generateClusterRoleBinding(ctx context.Context, user string, scopeType userv1.BindingScopeType) error {
+	clusterRoleBinding := &v1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{
+				constants.RbacLabel:         constants.TrueStr,
+				constants.LabelRelationship: user,
+			},
+		},
+		Subjects: []v1.Subject{{
+			APIGroup: constants.K8sGroupRBAC,
+			Kind:     "User",
+			Name:     user,
+		}},
+		RoleRef: v1.RoleRef{
+			APIGroup: constants.K8sGroupRBAC,
+			Kind:     constants.K8sKindClusterRole,
+		},
+	}
+
+	if scopeType == userv1.TenantScope {
+		clusterRoleBinding.RoleRef.Name = constants.TenantAdminCluster
+	}
+	if scopeType == userv1.ProjectScope {
+		clusterRoleBinding.RoleRef.Name = constants.ProjectNsPrefix
+	}
+
+	clusterRoleBinding.Name = "gen-" + hash.GenerateBindingName(user, clusterRoleBinding.RoleRef.Name, "")
+
+	return ignoreAlreadyExistErr(r.Create(ctx, clusterRoleBinding))
 }
 
 // refreshNsBinding refresh the RoleBinding of tenant or project under current cluster.
@@ -148,14 +198,8 @@ func (r *UserReconciler) refreshNsBinding(ctx context.Context, user string, bind
 		constants.LabelRelationship: user,
 	}
 
-	if binding.ScopeType == userv1.TenantScope {
-		lb[constants.TenantLabel] = binding.ScopeName
-	}
-	if binding.ScopeType == userv1.ProjectScope {
-		lb[constants.ProjectLabel] = binding.ScopeName
-	}
-
 	var errs []error
+
 	for _, ns := range namespaces {
 		b := &v1.RoleBinding{
 			ObjectMeta: metav1.ObjectMeta{

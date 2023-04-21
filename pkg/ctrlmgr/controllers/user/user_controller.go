@@ -18,7 +18,7 @@ package controllers
 
 import (
 	"context"
-	"github.com/kubecube-io/kubecube/pkg/clog"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -28,15 +28,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
+	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/options"
-)
-
-const (
-	// labelRelationship mark a RoleBinding or ClusterRoleBindings belongs
-	labelRelationship = "user.kubecube.io/relationship"
-
-	// finalizerUser is used to clean up RoleBindings or ClusterRoleBindings which are under scope bindings
-	finalizerUser = "user.finalizers.kubecube.io"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
 var _ reconcile.Reconciler = &UserReconciler{}
@@ -73,29 +67,34 @@ func (r *UserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	err := r.Get(ctx, req.NamespacedName, user)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			// delete binding
 			return ctrl.Result{}, nil
 		}
 		clog.Error("get user %v failed: %v", req.Name, err)
 		return ctrl.Result{}, err
 	}
 
-	return r.syncUser(ctx, user)
-}
-
-func (r *UserReconciler) syncUser(ctx context.Context, user *userv1.User) (ctrl.Result, error) {
 	calculateUserRelationShip(user)
 
-	err := r.updateUserRelationship(user)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
+	err = r.Status().Update(ctx, user)
 
-	return ctrl.Result{}, nil
+	// use reconcile retry if we met error
+	return ctrl.Result{}, err
 }
 
-func (r *UserReconciler) updateUserRelationship(user *userv1.User) error {
-	return nil
+// calculateUserRelationShip calculates user relationship by scope bindings.
+func calculateUserRelationShip(user *userv1.User) {
+	for _, binding := range user.Spec.ScopeBindings {
+		switch binding.ScopeType {
+		case userv1.PlatformScope:
+			if binding.ScopeName == constants.PlatformAdmin {
+				user.Status.PlatformAdmin = true
+			}
+		case userv1.TenantScope:
+			user.Status.BelongTenants = append(user.Status.BelongTenants, binding.ScopeName)
+		case userv1.ProjectScope:
+			user.Status.BelongProjects = append(user.Status.BelongProjects, binding.ScopeName)
+		}
+	}
 }
 
 // SetupWithManager sets up the controller with the Manager.
