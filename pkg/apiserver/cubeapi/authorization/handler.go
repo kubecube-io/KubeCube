@@ -271,15 +271,13 @@ func (h *handler) getRolesByUser(c *gin.Context) {
 		if ns != "" {
 			r, err = getRolesByNs(c.Request.Context(), h.Client, ns)
 			if err != nil {
-				clog.Error(err.Error())
-				response.FailReturn(c, errcode.InternalServerError)
+				response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 				return
 			}
 		} else {
 			r, err = getAllRoles(c.Request.Context(), h.Client)
 			if err != nil {
-				clog.Error(err.Error())
-				response.FailReturn(c, errcode.InternalServerError)
+				response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 				return
 			}
 		}
@@ -289,15 +287,13 @@ func (h *handler) getRolesByUser(c *gin.Context) {
 
 	user, err := h.GetUser(userName)
 	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 		return
 	}
 
 	roles, clusterRoles, err := h.RolesFor(rbac.User2UserInfo(user.Name), ns)
 	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 		return
 	}
 
@@ -356,8 +352,7 @@ func (h *handler) getUsersByRole(c *gin.Context) {
 
 	users, err := h.UsersFor(role, ns)
 	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 		return
 	}
 
@@ -396,8 +391,7 @@ func (h *handler) getTenantByUser(c *gin.Context) {
 
 	tenants, err := getAccessTenants(h.Interface, user, cli, ctx, auth)
 	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 		return
 	}
 
@@ -434,8 +428,7 @@ func (h *handler) getProjectByUser(c *gin.Context) {
 
 	projects, err := getAccessProjects(h.Interface, user, cli, ctx, tenant, auth)
 	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 		return
 	}
 
@@ -531,8 +524,7 @@ func (h *handler) createBinds(c *gin.Context) {
 			response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 			return
 		}
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 		return
 	}
 
@@ -540,11 +532,10 @@ func (h *handler) createBinds(c *gin.Context) {
 		err = cli.Direct().Create(ctx, clusterRoleBinding)
 		if err != nil {
 			if errors.IsAlreadyExists(err) {
-				response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
+				response.FailReturn(c, errcode.AlreadyExist(clusterRoleBinding.Name))
 				return
 			}
-			clog.Error(err.Error())
-			response.FailReturn(c, errcode.InternalServerError)
+			response.FailReturn(c, errcode.BadRequest(err))
 			return
 		}
 	}
@@ -610,8 +601,7 @@ func (h *handler) deleteBinds(c *gin.Context) {
 			if errors.IsNotFound(err) {
 				clog.Warn(err.Error())
 			} else {
-				clog.Error(err.Error())
-				response.FailReturn(c, errcode.InternalServerError)
+				response.FailReturn(c, errcode.BadRequest(err))
 				return
 			}
 		}
@@ -619,8 +609,7 @@ func (h *handler) deleteBinds(c *gin.Context) {
 
 	err = cli.ClientSet().RbacV1().RoleBindings(key.Namespace).Delete(ctx, key.Name, v1.DeleteOptions{})
 	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.BadRequest(err))
 		return
 	}
 
@@ -640,7 +629,7 @@ func (h *handler) getClusterRolesByLevel(c *gin.Context) {
 
 	labelSelector, err := labels.Parse(fmt.Sprintf("%v=%v", constants.RoleLabel, level))
 	if err != nil {
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.ParamsInvalid(fmt.Errorf("level:%v", level)))
 		return
 	}
 
@@ -711,8 +700,7 @@ func (h *handler) authorization(c *gin.Context) {
 	rbacResolver := &rbac.DefaultResolver{Cache: cli.Cache()}
 	d, _, err := rbacResolver.Authorize(c.Request.Context(), record)
 	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.BadRequest(err))
 		return
 	}
 
@@ -768,8 +756,7 @@ func (h *handler) resourcesGate(c *gin.Context) {
 		}
 		d, _, err := r.Authorize(c.Request.Context(), record)
 		if err != nil {
-			clog.Error(err.Error())
-			response.FailReturn(c, errcode.InternalServerError)
+			response.FailReturn(c, errcode.BadRequest(err))
 			return
 		}
 		result[info.Resource] = d == authorizer.DecisionAllow

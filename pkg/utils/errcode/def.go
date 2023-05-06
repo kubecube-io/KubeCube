@@ -40,6 +40,9 @@ var (
 	invalidResourceType = &ErrorInfo{http.StatusBadRequest, "resource type param error."}
 	invalidHttpMethod   = &ErrorInfo{http.StatusBadRequest, "not match http method."}
 	badRequest          = &ErrorInfo{http.StatusBadRequest, "bad request. %s"}
+	alreadyExist        = &ErrorInfo{http.StatusConflict, "resources %v already exist"}
+	paramsInvalid       = &ErrorInfo{http.StatusBadRequest, "params invalid, %v"}
+
 	// The first parameter is the parameter name, the second parameter is the parameter value, such as ID 111 already exists
 	paramNotUnique      = &ErrorInfo{http.StatusBadRequest, "%s %s exists."}
 	invalidParamValue   = &ErrorInfo{http.StatusBadRequest, "Param %s value invalid."}

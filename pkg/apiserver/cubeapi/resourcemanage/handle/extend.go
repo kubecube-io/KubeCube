@@ -150,7 +150,7 @@ func GetPodContainerLog(c *gin.Context) {
 func GetFeatureConfig(c *gin.Context) {
 	cli := clients.Interface().Kubernetes(constants.LocalCluster)
 	if cli == nil {
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.BadRequest(nil))
 		return
 	}
 
@@ -163,7 +163,7 @@ func GetFeatureConfig(c *gin.Context) {
 			response.FailReturn(c, errcode.CustomReturn(http.StatusNotFound, "configmap(%v/%v) not found", key.Namespace, key.Name))
 			return
 		}
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.BadRequest(err))
 		return
 	}
 
@@ -181,7 +181,7 @@ func GetConfigMap(c *gin.Context) {
 
 	cli := clients.Interface().Kubernetes(constants.LocalCluster)
 	if cli == nil {
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.BadRequest(nil))
 		return
 	}
 
@@ -194,7 +194,7 @@ func GetConfigMap(c *gin.Context) {
 			response.FailReturn(c, errcode.CustomReturn(http.StatusNotFound, "configmap(%v/%v) not found", key.Namespace, key.Name))
 			return
 		}
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.BadRequest(err))
 		return
 	}
 
@@ -214,24 +214,22 @@ func IngressDomainSuffix(c *gin.Context) {
 	cluster := clusterv1.Cluster{}
 	err := client.Cache().Get(c, types.NamespacedName{Name: clusterName}, &cluster)
 	if err != nil {
-		clog.Error("get cluster failed: %v", err)
 		if errors.IsNotFound(err) {
 			response.FailReturn(c, errcode.ClusterNotFoundError(clusterName))
 			return
 		}
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.BadRequest(err))
 		return
 	}
 
 	project := tenantv1.Project{}
 	err = client.Cache().Get(c, types.NamespacedName{Name: projectName}, &project)
 	if err != nil {
-		clog.Error("get project failed: %v", err)
 		if errors.IsNotFound(err) {
 			response.FailReturn(c, errcode.CustomReturn(http.StatusNotFound, "project(%v) not found", projectName))
 			return
 		}
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.BadRequest(err))
 		return
 	}
 

@@ -448,8 +448,7 @@ func DownloadTemplate(c *gin.Context) {
 		{"ZhangSan", "ZhangSun12345", "ZhangSan", "zhangsan@163.com", "17609873452"},
 	}
 	if err := wr.WriteAll(data); err != nil {
-		clog.Error("write user template file error: %s", err)
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.BadRequest(fmt.Errorf("write user template file error: %s", err)))
 		return
 	}
 	// clear
@@ -586,8 +585,7 @@ func GetKubeConfig(c *gin.Context) {
 
 	kubeConfig, err := kubeconfig.BuildKubeConfigForUser(cms)
 	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.BadRequest(err))
 	}
 
 	if mode == "file" {
@@ -617,8 +615,7 @@ func GetMembersByNS(c *gin.Context) {
 	roleBindingList := v1.RoleBindingList{}
 	err := cli.Cache().List(ctx, &roleBindingList, &client.ListOptions{Namespace: ns})
 	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.BadRequest(err))
 		return
 	}
 
