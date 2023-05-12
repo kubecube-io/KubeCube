@@ -69,10 +69,10 @@ func SortHandler(items []unstructured.Unstructured, param *SortParam) ([]unstruc
 			if err != nil {
 				return false
 			}
-			if param.sortFunc == "asc" {
-				return strings.Compare(before, after) < 0
+			if param.sortOrder == "asc" {
+				return strings.Compare(before, after) != 1
 			} else {
-				return strings.Compare(before, after) > 0
+				return strings.Compare(before, after) == 1
 			}
 		case "time":
 			before, after, err := getStringFunc(items, i, j)
@@ -109,9 +109,9 @@ func SortHandler(items []unstructured.Unstructured, param *SortParam) ([]unstruc
 				return false
 			}
 			if param.sortOrder == "asc" {
-				return strings.Compare(before, after) < 0
+				return strings.Compare(before, after) != 1
 			} else {
-				return strings.Compare(before, after) > 0
+				return strings.Compare(before, after) == 1
 			}
 		}
 	})
