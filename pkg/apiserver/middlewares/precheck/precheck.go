@@ -38,7 +38,7 @@ func PreCheck() gin.HandlerFunc {
 			_, err := multicluster.Interface().Get(cluster)
 			if err != nil {
 				clog.Warn("cluster %v unhealthy, err: %v", cluster, err.Error())
-				response.FailReturn(c, errcode.CustomReturn(http.StatusInternalServerError, "cluster %v unhealthy", cluster))
+				response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, "cluster %v unhealthy", cluster))
 				return
 			}
 		}
