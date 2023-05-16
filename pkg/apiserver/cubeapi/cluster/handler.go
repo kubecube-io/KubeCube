@@ -20,6 +20,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -198,6 +199,10 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 		return
 	}
 
+	sort.SliceStable(infos, func(i, j int) bool {
+		return infos[i].CreateTime.Before(infos[j].CreateTime)
+	})
+
 	if infos != nil {
 		res := result{
 			Total: len(infos),
@@ -300,6 +305,10 @@ func (h *handler) getClusterNames(c *gin.Context) {
 	} else {
 		clusterNames = listClusterNames()
 	}
+
+	sort.SliceStable(clusterNames, func(i, j int) bool {
+		return clusterNames[i] < clusterNames[j]
+	})
 
 	res := map[string]interface{}{
 		"total": len(clusterNames),
@@ -491,6 +500,10 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 			}
 		}
 	}
+
+	sort.SliceStable(items, func(i, j int) bool {
+		return items[i].NamespaceBody.CreationTimestamp.Time.Before(items[j].NamespaceBody.CreationTimestamp.Time)
+	})
 
 	res := map[string]interface{}{
 		"total": len(items),
