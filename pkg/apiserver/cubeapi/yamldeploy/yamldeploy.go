@@ -17,9 +17,9 @@ limitations under the License.
 package yamldeploy
 
 import (
+	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
 
 	"github.com/gin-gonic/gin"
 	corev1 "k8s.io/api/core/v1"
@@ -45,8 +45,14 @@ import (
 
 var metadataAccessor = meta.NewAccessor()
 
+type yamlDeployPayload struct {
+	Yaml string `json:"yaml"`
+}
+
 func Deploy(c *gin.Context) {
 	dryRun := c.Query("dryRun")
+
+	username := c.GetString(constants.UserName)
 
 	// get cluster info
 	clusterName := c.Param("cluster")
@@ -57,56 +63,64 @@ func Deploy(c *gin.Context) {
 		return
 	}
 
-	// decode body
-	body, err := ioutil.ReadAll(c.Request.Body)
-	if err != nil {
-		response.FailReturn(c, errcode.InvalidBodyFormat)
-		return
-	}
-	bodyJson, err := yaml.YAMLToJSON(body)
-	if err != nil {
-		response.FailReturn(c, errcode.InvalidBodyFormat)
-		return
-	}
-	obj, gvk, err := unstructured.UnstructuredJSONScheme.Decode(bodyJson, nil, nil)
-	if err != nil {
-		response.FailReturn(c, errcode.InvalidBodyFormat)
-		return
-	}
-
-	// new RestClient
-	restClient, err := NewRestClient(cluster.Config, gvk)
+	payload := &yamlDeployPayload{}
+	err := c.ShouldBindJSON(payload)
 	if err != nil {
 		response.FailReturn(c, errcode.BadRequest(err))
 		return
 	}
 
-	// init mapping
-	restMapping, err := InitRestMapper(cluster.Client, gvk)
-	if err != nil {
-		errInfo := err.Error()
-		response.FailReturn(c, errcode.CreateMappingError(errInfo))
-		return
+	body := []byte(payload.Yaml)
+
+	// split yaml resources by "---"
+	objs := bytes.Split(body, []byte("---"))
+	for _, obj := range objs {
+		// trim spaces and newline
+		trimmedObj := bytes.TrimSpace(obj)
+
+		bodyJson, err := yaml.YAMLToJSON(trimmedObj)
+		if err != nil {
+			response.FailReturn(c, errcode.InvalidBodyFormat)
+			return
+		}
+		obj, gvk, err := unstructured.UnstructuredJSONScheme.Decode(bodyJson, nil, nil)
+		if err != nil {
+			response.FailReturn(c, errcode.InvalidBodyFormat)
+			return
+		}
+
+		// new RestClient
+		restClient, err := NewRestClient(cluster.Config, gvk)
+		if err != nil {
+			response.FailReturn(c, errcode.BadRequest(err))
+			return
+		}
+
+		// init mapping
+		restMapping, err := InitRestMapper(cluster.Client, gvk)
+		if err != nil {
+			response.FailReturn(c, errcode.CreateMappingError(err.Error()))
+			return
+		}
+
+		// get namespace
+		namespace, err := metadataAccessor.Namespace(obj)
+		if err != nil {
+			response.FailReturn(c, errcode.MissNamespaceInObj)
+			return
+		}
+
+		c = audit.SetAuditInfo(c, audit.YamlDeploy, fmt.Sprintf("%s/%s", namespace, restMapping.Resource.String()))
+
+		// create
+		_, err = CreateByRestClient(restClient, restMapping, namespace, dryRun, obj, username)
+		if err != nil {
+			response.FailReturn(c, errcode.DeployYamlError(err.Error()))
+			return
+		}
 	}
 
-	// get namespace
-	namespace, err := metadataAccessor.Namespace(obj)
-	if err != nil {
-		response.FailReturn(c, errcode.MissNamespaceInObj)
-		return
-	}
-
-	c = audit.SetAuditInfo(c, audit.YamlDeploy, fmt.Sprintf("%s/%s", namespace, restMapping.Resource.String()))
-
-	username := c.GetString(constants.UserName)
-	// create
-	result, err := CreateByRestClient(restClient, restMapping, namespace, dryRun, obj, username)
-	if err != nil {
-		response.FailReturn(c, errcode.DeployYamlError(err.Error()))
-		return
-	}
-
-	response.SuccessReturn(c, result)
+	response.SuccessReturn(c, nil)
 }
 
 func CreateByRestClient(restClient *rest.RESTClient, mapping *meta.RESTMapping, namespace string, dryRun string, obj runtime.Object, username string) (runtime.Object, error) {

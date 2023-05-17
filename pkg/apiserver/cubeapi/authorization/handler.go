@@ -474,7 +474,7 @@ func (h *handler) getTenantByUser(c *gin.Context) {
 	}
 
 	sort.SliceStable(res, func(i, j int) bool {
-		return res[i].CreationTimestamp.Time.Before(res[j].CreationTimestamp.Time)
+		return res[i].CreationTimestamp.Time.After(res[j].CreationTimestamp.Time)
 	})
 
 	response.SuccessReturn(c, result{Total: len(res), Items: res})
@@ -547,7 +547,7 @@ func (h *handler) getProjectByUser(c *gin.Context) {
 	}
 
 	sort.SliceStable(res, func(i, j int) bool {
-		return res[i].CreationTimestamp.Time.Before(res[j].CreationTimestamp.Time)
+		return res[i].CreationTimestamp.Time.After(res[j].CreationTimestamp.Time)
 	})
 
 	response.SuccessReturn(c, result{Total: len(res), Items: res})
