@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -483,6 +484,10 @@ func (h *handler) getTenantByUser(c *gin.Context) {
 		res = append(res, t)
 	}
 
+	sort.SliceStable(res, func(i, j int) bool {
+		return res[i].CreationTimestamp.Time.Before(res[j].CreationTimestamp.Time)
+	})
+
 	response.SuccessReturn(c, result{Total: len(res), Items: res})
 }
 
@@ -553,6 +558,10 @@ func (h *handler) getProjectByUser(c *gin.Context) {
 			res = append(res, p)
 		}
 	}
+
+	sort.SliceStable(res, func(i, j int) bool {
+		return res[i].CreationTimestamp.Time.Before(res[j].CreationTimestamp.Time)
+	})
 
 	response.SuccessReturn(c, result{Total: len(res), Items: res})
 }
