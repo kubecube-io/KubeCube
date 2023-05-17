@@ -78,6 +78,11 @@ func Deploy(c *gin.Context) {
 		// trim spaces and newline
 		trimmedObj := bytes.TrimSpace(obj)
 
+		// skip empty object
+		if len(trimmedObj) == 0 {
+			continue
+		}
+
 		bodyJson, err := yaml.YAMLToJSON(trimmedObj)
 		if err != nil {
 			response.FailReturn(c, errcode.InvalidBodyFormat)
