@@ -77,7 +77,7 @@ func Deploy(c *gin.Context) {
 	// new RestClient
 	restClient, err := NewRestClient(cluster.Config, gvk)
 	if err != nil {
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.BadRequest(err))
 		return
 	}
 

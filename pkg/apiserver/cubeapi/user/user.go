@@ -331,7 +331,7 @@ func CheckAndCompleteCreateParam(c *gin.Context) (*userv1.User, *errcode.ErrorIn
 		matched, err := regexp.Match(phonePatterns, []byte(strings.TrimSpace(phone)))
 		if err != nil {
 			clog.Error("regular match user phone error: %s", err)
-			return user, errcode.InternalServerError
+			return user, errcode.BadRequest(err)
 		} else if !matched {
 			return user, errcode.InvalidParameterPhone
 		}
@@ -344,7 +344,7 @@ func CheckAndCompleteCreateParam(c *gin.Context) (*userv1.User, *errcode.ErrorIn
 		matched, err := regexp.Match(emailPattern, []byte(strings.TrimSpace(email)))
 		if err != nil {
 			clog.Error("regular match user email error: %s", err)
-			return user, errcode.InternalServerError
+			return user, errcode.BadRequest(err)
 		} else if !matched {
 			return user, errcode.InvalidParameterEmail
 		}
@@ -402,7 +402,7 @@ func CheckUpdateParam(newUser *userv1.User, originUser *userv1.User) (*userv1.Us
 		matched, err := regexp.Match(emailPattern, []byte(strings.TrimSpace(newEmail)))
 		if err != nil {
 			clog.Error("regular match user email error: %s", err)
-			return originUser, errcode.InternalServerError
+			return originUser, errcode.BadRequest(err)
 		} else if !matched {
 			return originUser, errcode.InvalidParameterEmail
 		}
@@ -415,7 +415,7 @@ func CheckUpdateParam(newUser *userv1.User, originUser *userv1.User) (*userv1.Us
 		matched, err := regexp.Match(phonePatterns, []byte(strings.TrimSpace(newPhone)))
 		if err != nil {
 			clog.Error("regular match user phone error: %s", err)
-			return originUser, errcode.InternalServerError
+			return originUser, errcode.BadRequest(err)
 		} else if !matched {
 			return originUser, errcode.InvalidParameterPhone
 		}
@@ -448,8 +448,7 @@ func DownloadTemplate(c *gin.Context) {
 		{"ZhangSan", "ZhangSun12345", "ZhangSan", "zhangsan@163.com", "17609873452"},
 	}
 	if err := wr.WriteAll(data); err != nil {
-		clog.Error("write user template file error: %s", err)
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.BadRequest(fmt.Errorf("write user template file error: %s", err)))
 		return
 	}
 	// clear
@@ -586,8 +585,7 @@ func GetKubeConfig(c *gin.Context) {
 
 	kubeConfig, err := kubeconfig.BuildKubeConfigForUser(cms)
 	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.BadRequest(err))
 	}
 
 	if mode == "file" {
@@ -617,8 +615,7 @@ func GetMembersByNS(c *gin.Context) {
 	roleBindingList := v1.RoleBindingList{}
 	err := cli.Cache().List(ctx, &roleBindingList, &client.ListOptions{Namespace: ns})
 	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.BadRequest(err))
 		return
 	}
 
