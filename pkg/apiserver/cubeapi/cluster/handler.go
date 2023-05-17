@@ -31,14 +31,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	userinfo "k8s.io/apiserver/pkg/authentication/user"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
 
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
-	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
 	"github.com/kubecube-io/kubecube/pkg/authorizer/rbac"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
@@ -154,8 +152,7 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 		cluster := clusterv1.Cluster{}
 		err := cli.Cache().Get(ctx, key, &cluster)
 		if err != nil {
-			clog.Error("get cluster failed: %v", err)
-			response.FailReturn(c, errcode.InternalServerError)
+			response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, "get cluster failed: %v", err))
 			return
 		}
 		clusterList.Items = []clusterv1.Cluster{cluster}
@@ -163,8 +160,7 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 	case len(projectName) > 0:
 		clusters, err := getClustersByProject(ctx, projectName)
 		if err != nil {
-			clog.Error("get clusters by given project %v failed: %v", projectName, err)
-			response.FailReturn(c, errcode.InternalServerError)
+			response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, "get clusters by given project %v failed: %v", projectName, err))
 			return
 		}
 		clusterList = *clusters
@@ -173,8 +169,7 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 		clusters := clusterv1.ClusterList{}
 		err := cli.Cache().List(ctx, &clusters)
 		if err != nil {
-			clog.Error("list cluster failed: %v", err)
-			response.FailReturn(c, errcode.InternalServerError)
+			response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, "list cluster failed: %v", err))
 			return
 		}
 		clusterList = clusters
@@ -194,8 +189,7 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 
 	infos, err := makeClusterInfos(c.Request.Context(), clusterList, cli, opts)
 	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 		return
 	}
 
@@ -240,8 +234,7 @@ func (h *handler) getClusterMonitorInfo(c *gin.Context) {
 
 	info, err := makeMonitorInfo(c.Request.Context(), cluster)
 	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.CustomReturn(http.StatusInternalServerError, err.Error()))
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 		return
 	}
 
@@ -266,14 +259,13 @@ func (h *handler) getClusterLivedata(c *gin.Context) {
 
 	cli := clients.Interface().Kubernetes(cluster)
 	if cli == nil {
-		response.FailReturn(c, errcode.CustomReturn(http.StatusInternalServerError, "cluster %v abnormal", cluster))
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, "cluster %v abnormal", cluster))
 		return
 	}
 
 	info, err := makeLivedataInfo(c.Request.Context(), cli, cluster, clusterInfoOpts{nodeLabelSelector: selector})
 	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.CustomReturn(http.StatusInternalServerError, err.Error()))
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 		return
 	}
 
@@ -298,7 +290,7 @@ func (h *handler) getClusterNames(c *gin.Context) {
 	if len(namespace) > 0 {
 		clusters, err := getClustersByNamespace(namespace, ctx)
 		if err != nil {
-			response.FailReturn(c, errcode.InternalServerError)
+			response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 			return
 		}
 		clusterNames = clusters
@@ -344,8 +336,7 @@ func (h *handler) getClusterResource(c *gin.Context) {
 	nodes := v1.NodeList{}
 	err = cli.Cache().List(c.Request.Context(), &nodes, &client.ListOptions{LabelSelector: selector})
 	if err != nil {
-		clog.Error("get cluster %v nodes failed: %v", cluster, err)
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, "get cluster %v nodes failed: %v", cluster, err))
 	}
 
 	capacityCpu := quota.ZeroQ()
@@ -355,7 +346,7 @@ func (h *handler) getClusterResource(c *gin.Context) {
 	for _, v := range nodes.Items {
 		capacityCpu.Add(*v.Status.Capacity.Cpu())
 		capacityMem.Add(*v.Status.Capacity.Memory())
-		nodeGpu, ok := v.Status.Capacity[constants.GpuNvidia]
+		nodeGpu, ok := v.Status.Capacity[quota.ResourceNvidiaGPU]
 		if ok {
 			capacityGpu.Add(nodeGpu)
 		}
@@ -363,8 +354,7 @@ func (h *handler) getClusterResource(c *gin.Context) {
 
 	assignedCpu, assignedMem, assignedGpu, err := getAssignedResource(cli, cluster)
 	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 		return
 	}
 
@@ -398,7 +388,6 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 		NamespaceBody v1.Namespace `json:"namespaceBody"`
 	}
 
-	fuzzyName := c.Query("fuzzyname")
 	tenantArray := c.Query("tenant")
 	tenantList := strings.Split(tenantArray, "|")
 	if len(tenantArray) == 0 {
@@ -411,17 +400,6 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 	if len(user) == 0 {
 		user = c.GetString(constants.UserName)
 	}
-
-	userImpl := userv1.User{}
-	err := h.Client.Cache().Get(ctx, types.NamespacedName{Name: user}, &userImpl)
-	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.CustomReturn(http.StatusNotFound, err.Error()))
-		return
-	}
-
-	tenantSet := sets.NewString(userImpl.Status.BelongTenants...)
-	projectSet := sets.NewString(userImpl.Status.BelongProjects...)
 
 	// list all hnc managed namespaces
 	listFunc := func(cli mgrclient.Client) (v1.NamespaceList, error) {
@@ -461,8 +439,7 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 		cli := cluster.Client
 		nsList, err := listFunc(cli) // these namespaces contain project ns and ns under project
 		if err != nil {
-			clog.Error(err.Error())
-			response.FailReturn(c, errcode.CustomReturn(http.StatusInternalServerError, err.Error()))
+			response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 			return
 		}
 
@@ -475,11 +452,15 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 					continue
 				}
 
-				if fuzzyName != "" && !strings.Contains(ns.Name, fuzzyName) {
-					continue
+				// only care about ns under project that the user can see
+				// todo: use better way
+				allowed, err := rbac.IsAllowResourceAccess(&rbac.DefaultResolver{Cache: cli.Cache()}, user, "pods", constants.GetVerb, constants.ProjectNsPrefix+project)
+				if err != nil {
+					response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
+					return
 				}
 
-				if !userImpl.Status.PlatformAdmin && !tenantSet.Has(tenant) && !projectSet.Has(project) {
+				if !allowed {
 					continue
 				}
 
@@ -541,7 +522,6 @@ func (h *handler) addCluster(c *gin.Context) {
 	d := scriptData{}
 	err := c.ShouldBindJSON(&d)
 	if err != nil {
-		clog.Error(err.Error())
 		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 		return
 	}
@@ -556,14 +536,12 @@ func (h *handler) addCluster(c *gin.Context) {
 
 	kubeConfig, err := base64.StdEncoding.DecodeString(d.KubeConfig)
 	if err != nil {
-		clog.Warn(err.Error())
 		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, "kubeConfig invalid: %v", err))
 		return
 	}
 
 	config, err := kubeconfig.LoadKubeConfigFromBytes(kubeConfig)
 	if err != nil {
-		clog.Warn(err.Error())
 		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, "kubeConfig invalid: %v", err))
 		return
 	}
@@ -603,8 +581,7 @@ func (h *handler) addCluster(c *gin.Context) {
 		if errors.IsAlreadyExists(err) {
 			clog.Warn(err.Error())
 		} else {
-			clog.Error(err.Error())
-			response.FailReturn(c, errcode.CustomReturn(http.StatusInternalServerError, err.Error()))
+			response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 			return
 		}
 	}
@@ -627,8 +604,7 @@ func (h *handler) registerCluster(c *gin.Context) {
 		if errors.IsAlreadyExists(err) {
 			clog.Warn(err.Error())
 		} else {
-			clog.Error(err.Error())
-			response.FailReturn(c, errcode.CustomReturn(http.StatusInternalServerError, err.Error()))
+			response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 			return
 		}
 	}
@@ -655,7 +631,6 @@ func (h *handler) createNsAndQuota(c *gin.Context) {
 	data := &nsAndQuota{}
 	err := c.ShouldBindJSON(data)
 	if err != nil {
-		clog.Error(err.Error())
 		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 		return
 	}
@@ -677,8 +652,7 @@ func (h *handler) createNsAndQuota(c *gin.Context) {
 
 	err = cli.Direct().Create(ctx, data.SubNamespaceAnchor)
 	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.BadRequest(err))
 		return
 	}
 
@@ -709,7 +683,7 @@ func (h *handler) createNsAndQuota(c *gin.Context) {
 	})
 	if err != nil {
 		rollback()
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 		return
 	}
 
@@ -720,9 +694,8 @@ func (h *handler) createNsAndQuota(c *gin.Context) {
 
 	_, clusterRoles, err := h.Interface.RolesFor(&userinfo.DefaultInfo{Name: username}, "")
 	if err != nil {
-		clog.Error(err.Error())
 		rollback()
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 		return
 	}
 
@@ -747,9 +720,8 @@ func (h *handler) createNsAndQuota(c *gin.Context) {
 		list := &rbacv1.RoleBindingList{}
 		err = cli.Direct().List(ctx, list, &client.ListOptions{Namespace: data.SubNamespaceAnchor.Name})
 		if err != nil {
-			clog.Error(err.Error())
 			rollback()
-			response.FailReturn(c, errcode.InternalServerError)
+			response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 			return
 		}
 		if len(list.Items) > 0 {
@@ -762,9 +734,8 @@ func (h *handler) createNsAndQuota(c *gin.Context) {
 	// final action failed would rollback whole action
 	err = cli.Direct().Create(ctx, data.ResourceQuota)
 	if err != nil {
-		clog.Error(err.Error())
 		rollback()
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 		return
 	}
 
