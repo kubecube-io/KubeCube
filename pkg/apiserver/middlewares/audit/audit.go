@@ -289,7 +289,17 @@ func getUserIdentity(c *gin.Context) *UserIdentity {
 func getParameters(c *gin.Context) string {
 	var parameters parameters
 
-	parameters.Headers = c.Request.Header.Clone()
+	auditHeaders := auditSvc.AuditHeaders
+	headers := make(map[string][]string)
+	for _, h := range auditHeaders {
+		for k, v := range c.Request.Header {
+			if h == k {
+				headers[k] = v
+				break
+			}
+		}
+	}
+	parameters.Headers = headers
 	parameters.Body = getBodyFromReq(c)
 
 	query := make(map[string]string)
