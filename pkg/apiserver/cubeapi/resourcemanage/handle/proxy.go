@@ -151,27 +151,23 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 	c.Request.Header.Set(constants.ImpersonateUserKey, username)
 	internalCluster, err := multicluster.Interface().Get(cluster)
 	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
+		response.FailReturn(c, errcode.BadRequest(err))
 		return
 	}
 	transport, err := multicluster.Interface().GetTransport(cluster)
 	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
+		response.FailReturn(c, errcode.BadRequest(err))
 		return
 	}
 	_, _, gvr, err := conversion.ParseURL(proxyUrl)
 	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
+		response.FailReturn(c, errcode.BadRequest(err))
 		return
 	}
 
 	needConvert, convertedObj, convertedUrl, err := h.tryVersionConvert(cluster, proxyUrl, c.Request)
 	if err != nil {
-		clog.Error(err.Error())
-		response.FailReturn(c, errcode.InternalServerError)
+		response.FailReturn(c, errcode.BadRequest(err))
 		return
 	}
 
@@ -189,8 +185,8 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 
 		uri, err := url.ParseRequestURI(internalCluster.Config.Host)
 		if err != nil {
-			clog.Error("Could not parse host, host: %s , err: %v", internalCluster.Config.Host, err)
-			response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, "Could not parse host, host: %s , err: %v", internalCluster.Config.Host, err))
+			response.FailReturn(c, errcode.BadRequest(fmt.Errorf("could not parse host, host: %s , err: %v", internalCluster.Config.Host, err)))
+			return
 		}
 		uri.RawQuery = c.Request.URL.RawQuery
 		uri.Path = proxyUrl
@@ -199,7 +195,7 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 
 		err = requestutil.AddFieldManager(req, username)
 		if err != nil {
-			clog.Error("fail to add fieldManager due to %s", err.Error())
+			clog.Warn("fail to add fieldManager due to %v", err)
 		}
 		if needConvert {
 			// replace request body and url if need
@@ -269,8 +265,7 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 
 	errorHandler := func(resp http.ResponseWriter, req *http.Request, err error) {
 		if err != nil {
-			clog.Warn("cluster %s url %s proxy fail, %v", cluster, proxyUrl, err)
-			response.FailReturn(c, errcode.ServerErr)
+			response.FailReturn(c, errcode.BadRequest(fmt.Errorf("cluster %s url %s proxy fail, %v", cluster, proxyUrl, err)))
 			return
 		}
 	}
@@ -279,8 +274,7 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 		// open response filterCondition convert
 		_, _, convertedGvr, err := conversion.ParseURL(convertedUrl)
 		if err != nil {
-			clog.Error(err.Error())
-			response.FailReturn(c, errcode.InternalServerError)
+			response.FailReturn(c, errcode.BadRequest(err))
 			return
 		}
 
