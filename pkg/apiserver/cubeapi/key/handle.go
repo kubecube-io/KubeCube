@@ -66,8 +66,7 @@ func CreateKey(c *gin.Context) {
 	keyList := key.KeyList{}
 	err = localClient.Cache().List(ctx, &keyList, client.MatchingLabels{UserLabel: userInfo.Username})
 	if err != nil {
-		clog.Warn("list key fail, %v", err)
-		response.FailReturn(c, errcode.ServerErr)
+		response.FailReturn(c, errcode.BadRequest(err))
 		return
 	}
 	if len(keyList.Items) >= 5 {
@@ -98,8 +97,7 @@ func CreateKey(c *gin.Context) {
 	}
 	err = localClient.Direct().Create(ctx, &keyInfo)
 	if err != nil {
-		clog.Warn("create key fail, %v", err)
-		response.FailReturn(c, errcode.ServerErr)
+		response.FailReturn(c, errcode.BadRequest(err))
 		return
 	}
 
@@ -138,7 +136,7 @@ func DeleteKey(c *gin.Context) {
 			response.FailReturn(c, errcode.KeyNotExistErr)
 			return
 		}
-		response.FailReturn(c, errcode.ServerErr)
+		response.FailReturn(c, errcode.BadRequest(err))
 		return
 	}
 	if userInfo.Username != keyInfo.Spec.User {
@@ -147,7 +145,7 @@ func DeleteKey(c *gin.Context) {
 	}
 	err = localClient.Direct().Delete(ctx, &keyInfo)
 	if err != nil {
-		response.FailReturn(c, errcode.ServerErr)
+		response.FailReturn(c, errcode.BadRequest(err))
 		return
 	}
 
@@ -174,7 +172,7 @@ func ListKey(c *gin.Context) {
 	keyList := key.KeyList{}
 	err = localClient.List(ctx, &keyList, client.MatchingLabels{UserLabel: userInfo.Username})
 	if err != nil {
-		response.FailReturn(c, errcode.ServerErr)
+		response.FailReturn(c, errcode.BadRequest(err))
 		return
 	}
 	response.SuccessReturn(c, keyList)
@@ -203,7 +201,7 @@ func GetTokenByKey(c *gin.Context) {
 			response.FailReturn(c, errcode.KeyNotExistErr)
 			return
 		}
-		response.FailReturn(c, errcode.ServerErr)
+		response.FailReturn(c, errcode.BadRequest(err))
 		return
 	}
 	if secretKey != keyInfo.Spec.SecretKey {
@@ -220,7 +218,7 @@ func GetTokenByKey(c *gin.Context) {
 			return
 		}
 		clog.Info("check user exist, fail %v", err)
-		response.FailReturn(c, errcode.ServerErr)
+		response.FailReturn(c, errcode.BadRequest(err))
 		return
 	}
 
@@ -229,7 +227,7 @@ func GetTokenByKey(c *gin.Context) {
 	token, errInfo := authJwtImpl.GenerateToken(&v1beta1.UserInfo{Username: user.Name})
 	if errInfo != nil {
 		clog.Info("gen token fail, %v", errInfo)
-		response.FailReturn(c, errcode.ServerErr)
+		response.FailReturn(c, errcode.BadRequest(err))
 		return
 	}
 	result := map[string]string{

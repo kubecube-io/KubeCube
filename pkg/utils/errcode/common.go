@@ -19,7 +19,6 @@ package errcode
 import "fmt"
 
 var (
-	InternalServerError    = New(internalServerError)
 	InvalidBodyFormat      = New(invalidBodyFormat)
 	InvalidFileType        = New(invalidFileType)
 	InvalidResourceTypeErr = New(invalidResourceType)
@@ -56,4 +55,12 @@ func BadRequest(err error) *ErrorInfo {
 		return New(badRequest, "")
 	}
 	return New(badRequest, err.Error())
+}
+
+func AlreadyExist(resource interface{}) *ErrorInfo {
+	return New(alreadyExist, resource)
+}
+
+func ParamsInvalid(err error) *ErrorInfo {
+	return New(paramsInvalid, err)
 }
