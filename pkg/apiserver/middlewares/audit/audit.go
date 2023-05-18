@@ -313,6 +313,10 @@ func getParameters(c *gin.Context) string {
 		clog.Error("marshal param error: %s", err)
 		return ""
 	}
+	if len(string(paramJson)) > 4096 {
+		clog.Info("params is not send because too long. params: %v", parameters)
+		return ""
+	}
 	return string(paramJson)
 
 }
