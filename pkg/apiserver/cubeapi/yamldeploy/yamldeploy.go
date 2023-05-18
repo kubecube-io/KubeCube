@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	corev1 "k8s.io/api/core/v1"
@@ -49,6 +50,10 @@ type yamlDeployPayload struct {
 	Yaml string `json:"yaml"`
 }
 
+type yamlDeployPayloads struct {
+	Objects []unstructured.Unstructured `json:"objects,omitempty"`
+}
+
 func Deploy(c *gin.Context) {
 	dryRun := c.Query("dryRun")
 
@@ -70,7 +75,10 @@ func Deploy(c *gin.Context) {
 		return
 	}
 
-	body := []byte(payload.Yaml)
+	// replace "\n" when need
+	data := strings.ReplaceAll(payload.Yaml, "\\n", "\n")
+
+	body := []byte(data)
 
 	// split yaml resources by "---"
 	objs := bytes.Split(body, []byte("---"))
@@ -85,11 +93,13 @@ func Deploy(c *gin.Context) {
 
 		bodyJson, err := yaml.YAMLToJSON(trimmedObj)
 		if err != nil {
+			clog.Warn(err.Error())
 			response.FailReturn(c, errcode.InvalidBodyFormat)
 			return
 		}
 		obj, gvk, err := unstructured.UnstructuredJSONScheme.Decode(bodyJson, nil, nil)
 		if err != nil {
+			clog.Warn(err.Error())
 			response.FailReturn(c, errcode.InvalidBodyFormat)
 			return
 		}
@@ -115,6 +125,7 @@ func Deploy(c *gin.Context) {
 			return
 		}
 
+		// todo fixme
 		c = audit.SetAuditInfo(c, audit.YamlDeploy, fmt.Sprintf("%s/%s", namespace, restMapping.Resource.String()))
 
 		// create
