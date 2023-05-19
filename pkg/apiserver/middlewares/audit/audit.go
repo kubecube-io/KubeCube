@@ -41,7 +41,10 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/international"
 )
 
-const cubePrefix = "/api/v1/cube"
+const (
+	cubePrefix              = "/api/v1/cube"
+	auditDataParamMaxLength = 4096
+)
 
 var (
 	json           = jsoniter.ConfigCompatibleWithStandardLibrary
@@ -313,7 +316,7 @@ func getParameters(c *gin.Context) string {
 		clog.Error("marshal param error: %s", err)
 		return ""
 	}
-	if len(string(paramJson)) > 4096 {
+	if len(string(paramJson)) > auditDataParamMaxLength {
 		clog.Info("params is not send because too long. params: %v", parameters)
 		return ""
 	}
