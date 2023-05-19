@@ -27,9 +27,10 @@ import (
 )
 
 type AuditSvcApi struct {
-	URL    string
-	Method string
-	Header string
+	URL          string
+	Method       string
+	Header       string
+	AuditHeaders []string
 }
 
 func WardenImage() string {
@@ -83,7 +84,8 @@ func AuditSVC() AuditSvcApi {
 	if m == "" {
 		m = http.MethodPost
 	}
-	return AuditSvcApi{r, m, h}
+	a := strings.Split(os.Getenv("AUDIT_HEADERS"), ",")
+	return AuditSvcApi{r, m, h, a}
 }
 
 func AuditEventSource() string {
