@@ -41,10 +41,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/international"
 )
 
-const (
-	cubePrefix              = "/api/v1/cube"
-	auditDataParamMaxLength = 4096
-)
+const auditDataParamMaxLength = 4096
 
 var (
 	json           = jsoniter.ConfigCompatibleWithStandardLibrary
@@ -206,7 +203,7 @@ func (h *Handler) handleProxyApi(ctx context.Context, c *gin.Context, e Event) *
 	}
 
 	// get object type from url
-	queryUrl := strings.TrimPrefix(strings.Split(requestURI, "?")[0], cubePrefix)
+	queryUrl := strings.TrimPrefix(strings.Split(requestURI, "?")[0], constants.ApiPathRoot)
 	urlstrs := strings.Split(queryUrl, "/")
 	length := len(urlstrs)
 	for i, str := range urlstrs {
