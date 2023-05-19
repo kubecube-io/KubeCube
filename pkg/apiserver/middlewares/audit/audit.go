@@ -41,7 +41,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/international"
 )
 
-const cubePrefix = "/api/v1/cube"
+const auditDataParamMaxLength = 4096
 
 var (
 	json           = jsoniter.ConfigCompatibleWithStandardLibrary
@@ -203,7 +203,7 @@ func (h *Handler) handleProxyApi(ctx context.Context, c *gin.Context, e Event) *
 	}
 
 	// get object type from url
-	queryUrl := strings.TrimPrefix(strings.Split(requestURI, "?")[0], cubePrefix)
+	queryUrl := strings.TrimPrefix(strings.Split(requestURI, "?")[0], constants.ApiPathRoot)
 	urlstrs := strings.Split(queryUrl, "/")
 	length := len(urlstrs)
 	for i, str := range urlstrs {
@@ -289,7 +289,17 @@ func getUserIdentity(c *gin.Context) *UserIdentity {
 func getParameters(c *gin.Context) string {
 	var parameters parameters
 
-	parameters.Headers = c.Request.Header.Clone()
+	auditHeaders := auditSvc.AuditHeaders
+	headers := make(map[string][]string)
+	for _, h := range auditHeaders {
+		for k, v := range c.Request.Header {
+			if h == k {
+				headers[k] = v
+				break
+			}
+		}
+	}
+	parameters.Headers = headers
 	parameters.Body = getBodyFromReq(c)
 
 	query := make(map[string]string)
@@ -301,6 +311,10 @@ func getParameters(c *gin.Context) string {
 	paramJson, err := json.Marshal(parameters)
 	if err != nil {
 		clog.Error("marshal param error: %s", err)
+		return ""
+	}
+	if len(paramJson) > auditDataParamMaxLength {
+		clog.Info("params is not send because too long. params: %v", parameters)
 		return ""
 	}
 	return string(paramJson)
