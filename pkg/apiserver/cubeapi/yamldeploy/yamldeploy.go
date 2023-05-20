@@ -21,7 +21,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -69,7 +68,7 @@ func Deploy(c *gin.Context) {
 
 	for _, obj := range objs.Objects {
 		objCopy := obj.DeepCopy()
-		err := createOpUpdateByRestClient(cluster, username, objCopy, dryRun)
+		err := createResource(cluster, username, objCopy, dryRun)
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -86,11 +85,9 @@ func Deploy(c *gin.Context) {
 	response.SuccessReturn(c, nil)
 }
 
-func createOpUpdateByRestClient(cluster *multicluster.FuzzyCluster, username string, obj ctrlclient.Object, dryRun string) error {
-	ctx := context.Background()
+func createResource(cluster *multicluster.FuzzyCluster, username string, obj ctrlclient.Object, dryRun string) error {
 	unstructuredObj := obj.(*unstructured.Unstructured)
 	gvk := unstructuredObj.GroupVersionKind()
-	unstructuredObjCopy := unstructuredObj.DeepCopy()
 
 	// new rest client for gvk
 	restClient, err := NewRestClient(cluster.Config, &gvk)
@@ -104,26 +101,10 @@ func createOpUpdateByRestClient(cluster *multicluster.FuzzyCluster, username str
 		return err
 	}
 
-	cli := cluster.Client.Direct()
-	key := ctrlclient.ObjectKey{Namespace: unstructuredObj.GetNamespace(), Name: unstructuredObj.GetName()}
-
-	if err := cli.Get(ctx, key, unstructuredObjCopy); err != nil {
-		if !errors.IsNotFound(err) {
-			return err
-		}
-		// create object if not found
-		if _, err = createByRestClient(restClient, restMapping, unstructuredObj.GetNamespace(), dryRun, unstructuredObj, username); err != nil {
-			return err
-		}
-		return nil
-	}
-
-	// replace object if exist
-	unstructuredObj.SetResourceVersion(unstructuredObjCopy.GetResourceVersion())
-
-	if _, err = updateByRestClient(restClient, restMapping, unstructuredObj.GetNamespace(), unstructuredObj.GetName(), dryRun, unstructuredObj, username); err != nil {
+	if _, err := createByRestClient(restClient, restMapping, unstructuredObj.GetNamespace(), dryRun, unstructuredObj, username); err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -136,22 +117,6 @@ func createByRestClient(restClient *rest.RESTClient, mapping *meta.RESTMapping, 
 		SetHeader(constants.ImpersonateUserKey, username).
 		NamespaceIfScoped(namespace, mapping.Scope.Name() == meta.RESTScopeNameNamespace).
 		Resource(mapping.Resource.Resource).
-		VersionedParams(options, metav1.ParameterCodec).
-		Body(obj).
-		Do(context.TODO()).
-		Get()
-}
-
-func updateByRestClient(restClient *rest.RESTClient, mapping *meta.RESTMapping, namespace string, name string, dryRun string, obj runtime.Object, username string) (runtime.Object, error) {
-	options := &metav1.UpdateOptions{}
-	if dryRun == "true" {
-		options.DryRun = []string{metav1.DryRunAll}
-	}
-	return restClient.Put().
-		SetHeader(constants.ImpersonateUserKey, username).
-		NamespaceIfScoped(namespace, mapping.Scope.Name() == meta.RESTScopeNameNamespace).
-		Resource(mapping.Resource.Resource).
-		Name(name).
 		VersionedParams(options, metav1.ParameterCodec).
 		Body(obj).
 		Do(context.TODO()).
