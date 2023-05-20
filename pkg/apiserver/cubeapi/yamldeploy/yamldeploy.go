@@ -18,26 +18,24 @@ package yamldeploy
 
 import (
 	"context"
-	"fmt"
-	"io/ioutil"
 
 	"github.com/gin-gonic/gin"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/restmapper"
 	"k8s.io/kubectl/pkg/scheme"
-	"sigs.k8s.io/yaml"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	"github.com/kubecube-io/kubecube/pkg/multicluster/client"
-	"github.com/kubecube-io/kubecube/pkg/utils/audit"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
@@ -45,11 +43,23 @@ import (
 
 var metadataAccessor = meta.NewAccessor()
 
+type yamlDeployResources struct {
+	Objects []unstructured.Unstructured `json:"objects"`
+}
+
 func Deploy(c *gin.Context) {
 	dryRun := c.Query("dryRun")
-
-	// get cluster info
 	clusterName := c.Param("cluster")
+	username := c.GetString(constants.UserName)
+
+	objs := yamlDeployResources{}
+	err := c.ShouldBindJSON(&objs)
+	if err != nil {
+		clog.Warn(err.Error())
+		response.FailReturn(c, errcode.InvalidBodyFormat)
+		return
+	}
+
 	clusters := multicluster.Interface().FuzzyCopy()
 	cluster, ok := clusters[clusterName]
 	if !ok {
@@ -57,59 +67,69 @@ func Deploy(c *gin.Context) {
 		return
 	}
 
-	// decode body
-	body, err := ioutil.ReadAll(c.Request.Body)
-	if err != nil {
-		response.FailReturn(c, errcode.InvalidBodyFormat)
-		return
-	}
-	bodyJson, err := yaml.YAMLToJSON(body)
-	if err != nil {
-		response.FailReturn(c, errcode.InvalidBodyFormat)
-		return
-	}
-	obj, gvk, err := unstructured.UnstructuredJSONScheme.Decode(bodyJson, nil, nil)
-	if err != nil {
-		response.FailReturn(c, errcode.InvalidBodyFormat)
-		return
+	var errs []error
+
+	for _, obj := range objs.Objects {
+		objCopy := obj.DeepCopy()
+		err := createOpUpdateByRestClient(cluster, username, objCopy, dryRun)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		clog.Info("Deploy %v/%v of %v success", objCopy.GetName(), objCopy.GetNamespace(), objCopy.GroupVersionKind())
 	}
 
-	// new RestClient
-	restClient, err := NewRestClient(cluster.Config, gvk)
+	err = utilerrors.NewAggregate(errs)
 	if err != nil {
 		response.FailReturn(c, errcode.BadRequest(err))
 		return
 	}
 
-	// init mapping
-	restMapping, err := InitRestMapper(cluster.Client, gvk)
-	if err != nil {
-		errInfo := err.Error()
-		response.FailReturn(c, errcode.CreateMappingError(errInfo))
-		return
-	}
-
-	// get namespace
-	namespace, err := metadataAccessor.Namespace(obj)
-	if err != nil {
-		response.FailReturn(c, errcode.MissNamespaceInObj)
-		return
-	}
-
-	c = audit.SetAuditInfo(c, audit.YamlDeploy, fmt.Sprintf("%s/%s", namespace, restMapping.Resource.String()))
-
-	username := c.GetString(constants.UserName)
-	// create
-	result, err := CreateByRestClient(restClient, restMapping, namespace, dryRun, obj, username)
-	if err != nil {
-		response.FailReturn(c, errcode.DeployYamlError(err.Error()))
-		return
-	}
-
-	response.SuccessReturn(c, result)
+	response.SuccessReturn(c, nil)
 }
 
-func CreateByRestClient(restClient *rest.RESTClient, mapping *meta.RESTMapping, namespace string, dryRun string, obj runtime.Object, username string) (runtime.Object, error) {
+func createOpUpdateByRestClient(cluster *multicluster.FuzzyCluster, username string, obj ctrlclient.Object, dryRun string) error {
+	ctx := context.Background()
+	unstructuredObj := obj.(*unstructured.Unstructured)
+	gvk := unstructuredObj.GroupVersionKind()
+	unstructuredObjCopy := unstructuredObj.DeepCopy()
+
+	// new rest client for gvk
+	restClient, err := NewRestClient(cluster.Config, &gvk)
+	if err != nil {
+		return err
+	}
+
+	// get rest mapper form cache
+	restMapping, err := initRestMapper(cluster.Client, &gvk)
+	if err != nil {
+		return err
+	}
+
+	cli := cluster.Client.Direct()
+	key := ctrlclient.ObjectKey{Namespace: unstructuredObj.GetNamespace(), Name: unstructuredObj.GetName()}
+
+	if err := cli.Get(ctx, key, unstructuredObjCopy); err != nil {
+		if !errors.IsNotFound(err) {
+			return err
+		}
+		// create object if not found
+		if _, err = createByRestClient(restClient, restMapping, unstructuredObj.GetNamespace(), dryRun, unstructuredObj, username); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// replace object if exist
+	unstructuredObj.SetResourceVersion(unstructuredObjCopy.GetResourceVersion())
+
+	if _, err = updateByRestClient(restClient, restMapping, unstructuredObj.GetNamespace(), unstructuredObj.GetName(), dryRun, unstructuredObj, username); err != nil {
+		return err
+	}
+	return nil
+}
+
+func createByRestClient(restClient *rest.RESTClient, mapping *meta.RESTMapping, namespace string, dryRun string, obj runtime.Object, username string) (runtime.Object, error) {
 	options := &metav1.CreateOptions{}
 	if dryRun == "true" {
 		options.DryRun = []string{metav1.DryRunAll}
@@ -118,6 +138,22 @@ func CreateByRestClient(restClient *rest.RESTClient, mapping *meta.RESTMapping, 
 		SetHeader(constants.ImpersonateUserKey, username).
 		NamespaceIfScoped(namespace, mapping.Scope.Name() == meta.RESTScopeNameNamespace).
 		Resource(mapping.Resource.Resource).
+		VersionedParams(options, metav1.ParameterCodec).
+		Body(obj).
+		Do(context.TODO()).
+		Get()
+}
+
+func updateByRestClient(restClient *rest.RESTClient, mapping *meta.RESTMapping, namespace string, name string, dryRun string, obj runtime.Object, username string) (runtime.Object, error) {
+	options := &metav1.UpdateOptions{}
+	if dryRun == "true" {
+		options.DryRun = []string{metav1.DryRunAll}
+	}
+	return restClient.Put().
+		SetHeader(constants.ImpersonateUserKey, username).
+		NamespaceIfScoped(namespace, mapping.Scope.Name() == meta.RESTScopeNameNamespace).
+		Resource(mapping.Resource.Resource).
+		Name(name).
 		VersionedParams(options, metav1.ParameterCodec).
 		Body(obj).
 		Do(context.TODO()).
@@ -146,16 +182,9 @@ func NewRestClient(config *rest.Config, gvk *schema.GroupVersionKind) (*rest.RES
 	return restClient, nil
 }
 
-func InitRestMapper(client client.Client, gvk *schema.GroupVersionKind) (*meta.RESTMapping, error) {
-
-	groupResources, err := restmapper.GetAPIGroupResources(client.ClientSet().Discovery())
+func initRestMapper(client client.Client, gvk *schema.GroupVersionKind) (*meta.RESTMapping, error) {
+	mapping, err := client.RESTMapper().RESTMapping(gvk.GroupKind(), gvk.Version)
 	if err != nil {
-		clog.Warn("restmapper get api group resources fail, %v", err)
-		return nil, err
-	}
-	mapping, err := restmapper.NewDiscoveryRESTMapper(groupResources).RESTMapping(gvk.GroupKind(), gvk.Version)
-	if err != nil {
-		clog.Warn("create rest mapping fail, %v", err)
 		return nil, err
 	}
 
