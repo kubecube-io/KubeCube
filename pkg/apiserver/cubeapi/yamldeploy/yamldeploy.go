@@ -41,8 +41,6 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
 )
 
-var metadataAccessor = meta.NewAccessor()
-
 type yamlDeployResources struct {
 	Objects []unstructured.Unstructured `json:"objects"`
 }
