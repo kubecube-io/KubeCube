@@ -70,6 +70,7 @@ func (h *handler) AddApisTo(root *gin.Engine) {
 	r.GET("authitems", h.getAuthItemsByLabelSelector)
 	r.POST("authitems", h.setAuthItems)
 	r.POST("authitems/permissions", h.getPermissions)
+	r.GET("deamonsets/level", h.getDaemonSetsLevel)
 }
 
 type result struct {
@@ -306,6 +307,93 @@ func (h *handler) getPermissions(c *gin.Context) {
 		}
 
 		res[info.AuthItem] = verb
+	}
+
+	response.SuccessReturn(c, res)
+}
+
+type DaemonSetsAccessResult struct {
+	PlatformAccess string `json:"platformAccess"`
+	TenantAccess   string `json:"tenantAccess"`
+}
+
+func daemonSetAccess(r *rbac.DefaultResolver, username string, verb string, namespace string) (bool, error) {
+	record := &authorizer.AttributesRecord{
+		User:            &userinfo.DefaultInfo{Name: username},
+		Verb:            verb,
+		Namespace:       namespace,
+		Resource:        constants.ResourceDaemonSets,
+		ResourceRequest: true,
+	}
+
+	d, _, err := r.Authorize(context.Background(), record)
+	if err != nil {
+		return false, err
+	}
+
+	return d == authorizer.DecisionAllow, nil
+}
+
+// getDaemonSetsLevel tells if given user can access platform or tenant level DaemonSets
+func (h *handler) getDaemonSetsLevel(c *gin.Context) {
+	tenant := c.Query("tenant")
+	username := c.GetString(constants.UserName)
+	tenantNamespace := constants.TenantNsPrefix + tenant
+	rbacResolver := &rbac.DefaultResolver{Cache: h.Cache()}
+
+	res := DaemonSetsAccessResult{
+		PlatformAccess: string(mapping.Null),
+		TenantAccess:   string(mapping.Null),
+	}
+
+	// a user can access daemonSet cross all namespace represents a platform level
+	platformWritable, err := daemonSetAccess(rbacResolver, username, constants.CreateVerb, "")
+	if err != nil {
+		response.FailReturn(c, errcode.BadRequest(err))
+		return
+	}
+
+	platformReadable, err := daemonSetAccess(rbacResolver, username, constants.GetVerb, "")
+	if err != nil {
+		response.FailReturn(c, errcode.BadRequest(err))
+		return
+	}
+
+	if platformWritable {
+		res.PlatformAccess = string(mapping.Write)
+	}
+
+	if platformReadable {
+		res.PlatformAccess = string(mapping.Read)
+	}
+
+	if platformWritable && platformReadable {
+		res.PlatformAccess = string(mapping.All)
+	}
+
+	// a user can access daemonSet under tenant namespace represents a given tenant level
+	tenantWritable, err := daemonSetAccess(rbacResolver, username, constants.CreateVerb, tenantNamespace)
+	if err != nil {
+		response.FailReturn(c, errcode.BadRequest(err))
+		return
+	}
+
+	tenantReadable, err := daemonSetAccess(rbacResolver, username, constants.GetVerb, tenantNamespace)
+	if err != nil {
+		response.FailReturn(c, errcode.BadRequest(err))
+		return
+	}
+
+	if tenantWritable {
+		res.TenantAccess = string(mapping.Write)
+	}
+
+	if tenantReadable {
+		res.TenantAccess = string(mapping.Read)
+	}
+
+	if tenantWritable && tenantReadable {
+		res.TenantAccess = string(mapping.All)
 	}
 
 	response.SuccessReturn(c, res)
