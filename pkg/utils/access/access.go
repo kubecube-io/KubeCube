@@ -20,8 +20,6 @@ import (
 	"context"
 	"net/http"
 
-	v1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
 	userinfo "k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/apiserver/pkg/authorization/authorizer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -95,27 +93,4 @@ func IsSelf(r *http.Request, username string) bool {
 
 	}
 	return username == requestUser.Username
-}
-
-type RoleRuleCheckPayload struct {
-	Rules    []v1.PolicyRule
-	Resource string
-	Verbs    []string
-}
-
-// RuleCheckMatched check if the ClusterRole had given rule policy.
-func RuleCheckMatched(r *RoleRuleCheckPayload) bool {
-	verbs := sets.NewString(r.Verbs...)
-	for _, rule := range r.Rules {
-		for _, resource := range rule.Resources {
-			if resource == r.Resource {
-				hadVerbs := sets.NewString(rule.Verbs...)
-				if hadVerbs.Equal(verbs) {
-					return true
-				}
-			}
-		}
-	}
-
-	return false
 }

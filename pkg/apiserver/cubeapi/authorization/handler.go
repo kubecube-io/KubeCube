@@ -371,21 +371,6 @@ func (h *handler) getDaemonSetsLevel(c *gin.Context) {
 		res.PlatformAccess = string(mapping.All)
 	}
 
-	// get ClusterRoles which is using ClusterRoleBinding to current user
-	//_, clusterRoles, err := h.RolesFor(rbac.User2UserInfo(username), "")
-	//if err != nil {
-	//	response.FailReturn(c, errcode.BadRequest(err))
-	//	return
-	//}
-	//
-	//for _, clusterRole := range clusterRoles {
-	//	if clusterRole.Labels != nil && clusterRole.Labels[constants.RoleLabel] == constants.ClusterRolePlatform {
-	//		if access.RuleCheckMatched(nil) {
-	//
-	//		}
-	//	}
-	//}
-
 	// a user can access daemonSet under tenant namespace represents a given tenant level
 	tenantWritable, err := daemonSetAccess(rbacResolver, username, constants.CreateVerb, tenantNamespace)
 	if err != nil {
@@ -410,25 +395,6 @@ func (h *handler) getDaemonSetsLevel(c *gin.Context) {
 	if tenantWritable && tenantReadable {
 		res.TenantAccess = string(mapping.All)
 	}
-
-	//selector, err := labels.Parse(fmt.Sprintf("%v=%v", constants.TenantLabel, tenant))
-	//if err != nil {
-	//	response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, "labels selector invalid: %v", err))
-	//	return
-	//}
-	//rolebindings := rbacv1.RoleBindingList{}
-	//err = h.Client.Cache().List(ctx, &rolebindings, &client.ListOptions{LabelSelector: selector})
-	//if err != nil {
-	//	response.FailReturn(c, errcode.BadRequest(err))
-	//	return
-	//}
-	//
-	//var foundClusterRoleName []string
-	//for _, rolebinding := range rolebindings.Items {
-	//	if len(rolebinding.Subjects) == 1 && rolebinding.Subjects[0].Name == username {
-	//		foundClusterRoleName = append(foundClusterRoleName, rolebinding.RoleRef.Name)
-	//	}
-	//}
 
 	response.SuccessReturn(c, res)
 }
