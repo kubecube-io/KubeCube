@@ -2,6 +2,7 @@
 
 ## Bugfix
 - Reverse time sort [#292](https://github.com/kubecube-io/KubeCube/pull/292)
+- Fix string sort [#286](https://github.com/kubecube-io/KubeCube/pull/286)
 
 ## Feature
 - support daemonsets level [#295](https://github.com/kubecube-io/KubeCube/pull/295)
@@ -10,7 +11,6 @@
 - audit middleware support to config request headers who is recorded  [#291](https://github.com/kubecube-io/KubeCube/pull/291)
 - optimize api errors [#288](https://github.com/kubecube-io/KubeCube/pull/288)
 - add api sort [#287](https://github.com/kubecube-io/KubeCube/pull/287)
-- Fix string sort [#286](https://github.com/kubecube-io/KubeCube/pull/286)
 
 ## Dependencies
 
