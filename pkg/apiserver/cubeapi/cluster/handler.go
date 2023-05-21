@@ -194,7 +194,7 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 	}
 
 	sort.SliceStable(infos, func(i, j int) bool {
-		return infos[i].CreateTime.Before(infos[j].CreateTime)
+		return infos[i].CreateTime.After(infos[j].CreateTime)
 	})
 
 	if infos != nil {
@@ -483,7 +483,7 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 	}
 
 	sort.SliceStable(items, func(i, j int) bool {
-		return items[i].NamespaceBody.CreationTimestamp.Time.Before(items[j].NamespaceBody.CreationTimestamp.Time)
+		return items[i].NamespaceBody.CreationTimestamp.Time.After(items[j].NamespaceBody.CreationTimestamp.Time)
 	})
 
 	res := map[string]interface{}{
