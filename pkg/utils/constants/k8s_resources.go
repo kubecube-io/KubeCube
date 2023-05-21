@@ -19,4 +19,5 @@ package constants
 const (
 	ResourceNamespaces = "namespaces"
 	ResourceNode       = "nodes"
+	ResourceDaemonSets = "daemonsets"
 )
