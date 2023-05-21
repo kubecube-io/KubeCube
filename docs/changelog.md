@@ -1,3 +1,31 @@
+# v1.8.3
+
+## Bugfix
+- Reverse time sort [#292](https://github.com/kubecube-io/KubeCube/pull/292)
+- Fix string sort [#286](https://github.com/kubecube-io/KubeCube/pull/286)
+
+## Feature
+- support daemonsets level [#295](https://github.com/kubecube-io/KubeCube/pull/295)
+- support multi yaml deploy  [#294](https://github.com/kubecube-io/KubeCube/pull/294)
+- add fuzzy match for get subnamespace [#273](https://github.com/kubecube-io/KubeCube/pull/273)
+- audit middleware support to config request headers who is recorded  [#291](https://github.com/kubecube-io/KubeCube/pull/291)
+- optimize api errors [#288](https://github.com/kubecube-io/KubeCube/pull/288)
+- add api sort [#287](https://github.com/kubecube-io/KubeCube/pull/287)
+
+## Dependencies
+
+- hnc v1.0
+- nginx-ingress v0.46.0
+- helm 3.5
+- metrics-server v0.4.1
+- elasticsearch 7.8
+- kubecube-monitoring 15.4.8
+- thanos 3.18.0
+- logseer v1.0.0
+- logagent v1.0.0
+- kubecube-audit v1.2.0
+- kubecube-webconsole v1.2.4
+
 # v1.8.2
 
 ## Bugfix
@@ -9,8 +37,6 @@
 - fix binding ctrl [#271](https://github.com/kubecube-io/KubeCube/pull/271)
 - fix scout nil ptr [#270](https://github.com/kubecube-io/KubeCube/pull/270)
 - fix node gpu key [#269](https://github.com/kubecube-io/KubeCube/pull/269)
-
-## 
 
 ## Dependencies
 
