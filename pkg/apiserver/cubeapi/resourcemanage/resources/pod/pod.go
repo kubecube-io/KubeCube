@@ -79,9 +79,17 @@ func NewPod(client mgrclient.Client, namespace string, filter *filter.Condition)
 	}
 }
 
+// GetRs If you want to query the pods associated with an owner reference UID,
+// you need to first query the corresponding replicaset
+// and then use the replicaset's UID to search for the corresponding pod UID, achieving a cascading query.
 func (d *Pod) GetRs() error {
-	if len(d.filterCondition.Exact) == 0 {
+	val, ok := d.filterCondition.Exact[ownerUidLabel]
+	if !ok {
 		return nil
+	}
+	// Only the owner reference UID is needed as a filtering condition.
+	condition := &filter.Condition{
+		Exact: map[string]sets.String{ownerUidLabel: val},
 	}
 	rsList := appsv1.ReplicaSetList{}
 	err := d.client.Cache().List(d.ctx, &rsList, client.InNamespace(d.namespace))
@@ -89,13 +97,12 @@ func (d *Pod) GetRs() error {
 		clog.Error("can not find rs from cluster, %v", err)
 		return err
 	}
-	// filterCondition list by selector/sort/page
-
-	_, err = filter.GetEmptyFilter().FilterObjectList(&rsList, d.filterCondition)
+	_, err = filter.GetEmptyFilter().FilterObjectList(&rsList, condition)
 	if err != nil {
 		clog.Error("filterCondition rsList error, err: %s", err.Error())
 		return err
 	}
+	// Insert the uid of the replicaset as a filtering condition into the filtering condition set.
 	set := d.filterCondition.Exact[ownerUidLabel]
 	for _, rs := range rsList.Items {
 		if set == nil {
@@ -110,7 +117,6 @@ func (d *Pod) GetRs() error {
 	return nil
 }
 
-// get pods
 func (d *Pod) GetPods() (*unstructured.Unstructured, error) {
 
 	// get pod list from k8s cluster
