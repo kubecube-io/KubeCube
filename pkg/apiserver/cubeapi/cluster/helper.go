@@ -19,6 +19,7 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -53,16 +54,13 @@ type clusterInfoOpts struct {
 func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivotCli mgrclient.Client, opts clusterInfoOpts) ([]clusterInfo, error) {
 	// populate cluster info one by one
 	infos := make([]clusterInfo, 0)
+	memberClusterInfos := make([]clusterInfo, 0)
 	for _, item := range clusters.Items {
 		info := clusterInfo{}
 		clusterName := item.Name
 
 		// populate metadata of cluster
-		metadataInfo, err := makeMetadataInfo(ctx, pivotCli, clusterName, opts)
-		if err != nil {
-			clog.Warn(err.Error())
-			continue // ignore query error and continue now
-		}
+		metadataInfo := makeMetadataInfo(item)
 		info.clusterMetaInfo = metadataInfo
 
 		// set cluster status and do not populate livedata if abnormal
@@ -71,10 +69,12 @@ func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivot
 			metadataInfo.Status = string(clusterv1.ClusterAbnormal)
 		}
 		if internalCluster == nil || metadataInfo.Status == string(clusterv1.ClusterAbnormal) {
-			if len(opts.statusFilter) == 0 {
-				infos = append(infos, clusterInfo{clusterMetaInfo: metadataInfo})
-			} else if metadataInfo.Status == opts.statusFilter {
-				infos = append(infos, clusterInfo{clusterMetaInfo: metadataInfo})
+			if len(opts.statusFilter) == 0 || metadataInfo.Status == opts.statusFilter {
+				if item.Spec.IsMemberCluster {
+					memberClusterInfos = append(memberClusterInfos, clusterInfo{clusterMetaInfo: metadataInfo})
+				} else {
+					infos = append(infos, clusterInfo{clusterMetaInfo: metadataInfo})
+				}
 			}
 			continue
 		}
@@ -90,12 +90,27 @@ func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivot
 		}
 
 		// filter by query status param
-		if len(opts.statusFilter) == 0 {
-			infos = append(infos, info)
-		} else if info.Status == opts.statusFilter {
-			infos = append(infos, info)
+		if len(opts.statusFilter) == 0 || info.Status == opts.statusFilter {
+			if item.Spec.IsMemberCluster {
+				memberClusterInfos = append(memberClusterInfos, info)
+			} else {
+				infos = append(infos, info)
+			}
 		}
 	}
+
+	// sort up pivot clusters by create time
+	sort.SliceStable(infos, func(i, j int) bool {
+		return infos[i].CreateTime.After(infos[j].CreateTime)
+	})
+
+	// sort up member clusters by create time
+	sort.SliceStable(memberClusterInfos, func(i, j int) bool {
+		return memberClusterInfos[i].CreateTime.After(memberClusterInfos[j].CreateTime)
+	})
+
+	// append member cluster infos behind pivot clusters
+	infos = append(infos, memberClusterInfos...)
 
 	return infos, nil
 }
@@ -199,15 +214,8 @@ func makeMonitorInfo(ctx context.Context, cluster string) (*monitorInfo, error) 
 }
 
 // makeMetadataInfo just get metadata of cluster.
-func makeMetadataInfo(ctx context.Context, pivotCli mgrclient.Client, clusterName string, opts clusterInfoOpts) (clusterMetaInfo, error) {
+func makeMetadataInfo(cluster clusterv1.Cluster) clusterMetaInfo {
 	info := clusterMetaInfo{}
-
-	cluster := clusterv1.Cluster{}
-	clusterKey := types.NamespacedName{Name: clusterName}
-	err := pivotCli.Direct().Get(ctx, clusterKey, &cluster)
-	if err != nil {
-		return info, fmt.Errorf("get cluster %v failed: %v", clusterName, err)
-	}
 
 	state := cluster.Status.State
 	if state == nil {
@@ -216,7 +224,7 @@ func makeMetadataInfo(ctx context.Context, pivotCli mgrclient.Client, clusterNam
 	}
 
 	// set up cluster meta info
-	info.ClusterName = clusterName
+	info.ClusterName = cluster.Name
 	info.Status = string(*state)
 	info.ClusterDescription = cluster.Spec.Description
 	info.CreateTime = cluster.CreationTimestamp.Time
@@ -238,7 +246,7 @@ func makeMetadataInfo(ctx context.Context, pivotCli mgrclient.Client, clusterNam
 		info.Annotations[constants.CubeCnAnnotation] = cluster.Name
 	}
 
-	return info, nil
+	return info
 }
 
 // makeLivedataInfo populate livedata of cluster, sometimes be slow.
@@ -423,7 +431,7 @@ func getClustersByProject(ctx context.Context, project string) (*clusterv1.Clust
 
 	clusters := multicluster.Interface().FuzzyCopy()
 	for _, cluster := range clusters {
-		cli := cluster.Client.Cache()
+		cli := cluster.Client.Direct()
 		nsList := corev1.NamespaceList{}
 		err := cli.List(ctx, &nsList, &client.ListOptions{LabelSelector: labelSelector})
 		if err != nil {
