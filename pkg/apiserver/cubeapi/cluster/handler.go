@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -137,6 +138,10 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 		cli         = h.Client
 		ctx         = c.Request.Context()
 		clusterList = clusterv1.ClusterList{}
+
+		pageNum  int
+		pageSize int
+		err      error
 	)
 
 	clusterName := c.Query("cluster")
@@ -145,12 +150,26 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 	nodeLabelSelector := c.Query("nodeLabelSelector")
 	pruneInfo := c.Query("prune")
 
+	// parse paginate params if had
+	if c.Query("pageNum") != "" && c.Query("pageSize") != "" {
+		pageNum, err = strconv.Atoi(c.Query("pageNum"))
+		if err != nil {
+			response.FailReturn(c, errcode.BadRequest(err))
+			return
+		}
+		pageSize, err = strconv.Atoi(c.Query("pageSize"))
+		if err != nil {
+			response.FailReturn(c, errcode.BadRequest(err))
+			return
+		}
+	}
+
 	switch {
 	// find cluster by given name
 	case len(clusterName) > 0:
 		key := types.NamespacedName{Name: clusterName}
 		cluster := clusterv1.Cluster{}
-		err := cli.Cache().Get(ctx, key, &cluster)
+		err := cli.Direct().Get(ctx, key, &cluster)
 		if err != nil {
 			response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, "get cluster failed: %v", err))
 			return
@@ -167,7 +186,7 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 	// give back all clusters by default
 	default:
 		clusters := clusterv1.ClusterList{}
-		err := cli.Cache().List(ctx, &clusters)
+		err := cli.Direct().List(ctx, &clusters)
 		if err != nil {
 			response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, "list cluster failed: %v", err))
 			return
@@ -193,19 +212,32 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 		return
 	}
 
-	sort.SliceStable(infos, func(i, j int) bool {
-		return infos[i].CreateTime.After(infos[j].CreateTime)
-	})
+	res := result{}
 
-	if infos != nil {
-		res := result{
-			Total: len(infos),
-			Items: infos,
-		}
-		response.SuccessReturn(c, res)
+	if pageNum > 0 && pageSize > 0 {
+		// paginate result
+		paginatedInfos := paginateClusterInfos(infos, pageNum, pageSize)
+		res.Total = len(paginatedInfos)
+		res.Items = paginatedInfos
+	} else {
+		res.Total = len(infos)
+		res.Items = infos
 	}
 
+	response.SuccessReturn(c, res)
 	return
+}
+
+func paginateClusterInfos(infos []clusterInfo, pageNum int, pageSize int) []clusterInfo {
+	start := (pageNum - 1) * pageSize
+	end := pageNum * pageSize
+	if start > len(infos) {
+		return nil
+	}
+	if end > len(infos) {
+		end = len(infos)
+	}
+	return infos[start:end]
 }
 
 type monitorInfo struct {
