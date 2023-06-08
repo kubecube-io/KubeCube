@@ -206,3 +206,8 @@ const (
 	ValueNodeAssigned   = "assigned"
 	ValueNodeUnassigned = "unassigned"
 )
+
+// node gpu keys
+const (
+	GpuNvidia = "nvidia.com/gpu"
+)

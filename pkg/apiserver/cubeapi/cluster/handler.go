@@ -344,7 +344,7 @@ func (h *handler) getClusterResource(c *gin.Context) {
 	for _, v := range nodes.Items {
 		capacityCpu.Add(*v.Status.Capacity.Cpu())
 		capacityMem.Add(*v.Status.Capacity.Memory())
-		nodeGpu, ok := v.Status.Capacity[quota.ResourceNvidiaGPU]
+		nodeGpu, ok := v.Status.Capacity[constants.GpuNvidia]
 		if ok {
 			capacityGpu.Add(nodeGpu)
 		}
