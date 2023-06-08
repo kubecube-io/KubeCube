@@ -196,13 +196,13 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 		clusterList = clusters
 	}
 
+	clog.Info("list cluster len(%v) cost time: %v", clusterList.Items, time.Now().Sub(start))
+
 	selector, err := labels.Parse(nodeLabelSelector)
 	if err != nil {
 		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, "labels selector invalid: %v", err))
 		return
 	}
-
-	clog.Info("list cluster by (%v/%v) cost time: %v", clusterName, projectName, time.Now().Sub(start))
 
 	opts := clusterInfoOpts{
 		pruneInfo:         pruneInfo == "true",
