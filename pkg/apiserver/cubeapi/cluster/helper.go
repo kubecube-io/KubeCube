@@ -48,10 +48,12 @@ type clusterInfoOpts struct {
 	statusFilter      string
 	nodeLabelSelector labels.Selector
 	pruneInfo         bool
+	pageNum           int
+	pageSize          int
 }
 
 // makeClusterInfos make cluster info with clusters given
-func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivotCli mgrclient.Client, opts clusterInfoOpts) ([]clusterInfo, error) {
+func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, opts clusterInfoOpts) ([]clusterInfo, error) {
 	// populate cluster info one by one
 	infos := make([]clusterInfo, 0)
 	memberClusterInfos := make([]clusterInfo, 0)
@@ -60,33 +62,12 @@ func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivot
 		clusterName := item.Name
 
 		// populate metadata of cluster
-		metadataInfo := makeMetadataInfo(item)
-		info.clusterMetaInfo = metadataInfo
+		info.clusterMetaInfo = makeMetadataInfo(item)
 
-		// set cluster status and do not populate livedata if abnormal
+		// set cluster status abnormal if we do not have it or not receive heartbeat
 		internalCluster, err := multicluster.Interface().Get(clusterName)
-		if internalCluster != nil && err != nil {
-			metadataInfo.Status = string(clusterv1.ClusterAbnormal)
-		}
-		if internalCluster == nil || metadataInfo.Status == string(clusterv1.ClusterAbnormal) {
-			if len(opts.statusFilter) == 0 || metadataInfo.Status == opts.statusFilter {
-				if item.Spec.IsMemberCluster {
-					memberClusterInfos = append(memberClusterInfos, clusterInfo{clusterMetaInfo: metadataInfo})
-				} else {
-					infos = append(infos, clusterInfo{clusterMetaInfo: metadataInfo})
-				}
-			}
-			continue
-		}
-
-		// populate livedata of cluster
-		if !opts.pruneInfo {
-			cli := internalCluster.Client
-			livedataInfo, err := makeLivedataInfo(ctx, cli, clusterName, opts)
-			if err != nil {
-				return nil, err
-			}
-			info.clusterLivedataInfo = livedataInfo
+		if internalCluster == nil || err != nil {
+			info.clusterMetaInfo.Status = string(clusterv1.ClusterAbnormal)
 		}
 
 		// filter by query status param
@@ -112,7 +93,49 @@ func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, pivot
 	// append member cluster infos behind pivot clusters to keep pivot clusters at first
 	infos = append(infos, memberClusterInfos...)
 
+	if opts.pageNum > 0 && opts.pageSize > 0 {
+		// paginate result
+		infos = paginateClusterInfos(infos, opts.pageNum, opts.pageSize)
+	}
+
+	// make livedata after paginate to reduce io query
+	if !opts.pruneInfo {
+		start := time.Now()
+		needLiveDataNum := 0
+		for i, info := range infos {
+			if info.clusterMetaInfo.Status == string(clusterv1.ClusterAbnormal) {
+				// do not populate livedata if abnormal
+				continue
+			}
+			internalCluster, err := multicluster.Interface().Get(info.ClusterName)
+			if err != nil {
+				clog.Warn("continue make livedata cause cluster %v abnormal: %v", info.ClusterName, err)
+				continue
+			}
+			cli := internalCluster.Client
+			livedataInfo, err := makeLivedataInfo(ctx, cli, info.ClusterName, opts)
+			if err != nil {
+				return nil, err
+			}
+			infos[i].clusterLivedataInfo = livedataInfo
+			needLiveDataNum++
+		}
+		clog.Info("make livedata for cluster len(%v) cost %v", needLiveDataNum, time.Now().Sub(start))
+	}
+
 	return infos, nil
+}
+
+func paginateClusterInfos(infos []clusterInfo, pageNum int, pageSize int) []clusterInfo {
+	start := (pageNum - 1) * pageSize
+	end := pageNum * pageSize
+	if start > len(infos) {
+		return nil
+	}
+	if end > len(infos) {
+		end = len(infos)
+	}
+	return infos[start:end]
 }
 
 func podRequestsAndLimits(pod *corev1.Pod) (reqs, limits corev1.ResourceList) {

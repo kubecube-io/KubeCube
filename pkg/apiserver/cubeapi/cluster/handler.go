@@ -164,6 +164,8 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 		}
 	}
 
+	start := time.Now()
+
 	switch {
 	// find cluster by given name
 	case len(clusterName) > 0:
@@ -200,42 +202,28 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 		return
 	}
 
+	clog.Info("list cluster by (%v/%v) cost time: %v", clusterName, projectName, time.Now().Sub(start))
+
 	opts := clusterInfoOpts{
 		pruneInfo:         pruneInfo == "true",
 		statusFilter:      clusterStatus,
 		nodeLabelSelector: selector,
+		pageNum:           pageNum,
+		pageSize:          pageSize,
 	}
 
-	infos, err := makeClusterInfos(c.Request.Context(), clusterList, cli, opts)
+	res := result{Total: len(clusterList.Items)}
+
+	infos, err := makeClusterInfos(c.Request.Context(), clusterList, opts)
 	if err != nil {
 		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 		return
 	}
 
-	res := result{Total: len(infos)}
-
-	if pageNum > 0 && pageSize > 0 {
-		// paginate result
-		paginatedInfos := paginateClusterInfos(infos, pageNum, pageSize)
-		res.Items = paginatedInfos
-	} else {
-		res.Items = infos
-	}
+	res.Items = infos
 
 	response.SuccessReturn(c, res)
 	return
-}
-
-func paginateClusterInfos(infos []clusterInfo, pageNum int, pageSize int) []clusterInfo {
-	start := (pageNum - 1) * pageSize
-	end := pageNum * pageSize
-	if start > len(infos) {
-		return nil
-	}
-	if end > len(infos) {
-		end = len(infos)
-	}
-	return infos[start:end]
 }
 
 type monitorInfo struct {
