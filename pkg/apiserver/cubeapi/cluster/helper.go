@@ -121,13 +121,13 @@ func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, opts 
 			// we use goroutine to process livedata by concurrency.
 			// note: it doesn't need lock here cause there is no race when write data to different index place.
 			go func(cli mgrclient.Client, clusterName string, index int) {
+				defer wg.Done()
 				livedataInfo, err := makeLivedataInfo(ctx, cli, clusterName, opts)
 				if err != nil {
 					clog.Warn("make livedata failed for cluster %v cause %v", clusterName, err)
 					return
 				}
 				infos[index].clusterLivedataInfo = livedataInfo
-				wg.Done()
 			}(internalCluster.Client, info.ClusterName, i)
 		}
 		wg.Wait()
