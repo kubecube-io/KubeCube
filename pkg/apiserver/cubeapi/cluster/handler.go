@@ -198,7 +198,7 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 		clusterList = clusters
 	}
 
-	clog.Info("list cluster by (%v/%v) cost time: %v", clusterName, projectName, time.Now().Sub(start))
+	clog.Info("list cluster len(%v) cost time: %v", len(clusterList.Items), time.Now().Sub(start))
 
 	selector, err := labels.Parse(nodeLabelSelector)
 	if err != nil {
