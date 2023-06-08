@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -102,6 +103,7 @@ func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, opts 
 	if !opts.pruneInfo {
 		start := time.Now()
 		needLiveDataNum := 0
+		wg := &sync.WaitGroup{}
 		for i, info := range infos {
 			if info.clusterMetaInfo.Status == string(clusterv1.ClusterAbnormal) {
 				// do not populate livedata if abnormal
@@ -112,14 +114,23 @@ func makeClusterInfos(ctx context.Context, clusters clusterv1.ClusterList, opts 
 				clog.Warn("continue make livedata cause cluster %v abnormal: %v", info.ClusterName, err)
 				continue
 			}
-			cli := internalCluster.Client
-			livedataInfo, err := makeLivedataInfo(ctx, cli, info.ClusterName, opts)
-			if err != nil {
-				return nil, err
-			}
-			infos[i].clusterLivedataInfo = livedataInfo
+
+			wg.Add(1)
 			needLiveDataNum++
+
+			// we use goroutine to process livedata by concurrency.
+			// note: it doesn't need lock here cause there is no race when write data to different index place.
+			go func(cli mgrclient.Client, clusterName string, index int) {
+				livedataInfo, err := makeLivedataInfo(ctx, cli, clusterName, opts)
+				if err != nil {
+					clog.Warn("make livedata failed for cluster %v cause %v", clusterName, err)
+					return
+				}
+				infos[index].clusterLivedataInfo = livedataInfo
+				wg.Done()
+			}(internalCluster.Client, info.ClusterName, i)
 		}
+		wg.Wait()
 		clog.Info("make livedata for cluster len(%v) cost %v", needLiveDataNum, time.Now().Sub(start))
 	}
 
