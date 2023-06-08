@@ -212,15 +212,13 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 		return
 	}
 
-	res := result{}
+	res := result{Total: len(infos)}
 
 	if pageNum > 0 && pageSize > 0 {
 		// paginate result
 		paginatedInfos := paginateClusterInfos(infos, pageNum, pageSize)
-		res.Total = len(paginatedInfos)
 		res.Items = paginatedInfos
 	} else {
-		res.Total = len(infos)
 		res.Items = infos
 	}
 
