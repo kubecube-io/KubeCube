@@ -453,31 +453,37 @@ func getClustersByNamespace(namespace string, ctx context.Context) ([]string, er
 	return clusterNames, nil
 }
 
-// getClustersByProject get related clusters by given project
-func getClustersByProject(ctx context.Context, project string) (*clusterv1.ClusterList, error) {
+// filterClustersByProject get related clusters by given project
+func filterClustersByProject(ctx context.Context, clusterList clusterv1.ClusterList, project string) (clusterv1.ClusterList, error) {
 	var clusterItem []clusterv1.Cluster
 
 	projectLabel := constants.ProjectNsPrefix + project + constants.HncSuffix
 	labelSelector, err := labels.Parse(fmt.Sprintf("%v=%v", projectLabel, "1"))
 	if err != nil {
-		return nil, err
+		return clusterv1.ClusterList{}, err
 	}
 
-	clusters := multicluster.Interface().FuzzyCopy()
-	for _, cluster := range clusters {
-		cli := cluster.Client.Direct()
-		nsList := corev1.NamespaceList{}
-		err := cli.List(ctx, &nsList, &client.ListOptions{LabelSelector: labelSelector})
+	for _, cluster := range clusterList.Items {
+		cli, err := multicluster.Interface().GetClient(cluster.Name)
 		if err != nil {
-			return nil, err
+			// ignore unhealthy error
+			clog.Warn(err.Error())
+		}
+		if cli == nil {
+			continue
+		}
+		nsList := corev1.NamespaceList{}
+		err = cli.Cache().List(ctx, &nsList, &client.ListOptions{LabelSelector: labelSelector})
+		if err != nil {
+			return clusterv1.ClusterList{}, err
 		}
 		// this cluster is related with project if we found any namespaces under given project
 		if len(nsList.Items) > 0 {
-			clusterItem = append(clusterItem, *cluster.RawCluster)
+			clusterItem = append(clusterItem, cluster)
 		}
 	}
 
-	return &clusterv1.ClusterList{Items: clusterItem}, nil
+	return clusterv1.ClusterList{Items: clusterItem}, nil
 }
 
 func getAssignedResource(cli mgrclient.Client, cluster string) (cpu resource.Quantity, mem resource.Quantity, gpu resource.Quantity, err error) {
