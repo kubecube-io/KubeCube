@@ -1,8 +1,9 @@
 # v1.7.8
 
 ## Bugfix
-- fix gpu const   [#247](https://github.com/kubecube-io/KubeCube/pull/300)
-- Add paginate for cluster infos [#247](https://github.com/kubecube-io/KubeCube/pull/299)
+- Fix filter cluster by project[#303](https://github.com/kubecube-io/KubeCube/pull/303)
+- fix gpu const   [#300](https://github.com/kubecube-io/KubeCube/pull/300)
+- Add paginate for cluster infos [#299](https://github.com/kubecube-io/KubeCube/pull/299)
 
 ## Dependencies
 
