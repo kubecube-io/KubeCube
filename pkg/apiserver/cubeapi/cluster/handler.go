@@ -177,15 +177,6 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 			return
 		}
 		clusterList.Items = []clusterv1.Cluster{cluster}
-	// find related clusters by given project name
-	case len(projectName) > 0:
-		clusters, err := getClustersByProject(ctx, projectName)
-		if err != nil {
-			clog.Error("get clusters by given project %v failed: %v", projectName, err)
-			response.FailReturn(c, errcode.InternalServerError)
-			return
-		}
-		clusterList = *clusters
 	// give back all clusters by default
 	default:
 		clusters := clusterv1.ClusterList{}
@@ -199,6 +190,14 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 	}
 
 	clog.Info("list cluster len(%v) cost time: %v", len(clusterList.Items), time.Now().Sub(start))
+
+	if len(projectName) > 0 {
+		clusterList, err = filterClustersByProject(ctx, clusterList, projectName)
+		if err != nil {
+			response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, "get clusters by given project %v failed: %v", projectName, err))
+			return
+		}
+	}
 
 	selector, err := labels.Parse(nodeLabelSelector)
 	if err != nil {
