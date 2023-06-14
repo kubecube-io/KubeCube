@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -137,6 +138,10 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 		cli         = h.Client
 		ctx         = c.Request.Context()
 		clusterList = clusterv1.ClusterList{}
+
+		pageNum  int
+		pageSize int
+		err      error
 	)
 
 	clusterName := c.Query("cluster")
@@ -145,34 +150,52 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 	nodeLabelSelector := c.Query("nodeLabelSelector")
 	pruneInfo := c.Query("prune")
 
+	// parse paginate params if had
+	if c.Query("pageNum") != "" && c.Query("pageSize") != "" {
+		pageNum, err = strconv.Atoi(c.Query("pageNum"))
+		if err != nil {
+			response.FailReturn(c, errcode.BadRequest(err))
+			return
+		}
+		pageSize, err = strconv.Atoi(c.Query("pageSize"))
+		if err != nil {
+			response.FailReturn(c, errcode.BadRequest(err))
+			return
+		}
+	}
+
+	start := time.Now()
+
 	switch {
 	// find cluster by given name
 	case len(clusterName) > 0:
 		key := types.NamespacedName{Name: clusterName}
 		cluster := clusterv1.Cluster{}
-		err := cli.Cache().Get(ctx, key, &cluster)
+		err := cli.Direct().Get(ctx, key, &cluster)
 		if err != nil {
 			response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, "get cluster failed: %v", err))
 			return
 		}
 		clusterList.Items = []clusterv1.Cluster{cluster}
-	// find related clusters by given project name
-	case len(projectName) > 0:
-		clusters, err := getClustersByProject(ctx, projectName)
-		if err != nil {
-			response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, "get clusters by given project %v failed: %v", projectName, err))
-			return
-		}
-		clusterList = *clusters
 	// give back all clusters by default
 	default:
 		clusters := clusterv1.ClusterList{}
-		err := cli.Cache().List(ctx, &clusters)
+		err := cli.Direct().List(ctx, &clusters)
 		if err != nil {
 			response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, "list cluster failed: %v", err))
 			return
 		}
 		clusterList = clusters
+	}
+
+	clog.Info("list cluster len(%v) cost time: %v", len(clusterList.Items), time.Now().Sub(start))
+
+	if len(projectName) > 0 {
+		clusterList, err = filterClustersByProject(ctx, clusterList, projectName)
+		if err != nil {
+			response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, "get clusters by given project %v failed: %v", projectName, err))
+			return
+		}
 	}
 
 	selector, err := labels.Parse(nodeLabelSelector)
@@ -185,26 +208,21 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 		pruneInfo:         pruneInfo == "true",
 		statusFilter:      clusterStatus,
 		nodeLabelSelector: selector,
+		pageNum:           pageNum,
+		pageSize:          pageSize,
 	}
 
-	infos, err := makeClusterInfos(c.Request.Context(), clusterList, cli, opts)
+	res := result{Total: len(clusterList.Items)}
+
+	infos, err := makeClusterInfos(c.Request.Context(), clusterList, opts)
 	if err != nil {
 		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 		return
 	}
 
-	sort.SliceStable(infos, func(i, j int) bool {
-		return infos[i].CreateTime.After(infos[j].CreateTime)
-	})
+	res.Items = infos
 
-	if infos != nil {
-		res := result{
-			Total: len(infos),
-			Items: infos,
-		}
-		response.SuccessReturn(c, res)
-	}
-
+	response.SuccessReturn(c, res)
 	return
 }
 
