@@ -63,14 +63,29 @@ func (r *ClusterRoleBindingReconciler) syncUserOnCreate(ctx context.Context, clu
 		return ctrl.Result{}, err
 	}
 
+	foundUser := false
+
 	user := &v12.User{}
 	err = r.Get(ctx, types.NamespacedName{Name: userName}, user)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			return ctrl.Result{}, nil
+			// give another chance to match username format {user}-{id}
+			err = r.Get(ctx, types.NamespacedName{Name: parseUserNameWithID(userName)}, user)
+			if err == nil {
+				foundUser = true
+			} else {
+				foundUser = false
+			}
+		} else {
+			clog.Error("get user %v failed: %v", userName, err)
+			return ctrl.Result{}, err
 		}
-		clog.Error("get user %v failed: %v", userName, err)
-		return ctrl.Result{}, err
+	} else {
+		foundUser = true
+	}
+
+	if !foundUser {
+		return ctrl.Result{}, nil
 	}
 
 	appointUserAdmin(user)
@@ -91,14 +106,29 @@ func (r *ClusterRoleBindingReconciler) syncUserOnDelete(ctx context.Context, nam
 		return ctrl.Result{}, err
 	}
 
+	foundUser := false
+
 	user := &v12.User{}
 	err = r.Get(ctx, types.NamespacedName{Name: userName}, user)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			return ctrl.Result{}, nil
+			// give another chance to match username format {user}-{id}
+			err = r.Get(ctx, types.NamespacedName{Name: parseUserNameWithID(userName)}, user)
+			if err == nil {
+				foundUser = true
+			} else {
+				foundUser = false
+			}
+		} else {
+			clog.Error("get user %v failed: %v", userName, err)
+			return ctrl.Result{}, err
 		}
-		clog.Error("get user %v failed: %v", userName, err)
-		return ctrl.Result{}, err
+	} else {
+		foundUser = true
+	}
+
+	if !foundUser {
+		return ctrl.Result{}, nil
 	}
 
 	impeachUserAdmin(user)
