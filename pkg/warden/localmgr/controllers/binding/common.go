@@ -78,6 +78,13 @@ func parseUserInClusterRoleBinding(name string) (string, error) {
 	return strings.TrimSuffix(name, "-in-cluster"), nil
 }
 
+// parseUserNameWithID try to parse username with id.
+// the valid name format follow:
+// {user}-{id}
+func parseUserNameWithID(name string) string {
+	return strings.Split(name, "-")[0]
+}
+
 func addUserToTenant(user *v1.User, tenant string) {
 	tenantSet := sets.NewString(user.Status.BelongTenants...)
 	tenantSet.Insert(tenant)
