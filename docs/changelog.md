@@ -4,6 +4,7 @@
 - ignore cluster init error and keep retry background [#305](https://github.com/kubecube-io/KubeCube/pull/305)
 - fix gpu const [#301](https://github.com/kubecube-io/KubeCube/pull/301)
 - add paginate for cluster infos [#298](https://github.com/kubecube-io/KubeCube/pull/298)
+- move binding ctrls to warden [#307](https://github.com/kubecube-io/KubeCube/pull/307)
 
 ## Dependencies
 
