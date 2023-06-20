@@ -137,9 +137,22 @@ func (h *ProxyHandler) tryVersionConvert(cluster, url string, req *http.Request)
 	return true, convertedObj, convertedUrl, nil
 }
 
+const readOnlyUser = "appmon"
+const readOnlyUserHex = "6170706d6f6e"
+
 // ProxyHandle proxy all requests access to k8s, request uri format like below
 // api/v1/cube/proxy/clusters/{cluster}/{k8s_url}
 func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
+	// 6170706d6f6e is hex of appmon
+	userName := c.GetString(constants.EventAccountId)
+	if userName == readOnlyUser || userName == readOnlyUserHex {
+		switch c.Request.Method {
+		case http.MethodDelete, http.MethodPut, http.MethodPost, http.MethodPatch:
+			response.FailReturn(c, errcode.ForbiddenErr)
+			return
+		}
+	}
+
 	// http request params
 	cluster := c.Param("cluster")
 	url := c.Param("url")
