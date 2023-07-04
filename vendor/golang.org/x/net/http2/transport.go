@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"math"
 	mathrand "math/rand"
@@ -67,23 +68,13 @@ const (
 // A Transport internally caches connections to servers. It is safe
 // for concurrent use by multiple goroutines.
 type Transport struct {
-	// DialTLSContext specifies an optional dial function with context for
-	// creating TLS connections for requests.
-	//
-	// If DialTLSContext and DialTLS is nil, tls.Dial is used.
-	//
-	// If the returned net.Conn has a ConnectionState method like tls.Conn,
-	// it will be used to set http.Response.TLS.
-	DialTLSContext func(ctx context.Context, network, addr string, cfg *tls.Config) (net.Conn, error)
-
 	// DialTLS specifies an optional dial function for creating
 	// TLS connections for requests.
 	//
-	// If DialTLSContext and DialTLS is nil, tls.Dial is used.
+	// If DialTLS is nil, tls.Dial is used.
 	//
-	// Deprecated: Use DialTLSContext instead, which allows the transport
-	// to cancel dials as soon as they are no longer needed.
-	// If both are set, DialTLSContext takes priority.
+	// If the returned net.Conn has a ConnectionState method like tls.Conn,
+	// it will be used to set http.Response.TLS.
 	DialTLS func(network, addr string, cfg *tls.Config) (net.Conn, error)
 
 	// TLSClientConfig specifies the TLS configuration to use with
@@ -510,14 +501,12 @@ func (t *Transport) RoundTripOpt(req *http.Request, opt RoundTripOpt) (*http.Res
 			if req, err = shouldRetryRequest(req, err); err == nil {
 				// After the first retry, do exponential backoff with 10% jitter.
 				if retry == 0 {
-					t.vlogf("RoundTrip retrying after failure: %v", err)
 					continue
 				}
 				backoff := float64(uint(1) << (uint(retry) - 1))
 				backoff += backoff * (0.1 * mathrand.Float64())
 				select {
 				case <-time.After(time.Second * time.Duration(backoff)):
-					t.vlogf("RoundTrip retrying after failure: %v", err)
 					continue
 				case <-req.Context().Done():
 					err = req.Context().Err()
@@ -602,7 +591,7 @@ func (t *Transport) dialClientConn(ctx context.Context, addr string, singleUse b
 	if err != nil {
 		return nil, err
 	}
-	tconn, err := t.dialTLS(ctx, "tcp", addr, t.newTLSConfig(host))
+	tconn, err := t.dialTLS(ctx)("tcp", addr, t.newTLSConfig(host))
 	if err != nil {
 		return nil, err
 	}
@@ -623,25 +612,24 @@ func (t *Transport) newTLSConfig(host string) *tls.Config {
 	return cfg
 }
 
-func (t *Transport) dialTLS(ctx context.Context, network, addr string, tlsCfg *tls.Config) (net.Conn, error) {
-	if t.DialTLSContext != nil {
-		return t.DialTLSContext(ctx, network, addr, tlsCfg)
-	} else if t.DialTLS != nil {
-		return t.DialTLS(network, addr, tlsCfg)
+func (t *Transport) dialTLS(ctx context.Context) func(string, string, *tls.Config) (net.Conn, error) {
+	if t.DialTLS != nil {
+		return t.DialTLS
 	}
-
-	tlsCn, err := t.dialTLSWithContext(ctx, network, addr, tlsCfg)
-	if err != nil {
-		return nil, err
+	return func(network, addr string, cfg *tls.Config) (net.Conn, error) {
+		tlsCn, err := t.dialTLSWithContext(ctx, network, addr, cfg)
+		if err != nil {
+			return nil, err
+		}
+		state := tlsCn.ConnectionState()
+		if p := state.NegotiatedProtocol; p != NextProtoTLS {
+			return nil, fmt.Errorf("http2: unexpected ALPN protocol %q; want %q", p, NextProtoTLS)
+		}
+		if !state.NegotiatedProtocolIsMutual {
+			return nil, errors.New("http2: could not negotiate protocol mutually")
+		}
+		return tlsCn, nil
 	}
-	state := tlsCn.ConnectionState()
-	if p := state.NegotiatedProtocol; p != NextProtoTLS {
-		return nil, fmt.Errorf("http2: unexpected ALPN protocol %q; want %q", p, NextProtoTLS)
-	}
-	if !state.NegotiatedProtocolIsMutual {
-		return nil, errors.New("http2: could not negotiate protocol mutually")
-	}
-	return tlsCn, nil
 }
 
 // disableKeepAlives reports whether connections should be closed as
@@ -744,13 +732,11 @@ func (cc *ClientConn) healthCheck() {
 	// trigger the healthCheck again if there is no frame received.
 	ctx, cancel := context.WithTimeout(context.Background(), pingTimeout)
 	defer cancel()
-	cc.vlogf("http2: Transport sending health check")
 	err := cc.Ping(ctx)
 	if err != nil {
-		cc.vlogf("http2: Transport health check failure: %v", err)
 		cc.closeForLostPing()
-	} else {
-		cc.vlogf("http2: Transport health check success")
+		cc.t.connPool().MarkDead(cc)
+		return
 	}
 }
 
@@ -921,24 +907,6 @@ func (cc *ClientConn) onIdleTimeout() {
 	cc.closeIfIdle()
 }
 
-func (cc *ClientConn) closeConn() error {
-	t := time.AfterFunc(250*time.Millisecond, cc.forceCloseConn)
-	defer t.Stop()
-	return cc.tconn.Close()
-}
-
-// A tls.Conn.Close can hang for a long time if the peer is unresponsive.
-// Try to shut it down more aggressively.
-func (cc *ClientConn) forceCloseConn() {
-	tc, ok := cc.tconn.(*tls.Conn)
-	if !ok {
-		return
-	}
-	if nc := tlsUnderlyingConn(tc); nc != nil {
-		nc.Close()
-	}
-}
-
 func (cc *ClientConn) closeIfIdle() {
 	cc.mu.Lock()
 	if len(cc.streams) > 0 || cc.streamsReserved > 0 {
@@ -953,7 +921,7 @@ func (cc *ClientConn) closeIfIdle() {
 	if VerboseLogs {
 		cc.vlogf("http2: Transport closing idle conn %p (forSingleUse=%v, maxStream=%v)", cc, cc.singleUse, nextID-2)
 	}
-	cc.closeConn()
+	cc.tconn.Close()
 }
 
 func (cc *ClientConn) isDoNotReuseAndIdle() bool {
@@ -970,7 +938,7 @@ func (cc *ClientConn) Shutdown(ctx context.Context) error {
 		return err
 	}
 	// Wait for all in-flight streams to complete or connection to close
-	done := make(chan struct{})
+	done := make(chan error, 1)
 	cancelled := false // guarded by cc.mu
 	go func() {
 		cc.mu.Lock()
@@ -978,7 +946,7 @@ func (cc *ClientConn) Shutdown(ctx context.Context) error {
 		for {
 			if len(cc.streams) == 0 || cc.closed {
 				cc.closed = true
-				close(done)
+				done <- cc.tconn.Close()
 				break
 			}
 			if cancelled {
@@ -989,8 +957,8 @@ func (cc *ClientConn) Shutdown(ctx context.Context) error {
 	}()
 	shutdownEnterWaitStateHook()
 	select {
-	case <-done:
-		return cc.closeConn()
+	case err := <-done:
+		return err
 	case <-ctx.Done():
 		cc.mu.Lock()
 		// Free the goroutine above
@@ -1033,9 +1001,9 @@ func (cc *ClientConn) closeForError(err error) error {
 	for _, cs := range cc.streams {
 		cs.abortStreamLocked(err)
 	}
-	cc.cond.Broadcast()
-	cc.mu.Unlock()
-	return cc.closeConn()
+	defer cc.cond.Broadcast()
+	defer cc.mu.Unlock()
+	return cc.tconn.Close()
 }
 
 // Close closes the client connection immediately.
@@ -1780,8 +1748,7 @@ func (cc *ClientConn) encodeHeaders(req *http.Request, addGzipHeader bool, trail
 		}
 		for _, v := range vv {
 			if !httpguts.ValidHeaderFieldValue(v) {
-				// Don't include the value in the error, because it may be sensitive.
-				return nil, fmt.Errorf("invalid HTTP header value for header %q", k)
+				return nil, fmt.Errorf("invalid HTTP header value %q for header %q", v, k)
 			}
 		}
 	}
@@ -2011,7 +1978,7 @@ func (cc *ClientConn) forgetStreamID(id uint32) {
 			cc.vlogf("http2: Transport closing idle conn %p (forSingleUse=%v, maxStream=%v)", cc, cc.singleUse, cc.nextStreamID-2)
 		}
 		cc.closed = true
-		defer cc.closeConn()
+		defer cc.tconn.Close()
 	}
 
 	cc.mu.Unlock()
@@ -2058,8 +2025,8 @@ func isEOFOrNetReadError(err error) bool {
 
 func (rl *clientConnReadLoop) cleanup() {
 	cc := rl.cc
-	cc.t.connPool().MarkDead(cc)
-	defer cc.closeConn()
+	defer cc.tconn.Close()
+	defer cc.t.connPool().MarkDead(cc)
 	defer close(cc.readerDone)
 
 	if cc.idleTimer != nil {
@@ -2914,12 +2881,7 @@ func (t *Transport) logf(format string, args ...interface{}) {
 	log.Printf(format, args...)
 }
 
-var noBody io.ReadCloser = noBodyReader{}
-
-type noBodyReader struct{}
-
-func (noBodyReader) Close() error             { return nil }
-func (noBodyReader) Read([]byte) (int, error) { return 0, io.EOF }
+var noBody io.ReadCloser = ioutil.NopCloser(bytes.NewReader(nil))
 
 type missingBody struct{}
 

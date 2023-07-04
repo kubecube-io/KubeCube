@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"reflect"
 	"strings"
 	"sync"
 
@@ -26,9 +25,7 @@ var (
 	default405Body = []byte("405 method not allowed")
 )
 
-var defaultPlatform string
-
-var defaultTrustedCIDRs = []*net.IPNet{{IP: net.IP{0x0, 0x0, 0x0, 0x0}, Mask: net.IPMask{0x0, 0x0, 0x0, 0x0}}} // 0.0.0.0/0
+var defaultAppEngine bool
 
 // HandlerFunc defines the handler used by gin middleware as return value.
 type HandlerFunc func(*Context)
@@ -54,16 +51,6 @@ type RouteInfo struct {
 
 // RoutesInfo defines a RouteInfo array.
 type RoutesInfo []RouteInfo
-
-// Trusted platforms
-const (
-	// When running on Google App Engine. Trust X-Appengine-Remote-Addr
-	// for determining the client's IP
-	PlatformGoogleAppEngine = "X-Appengine-Remote-Addr"
-	// When using Cloudflare's CDN. Trust CF-Connecting-IP for determining
-	// the client's IP
-	PlatformCloudflare = "CF-Connecting-IP"
-)
 
 // Engine is the framework's instance, it contains the muxer, middleware and configuration settings.
 // Create an instance of Engine, by using New() or Default()
@@ -102,7 +89,18 @@ type Engine struct {
 	// `(*gin.Context).Request.RemoteAddr`.
 	ForwardedByClientIP bool
 
-	// DEPRECATED: USE `TrustedPlatform` WITH VALUE `gin.GoogleAppEngine` INSTEAD
+	// List of headers used to obtain the client IP when
+	// `(*gin.Engine).ForwardedByClientIP` is `true` and
+	// `(*gin.Context).Request.RemoteAddr` is matched by at least one of the
+	// network origins of `(*gin.Engine).TrustedProxies`.
+	RemoteIPHeaders []string
+
+	// List of network origins (IPv4 addresses, IPv4 CIDRs, IPv6 addresses or
+	// IPv6 CIDRs) from which to trust request's headers that contain
+	// alternative client IP when `(*gin.Engine).ForwardedByClientIP` is
+	// `true`.
+	TrustedProxies []string
+
 	// #726 #755 If enabled, it will trust some headers starting with
 	// 'X-AppEngine...' for better integration with that PaaS.
 	AppEngine bool
@@ -115,23 +113,13 @@ type Engine struct {
 	// as url.Path gonna be used, which is already unescaped.
 	UnescapePathValues bool
 
-	// RemoveExtraSlash a parameter can be parsed from the URL even with extra slashes.
-	// See the PR #1817 and issue #1644
-	RemoveExtraSlash bool
-
-	// List of headers used to obtain the client IP when
-	// `(*gin.Engine).ForwardedByClientIP` is `true` and
-	// `(*gin.Context).Request.RemoteAddr` is matched by at least one of the
-	// network origins of list defined by `(*gin.Engine).SetTrustedProxies()`.
-	RemoteIPHeaders []string
-
-	// If set to a constant of value gin.Platform*, trusts the headers set by
-	// that platform, for example to determine the client IP
-	TrustedPlatform string
-
 	// Value of 'maxMemory' param that is given to http.Request's ParseMultipartForm
 	// method call.
 	MaxMultipartMemory int64
+
+	// RemoveExtraSlash a parameter can be parsed from the URL even with extra slashes.
+	// See the PR #1817 and issue #1644
+	RemoveExtraSlash bool
 
 	delims           render.Delims
 	secureJSONPrefix string
@@ -144,8 +132,6 @@ type Engine struct {
 	pool             sync.Pool
 	trees            methodTrees
 	maxParams        uint16
-	maxSections      uint16
-	trustedProxies   []string
 	trustedCIDRs     []*net.IPNet
 }
 
@@ -173,7 +159,8 @@ func New() *Engine {
 		HandleMethodNotAllowed: false,
 		ForwardedByClientIP:    true,
 		RemoteIPHeaders:        []string{"X-Forwarded-For", "X-Real-IP"},
-		TrustedPlatform:        defaultPlatform,
+		TrustedProxies:         []string{"0.0.0.0/0"},
+		AppEngine:              defaultAppEngine,
 		UseRawPath:             false,
 		RemoveExtraSlash:       false,
 		UnescapePathValues:     true,
@@ -181,8 +168,6 @@ func New() *Engine {
 		trees:                  make(methodTrees, 0, 9),
 		delims:                 render.Delims{Left: "{{", Right: "}}"},
 		secureJSONPrefix:       "while(1);",
-		trustedProxies:         []string{"0.0.0.0/0"},
-		trustedCIDRs:           defaultTrustedCIDRs,
 	}
 	engine.RouterGroup.engine = engine
 	engine.pool.New = func() interface{} {
@@ -201,8 +186,7 @@ func Default() *Engine {
 
 func (engine *Engine) allocateContext() *Context {
 	v := make(Params, 0, engine.maxParams)
-	skippedNodes := make([]skippedNode, 0, engine.maxSections)
-	return &Context{engine: engine, params: &v, skippedNodes: &skippedNodes}
+	return &Context{engine: engine, params: &v}
 }
 
 // Delims sets template left and right delims and returns a Engine instance.
@@ -265,7 +249,7 @@ func (engine *Engine) NoRoute(handlers ...HandlerFunc) {
 	engine.rebuild404Handlers()
 }
 
-// NoMethod sets the handlers called when Engine.HandleMethodNotAllowed = true.
+// NoMethod sets the handlers called when... TODO.
 func (engine *Engine) NoMethod(handlers ...HandlerFunc) {
 	engine.noMethod = handlers
 	engine.rebuild405Handlers()
@@ -308,10 +292,6 @@ func (engine *Engine) addRoute(method, path string, handlers HandlersChain) {
 	if paramsCount := countParams(path); paramsCount > engine.maxParams {
 		engine.maxParams = paramsCount
 	}
-
-	if sectionsCount := countSections(path); sectionsCount > engine.maxSections {
-		engine.maxSections = sectionsCount
-	}
 }
 
 // Routes returns a slice of registered routes, including some useful information, such as:
@@ -346,11 +326,11 @@ func iterate(path, method string, routes RoutesInfo, root *node) RoutesInfo {
 func (engine *Engine) Run(addr ...string) (err error) {
 	defer func() { debugPrintError(err) }()
 
-	if engine.isUnsafeTrustedProxies() {
-		debugPrint("[WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.\n" +
-			"Please check https://pkg.go.dev/github.com/gin-gonic/gin#readme-don-t-trust-all-proxies for details.")
+	trustedCIDRs, err := engine.prepareTrustedCIDRs()
+	if err != nil {
+		return err
 	}
-
+	engine.trustedCIDRs = trustedCIDRs
 	address := resolveAddress(addr)
 	debugPrint("Listening and serving HTTP on %s\n", address)
 	err = http.ListenAndServe(address, engine)
@@ -358,12 +338,12 @@ func (engine *Engine) Run(addr ...string) (err error) {
 }
 
 func (engine *Engine) prepareTrustedCIDRs() ([]*net.IPNet, error) {
-	if engine.trustedProxies == nil {
+	if engine.TrustedProxies == nil {
 		return nil, nil
 	}
 
-	cidr := make([]*net.IPNet, 0, len(engine.trustedProxies))
-	for _, trustedProxy := range engine.trustedProxies {
+	cidr := make([]*net.IPNet, 0, len(engine.TrustedProxies))
+	for _, trustedProxy := range engine.TrustedProxies {
 		if !strings.Contains(trustedProxy, "/") {
 			ip := parseIP(trustedProxy)
 			if ip == nil {
@@ -384,31 +364,6 @@ func (engine *Engine) prepareTrustedCIDRs() ([]*net.IPNet, error) {
 		cidr = append(cidr, cidrNet)
 	}
 	return cidr, nil
-}
-
-// SetTrustedProxies set a list of network origins (IPv4 addresses,
-// IPv4 CIDRs, IPv6 addresses or IPv6 CIDRs) from which to trust
-// request's headers that contain alternative client IP when
-// `(*gin.Engine).ForwardedByClientIP` is `true`. `TrustedProxies`
-// feature is enabled by default, and it also trusts all proxies
-// by default. If you want to disable this feature, use
-// Engine.SetTrustedProxies(nil), then Context.ClientIP() will
-// return the remote address directly.
-func (engine *Engine) SetTrustedProxies(trustedProxies []string) error {
-	engine.trustedProxies = trustedProxies
-	return engine.parseTrustedProxies()
-}
-
-// isUnsafeTrustedProxies compares Engine.trustedCIDRs and defaultTrustedCIDRs, it's not safe if equal (returns true)
-func (engine *Engine) isUnsafeTrustedProxies() bool {
-	return reflect.DeepEqual(engine.trustedCIDRs, defaultTrustedCIDRs)
-}
-
-// parseTrustedProxies parse Engine.trustedProxies to Engine.trustedCIDRs
-func (engine *Engine) parseTrustedProxies() error {
-	trustedCIDRs, err := engine.prepareTrustedCIDRs()
-	engine.trustedCIDRs = trustedCIDRs
-	return err
 }
 
 // parseIP parse a string representation of an IP and returns a net.IP with the
@@ -432,11 +387,6 @@ func (engine *Engine) RunTLS(addr, certFile, keyFile string) (err error) {
 	debugPrint("Listening and serving HTTPS on %s\n", addr)
 	defer func() { debugPrintError(err) }()
 
-	if engine.isUnsafeTrustedProxies() {
-		debugPrint("[WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.\n" +
-			"Please check https://pkg.go.dev/github.com/gin-gonic/gin#readme-don-t-trust-all-proxies for details.")
-	}
-
 	err = http.ListenAndServeTLS(addr, certFile, keyFile, engine)
 	return
 }
@@ -447,11 +397,6 @@ func (engine *Engine) RunTLS(addr, certFile, keyFile string) (err error) {
 func (engine *Engine) RunUnix(file string) (err error) {
 	debugPrint("Listening and serving HTTP on unix:/%s", file)
 	defer func() { debugPrintError(err) }()
-
-	if engine.isUnsafeTrustedProxies() {
-		debugPrint("[WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.\n" +
-			"Please check https://pkg.go.dev/github.com/gin-gonic/gin#readme-don-t-trust-all-proxies for details.")
-	}
 
 	listener, err := net.Listen("unix", file)
 	if err != nil {
@@ -471,11 +416,6 @@ func (engine *Engine) RunFd(fd int) (err error) {
 	debugPrint("Listening and serving HTTP on fd@%d", fd)
 	defer func() { debugPrintError(err) }()
 
-	if engine.isUnsafeTrustedProxies() {
-		debugPrint("[WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.\n" +
-			"Please check https://pkg.go.dev/github.com/gin-gonic/gin#readme-don-t-trust-all-proxies for details.")
-	}
-
 	f := os.NewFile(uintptr(fd), fmt.Sprintf("fd@%d", fd))
 	listener, err := net.FileListener(f)
 	if err != nil {
@@ -491,12 +431,6 @@ func (engine *Engine) RunFd(fd int) (err error) {
 func (engine *Engine) RunListener(listener net.Listener) (err error) {
 	debugPrint("Listening and serving HTTP on listener what's bind with address@%s", listener.Addr())
 	defer func() { debugPrintError(err) }()
-
-	if engine.isUnsafeTrustedProxies() {
-		debugPrint("[WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.\n" +
-			"Please check https://pkg.go.dev/github.com/gin-gonic/gin#readme-don-t-trust-all-proxies for details.")
-	}
-
 	err = http.Serve(listener, engine)
 	return
 }
@@ -545,7 +479,7 @@ func (engine *Engine) handleHTTPRequest(c *Context) {
 		}
 		root := t[i].root
 		// Find route in tree
-		value := root.getValue(rPath, c.params, c.skippedNodes, unescape)
+		value := root.getValue(rPath, c.params, unescape)
 		if value.params != nil {
 			c.Params = *value.params
 		}
@@ -573,7 +507,7 @@ func (engine *Engine) handleHTTPRequest(c *Context) {
 			if tree.method == httpMethod {
 				continue
 			}
-			if value := tree.root.getValue(rPath, nil, c.skippedNodes, unescape); value.handlers != nil {
+			if value := tree.root.getValue(rPath, nil, unescape); value.handlers != nil {
 				c.handlers = engine.allNoMethod
 				serveError(c, http.StatusMethodNotAllowed, default405Body)
 				return

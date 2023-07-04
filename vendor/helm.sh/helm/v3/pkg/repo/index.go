@@ -19,7 +19,6 @@ package repo
 import (
 	"bytes"
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -106,27 +105,16 @@ func LoadIndexFile(path string) (*IndexFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	i, err := loadIndex(b, path)
-	if err != nil {
-		return nil, errors.Wrapf(err, "error loading %s", path)
-	}
-	return i, nil
+	return loadIndex(b)
 }
 
-// MustAdd adds a file to the index
+// Add adds a file to the index
 // This can leave the index in an unsorted state
-func (i IndexFile) MustAdd(md *chart.Metadata, filename, baseURL, digest string) error {
-	if md.APIVersion == "" {
-		md.APIVersion = chart.APIVersionV1
-	}
-	if err := md.Validate(); err != nil {
-		return errors.Wrapf(err, "validate failed for %s", filename)
-	}
-
+func (i IndexFile) Add(md *chart.Metadata, filename, baseURL, digest string) {
 	u := filename
 	if baseURL != "" {
-		_, file := filepath.Split(filename)
 		var err error
+		_, file := filepath.Split(filename)
 		u, err = urlutil.URLJoin(baseURL, file)
 		if err != nil {
 			u = path.Join(baseURL, file)
@@ -138,17 +126,10 @@ func (i IndexFile) MustAdd(md *chart.Metadata, filename, baseURL, digest string)
 		Digest:   digest,
 		Created:  time.Now(),
 	}
-	ee := i.Entries[md.Name]
-	i.Entries[md.Name] = append(ee, cr)
-	return nil
-}
-
-// Add adds a file to the index and logs an error.
-//
-// Deprecated: Use index.MustAdd instead.
-func (i IndexFile) Add(md *chart.Metadata, filename, baseURL, digest string) {
-	if err := i.MustAdd(md, filename, baseURL, digest); err != nil {
-		log.Printf("skipping loading invalid entry for chart %q %q from %s: %s", md.Name, md.Version, filename, err)
+	if ee, ok := i.Entries[md.Name]; !ok {
+		i.Entries[md.Name] = ChartVersions{cr}
+	} else {
+		i.Entries[md.Name] = append(ee, cr)
 	}
 }
 
@@ -313,33 +294,18 @@ func IndexDirectory(dir, baseURL string) (*IndexFile, error) {
 		if err != nil {
 			return index, err
 		}
-		if err := index.MustAdd(c.Metadata, fname, parentURL, hash); err != nil {
-			return index, errors.Wrapf(err, "failed adding to %s to index", fname)
-		}
+		index.Add(c.Metadata, fname, parentURL, hash)
 	}
 	return index, nil
 }
 
 // loadIndex loads an index file and does minimal validity checking.
 //
-// The source parameter is only used for logging.
 // This will fail if API Version is not set (ErrNoAPIVersion) or if the unmarshal fails.
-func loadIndex(data []byte, source string) (*IndexFile, error) {
+func loadIndex(data []byte) (*IndexFile, error) {
 	i := &IndexFile{}
 	if err := yaml.UnmarshalStrict(data, i); err != nil {
 		return i, err
-	}
-
-	for name, cvs := range i.Entries {
-		for idx := len(cvs) - 1; idx >= 0; idx-- {
-			if cvs[idx].APIVersion == "" {
-				cvs[idx].APIVersion = chart.APIVersionV1
-			}
-			if err := cvs[idx].Validate(); err != nil {
-				log.Printf("skipping loading invalid entry for chart %q %q from %s: %s", name, cvs[idx].Version, source, err)
-				cvs = append(cvs[:idx], cvs[idx+1:]...)
-			}
-		}
 	}
 	i.SortEntries()
 	if i.APIVersion == "" {

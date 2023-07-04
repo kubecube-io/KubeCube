@@ -98,8 +98,6 @@ func (s *OCIStore) AddReference(name string, desc ocispec.Descriptor) {
 	}
 
 	if _, ok := s.nameMap[name]; ok {
-		s.nameMap[name] = desc
-
 		for i, ref := range s.index.Manifests {
 			if name == ref.Annotations[ocispec.AnnotationRefName] {
 				s.index.Manifests[i] = desc
@@ -109,12 +107,11 @@ func (s *OCIStore) AddReference(name string, desc ocispec.Descriptor) {
 
 		// Process should not reach here.
 		// Fallthrough to `Add` scenario and recover.
-		s.index.Manifests = append(s.index.Manifests, desc)
-		return
 	}
 
 	s.index.Manifests = append(s.index.Manifests, desc)
 	s.nameMap[name] = desc
+	return
 }
 
 // DeleteReference deletes an reference from index.

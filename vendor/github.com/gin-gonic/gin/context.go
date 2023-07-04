@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"math"
 	"mime/multipart"
 	"net"
@@ -54,9 +53,8 @@ type Context struct {
 	index    int8
 	fullPath string
 
-	engine       *Engine
-	params       *Params
-	skippedNodes *[]skippedNode
+	engine *Engine
+	params *Params
 
 	// This mutex protect Keys map
 	mu sync.RWMutex
@@ -98,8 +96,7 @@ func (c *Context) reset() {
 	c.Accepted = nil
 	c.queryCache = nil
 	c.formCache = nil
-	*c.params = (*c.params)[:0]
-	*c.skippedNodes = (*c.skippedNodes)[:0]
+	*c.params = (*c.params)[0:0]
 }
 
 // Copy returns a copy of the current context that can be safely used outside the request's scope.
@@ -728,23 +725,13 @@ func (c *Context) ShouldBindBodyWith(obj interface{}, bb binding.BindingBody) (e
 	return bb.BindBody(body, obj)
 }
 
-// ClientIP implements one best effort algorithm to return the real client IP.
+// ClientIP implements a best effort algorithm to return the real client IP.
 // It called c.RemoteIP() under the hood, to check if the remote IP is a trusted proxy or not.
-// If it is it will then try to parse the headers defined in Engine.RemoteIPHeaders (defaulting to [X-Forwarded-For, X-Real-Ip]).
-// If the headers are not syntactically valid OR the remote IP does not correspond to a trusted proxy,
+// If it's it will then try to parse the headers defined in Engine.RemoteIPHeaders (defaulting to [X-Forwarded-For, X-Real-Ip]).
+// If the headers are nots syntactically valid OR the remote IP does not correspong to a trusted proxy,
 // the remote IP (coming form Request.RemoteAddr) is returned.
 func (c *Context) ClientIP() string {
-	// Check if we're running on a trusted platform, continue running backwards if error
-	if c.engine.TrustedPlatform != "" {
-		// Developers can define their own header of Trusted Platform or use predefined constants
-		if addr := c.requestHeader(c.engine.TrustedPlatform); addr != "" {
-			return addr
-		}
-	}
-
-	// Legacy "AppEngine" flag
 	if c.engine.AppEngine {
-		log.Println(`The AppEngine flag is going to be deprecated. Please check issues #2723 and #2739 and use 'TrustedPlatform: gin.PlatformGoogleAppEngine' instead.`)
 		if addr := c.requestHeader("X-Appengine-Remote-Addr"); addr != "" {
 			return addr
 		}
@@ -757,7 +744,7 @@ func (c *Context) ClientIP() string {
 
 	if trusted && c.engine.ForwardedByClientIP && c.engine.RemoteIPHeaders != nil {
 		for _, headerName := range c.engine.RemoteIPHeaders {
-			ip, valid := c.engine.validateHeader(c.requestHeader(headerName))
+			ip, valid := validateHeader(c.requestHeader(headerName))
 			if valid {
 				return ip
 			}
@@ -766,21 +753,10 @@ func (c *Context) ClientIP() string {
 	return remoteIP.String()
 }
 
-func (e *Engine) isTrustedProxy(ip net.IP) bool {
-	if e.trustedCIDRs != nil {
-		for _, cidr := range e.trustedCIDRs {
-			if cidr.Contains(ip) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 // RemoteIP parses the IP from Request.RemoteAddr, normalizes and returns the IP (without the port).
 // It also checks if the remoteIP is a trusted proxy or not.
 // In order to perform this validation, it will see if the IP is contained within at least one of the CIDR blocks
-// defined by Engine.SetTrustedProxies()
+// defined in Engine.TrustedProxies
 func (c *Context) RemoteIP() (net.IP, bool) {
 	ip, _, err := net.SplitHostPort(strings.TrimSpace(c.Request.RemoteAddr))
 	if err != nil {
@@ -791,25 +767,35 @@ func (c *Context) RemoteIP() (net.IP, bool) {
 		return nil, false
 	}
 
-	return remoteIP, c.engine.isTrustedProxy(remoteIP)
+	if c.engine.trustedCIDRs != nil {
+		for _, cidr := range c.engine.trustedCIDRs {
+			if cidr.Contains(remoteIP) {
+				return remoteIP, true
+			}
+		}
+	}
+
+	return remoteIP, false
 }
 
-func (e *Engine) validateHeader(header string) (clientIP string, valid bool) {
+func validateHeader(header string) (clientIP string, valid bool) {
 	if header == "" {
 		return "", false
 	}
 	items := strings.Split(header, ",")
-	for i := len(items) - 1; i >= 0; i-- {
-		ipStr := strings.TrimSpace(items[i])
+	for i, ipStr := range items {
+		ipStr = strings.TrimSpace(ipStr)
 		ip := net.ParseIP(ipStr)
 		if ip == nil {
 			return "", false
 		}
 
-		// X-Forwarded-For is appended by proxy
-		// Check IPs in reverse order and stop when find untrusted proxy
-		if (i == 0) || (!e.isTrustedProxy(ip)) {
-			return ipStr, true
+		// We need to return the first IP in the list, but,
+		// we should not early return since we need to validate that
+		// the rest of the header is syntactically valid
+		if i == 0 {
+			clientIP = ipStr
+			valid = true
 		}
 	}
 	return
