@@ -23,7 +23,6 @@ import (
 	"strconv"
 	"strings"
 
-	jsoniter "github.com/json-iterator/go"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -38,8 +37,6 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 )
-
-var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 const (
 	TCP = "TCP"
