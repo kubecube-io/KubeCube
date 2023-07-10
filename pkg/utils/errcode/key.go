@@ -25,4 +25,5 @@ var (
 	SecretNotMatchErr = New(&ErrorInfo{Code: http.StatusBadRequest, Message: "secretkey and accesskey not match."})
 	MaxKeyErr         = New(&ErrorInfo{Code: http.StatusBadRequest, Message: "already have 5 credentials, can't create more."})
 	ServerErr         = New(&ErrorInfo{Code: http.StatusInternalServerError, Message: "server error."})
+	NotFoundErr       = New(&ErrorInfo{Code: http.StatusNotFound, Message: "not found"})
 )

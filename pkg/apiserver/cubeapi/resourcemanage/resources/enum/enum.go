@@ -19,6 +19,7 @@ package enum
 type ResourceTypeEnum string
 
 const (
+	ConfigMapType                     ResourceTypeEnum = "configmaps"
 	CronResourceType                  ResourceTypeEnum = "cronjobs"
 	DeploymentResourceType            ResourceTypeEnum = "deployments"
 	JobResourceType                   ResourceTypeEnum = "jobs"

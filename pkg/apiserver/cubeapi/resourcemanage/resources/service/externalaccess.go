@@ -18,18 +18,17 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"github.com/kubecube-io/kubecube/pkg/clog"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"net/http"
 	"strconv"
 	"strings"
 
 	jsoniter "github.com/json-iterator/go"
+	"github.com/kubecube-io/kubecube/pkg/clog"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	resourcemanage "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
@@ -83,35 +82,35 @@ func init() {
 	resourcemanage.SetExtendHandler(enum.ExternalAccessResourceType, ExternalHandle)
 }
 
-func ExternalHandle(param resourcemanage.ExtendParams) (interface{}, error) {
+func ExternalHandle(param resourcemanage.ExtendContext) (interface{}, *errcode.ErrorInfo) {
 	access := resources.NewSimpleAccess(param.Cluster, param.Username, param.Namespace)
 	kubernetes := clients.Interface().Kubernetes(param.Cluster)
 	if kubernetes == nil {
-		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
+		return nil, errcode.ClusterNotFoundError(param.Cluster)
 	}
 	externalAccess := NewExternalAccess(kubernetes.Direct(), param.Namespace, param.ResourceName, param.FilterCondition, param.NginxNamespace, param.NginxTcpServiceConfigMap, param.NginxUdpServiceConfigMap)
 	switch param.Action {
 	case http.MethodGet:
 		if allow := access.AccessAllow("", "services", "list"); !allow {
-			return nil, errors.New(errcode.ForbiddenErr.Message)
+			return nil, errcode.ForbiddenErr
 		}
-		return externalAccess.GetExternalAccess()
+		return externalAccess.getExternalAccess()
 	case http.MethodPost:
 		if allow := access.AccessAllow("", "services", "create"); !allow {
-			return nil, errors.New(errcode.ForbiddenErr.Message)
+			return nil, errcode.ForbiddenErr
 		}
 		var externalServices []ExternalAccessInfo
-		err := json.Unmarshal(param.Body, &externalServices)
+		err := param.GinContext.ShouldBindJSON(&externalServices)
 		if err != nil {
-			return nil, errors.New(errcode.InvalidBodyFormat.Message)
+			return nil, errcode.InvalidBodyFormat
 		}
 		err = externalAccess.SetExternalAccess(externalServices)
 		if err != nil {
-			return nil, err
+			return nil, errcode.BadRequest(err)
 		}
 		return "success", nil
 	default:
-		return nil, errors.New(errcode.InvalidHttpMethod.Message)
+		return nil, errcode.InvalidHttpMethod
 	}
 }
 
@@ -300,17 +299,17 @@ func (s *ExternalAccess) GetExternalAccessConfigMap() (tcpResultMap map[int]*Ext
 	return tcpResultMap, udpResultMap, nil
 }
 
-// GetExternalAccess get external info
-func (s *ExternalAccess) GetExternalAccess() ([]ExternalAccessInfo, error) {
+// getExternalAccess get external info
+func (s *ExternalAccess) getExternalAccess() ([]ExternalAccessInfo, *errcode.ErrorInfo) {
 	tcpResultMap, udpResultMap, err := s.GetExternalAccessConfigMap()
 	if err != nil {
-		return nil, err
+		return nil, errcode.BadRequest(err)
 	}
 	// not in configmap but in service.spec
 	var service v1.Service
 	err = s.client.Get(s.ctx, types.NamespacedName{Namespace: s.namespace, Name: s.name}, &service)
 	if err != nil {
-		return nil, err
+		return nil, errcode.BadRequest(err)
 	}
 	for _, items := range service.Spec.Ports {
 		if items.Protocol == TCP {
