@@ -102,6 +102,8 @@ func (e *extenderPerReq) processUpdate() (_ interface{}, errInfo *errcode.ErrorI
 	c := e.ginContext
 	cli := e.client
 
+	action := c.Query("action")
+
 	toUpdateCm := &v1.ConfigMap{}
 	err := c.ShouldBindJSON(toUpdateCm)
 	if err != nil {
@@ -137,7 +139,11 @@ func (e *extenderPerReq) processUpdate() (_ interface{}, errInfo *errcode.ErrorI
 		return nil, errcode.BadRequest(err)
 	}
 
-	audit.SetAuditInfo(c, audit.UpdateConfigMap, generateCmName(toUpdateCm.Name, toUpdateCm.Namespace, e.cluster, string(uid)), toUpdateCm)
+	if action == "rollout" {
+		audit.SetAuditInfo(c, audit.RolloutConfigMap, generateCmName(toUpdateCm.Name, toUpdateCm.Namespace, e.cluster, string(uid)), toUpdateCm)
+	} else {
+		audit.SetAuditInfo(c, audit.UpdateConfigMap, generateCmName(toUpdateCm.Name, toUpdateCm.Namespace, e.cluster, string(uid)), toUpdateCm)
+	}
 
 	return nil, nil
 }

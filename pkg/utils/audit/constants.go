@@ -55,11 +55,12 @@ func SetAuditInfo(c *gin.Context, eventInfo *EventInfo, resourceName string, Req
 }
 
 var (
-	CreateUser      = &EventInfo{"createUser", "createUser", "user"}
-	UpdateUser      = &EventInfo{"updateUser", "updateUser", "user"}
-	DeleteKey       = &EventInfo{"deleteKey", "deleteKey", "key"}
-	CreateKey       = &EventInfo{"createKey", "createKey", "key"}
-	CreateConfigMap = &EventInfo{"createConfigMap", "创建ConfigMap", "configmap"}
-	DeleteConfigMap = &EventInfo{"deleteConfigMap", "删除ConfigMap", "configmap"}
-	UpdateConfigMap = &EventInfo{"updateConfigMap", "更新ConfigMap", "configmap"}
+	CreateUser       = &EventInfo{"createUser", "createUser", "user"}
+	UpdateUser       = &EventInfo{"updateUser", "updateUser", "user"}
+	DeleteKey        = &EventInfo{"deleteKey", "deleteKey", "key"}
+	CreateKey        = &EventInfo{"createKey", "createKey", "key"}
+	CreateConfigMap  = &EventInfo{"createConfigMap", "createConfigMap", "configmap"}
+	DeleteConfigMap  = &EventInfo{"deleteConfigMap", "deleteConfigMap", "configmap"}
+	UpdateConfigMap  = &EventInfo{"updateConfigMap", "updateConfigMap", "configmap"}
+	RolloutConfigMap = &EventInfo{"rolloutConfigMap", "rolloutConfigMap", "configmap"}
 )

@@ -363,7 +363,7 @@ func ConsistParameters(c *gin.Context, body []byte) string {
 		}
 	}
 	parameters.Headers = headers
-	parameters.Body = c.GetString(audit.EventDescription)
+	parameters.Body = c.GetString(audit.EventRequestBody)
 	if body != nil {
 		parameters.Body = string(body)
 	}

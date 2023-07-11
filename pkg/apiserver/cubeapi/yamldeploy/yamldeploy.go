@@ -144,14 +144,14 @@ func createResource(cluster *multicluster.FuzzyCluster, username string, obj ctr
 		return err
 	}
 
-	if _, err := createByRestClient(restClient, restMapping, unstructuredObj.GetNamespace(), dryRun, unstructuredObj, username); err != nil {
+	if err := createByRestClient(restClient, restMapping, unstructuredObj.GetNamespace(), dryRun, unstructuredObj, username); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func createByRestClient(restClient *rest.RESTClient, mapping *meta.RESTMapping, namespace string, dryRun string, obj runtime.Object, username string) (runtime.Object, error) {
+func createByRestClient(restClient *rest.RESTClient, mapping *meta.RESTMapping, namespace string, dryRun string, obj runtime.Object, username string) error {
 	options := &metav1.CreateOptions{}
 	if dryRun == "true" {
 		options.DryRun = []string{metav1.DryRunAll}
@@ -163,7 +163,7 @@ func createByRestClient(restClient *rest.RESTClient, mapping *meta.RESTMapping, 
 		VersionedParams(options, metav1.ParameterCodec).
 		Body(obj).
 		Do(context.TODO()).
-		Get()
+		Into(obj)
 }
 
 func NewRestClient(config *rest.Config, gvk *schema.GroupVersionKind) (*rest.RESTClient, error) {
