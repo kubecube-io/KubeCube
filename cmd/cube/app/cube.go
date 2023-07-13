@@ -29,6 +29,7 @@ import (
 
 	"github.com/urfave/cli/v2"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/klog/v2"
 	"k8s.io/sample-controller/pkg/signals"
 )
 
@@ -61,6 +62,12 @@ var (
 func run(s *options.CubeOptions, stop <-chan struct{}) {
 	// init cube logger first
 	clog.InitCubeLoggerWithOpts(flags.CubeOpts.CubeLoggerOpts)
+
+	// init setting klog level
+	var klogLevel klog.Level
+	if err := klogLevel.Set(flags.CubeOpts.GenericCubeOpts.KlogLevel); err != nil {
+		clog.Fatal("klog level set failed: %v", err)
+	}
 
 	// initialize cube client set
 	clients.InitCubeClientSetWithOpts(s.ClientMgrOpts)

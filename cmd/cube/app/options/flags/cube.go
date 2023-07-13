@@ -30,5 +30,10 @@ func init() {
 			Name:        "pprof-addr",
 			Destination: &CubeOpts.GenericCubeOpts.PprofAddr,
 		},
+		&cli.StringFlag{
+			Name:        "klog-level",
+			Value:       "3",
+			Destination: &CubeOpts.GenericCubeOpts.KlogLevel,
+		},
 	}...)
 }
