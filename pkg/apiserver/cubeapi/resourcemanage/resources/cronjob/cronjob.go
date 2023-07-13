@@ -18,7 +18,6 @@ package cronjob
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -46,23 +45,23 @@ type CronJob struct {
 }
 
 func init() {
-	resourcemanage.SetExtendHandler(enum.CronResourceType, Handle)
+	resourcemanage.SetExtendHandler(enum.CronResourceType, handle)
 }
 
-func Handle(param resourcemanage.ExtendParams) (interface{}, error) {
+func handle(param resourcemanage.ExtendContext) (interface{}, *errcode.ErrorInfo) {
 	access := resources.NewSimpleAccess(param.Cluster, param.Username, param.Namespace)
 	if allow := access.AccessAllow("batch", "cronjobs", "list"); !allow {
-		return nil, errors.New(errcode.ForbiddenErr.Message)
+		return nil, errcode.ForbiddenErr
 	}
 	kubernetes := clients.Interface().Kubernetes(param.Cluster)
 	if kubernetes == nil {
-		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
+		return nil, errcode.ClusterNotFoundError(param.Cluster)
 	}
 	cronjob := NewCronJob(kubernetes, param.Namespace, param.FilterCondition)
 	if param.ResourceName == "" {
-		return cronjob.GetExtendCronJobs()
+		return cronjob.getExtendCronJobs()
 	} else {
-		return cronjob.GetExtendCronJob(param.ResourceName)
+		return cronjob.getExtendCronJob(param.ResourceName)
 	}
 }
 
@@ -76,8 +75,8 @@ func NewCronJob(client mgrclient.Client, namespace string, condition *filter.Con
 	}
 }
 
-// GetExtendCronJobs get extend deployments
-func (c *CronJob) GetExtendCronJobs() (*unstructured.Unstructured, error) {
+// getExtendCronJobs get extend deployments
+func (c *CronJob) getExtendCronJobs() (*unstructured.Unstructured, *errcode.ErrorInfo) {
 	resultMap := make(map[string]interface{})
 
 	// get deployment list from k8s cluster
@@ -85,14 +84,14 @@ func (c *CronJob) GetExtendCronJobs() (*unstructured.Unstructured, error) {
 	err := c.client.Cache().List(c.ctx, &cronJobList, client.InNamespace(c.namespace))
 	if err != nil {
 		clog.Error("can not find cronjob in %s from cluster, %v", c.namespace, err)
-		return nil, err
+		return nil, errcode.BadRequest(err)
 	}
 
 	// filter list by selector/sort/page
 	total, err := filter.GetEmptyFilter().FilterObjectList(&cronJobList, c.filterCondition)
 	if err != nil {
 		clog.Error("can not filter cronjob, err: %s", err.Error())
-		return nil, err
+		return nil, errcode.BadRequest(err)
 	}
 	// add pod status info
 	resultList := c.addExtendInfo(cronJobList)
@@ -103,24 +102,24 @@ func (c *CronJob) GetExtendCronJobs() (*unstructured.Unstructured, error) {
 	return &unstructured.Unstructured{Object: resultMap}, nil
 }
 
-// GetExtendCronJob get extend deployments
-func (c *CronJob) GetExtendCronJob(name string) (*unstructured.Unstructured, error) {
+// getExtendCronJob get extend deployments
+func (c *CronJob) getExtendCronJob(name string) (*unstructured.Unstructured, *errcode.ErrorInfo) {
 	// get deployment list from k8s cluster
 	var cronJob batchv1beta1.CronJob
 	err := c.client.Cache().Get(c.ctx, types.NamespacedName{Namespace: c.namespace, Name: name}, &cronJob)
 	if err != nil {
 		clog.Error("can not find cronjob %s/%s from cluster, %v", c.namespace, name, err)
-		return nil, err
+		return nil, errcode.BadRequest(err)
 	}
 
 	var cronJobList batchv1beta1.CronJobList
 	cronJobList.Items = []batchv1beta1.CronJob{cronJob}
 	resultList := c.addExtendInfo(cronJobList)
 	if len(resultList) == 0 {
-		return nil, fmt.Errorf("can not parse cronjob %s/%s", c.namespace, name)
+		return nil, errcode.BadRequest(fmt.Errorf("can not parse cronjob %s/%s", c.namespace, name))
 	}
 
-	return &resultList[0], err
+	return &resultList[0], nil
 }
 
 func (c *CronJob) addExtendInfo(cronJobList batchv1beta1.CronJobList) []unstructured.Unstructured {

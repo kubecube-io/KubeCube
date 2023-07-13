@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package pvc_test
+package pvc
 
 import (
 	. "github.com/onsi/ginkgo"
@@ -25,7 +25,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/pvc"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
@@ -78,8 +77,8 @@ var _ = Describe("Pvc", func() {
 	It("test get pvc workloads (pod which used this pvc)", func() {
 		client := clients.Interface().Kubernetes(constants.LocalCluster)
 		Expect(client).NotTo(BeNil())
-		pvc := pvc.NewPvc(client, ns, nil)
-		ret, err := pvc.GetPvcWorkloads(pvcName)
+		pvc := NewPvc(client, ns, nil)
+		ret, err := pvc.getPvcWorkloads(pvcName)
 		Expect(err).To(BeNil())
 		Expect(ret.Object["total"]).To(Equal(1))
 		pods := ret.Object["pods"].([]corev1.Pod)

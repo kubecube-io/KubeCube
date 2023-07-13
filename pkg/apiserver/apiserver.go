@@ -103,12 +103,14 @@ func registerCubeAPI(cfg *Config) http.Handler {
 	k8sApiExtend := router.Group(constants.ApiPathRoot + "/extend")
 	{
 		extendHandler := resourcemanage.NewExtendHandler(cfg.NginxNamespace, cfg.NginxTcpServiceConfigMap, cfg.NginxUdpServiceConfigMap)
+		yamlDeployHandler := yamldeploy.NewHandler(cfg.Gi18nManagers)
+
 		k8sApiExtend.GET("/feature-config", resourcemanage.GetFeatureConfig)
 		k8sApiExtend.Any("/clusters/:cluster/resources/:resourceType", extendHandler.ExtendHandle)
 		k8sApiExtend.Any("/clusters/:cluster/namespaces/:namespace/:resourceType/:resourceName", extendHandler.ExtendHandle)
 		k8sApiExtend.Any("/clusters/:cluster/namespaces/:namespace/:resourceType", extendHandler.ExtendHandle)
 		k8sApiExtend.GET("/clusters/:cluster/namespaces/:namespace/logs/:resourceName", resourcemanage.GetPodContainerLog)
-		k8sApiExtend.POST("/clusters/:cluster/yaml/deploy", yamldeploy.Deploy)
+		k8sApiExtend.POST("/clusters/:cluster/yaml/deploy", yamlDeployHandler.Deploy)
 		k8sApiExtend.GET("/ingressDomainSuffix", resourcemanage.IngressDomainSuffix)
 	}
 

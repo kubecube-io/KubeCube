@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package job_test
+package job
 
 import (
 	"github.com/kubecube-io/kubecube/pkg/utils/filter"
@@ -28,7 +28,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/job"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
@@ -76,11 +75,11 @@ var _ = Describe("Job", func() {
 	It("test get job extend info", func() {
 		client := clients.Interface().Kubernetes(constants.LocalCluster)
 		Expect(client).NotTo(BeNil())
-		job := job.NewJob(client, ns, &filter.Condition{
+		job := NewJob(client, ns, &filter.Condition{
 			Limit:  10,
 			Offset: 0,
 		})
-		ret, err := job.GetExtendJobs()
+		ret, err := job.getExtendJobs()
 		Expect(err).To(BeNil())
 		Expect(ret.Object["total"]).To(Equal(2))
 		items := ret.Object["items"].([]unstructured.Unstructured)

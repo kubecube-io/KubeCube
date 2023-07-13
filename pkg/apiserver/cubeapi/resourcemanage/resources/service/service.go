@@ -18,7 +18,6 @@ package service
 
 import (
 	"context"
-	"errors"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -42,20 +41,20 @@ type Service struct {
 }
 
 func init() {
-	resourcemanage.SetExtendHandler(enum.ServiceResourceType, Handle)
+	resourcemanage.SetExtendHandler(enum.ServiceResourceType, handle)
 }
 
-func Handle(param resourcemanage.ExtendParams) (interface{}, error) {
+func handle(param resourcemanage.ExtendContext) (interface{}, *errcode.ErrorInfo) {
 	access := resources.NewSimpleAccess(param.Cluster, param.Username, param.Namespace)
 	if allow := access.AccessAllow("apps", "services", "list"); !allow {
-		return nil, errors.New(errcode.ForbiddenErr.Message)
+		return nil, errcode.ForbiddenErr
 	}
 	kubernetes := clients.Interface().Kubernetes(param.Cluster)
 	if kubernetes == nil {
-		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
+		return nil, errcode.ClusterNotFoundError(param.Cluster)
 	}
 	service := NewService(kubernetes, param.Namespace, param.FilterCondition)
-	return service.GetExtendServices()
+	return service.getExtendServices()
 }
 
 func NewService(client mgrclient.Client, namespace string, condition *filter.Condition) Service {
@@ -68,14 +67,14 @@ func NewService(client mgrclient.Client, namespace string, condition *filter.Con
 	}
 }
 
-func (s *Service) GetExtendServices() (map[string]interface{}, error) {
+func (s *Service) getExtendServices() (map[string]interface{}, *errcode.ErrorInfo) {
 	// get service list from k8s cluster
 	var serviceList corev1.ServiceList
 	resultMap := make(map[string]interface{})
 	err := s.client.Cache().List(s.ctx, &serviceList, client.InNamespace(s.namespace))
 	if err != nil {
 		clog.Error("can not find service from cluster, %v", err)
-		return nil, err
+		return nil, errcode.BadRequest(err)
 	}
 	total, err := filter.GetEmptyFilter().FilterObjectList(&serviceList, s.filterCondition)
 	if err != nil {

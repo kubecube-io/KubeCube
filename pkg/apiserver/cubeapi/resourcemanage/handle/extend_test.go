@@ -78,8 +78,8 @@ var _ = Describe("Handle", func() {
 		c.Params = params
 		handler := extend.NewExtendHandler(nginxNs, tcpCmName, udpCmName)
 		handler.ExtendHandle(c)
-		Expect(w.Code).To(Equal(400))
-		Expect(w.Body.String()).To(Equal("{\"code\":400,\"message\":\"bad request. Forbidden.\"}"))
+		Expect(w.Code).To(Equal(403))
+		Expect(w.Body.String()).To(Equal("{\"code\":403,\"message\":\"Forbidden.\"}"))
 	})
 	It("extend resourceType unknown", func() {
 		w := httptest.NewRecorder()
@@ -115,6 +115,6 @@ var _ = Describe("Handle", func() {
 		handler := extend.NewExtendHandler(nginxNs, tcpCmName, udpCmName)
 		handler.ExtendHandle(c)
 		Expect(w.Code).To(Equal(400))
-		Expect(w.Body.String()).To(Equal("{\"code\":400,\"message\":\"bad request. not match http method.\"}"))
+		Expect(w.Body.String()).To(Equal("{\"code\":400,\"message\":\"not match http method.\"}"))
 	})
 })

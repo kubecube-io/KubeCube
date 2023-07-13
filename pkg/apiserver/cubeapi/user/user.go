@@ -106,7 +106,7 @@ func CreateUser(c *gin.Context) {
 		response.FailReturn(c, errInfo)
 		return
 	}
-	c = audit.SetAuditInfo(c, audit.CreateUser, user.Name)
+	c = audit.SetAuditInfo(c, audit.CreateUser, user.Name, user)
 	response.SuccessReturn(c, nil)
 	return
 }
@@ -177,7 +177,7 @@ func UpdateUser(c *gin.Context) {
 		response.FailReturn(c, errcode.UpdateResourceError(resourceTypeUser))
 		return
 	}
-	c = audit.SetAuditInfo(c, audit.UpdateUser, user.Name)
+	c = audit.SetAuditInfo(c, audit.UpdateUser, user.Name, user)
 	response.SuccessReturn(c, nil)
 	return
 }
