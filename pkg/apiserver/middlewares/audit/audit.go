@@ -31,6 +31,7 @@ import (
 	"github.com/gogf/gf/v2/i18n/gi18n"
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/kubecube-io/kubecube/pkg/apiserver/middlewares/auth"
 	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/token"
@@ -40,8 +41,6 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/env"
 	"github.com/kubecube-io/kubecube/pkg/utils/international"
 )
-
-const auditDataParamMaxLength = 4096
 
 var (
 	json           = jsoniter.ConfigCompatibleWithStandardLibrary
@@ -108,7 +107,7 @@ func (h *Handler) handle(c *gin.Context, w *responseBodyWriter) {
 		ResponseStatus:    c.Writer.Status(),
 		Url:               c.Request.URL.String(),
 		UserAgent:         "HTTP",
-		RequestParameters: getParameters(c),
+		RequestParameters: ConsistParameters(c, nil),
 		EventType:         constants.EventTypeUserWrite,
 		RequestId:         uuid.New().String(),
 		ResponseElements:  w.body.String(),
@@ -123,23 +122,20 @@ func (h *Handler) handle(c *gin.Context, w *responseBodyWriter) {
 	}
 
 	// if request failed, set errCode and ErrorMessage
-	if e.ResponseStatus != http.StatusOK {
+	if e.ResponseStatus < 200 || e.ResponseStatus > 299 {
 		e.ErrorCode = strconv.Itoa(c.Writer.Status())
 		e.ErrorMessage = e.ResponseElements
 	}
 
 	// get event name and description
-	t := h.EnvInstance
-	if t == nil {
-		t = h.EnInstance
-	}
+
 	ctx := context.Background()
 	eventName, isExist := c.Get(constants.EventName)
 	if isExist == true {
 		e.EventName = eventName.(string)
-		e.Description = t.Translate(ctx, eventName.(string))
+		e.Description = h.Translate(ctx, eventName.(string))
 		e.ResourceReports = []Resource{{
-			ResourceType: t.Translate(ctx, c.GetString(audit.EventResourceType)),
+			ResourceType: h.Translate(ctx, c.GetString(audit.EventResourceType)),
 			ResourceName: c.GetString(audit.EventResourceName),
 		}}
 	} else {
@@ -149,6 +145,77 @@ func (h *Handler) handle(c *gin.Context, w *responseBodyWriter) {
 	if e.EventName != "" {
 		sendEvent(e)
 	}
+}
+
+func (h *Handler) Translate(ctx context.Context, content string) string {
+	t := h.EnvInstance
+	if t == nil {
+		t = h.EnInstance
+	}
+	return t.Translate(ctx, content)
+}
+
+type Options struct {
+	Translate bool
+}
+
+func (h *Handler) SendEvent(c *gin.Context, event *Event, options *Options) {
+	if event == nil {
+		return
+	}
+
+	if len(event.EventName) == 0 || len(event.RequestMethod) == 0 || event.ResponseStatus == 0 || len(event.Url) == 0 {
+		clog.Warn("missing required field of event: %+v", event)
+		return
+	}
+
+	// set default value if unset
+	if event.EventTime == 0 {
+		event.EventTime = time.Now().UnixNano() / int64(time.Millisecond)
+	}
+	if len(event.EventVersion) == 0 {
+		event.EventVersion = "V1"
+	}
+	if len(event.SourceIpAddress) == 0 {
+		event.SourceIpAddress = c.ClientIP()
+	}
+	if len(event.UserAgent) == 0 {
+		event.UserAgent = "HTTP"
+	}
+	if len(event.EventType) == 0 {
+		event.EventType = constants.EventTypeUserWrite
+	}
+	if len(event.RequestId) == 0 {
+		event.RequestId = uuid.New().String()
+	}
+	if len(event.EventSource) == 0 {
+		event.EventSource = env.AuditEventSource()
+	}
+	if event.UserIdentity == nil {
+		event.UserIdentity = getUserIdentity(c)
+	}
+
+	ctx := context.Background()
+
+	if options.Translate {
+		// translate event description
+		event.Description = h.Translate(ctx, event.Description)
+	}
+
+	for i, v := range event.ResourceReports {
+		if len(v.ResourceName) == 0 || len(v.ResourceType) == 0 {
+			clog.Warn("missing required field of event: %+v", event)
+			return
+		}
+		if options.Translate {
+			// translate resource type
+			v.ResourceType = h.Translate(ctx, v.ResourceType)
+			event.ResourceReports[i] = v
+		}
+	}
+
+	// send event as we wish
+	sendEvent(event)
 }
 
 func sendEvent(e *Event) {
@@ -239,11 +306,7 @@ func (h *Handler) handleProxyApi(ctx context.Context, c *gin.Context, e Event) *
 		objectTypeTitle = strings.Title(objectType[:len(objectType)-1])
 	}
 	e.EventName = h.EnInstance.Translate(ctx, method) + objectTypeTitle
-	t := h.EnvInstance
-	if t == nil {
-		t = h.EnInstance
-	}
-	e.Description = t.Translate(ctx, method) + t.Translate(ctx, objectType)
+	e.Description = h.Translate(ctx, method) + h.Translate(ctx, objectType)
 
 	if http.MethodPost == method && objectName == "" {
 		objectName = c.GetString(constants.EventObjectName)
@@ -285,8 +348,8 @@ func getUserIdentity(c *gin.Context) *UserIdentity {
 	return userIdentity
 }
 
-// get request params, includes header、body and queryString
-func getParameters(c *gin.Context) string {
+// ConsistParameters includes header、body and queryString
+func ConsistParameters(c *gin.Context, body []byte) string {
 	var parameters parameters
 
 	auditHeaders := auditSvc.AuditHeaders
@@ -300,7 +363,10 @@ func getParameters(c *gin.Context) string {
 		}
 	}
 	parameters.Headers = headers
-	parameters.Body = getBodyFromReq(c)
+	parameters.Body = c.GetString(audit.EventRequestBody)
+	if body != nil {
+		parameters.Body = string(body)
+	}
 
 	query := make(map[string]string)
 	params := c.Params
@@ -313,10 +379,6 @@ func getParameters(c *gin.Context) string {
 		clog.Error("marshal param error: %s", err)
 		return ""
 	}
-	if len(paramJson) > auditDataParamMaxLength {
-		clog.Info("params is not send because too long. params: %v", parameters)
-		return ""
-	}
 	return string(paramJson)
 
 }
@@ -325,17 +387,6 @@ type parameters struct {
 	Query   map[string]string   `json:"querystring"`
 	Body    string              `json:"body"`
 	Headers map[string][]string `json:"header"`
-}
-
-func getBodyFromReq(c *gin.Context) string {
-	switch c.Request.Method {
-	case http.MethodPatch:
-	case http.MethodPut:
-	case http.MethodPost:
-		data, _ := ioutil.ReadAll(c.Request.Body)
-		return string(data)
-	}
-	return ""
 }
 
 type responseBodyWriter struct {
@@ -362,32 +413,12 @@ func getPostObjectName(c *gin.Context) string {
 	}
 	// put request body back
 	c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(data))
-	// get resource name from metadata.name
-	body := make(map[string]interface{})
-	err = json.Unmarshal(data, &body)
-	if err != nil {
+
+	obj := unstructured.Unstructured{}
+	if err = json.Unmarshal(data, &obj); err != nil {
 		clog.Warn("[audit] unmarshal request body err: %s", err.Error())
 		return ""
 	}
-	metadata, exist := body["metadata"]
-	if !exist {
-		clog.Warn("[audit] the resource metadata is nil")
-		return ""
-	}
-	metadataMap, ok := metadata.(map[string]interface{})
-	if !ok {
-		clog.Warn("[audit] convert metadata to map failed")
-		return ""
-	}
-	name, exist := metadataMap["name"]
-	if !exist {
-		clog.Warn("[audit] the resource metadata.name is nil")
-		return ""
-	}
-	nameStr, ok := name.(string)
-	if !ok {
-		clog.Warn("[audit] convert name to string failed")
-		return ""
-	}
-	return nameStr
+
+	return obj.GetName()
 }

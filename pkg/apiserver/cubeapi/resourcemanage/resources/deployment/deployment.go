@@ -18,7 +18,6 @@ package deployment
 
 import (
 	"context"
-	"errors"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -46,20 +45,20 @@ type Deployment struct {
 }
 
 func init() {
-	resourcemanage.SetExtendHandler(enum.DeploymentResourceType, Handle)
+	resourcemanage.SetExtendHandler(enum.DeploymentResourceType, handle)
 }
 
-func Handle(param resourcemanage.ExtendParams) (interface{}, error) {
-	access := resources.NewSimpleAccess(param.Cluster, param.Username, param.Namespace)
+func handle(extendCtx resourcemanage.ExtendContext) (interface{}, *errcode.ErrorInfo) {
+	access := resources.NewSimpleAccess(extendCtx.Cluster, extendCtx.Username, extendCtx.Namespace)
 	if allow := access.AccessAllow("apps", "deployments", "list"); !allow {
-		return nil, errors.New(errcode.ForbiddenErr.Message)
+		return nil, errcode.ForbiddenErr
 	}
-	kubernetes := clients.Interface().Kubernetes(param.Cluster)
+	kubernetes := clients.Interface().Kubernetes(extendCtx.Cluster)
 	if kubernetes == nil {
-		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
+		return nil, errcode.ClusterNotFoundError(extendCtx.Cluster)
 	}
-	deployment := NewDeployment(kubernetes, param.Namespace, param.FilterCondition)
-	return deployment.GetExtendDeployments()
+	deployment := NewDeployment(kubernetes, extendCtx.Namespace, extendCtx.FilterCondition)
+	return deployment.getExtendDeployments()
 }
 
 func NewDeployment(client mgrclient.Client, namespace string, condition *filter.Condition) Deployment {
@@ -72,8 +71,8 @@ func NewDeployment(client mgrclient.Client, namespace string, condition *filter.
 	}
 }
 
-// GetExtendDeployments get extend deployments
-func (d *Deployment) GetExtendDeployments() (*unstructured.Unstructured, error) {
+// getExtendDeployments get extend deployments
+func (d *Deployment) getExtendDeployments() (*unstructured.Unstructured, *errcode.ErrorInfo) {
 
 	resultMap := make(map[string]interface{})
 	// get deployment list from k8s cluster
@@ -81,13 +80,13 @@ func (d *Deployment) GetExtendDeployments() (*unstructured.Unstructured, error) 
 	err := d.client.Cache().List(d.ctx, &deploymentList, client.InNamespace(d.namespace))
 	if err != nil {
 		clog.Error("can not find info from cluster, %v", err)
-		return nil, err
+		return nil, errcode.BadRequest(err)
 	}
 	// filterCondition list by selector/sort/page
 	total, err := filter.GetEmptyFilter().FilterObjectList(&deploymentList, d.filterCondition)
 	if err != nil {
 		clog.Error("filterCondition deploymentList error, err: %s", err.Error())
-		return nil, err
+		return nil, errcode.BadRequest(err)
 	}
 	// add pod status info
 	resultList := d.addExtendInfo(deploymentList)
