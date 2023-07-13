@@ -47,6 +47,11 @@ var (
 			Name:        "cluster",
 			Destination: &WardenOpts.GenericWardenOpts.Cluster,
 		},
+		&cli.StringFlag{
+			Name:        "klog-level",
+			Value:       "3",
+			Destination: &WardenOpts.GenericWardenOpts.KlogLevel,
+		},
 
 		// api server
 		&cli.StringFlag{

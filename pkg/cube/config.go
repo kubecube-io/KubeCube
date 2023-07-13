@@ -19,4 +19,5 @@ package cube
 type Config struct {
 	EnablePprof bool
 	PprofAddr   string
+	KlogLevel   string
 }

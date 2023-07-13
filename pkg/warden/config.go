@@ -23,6 +23,7 @@ type Config struct {
 	IsWritable             bool
 	LocalClusterKubeConfig string
 	PivotClusterKubeConfig string
+	KlogLevel              string
 
 	// report
 	PivotCubeHost string
