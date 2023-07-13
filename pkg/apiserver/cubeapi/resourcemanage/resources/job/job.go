@@ -18,7 +18,6 @@ package job
 
 import (
 	"context"
-	"errors"
 
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -42,20 +41,20 @@ type Job struct {
 }
 
 func init() {
-	resourcemanage.SetExtendHandler(enum.JobResourceType, Handle)
+	resourcemanage.SetExtendHandler(enum.JobResourceType, handle)
 }
 
-func Handle(param resourcemanage.ExtendParams) (interface{}, error) {
+func handle(param resourcemanage.ExtendContext) (interface{}, *errcode.ErrorInfo) {
 	access := resources.NewSimpleAccess(param.Cluster, param.Username, param.Namespace)
 	if allow := access.AccessAllow("batch", "jobs", "list"); !allow {
-		return nil, errors.New(errcode.ForbiddenErr.Message)
+		return nil, errcode.ForbiddenErr
 	}
 	kubernetes := clients.Interface().Kubernetes(param.Cluster)
 	if kubernetes == nil {
-		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
+		return nil, errcode.ClusterNotFoundError(param.Cluster)
 	}
 	job := NewJob(kubernetes, param.Namespace, param.FilterCondition)
-	return job.GetExtendJobs()
+	return job.getExtendJobs()
 }
 
 func NewJob(client mgrclient.Client, namespace string, condition *filter.Condition) Job {
@@ -68,8 +67,8 @@ func NewJob(client mgrclient.Client, namespace string, condition *filter.Conditi
 	}
 }
 
-// GetExtendJobs get extend deployments
-func (j *Job) GetExtendJobs() (*unstructured.Unstructured, error) {
+// getExtendJobs get extend deployments
+func (j *Job) getExtendJobs() (*unstructured.Unstructured, *errcode.ErrorInfo) {
 	resultMap := make(map[string]interface{})
 
 	// get deployment list from k8s cluster
@@ -77,14 +76,14 @@ func (j *Job) GetExtendJobs() (*unstructured.Unstructured, error) {
 	err := j.client.Cache().List(j.ctx, &jobList, client.InNamespace(j.namespace))
 	if err != nil {
 		clog.Error("can not find job in %s from cluster, %v", j.namespace, err)
-		return nil, err
+		return nil, errcode.BadRequest(err)
 	}
 
 	// filterCondition list by selector/sort/page
 	total, err := filter.GetEmptyFilter().FilterObjectList(&jobList, j.filterCondition)
 	if err != nil {
 		clog.Error("filterCondition jobList error, err: %s", err.Error())
-		return nil, err
+		return nil, errcode.BadRequest(err)
 	}
 
 	// add pod status info

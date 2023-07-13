@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package deployment_test
+package deployment
 
 import (
 	. "github.com/onsi/ginkgo"
@@ -28,7 +28,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kubecube-io/kubecube/pkg/apis"
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/deployment"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
@@ -117,8 +116,8 @@ var _ = Describe("Deployment", func() {
 	It("test get deployment extend info", func() {
 		client := clients.Interface().Kubernetes(constants.LocalCluster)
 		Expect(client).NotTo(BeNil())
-		deploy := deployment.NewDeployment(client, ns, &filter.Condition{Limit: 10, Offset: 0})
-		ret, err := deploy.GetExtendDeployments()
+		deploy := NewDeployment(client, ns, &filter.Condition{Limit: 10, Offset: 0})
+		ret, err := deploy.getExtendDeployments()
 		Expect(err).To(BeNil())
 		Expect(ret.Object["total"]).To(Equal(1))
 		items := ret.Object["items"]

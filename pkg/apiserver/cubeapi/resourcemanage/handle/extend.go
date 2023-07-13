@@ -17,8 +17,6 @@ limitations under the License.
 package resourcemanage
 
 import (
-	"fmt"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -31,9 +29,9 @@ import (
 	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/enum"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/middlewares/audit"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
-	"github.com/kubecube-io/kubecube/pkg/utils/audit"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/env"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
@@ -45,6 +43,7 @@ var (
 )
 
 type ExtendHandler struct {
+	auditHandler             *audit.Handler
 	NginxNamespace           string
 	NginxTcpServiceConfigMap string
 	NginxUdpServiceConfigMap string
@@ -58,7 +57,7 @@ func NewExtendHandler(namespace string, tcpCm string, udpCm string) *ExtendHandl
 	}
 }
 
-type ExtendFunc func(param ExtendParams) (interface{}, error)
+type ExtendFunc func(extendCtx ExtendContext) (interface{}, *errcode.ErrorInfo)
 
 // SetExtendHandler the func to register real handler func
 func SetExtendHandler(resource enum.ResourceTypeEnum, extendFunc ExtendFunc) {
@@ -75,10 +74,6 @@ func (e *ExtendHandler) ExtendHandle(c *gin.Context) {
 	condition := parseQueryParams(c)
 	httpMethod := c.Request.Method
 
-	if httpMethod != http.MethodGet {
-		c = audit.SetAuditInfo(c, audit.ExteranlAccess, fmt.Sprintf("%s/%s", namespace, resourceName))
-	}
-
 	// k8s client
 	client := clients.Interface().Kubernetes(cluster)
 	if client == nil {
@@ -88,7 +83,7 @@ func (e *ExtendHandler) ExtendHandle(c *gin.Context) {
 	// get user info
 	username := c.GetString(constants.UserName)
 
-	param := ExtendParams{
+	extendCtx := ExtendContext{
 		Cluster:                  cluster,
 		Namespace:                namespace,
 		ResourceName:             resourceName,
@@ -98,23 +93,18 @@ func (e *ExtendHandler) ExtendHandle(c *gin.Context) {
 		NginxNamespace:           e.NginxNamespace,
 		NginxTcpServiceConfigMap: e.NginxTcpServiceConfigMap,
 		NginxUdpServiceConfigMap: e.NginxUdpServiceConfigMap,
+		AuditHandler:             e.auditHandler,
+		GinContext:               c,
 	}
 
-	if c.Request.Body != nil {
-		body, err := ioutil.ReadAll(c.Request.Body)
-		if err != nil {
-			response.FailReturn(c, errcode.InvalidBodyFormat)
-			return
-		}
-		param.Body = body
-	}
+	clog.Debug("request extend api with method (%v), cluster (%v), namespace (%v), resource type (%v), resource name (%v)", httpMethod, cluster, namespace, resourceType, resourceName)
 
 	// get real handler func and work, if not found, return not support error
 	if extendFunc, ok := extendFuncMap[resourceType]; ok {
-		result, err := extendFunc(param)
-		if err != nil {
-			clog.Error("get extend res err, resourceType: %s, error: %s", resourceType, err.Error())
-			response.FailReturn(c, errcode.BadRequest(err))
+		result, errInfo := extendFunc(extendCtx)
+		if errInfo != nil {
+			clog.Error("get extend res err, resourceType: %s, error: %s", resourceType, errInfo.Message)
+			response.FailReturn(c, errInfo)
 			return
 		}
 		response.SuccessReturn(c, result)

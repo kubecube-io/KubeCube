@@ -58,7 +58,7 @@ func CreateKey(c *gin.Context) {
 		response.FailReturn(c, errcode.AuthenticateError)
 		return
 	}
-	c = audit.SetAuditInfo(c, audit.CreateKey, userInfo.Username)
+	c = audit.SetAuditInfo(c, audit.CreateKey, userInfo.Username, userInfo)
 
 	// max key num <= 5
 	localClient := clients.Interface().Kubernetes(constants.LocalCluster)
@@ -119,7 +119,6 @@ func CreateKey(c *gin.Context) {
 // @Router /api/v1/cube/key  [delete]
 func DeleteKey(c *gin.Context) {
 	accessKey := c.Query("accessKey")
-	c = audit.SetAuditInfo(c, audit.DeleteKey, accessKey)
 	// get user info
 	userInfo, err := token.GetUserFromReq(c.Request)
 	if err != nil {
@@ -148,6 +147,8 @@ func DeleteKey(c *gin.Context) {
 		response.FailReturn(c, errcode.BadRequest(err))
 		return
 	}
+
+	c = audit.SetAuditInfo(c, audit.DeleteKey, accessKey, keyInfo)
 
 	response.SuccessReturn(c, nil)
 }
