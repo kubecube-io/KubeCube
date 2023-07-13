@@ -2,7 +2,7 @@
 
 ## Feature
 - Feat expose klog set [#305](https://github.com/kubecube-io/KubeCube/pull/318)
-- add configmap history  [#301](https://github.com/kubecube-io/KubeCube/pull/319)
+- add configmap history(alpha)  [#301](https://github.com/kubecube-io/KubeCube/pull/319)
 
 ## Dependencies
 
