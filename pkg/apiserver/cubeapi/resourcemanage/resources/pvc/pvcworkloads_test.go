@@ -64,7 +64,7 @@ var _ = Describe("Pvc", func() {
 	})
 	JustBeforeEach(func() {
 		scheme := runtime.NewScheme()
-		corev1.AddToScheme(scheme)
+		_ = corev1.AddToScheme(scheme)
 		opts := &fake.Options{
 			Scheme:               scheme,
 			Objs:                 []client.Object{},
