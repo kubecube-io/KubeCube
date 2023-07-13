@@ -19,7 +19,6 @@ package audit
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -31,9 +30,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gogf/gf/v2/i18n/gi18n"
 	"github.com/google/uuid"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
@@ -111,32 +107,4 @@ func TestGetEventName(t *testing.T) {
 	if e.EventName != "updateSecret" {
 		t.Fail()
 	}
-}
-
-func TestGetParameters(t *testing.T) {
-	var param string
-	router := gin.New()
-	router.GET("/api/v1/cube/proxy/clusters/:cluster/apis/apps/v1/namespaces/:namespace/statefulsets/:name", func(c *gin.Context) {
-		param = getParameters(c)
-		return
-	})
-	_ = performRequest(router, http.MethodGet, "/api/v1/cube/proxy/clusters/pivot-cluster/apis/apps/v1/namespaces/dev/statefulsets/stsA", []byte(""), header{"cookie", "Auth:Bearer abcde"})
-	fmt.Println(param)
-}
-
-func TestGetBodyFromReq(t *testing.T) {
-	var body string
-	router := gin.New()
-	router.POST("/api/v1/cube/proxy/clusters/:cluster/api/v1/namespaces/:namespace/services", func(c *gin.Context) {
-		body = getBodyFromReq(c)
-		return
-	})
-	service := corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "service-example",
-		},
-	}
-	serviceJson, _ := json.Marshal(service)
-	_ = performRequest(router, http.MethodPost, "/api/v1/cube/proxy/clusters/pivot-cluster/api/v1/namespaces/dev/services", serviceJson)
-	fmt.Println(body)
 }

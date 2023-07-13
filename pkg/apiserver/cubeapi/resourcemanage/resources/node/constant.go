@@ -17,7 +17,7 @@ limitations under the License.
 package node
 
 const (
-	UnscheduledStatus = "unscheduled"
-	Normal            = "normal"
-	AbNormal          = "abnormal"
+	unscheduledStatus = "unscheduled"
+	normal            = "normal"
+	abNormal          = "abnormal"
 )

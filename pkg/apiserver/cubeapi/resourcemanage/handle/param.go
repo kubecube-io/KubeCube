@@ -16,18 +16,27 @@ limitations under the License.
 
 package resourcemanage
 
-import "github.com/kubecube-io/kubecube/pkg/utils/filter"
+import (
+	"github.com/gin-gonic/gin"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/middlewares/audit"
+	"github.com/kubecube-io/kubecube/pkg/utils/filter"
+)
 
-type ExtendParams struct {
-	Cluster                  string
-	Namespace                string
-	ResourceName             string
-	FilterCondition          *filter.Condition
-	Action                   string
-	Username                 string
+type ExtendContext struct {
+	Cluster      string
+	Namespace    string
+	Username     string
+	Action       string
+	ResourceName string
+
+	// todo: remove this customize field to suitable place
 	NginxNamespace           string
 	NginxTcpServiceConfigMap string
 	NginxUdpServiceConfigMap string
 	Body                     []byte
 	NodeStatus               string
+
+	GinContext      *gin.Context
+	FilterCondition *filter.Condition
+	AuditHandler    *audit.Handler
 }

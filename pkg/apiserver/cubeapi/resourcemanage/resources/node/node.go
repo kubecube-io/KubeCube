@@ -18,7 +18,6 @@ package node
 
 import (
 	"context"
-	"errors"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -43,14 +42,14 @@ func init() {
 	resourcemanage.SetExtendHandler(enum.NodeResourceType, handle)
 }
 
-func handle(param resourcemanage.ExtendParams) (interface{}, error) {
+func handle(param resourcemanage.ExtendContext) (interface{}, *errcode.ErrorInfo) {
 	access := resources.NewSimpleAccess(param.Cluster, param.Username, param.Namespace)
 	if allow := access.AccessAllow("", "nodes", "list"); !allow {
-		return nil, errors.New(errcode.ForbiddenErr.Message)
+		return nil, errcode.ForbiddenErr
 	}
 	kubernetes := clients.Interface().Kubernetes(param.Cluster)
 	if kubernetes == nil {
-		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
+		return nil, errcode.ClusterNotFoundError(param.Cluster)
 	}
 	node := NewNode(kubernetes, param.FilterCondition)
 	return node.GetExtendNodes()
@@ -65,7 +64,7 @@ func NewNode(client mgrclient.Client, condition *filter.Condition) Node {
 	}
 }
 
-func (node *Node) GetExtendNodes() (*unstructured.Unstructured, error) {
+func (node *Node) GetExtendNodes() (*unstructured.Unstructured, *errcode.ErrorInfo) {
 	resultMap := make(map[string]interface{})
 
 	// get deployment list from k8s cluster
@@ -73,7 +72,7 @@ func (node *Node) GetExtendNodes() (*unstructured.Unstructured, error) {
 	err := node.client.Cache().List(node.ctx, &nodeList)
 	if err != nil {
 		clog.Error("can not find node in cluster, %v", err)
-		return nil, err
+		return nil, errcode.BadRequest(err)
 	}
 	// filterCondition list by selector/sort/page
 	extendInfo := addExtendInfo(&nodeList)
@@ -82,7 +81,7 @@ func (node *Node) GetExtendNodes() (*unstructured.Unstructured, error) {
 	total, err := filter.GetEmptyFilter().FilterObjectList(u, node.filterCondition)
 	if err != nil {
 		clog.Error("filterCondition nodeList error, err: %s", err.Error())
-		return nil, err
+		return nil, errcode.BadRequest(err)
 	}
 	resultMap["total"] = total
 	resultMap["items"] = u.Items
@@ -116,15 +115,15 @@ func addExtendInfo(nodeList *corev1.NodeList) []unstructured.Unstructured {
 
 func ParseNodeStatus(node corev1.Node) (status string) {
 	if node.Spec.Unschedulable {
-		return UnscheduledStatus
+		return unscheduledStatus
 	}
 	if node.Status.Conditions == nil {
 		return ""
 	}
 	for _, condition := range node.Status.Conditions {
 		if condition.Type == corev1.NodeReady && condition.Status == corev1.ConditionTrue {
-			return Normal
+			return normal
 		}
 	}
-	return AbNormal
+	return abNormal
 }

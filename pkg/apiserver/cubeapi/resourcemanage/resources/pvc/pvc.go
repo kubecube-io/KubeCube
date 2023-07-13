@@ -17,8 +17,6 @@ limitations under the License.
 package pvc
 
 import (
-	"errors"
-
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -39,44 +37,44 @@ type PvcExtend struct {
 }
 
 func init() {
-	resourcemanage.SetExtendHandler(enum.PvcResourceType, PvcHandle)
+	resourcemanage.SetExtendHandler(enum.PvcResourceType, pvcHandle)
 }
 
-func PvcHandle(param resourcemanage.ExtendParams) (interface{}, error) {
+func pvcHandle(param resourcemanage.ExtendContext) (interface{}, *errcode.ErrorInfo) {
 	access := resources.NewSimpleAccess(param.Cluster, param.Username, param.Namespace)
 	if allow := access.AccessAllow("", "persistentvolumeclaims", "list"); !allow {
-		return nil, errors.New(errcode.ForbiddenErr.Message)
+		return nil, errcode.ForbiddenErr
 	}
 	kubernetes := clients.Interface().Kubernetes(param.Cluster)
 	if kubernetes == nil {
-		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
+		return nil, errcode.ClusterNotFoundError(param.Cluster)
 	}
 	pvc := NewPvc(kubernetes, param.Namespace, param.FilterCondition)
-	return pvc.GetPvc()
+	return pvc.getPvc()
 }
 
-// GetPvc list pvcs, and add extend info that which pod mount this pvc
-func (p *Pvc) GetPvc() (*unstructured.Unstructured, error) {
+// getPvc list pvcs, and add extend info that which pod mount this pvc
+func (p *Pvc) getPvc() (*unstructured.Unstructured, *errcode.ErrorInfo) {
 	result := make(map[string]interface{})
 	pvcList := v1.PersistentVolumeClaimList{}
 	err := p.client.Cache().List(p.ctx, &pvcList, &client.ListOptions{
 		Namespace: p.namespace,
 	})
 	if err != nil {
-		return nil, err
+		return nil, errcode.BadRequest(err)
 	}
 
 	total, err := filter.GetEmptyFilter().FilterObjectList(&pvcList, p.filterCondition)
 	if err != nil {
 		clog.Error("filterCondition pvcList error, err: %s", err.Error())
-		return nil, err
+		return nil, errcode.BadRequest(err)
 	}
 
 	var pvcExtendList []PvcExtend
 	for _, pvc := range pvcList.Items {
-		workloadMap, err := p.GetPvcWorkloads(pvc.Name)
-		if err != nil {
-			return nil, err
+		workloadMap, errInfo := p.getPvcWorkloads(pvc.Name)
+		if errInfo != nil {
+			return nil, errInfo
 		}
 		// if response has pods, and result is pod array, then add it as extendInfo
 		if podRes, ok := workloadMap.Object["pods"]; ok {

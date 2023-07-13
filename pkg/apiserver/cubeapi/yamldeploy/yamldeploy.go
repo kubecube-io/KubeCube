@@ -18,6 +18,10 @@ package yamldeploy
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	corev1 "k8s.io/api/core/v1"
@@ -32,19 +36,29 @@ import (
 	"k8s.io/kubectl/pkg/scheme"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/kubecube-io/kubecube/pkg/apiserver/middlewares/audit"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	"github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
+	"github.com/kubecube-io/kubecube/pkg/utils/international"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
 )
+
+type Handler struct {
+	auditHandler audit.Handler
+}
 
 type yamlDeployResources struct {
 	Objects []unstructured.Unstructured `json:"objects"`
 }
 
-func Deploy(c *gin.Context) {
+func NewHandler(managers *international.Gi18nManagers) *Handler {
+	return &Handler{auditHandler: audit.NewHandler(managers)}
+}
+
+func (h *Handler) Deploy(c *gin.Context) {
 	dryRun := c.Query("dryRun")
 	clusterName := c.Param("cluster")
 	username := c.GetString(constants.UserName)
@@ -74,6 +88,7 @@ func Deploy(c *gin.Context) {
 			continue
 		}
 		clog.Info("Deploy %v/%v of %v success", objCopy.GetName(), objCopy.GetNamespace(), objCopy.GroupVersionKind())
+		h.sendDeployedAuditEvent(c, objCopy, clusterName)
 	}
 
 	err = utilerrors.NewAggregate(errs)
@@ -83,6 +98,34 @@ func Deploy(c *gin.Context) {
 	}
 
 	response.SuccessReturn(c, nil)
+}
+
+func (h *Handler) sendDeployedAuditEvent(c *gin.Context, obj *unstructured.Unstructured, clusterName string) {
+	ctx := context.Background()
+
+	event := &audit.Event{
+		EventName:   "create" + obj.GetKind(),
+		Description: h.auditHandler.Translate(ctx, http.MethodPost) + obj.GetKind(),
+		ResourceReports: []audit.Resource{{
+			ResourceType: strings.ToLower(obj.GetKind()),
+			ResourceName: fmt.Sprintf("%s/%s/%s/%s", obj.GetName(), obj.GetNamespace(), clusterName, obj.GetUID()),
+		}},
+		RequestMethod:    http.MethodPost,
+		ResponseStatus:   http.StatusOK,
+		Url:              c.Request.URL.String(),
+		ResponseElements: "success",
+	}
+
+	body, err := json.Marshal(obj)
+	if err != nil {
+		clog.Warn("json marshal failed for %v: %v", event.EventName, err)
+		return
+	}
+
+	event.RequestParameters = audit.ConsistParameters(c, body)
+
+	// no-block sending
+	go h.auditHandler.SendEvent(c, event, &audit.Options{Translate: false})
 }
 
 func createResource(cluster *multicluster.FuzzyCluster, username string, obj ctrlclient.Object, dryRun string) error {
@@ -101,14 +144,14 @@ func createResource(cluster *multicluster.FuzzyCluster, username string, obj ctr
 		return err
 	}
 
-	if _, err := createByRestClient(restClient, restMapping, unstructuredObj.GetNamespace(), dryRun, unstructuredObj, username); err != nil {
+	if err := createByRestClient(restClient, restMapping, unstructuredObj.GetNamespace(), dryRun, unstructuredObj, username); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func createByRestClient(restClient *rest.RESTClient, mapping *meta.RESTMapping, namespace string, dryRun string, obj runtime.Object, username string) (runtime.Object, error) {
+func createByRestClient(restClient *rest.RESTClient, mapping *meta.RESTMapping, namespace string, dryRun string, obj runtime.Object, username string) error {
 	options := &metav1.CreateOptions{}
 	if dryRun == "true" {
 		options.DryRun = []string{metav1.DryRunAll}
@@ -120,7 +163,7 @@ func createByRestClient(restClient *rest.RESTClient, mapping *meta.RESTMapping, 
 		VersionedParams(options, metav1.ParameterCodec).
 		Body(obj).
 		Do(context.TODO()).
-		Get()
+		Into(obj)
 }
 
 func NewRestClient(config *rest.Config, gvk *schema.GroupVersionKind) (*rest.RESTClient, error) {

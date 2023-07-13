@@ -18,7 +18,7 @@ package pvc
 
 import (
 	"context"
-	"errors"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	corev1 "k8s.io/api/core/v1"
@@ -41,20 +41,20 @@ type Pvc struct {
 }
 
 func init() {
-	resourcemanage.SetExtendHandler(enum.PvcWorkLoadResourceType, Handle)
+	resourcemanage.SetExtendHandler(enum.PvcWorkLoadResourceType, handle)
 }
 
-func Handle(param resourcemanage.ExtendParams) (interface{}, error) {
+func handle(param resourcemanage.ExtendContext) (interface{}, *errcode.ErrorInfo) {
 	access := resources.NewSimpleAccess(param.Cluster, param.Username, param.Namespace)
 	if allow := access.AccessAllow("", "persistentvolumeclaims", "list"); !allow {
-		return nil, errors.New(errcode.ForbiddenErr.Message)
+		return nil, errcode.ForbiddenErr
 	}
 	kubernetes := clients.Interface().Kubernetes(param.Cluster)
 	if kubernetes == nil {
-		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
+		return nil, errcode.ClusterNotFoundError(param.Cluster)
 	}
 	pvc := NewPvc(kubernetes, param.Namespace, param.FilterCondition)
-	return pvc.GetPvcWorkloads(param.ResourceName)
+	return pvc.getPvcWorkloads(param.ResourceName)
 }
 
 func NewPvc(client mgrclient.Client, namespace string, condition *filter.Condition) Pvc {
@@ -67,14 +67,14 @@ func NewPvc(client mgrclient.Client, namespace string, condition *filter.Conditi
 	}
 }
 
-// GetPvcWorkloads get extend deployments
-func (p *Pvc) GetPvcWorkloads(pvcName string) (*unstructured.Unstructured, error) {
+// getPvcWorkloads get extend deployments
+func (p *Pvc) getPvcWorkloads(pvcName string) (*unstructured.Unstructured, *errcode.ErrorInfo) {
 	result := make(map[string]interface{})
 	var pods []corev1.Pod
 	var podList corev1.PodList
 	err := p.client.Cache().List(p.ctx, &podList, client.InNamespace(p.namespace))
 	if err != nil {
-		return nil, err
+		return nil, errcode.BadRequest(err)
 	}
 	for _, pod := range podList.Items {
 		for _, volume := range pod.Spec.Volumes {

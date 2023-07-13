@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package service_test
+package service
 
 import (
 	. "github.com/onsi/ginkgo"
@@ -26,7 +26,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kubecube-io/kubecube/pkg/apis"
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/service"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
@@ -37,7 +36,7 @@ import (
 
 var _ = Describe("Externalaccess", func() {
 	var (
-		externalAccess service.ExternalAccess
+		externalAccess ExternalAccess
 		cli            mgrclient.Client
 		ns             = "namespace-test"
 		serviceName    = "service-test"
@@ -77,7 +76,7 @@ var _ = Describe("Externalaccess", func() {
 			TypeMeta:   metav1.TypeMeta{Kind: "Service", APIVersion: "v1"},
 			ObjectMeta: metav1.ObjectMeta{Name: serviceName, Namespace: ns},
 			Spec: corev1.ServiceSpec{
-				Ports: []corev1.ServicePort{{Protocol: service.TCP, Port: 7777}, {Protocol: service.UDP, Port: 8888}, {Protocol: service.TCP, Port: 9999}},
+				Ports: []corev1.ServicePort{{Protocol: TCP, Port: 7777}, {Protocol: UDP, Port: 8888}, {Protocol: TCP, Port: 9999}},
 			},
 		}
 		service2 = corev1.Service{
@@ -110,11 +109,11 @@ var _ = Describe("Externalaccess", func() {
 		clients.InitCubeClientSetWithOpts(nil)
 		cli = clients.Interface().Kubernetes(constants.LocalCluster)
 		Expect(cli).NotTo(BeNil())
-		externalAccess = service.NewExternalAccess(cli.Direct(), ns, serviceName, &filter.Condition{Limit: 10, Offset: 1}, nginxNs, tcpCmName, udpCmName)
+		externalAccess = NewExternalAccess(cli.Direct(), ns, serviceName, &filter.Condition{Limit: 10, Offset: 1}, nginxNs, tcpCmName, udpCmName)
 	})
 
 	It("test get external address", func() {
-		ret, err := externalAccess.GetExternalIP()
+		ret, err := externalAccess.getExternalIP()
 		Expect(err).To(BeNil())
 		Expect(len(ret)).To(Equal(2))
 		Expect(ret[0]).To(Equal(hostIp1))
@@ -122,36 +121,36 @@ var _ = Describe("Externalaccess", func() {
 	})
 
 	It("test set external access and get external and delete external", func() {
-		externalServices := make([]service.ExternalAccessInfo, 2)
+		externalServices := make([]ExternalAccessInfo, 2)
 		i1 := new(int)
 		*i1 = 7000
-		externalServices[0] = service.ExternalAccessInfo{
+		externalServices[0] = ExternalAccessInfo{
 			ServicePort:  7777,
-			Protocol:     service.TCP,
+			Protocol:     TCP,
 			ExternalPort: i1,
 		}
 		i2 := new(int)
 		*i2 = 8000
-		externalServices[1] = service.ExternalAccessInfo{
+		externalServices[1] = ExternalAccessInfo{
 			ServicePort:  8888,
-			Protocol:     service.UDP,
+			Protocol:     UDP,
 			ExternalPort: i2,
 		}
 		err := externalAccess.SetExternalAccess(externalServices)
 		Expect(err).To(BeNil())
-		ret, err := externalAccess.GetExternalAccess()
-		Expect(err).To(BeNil())
+		ret, errInfo := externalAccess.getExternalAccess()
+		Expect(errInfo).To(BeNil())
 		for _, item := range ret {
 			switch item.ServicePort {
 			case 7777:
-				Expect(item.Protocol).To(Equal(service.TCP))
+				Expect(item.Protocol).To(Equal(TCP))
 				Expect(item.ExternalPort).To(Equal(i1))
 			case 8888:
-				Expect(item.Protocol).To(Equal(service.UDP))
+				Expect(item.Protocol).To(Equal(UDP))
 				Expect(item.ExternalPort).To(Equal(i2))
 			case 9999:
 				// not exist in tcpcm or udpcm, but exist in service ports
-				Expect(item.Protocol).To(Equal(service.TCP))
+				Expect(item.Protocol).To(Equal(TCP))
 				Expect(item.ServicePort).To(Equal(9999))
 			default:
 				Panic()
@@ -159,18 +158,18 @@ var _ = Describe("Externalaccess", func() {
 		}
 		err = externalAccess.DeleteExternalAccess()
 		Expect(err).To(BeNil())
-		ret, err = externalAccess.GetExternalAccess()
-		Expect(err).To(BeNil())
+		ret, errInfo = externalAccess.getExternalAccess()
+		Expect(errInfo).To(BeNil())
 		for _, item := range ret {
 			switch item.ServicePort {
 			case 7777:
-				Expect(item.Protocol).To(Equal(service.TCP))
+				Expect(item.Protocol).To(Equal(TCP))
 				Expect(item.ExternalPort).To(BeNil())
 			case 8888:
-				Expect(item.Protocol).To(Equal(service.UDP))
+				Expect(item.Protocol).To(Equal(UDP))
 				Expect(item.ExternalPort).To(BeNil())
 			case 9999:
-				Expect(item.Protocol).To(Equal(service.TCP))
+				Expect(item.Protocol).To(Equal(TCP))
 				Expect(item.ExternalPort).To(BeNil())
 			default:
 				panic("no match result")
@@ -183,16 +182,16 @@ var _ = Describe("Externalaccess", func() {
 		*i1 = 5500
 		i2 := new(int)
 		*i2 = 6600
-		ea := service.NewExternalAccess(cli.Direct(), ns, serviceName2, &filter.Condition{Limit: 10, Offset: 1}, nginxNs, tcpCmName, udpCmName)
-		ret, err := ea.GetExternalAccess()
+		ea := NewExternalAccess(cli.Direct(), ns, serviceName2, &filter.Condition{Limit: 10, Offset: 1}, nginxNs, tcpCmName, udpCmName)
+		ret, err := ea.getExternalAccess()
 		Expect(err).To(BeNil())
 		for _, item := range ret {
 			switch item.ServicePort {
 			case 5555:
-				Expect(item.Protocol).To(Equal(service.TCP))
+				Expect(item.Protocol).To(Equal(TCP))
 				Expect(item.ExternalPort).To(Equal(i1))
 			case 6666:
-				Expect(item.Protocol).To(Equal(service.UDP))
+				Expect(item.Protocol).To(Equal(UDP))
 				Expect(item.ExternalPort).To(Equal(i2))
 			default:
 				panic("no match result")
@@ -203,10 +202,10 @@ var _ = Describe("Externalaccess", func() {
 	It("test set external access, service port no exist", func() {
 		i := new(int)
 		*i = 5500
-		externalServices := make([]service.ExternalAccessInfo, 2)
-		externalServices[1] = service.ExternalAccessInfo{ // not exist in this service
+		externalServices := make([]ExternalAccessInfo, 2)
+		externalServices[1] = ExternalAccessInfo{ // not exist in this service
 			ServicePort:  5555,
-			Protocol:     service.UDP,
+			Protocol:     UDP,
 			ExternalPort: i,
 		}
 		err := externalAccess.SetExternalAccess(externalServices)

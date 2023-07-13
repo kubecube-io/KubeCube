@@ -18,7 +18,6 @@ package pod
 
 import (
 	"context"
-	"errors"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -46,27 +45,31 @@ type Pod struct {
 }
 
 func init() {
-	resourcemanage.SetExtendHandler(enum.PodResourceType, Handle)
+	resourcemanage.SetExtendHandler(enum.PodResourceType, handle)
 }
 
-func Handle(param resourcemanage.ExtendParams) (interface{}, error) {
+func handle(param resourcemanage.ExtendContext) (interface{}, *errcode.ErrorInfo) {
 	access := resources.NewSimpleAccess(param.Cluster, param.Username, param.Namespace)
 	if allow := access.AccessAllow("", "pods", "list"); !allow {
-		return nil, errors.New(errcode.ForbiddenErr.Message)
+		return nil, errcode.ForbiddenErr
 	}
 	kubernetes := clients.Interface().Kubernetes(param.Cluster)
 	if kubernetes == nil {
-		return nil, errors.New(errcode.ClusterNotFoundError(param.Cluster).Message)
+		return nil, errcode.ClusterNotFoundError(param.Cluster)
 	}
 	pod := NewPod(kubernetes, param.Namespace, param.FilterCondition)
 	if pod.filterCondition.Exact[ownerUidLabel].Len() > 0 {
-		err := pod.GetRs()
+		err := pod.getRs()
 		if err != nil {
-			return nil, errors.New(err.Error())
+			return nil, errcode.BadRequest(err)
 		}
 	}
-	result, err := pod.GetPods()
-	return result, err
+	result, err := pod.getPods()
+	if err != nil {
+		return nil, errcode.BadRequest(err)
+	}
+
+	return result, nil
 }
 
 func NewPod(client mgrclient.Client, namespace string, filter *filter.Condition) Pod {
@@ -79,10 +82,10 @@ func NewPod(client mgrclient.Client, namespace string, filter *filter.Condition)
 	}
 }
 
-// GetRs If you want to query the pods associated with an owner reference UID,
+// getRs If you want to query the pods associated with an owner reference UID,
 // you need to first query the corresponding replicaset
 // and then use the replicaset's UID to search for the corresponding pod UID, achieving a cascading query.
-func (d *Pod) GetRs() error {
+func (d *Pod) getRs() error {
 	val, ok := d.filterCondition.Exact[ownerUidLabel]
 	if !ok {
 		return nil
@@ -117,7 +120,7 @@ func (d *Pod) GetRs() error {
 	return nil
 }
 
-func (d *Pod) GetPods() (*unstructured.Unstructured, error) {
+func (d *Pod) getPods() (*unstructured.Unstructured, error) {
 
 	// get pod list from k8s cluster
 	resultMap := make(map[string]interface{})

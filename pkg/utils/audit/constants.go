@@ -16,13 +16,18 @@ limitations under the License.
 
 package audit
 
-import "github.com/gin-gonic/gin"
+import (
+	"encoding/json"
+	"github.com/gin-gonic/gin"
+	"github.com/kubecube-io/kubecube/pkg/clog"
+)
 
 const (
 	EventName         = "event"
 	EventResourceType = "resourceType"
 	EventResourceName = "resourceName"
 	EventDescription  = "description"
+	EventRequestBody  = "requestBody"
 )
 
 type EventInfo struct {
@@ -31,23 +36,31 @@ type EventInfo struct {
 	ResourceType string
 }
 
-func SetAuditInfo(c *gin.Context, eventInfo *EventInfo, resourceName string) *gin.Context {
+func SetAuditInfo(c *gin.Context, eventInfo *EventInfo, resourceName string, RequestBody interface{}) *gin.Context {
 	c.Set(EventName, eventInfo.EventName)
 	c.Set(EventDescription, eventInfo.Description)
 	c.Set(EventResourceType, eventInfo.ResourceType)
 	c.Set(EventResourceName, resourceName)
 
+	if RequestBody != nil {
+		body, err := json.Marshal(RequestBody)
+		if err != nil {
+			clog.Warn("json marshal failed for %v: %v", eventInfo.EventName, err)
+		} else {
+			c.Set(EventRequestBody, string(body))
+		}
+	}
+
 	return c
 }
 
 var (
-	CreateUser = &EventInfo{"createUser", "createUser", "user"}
-	UpdateUser = &EventInfo{"updateUser", "updateUser", "user"}
-
-	DeleteKey = &EventInfo{"deleteKey", "deleteKey", "key"}
-	CreateKey = &EventInfo{"createKey", "createKey", "key"}
-
-	ExteranlAccess = &EventInfo{"exteranlAccess", "createExternalAccessPort", "service"}
-
-	YamlDeploy = &EventInfo{"yamlDeploy", "yamlDeploy", "yamlDeploy"}
+	CreateUser       = &EventInfo{"createUser", "createUser", "user"}
+	UpdateUser       = &EventInfo{"updateUser", "updateUser", "user"}
+	DeleteKey        = &EventInfo{"deleteKey", "deleteKey", "key"}
+	CreateKey        = &EventInfo{"createKey", "createKey", "key"}
+	CreateConfigMap  = &EventInfo{"createConfigMap", "createConfigMap", "configmap"}
+	DeleteConfigMap  = &EventInfo{"deleteConfigMap", "deleteConfigMap", "configmap"}
+	UpdateConfigMap  = &EventInfo{"updateConfigMap", "updateConfigMap", "configmap"}
+	RolloutConfigMap = &EventInfo{"rolloutConfigMap", "rolloutConfigMap", "configmap"}
 )
