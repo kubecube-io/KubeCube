@@ -1,4 +1,4 @@
-# v1.8.4
+# v1.8.5
 
 ## Feature
 - Feat expose klog set [#305](https://github.com/kubecube-io/KubeCube/pull/318)
