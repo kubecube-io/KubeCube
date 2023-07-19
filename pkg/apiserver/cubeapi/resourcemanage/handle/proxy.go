@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -291,11 +292,13 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 		Condition:        condition,
 		ConverterContext: &converterContext,
 	}
-	requestProxy := &httputil.ReverseProxy{Director: director, Transport: transport, ModifyResponse: filter.filterResponse, ErrorHandler: errorHandler}
-
+	needModifyResponse := needModifyResponse(proxyUrl, c)
 	// trim auth token here
 	c.Request.Header.Del(constants.AuthorizationHeader)
-
+	requestProxy := &httputil.ReverseProxy{Director: director, Transport: transport, ModifyResponse: nil, ErrorHandler: errorHandler}
+	if needModifyResponse {
+		requestProxy.ModifyResponse = filter.filterResponse
+	}
 	requestProxy.ServeHTTP(c.Writer, c.Request)
 }
 
@@ -326,4 +329,37 @@ func parseQueryParams(c *gin.Context) *filter.Condition {
 		SortFunc:  sortFunc,
 	}
 	return &condition
+}
+
+// if the request has a watch, it should not be filtered
+func needModifyResponse(proxyUrl string, c *gin.Context) bool {
+	modifyResponse := true
+	// According to the rules of k8s, determine whether the request has a watch.
+	// When there is a watch, it is a long connection request.
+	// At this time, the returned data should not be filtered
+	// watch is divided into two cases, one is watch=true in the query parameter, and the other is watch in the path, such as /api/v1/watch/namespaces/default/pods
+	// 1. watch=true in the query parameter
+	watch := c.Query("watch")
+	isWatch, _ := strconv.ParseBool(watch)
+	if isWatch {
+		modifyResponse = false
+	}
+	// 2. watch in the path
+	if len(proxyUrl) > 0 {
+		path := proxyUrl
+		if strings.HasPrefix(path, "/") {
+			path = path[1:]
+		}
+		split := strings.Split(path, "/")
+		if split[0] == "api" {
+			if split[2] == "watch" {
+				modifyResponse = false
+			}
+		} else if split[0] == "apis" {
+			if split[3] == "watch" {
+				modifyResponse = false
+			}
+		}
+	}
+	return modifyResponse
 }
