@@ -23,7 +23,6 @@ import (
 	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -121,10 +120,10 @@ var _ = Describe("Deployment", func() {
 		Expect(err).To(BeNil())
 		Expect(ret.Object["total"]).To(Equal(1))
 		items := ret.Object["items"]
-		dpInfo := items.([]unstructured.Unstructured)[0].Object
-		dpInfoname := dpInfo["metadata"].(metav1.ObjectMeta).Name
+		dpInfo := items.([]ExtentDeployment)[0]
+		dpInfoname := dpInfo.Name
 		Expect(dpInfoname).To(Equal("dp"))
-		podStatus := dpInfo["podStatus"].(map[string]interface{})
-		Expect(podStatus["running"]).To(Equal(1))
+		podStatus := dpInfo.PodStatus
+		Expect(podStatus.Running).To(Equal(int32(1)))
 	})
 })
