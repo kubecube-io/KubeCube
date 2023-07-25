@@ -1,6 +1,9 @@
 package deployment
 
 import (
+	"context"
+	"time"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -56,6 +59,8 @@ func isPodReadyOrSucceed(pod *corev1.Pod) bool {
 func (d *Deployment) getWarningEventsByPodList(podList *corev1.PodList) ([]ExtendEvent, error) {
 	// kubectl get ev --field-selector="involvedObject.uid=1a58441c-3c03-4267-85d1-a81f0c268d62,type=Warning"
 	resultEventList := make([]ExtendEvent, 0)
+	ctx, cancelFunc := context.WithTimeout(d.ctx, time.Second*10)
+	defer cancelFunc()
 	for _, pod := range podList.Items {
 		if isPodReadyOrSucceed(&pod) {
 			continue
@@ -69,7 +74,7 @@ func (d *Deployment) getWarningEventsByPodList(podList *corev1.PodList) ([]Exten
 		}
 
 		eventList := corev1.EventList{}
-		err := d.client.Direct().List(d.ctx, &eventList, listOptions)
+		err := d.client.Direct().List(ctx, &eventList, listOptions)
 		if err != nil {
 			return nil, err
 		}

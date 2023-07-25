@@ -104,9 +104,9 @@ func (d *Deployment) addExtendInfo(deploymentList appsv1.DeploymentList) []Exten
 		wg.Add(1)
 		deployment := deployment
 		go func() {
-			defer wg.Done()
 			result := d.getDeployExtendInfo(deployment)
 			resultList = append(resultList, result)
+			wg.Done()
 		}()
 	}
 	wg.Wait()
