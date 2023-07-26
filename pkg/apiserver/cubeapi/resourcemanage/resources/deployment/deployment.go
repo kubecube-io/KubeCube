@@ -133,7 +133,7 @@ func (d *Deployment) getDeployExtendInfo(deployment appsv1.Deployment) ExtentDep
 	// create podStatus map
 	podsStatus := PodStatus{}
 	podsStatus.Current = deployment.Status.Replicas
-	podsStatus.Desired = *deployment.Spec.Replicas
+	podsStatus.Desired = deployment.Spec.Replicas
 	var succeeded, running, pending, failed, unknown int32
 	for _, p := range realPodList.Items {
 		switch p.Status.Phase {

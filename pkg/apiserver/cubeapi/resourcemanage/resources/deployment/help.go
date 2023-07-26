@@ -38,7 +38,7 @@ type ExtentDeployment struct {
 
 type PodStatus struct {
 	Current   int32         `json:"current,omitempty"`
-	Desired   int32         `json:"desired,omitempty"`
+	Desired   *int32        `json:"desired,omitempty"`
 	Succeeded int32         `json:"succeeded,omitempty"`
 	Running   int32         `json:"running,omitempty"`
 	Pending   int32         `json:"pending,omitempty"`
