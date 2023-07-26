@@ -223,3 +223,10 @@ const (
 const (
 	GpuNvidia = "nvidia.com/gpu"
 )
+
+const (
+	CompletedPodStatus   = "Completed"
+	NotReadyPodStatus    = "NotReady"
+	UnknownPodStatus     = "Unknown"
+	TerminatingPodStatus = "Terminating"
+)

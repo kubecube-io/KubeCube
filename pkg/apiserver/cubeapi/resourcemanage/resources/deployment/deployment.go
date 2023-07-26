@@ -18,13 +18,12 @@ package deployment
 
 import (
 	"context"
+	"sync"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	resourcemanage "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
@@ -98,60 +97,71 @@ func (d *Deployment) getExtendDeployments() (*unstructured.Unstructured, *errcod
 	}, nil
 }
 
-func (d *Deployment) addExtendInfo(deploymentList appsv1.DeploymentList) []unstructured.Unstructured {
-	resultList := make([]unstructured.Unstructured, 0)
+func (d *Deployment) addExtendInfo(deploymentList appsv1.DeploymentList) []ExtentDeployment {
+	resultList := make([]ExtentDeployment, 0)
+	wg := &sync.WaitGroup{}
 	for _, deployment := range deploymentList.Items {
-		// get pod list by deployment
-		realPodList, err := d.getPodByDeployment(deployment)
-		if err != nil {
-			clog.Info("add extend pods info to deployment %s fail, %v", deployment.Name, err)
-			continue
-		}
-
-		// get warning event list by podList
-		warningEventList, err := d.getWarningEventsByPodList(realPodList)
-		if err != nil {
-			clog.Info("add extend warning events info to deployment %s fail, %v", deployment.Name, err)
-			warningEventList = make([]unstructured.Unstructured, 0)
-		}
-
-		// create podStatus map
-		podsStatus := make(map[string]interface{})
-		podsStatus["current"] = deployment.Status.Replicas
-		podsStatus["desired"] = deployment.Spec.Replicas
-		var succeeded, running, pending, failed, unknown int
-		for _, p := range realPodList.Items {
-			switch p.Status.Phase {
-			case corev1.PodSucceeded:
-				succeeded++
-			case corev1.PodRunning:
-				running++
-			case corev1.PodPending:
-				pending++
-			case corev1.PodFailed:
-				failed++
-			default:
-				unknown++
-			}
-		}
-		podsStatus["succeeded"] = succeeded
-		podsStatus["running"] = running
-		podsStatus["pending"] = pending
-		podsStatus["failed"] = failed
-		podsStatus["unknown"] = unknown
-
-		podsStatus["warning"] = warningEventList
-
-		// create result map
-		result := make(map[string]interface{})
-		result["metadata"] = deployment.ObjectMeta
-		result["spec"] = deployment.Spec
-		result["status"] = deployment.Status
-		result["podStatus"] = podsStatus
-		res := unstructured.Unstructured{Object: result}
-		resultList = append(resultList, res)
+		wg.Add(1)
+		deployment := deployment
+		go func() {
+			result := d.getDeployExtendInfo(deployment)
+			resultList = append(resultList, result)
+			wg.Done()
+		}()
 	}
+	wg.Wait()
 	return resultList
+}
+
+func (d *Deployment) getDeployExtendInfo(deployment appsv1.Deployment) ExtentDeployment {
+	// get pod list by deployment
+	realPodList, err := d.getPodByDeployment(deployment)
+	if err != nil {
+		clog.Info("add extend pods info to deployment %s fail, %v", deployment.Name, err)
+		return ExtentDeployment{
+			PodStatus{},
+			deployment,
+		}
+	}
+
+	// get warning event list by podList
+	warningEventList, err := d.getWarningEventsByPodList(&realPodList)
+	if err != nil {
+		clog.Info("add extend warning events info to deployment %s fail, %v", deployment.Name, err)
+	}
+
+	// create podStatus map
+	podsStatus := PodStatus{}
+	podsStatus.Current = deployment.Status.Replicas
+	podsStatus.Desired = deployment.Spec.Replicas
+	var succeeded, running, pending, failed, unknown int32
+	for _, p := range realPodList.Items {
+		switch p.Status.Phase {
+		case corev1.PodSucceeded:
+			succeeded++
+		case corev1.PodRunning:
+			running++
+		case corev1.PodPending:
+			pending++
+		case corev1.PodFailed:
+			failed++
+		default:
+			unknown++
+		}
+	}
+	podsStatus.Succeeded = succeeded
+	podsStatus.Running = running
+	podsStatus.Pending = pending
+	podsStatus.Failed = failed
+	podsStatus.Unknown = unknown
+	podsStatus.Warning = warningEventList
+
+	// create result map
+	result := ExtentDeployment{
+		podsStatus,
+		deployment,
+	}
+	return result
 }
 
 // get podList by deployment, return real pod list
@@ -165,105 +175,11 @@ func (d *Deployment) getPodByDeployment(deployment appsv1.Deployment) (corev1.Po
 		Namespace:     d.namespace,
 		LabelSelector: labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels),
 	}
-
-	// get replicas by deployment matchLabel
-	rsList := appsv1.ReplicaSetList{}
-	err := d.client.Cache().List(d.ctx, &rsList, listOptions)
-	if err != nil {
-		return corev1.PodList{}, err
-	}
-	var rsUidList []types.UID
-	for _, rs := range rsList.Items {
-		ownerReferences := rs.ObjectMeta.OwnerReferences
-		if ownerReferences == nil {
-			continue
-		}
-		for _, ownerReference := range ownerReferences {
-			if ownerReference.UID == deployment.UID {
-				rsUidList = append(rsUidList, rs.UID)
-			}
-		}
-	}
-
 	// get pod by deployment matchLabel
 	podList := corev1.PodList{}
-	err = d.client.Cache().List(d.ctx, &podList, listOptions)
+	err := d.client.Cache().List(d.ctx, &podList, listOptions)
 	if err != nil {
 		return corev1.PodList{}, err
 	}
-	// get pod by replicas
-	var realPodList corev1.PodList
-	for _, pod := range podList.Items {
-		ownerReferences := pod.ObjectMeta.OwnerReferences
-		if ownerReferences == nil {
-			continue
-		}
-		for _, ownerReference := range ownerReferences {
-			for _, rsUid := range rsUidList {
-				if ownerReference.UID == rsUid {
-					realPodList.Items = append(realPodList.Items, pod)
-				}
-			}
-		}
-	}
-	return realPodList, nil
-}
-
-func (d *Deployment) getWarningEventsByPodList(podList corev1.PodList) ([]unstructured.Unstructured, error) {
-	// kubectl get ev --field-selector="involvedObject.uid=1a58441c-3c03-4267-85d1-a81f0c268d62,type=Warning"
-	resultEventList := make([]unstructured.Unstructured, 0)
-	for _, pod := range podList.Items {
-		if isPodReadyOrSucceed(pod) {
-			continue
-		}
-		fieldSelector := make(map[string]string)
-		fieldSelector["involvedObject.uid"] = string(pod.GetUID())
-		fieldSelector["type"] = "Warning"
-		listOptions := &client.ListOptions{
-			Namespace:     d.namespace,
-			FieldSelector: fields.SelectorFromSet(fieldSelector),
-		}
-
-		eventList := corev1.EventList{}
-		err := d.client.Direct().List(d.ctx, &eventList, listOptions)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, event := range eventList.Items {
-			eventMap := make(map[string]interface{})
-			eventMap["type"] = "Warning"
-			eventMap["reason"] = event.Reason
-			eventMap["message"] = event.Message
-			eventMap["object"] = event.InvolvedObject.Name
-			eventMap["creationTimestamp"] = event.CreationTimestamp
-			resultEventList = append(resultEventList, unstructured.Unstructured{Object: eventMap})
-		}
-	}
-	return resultEventList, nil
-}
-
-func isPodReadyOrSucceed(pod corev1.Pod) bool {
-	if pod.Status.Phase == "" {
-		return true
-	}
-
-	if pod.Status.Phase == "Succeeded" {
-		return true
-	}
-
-	if pod.Status.Phase == "Running" {
-		conditions := pod.Status.Conditions
-		if len(conditions) == 0 {
-			return true
-		}
-		for _, cond := range conditions {
-			if cond.Type == "Ready" && cond.Status == "False" {
-				return false
-			}
-		}
-		return true
-	}
-
-	return false
+	return podList, nil
 }
