@@ -1085,6 +1085,7 @@ k8s.io/kubernetes/pkg/apis/storage/v1
 k8s.io/kubernetes/pkg/apis/storage/v1alpha1
 k8s.io/kubernetes/pkg/apis/storage/v1beta1
 k8s.io/kubernetes/pkg/features
+k8s.io/kubernetes/pkg/util/node
 k8s.io/kubernetes/pkg/util/parsers
 # k8s.io/metrics v0.20.6 => k8s.io/metrics v0.20.6
 ## explicit
@@ -1105,6 +1106,8 @@ k8s.io/sample-controller/pkg/signals
 k8s.io/utils/buffer
 k8s.io/utils/exec
 k8s.io/utils/integer
+k8s.io/utils/internal/third_party/forked/golang/net
+k8s.io/utils/net
 k8s.io/utils/pointer
 k8s.io/utils/trace
 # sigs.k8s.io/controller-runtime v0.11.0 => sigs.k8s.io/controller-runtime v0.8.3
