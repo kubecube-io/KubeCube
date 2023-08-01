@@ -104,7 +104,12 @@ func (d *Pod) getRs() error {
 		Exact: map[string]sets.String{ownerUidLabel: val},
 	}
 	rsList := appsv1.ReplicaSetList{}
-	err := d.client.Cache().List(d.ctx, &rsList, client.InNamespace(d.namespace))
+	var err error
+	if d.namespace == "" {
+		err = d.client.Cache().List(d.ctx, &rsList)
+	} else {
+		err = d.client.Cache().List(d.ctx, &rsList, client.InNamespace(d.namespace))
+	}
 	if err != nil {
 		clog.Error("can not find rs from cluster, %v", err)
 		return err
@@ -134,7 +139,12 @@ func (d *Pod) getPods() (*unstructured.Unstructured, error) {
 	// get pod list from k8s cluster
 	resultMap := make(map[string]interface{})
 	var podList corev1.PodList
-	err := d.client.Cache().List(d.ctx, &podList, client.InNamespace(d.namespace))
+	var err error
+	if d.namespace == "" {
+		err = d.client.Cache().List(d.ctx, &podList)
+	} else {
+		err = d.client.Cache().List(d.ctx, &podList, client.InNamespace(d.namespace))
+	}
 	if err != nil {
 		clog.Error("can not find info from cluster, %v", err)
 		return nil, err
@@ -152,7 +162,7 @@ func (d *Pod) getPods() (*unstructured.Unstructured, error) {
 	items := make([]ExtendPod, 0)
 	for _, pod := range podList.Items {
 		items = append(items, ExtendPod{
-			Reason: getPodReason(pod),
+			Reason: GetPodReason(pod),
 			Pod:    pod,
 		})
 	}
@@ -160,8 +170,8 @@ func (d *Pod) getPods() (*unstructured.Unstructured, error) {
 	return &unstructured.Unstructured{Object: resultMap}, nil
 }
 
-// getPodReason return The aggregate status of the containers in this pod.
-func getPodReason(pod corev1.Pod) string {
+// GetPodReason return The aggregate status of the containers in this pod.
+func GetPodReason(pod corev1.Pod) string {
 	restarts := 0
 	readyContainers := 0
 	lastRestartDate := metav1.NewTime(time.Time{})
