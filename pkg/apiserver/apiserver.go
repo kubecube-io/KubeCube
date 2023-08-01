@@ -141,6 +141,7 @@ func withSimpleServer(s *APIServer) *APIServer {
 	url := ginSwagger.URL("/swagger/doc.json")
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler, url))
 	router.GET("/healthz", healthz.HealthyCheck)
+	router.PUT("/log/level", gin.WrapH(http.HandlerFunc(clog.AtomicLevel.ServeHTTP)))
 
 	s.SimpleServer = &http.Server{
 		Addr:    fmt.Sprintf("%s:%d", s.Config.BindAddr, s.Config.GenericPort),
