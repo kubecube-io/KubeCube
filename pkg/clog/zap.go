@@ -26,7 +26,7 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-var AtomicLevel zap.AtomicLevel
+var atomicLevel = zap.NewAtomicLevel()
 
 // InitCubeLoggerWithOpts init cube logger with options
 func InitCubeLoggerWithOpts(opts *Config) {
@@ -67,8 +67,7 @@ func newZapCore(opts *Config) zapcore.Core {
 		Compress:   opts.Compress,
 	}
 
-	AtomicLevel = zap.NewAtomicLevel()
-	AtomicLevel.SetLevel(levelAdapt(opts.LogLevel))
+	atomicLevel.SetLevel(levelAdapt(opts.LogLevel))
 
 	encoderConfig := zapcore.EncoderConfig{
 		TimeKey:        "time",
@@ -97,7 +96,11 @@ func newZapCore(opts *Config) zapcore.Core {
 		writeSyncer = zapcore.AddSync(os.Stdout)
 	}
 
-	return zapcore.NewCore(encoder, writeSyncer, AtomicLevel)
+	return zapcore.NewCore(encoder, writeSyncer, atomicLevel)
+}
+
+func GetAtomicLevel() zap.AtomicLevel {
+	return atomicLevel
 }
 
 func (c *cubeLogger) AddCallerSkip(callerSkip int) CubeLogger {
