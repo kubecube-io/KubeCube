@@ -27,6 +27,7 @@ import (
 	resourcemanage "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/enum"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/pod"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
@@ -70,20 +71,23 @@ func NewPvc(client mgrclient.Client, namespace string, condition *filter.Conditi
 // getPvcWorkloads get extend deployments
 func (p *Pvc) getPvcWorkloads(pvcName string) (*unstructured.Unstructured, *errcode.ErrorInfo) {
 	result := make(map[string]interface{})
-	var pods []corev1.Pod
+	var pods []pod.ExtendPod
 	var podList corev1.PodList
 	err := p.client.Cache().List(p.ctx, &podList, client.InNamespace(p.namespace))
 	if err != nil {
 		return nil, errcode.BadRequest(err)
 	}
-	for _, pod := range podList.Items {
-		for _, volume := range pod.Spec.Volumes {
+	for _, item := range podList.Items {
+		for _, volume := range item.Spec.Volumes {
 			if volume.PersistentVolumeClaim == nil {
 				continue
 			}
 			claimName := volume.PersistentVolumeClaim.ClaimName
 			if claimName == pvcName {
-				pods = append(pods, pod)
+				pods = append(pods, pod.ExtendPod{
+					Reason: pod.GetPodReason(item),
+					Pod:    item,
+				})
 				break
 			}
 		}
