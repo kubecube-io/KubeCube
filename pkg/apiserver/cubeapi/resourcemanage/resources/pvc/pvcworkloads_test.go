@@ -25,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/pod"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
@@ -81,7 +82,7 @@ var _ = Describe("Pvc", func() {
 		ret, err := pvc.getPvcWorkloads(pvcName)
 		Expect(err).To(BeNil())
 		Expect(ret.Object["total"]).To(Equal(1))
-		pods := ret.Object["pods"].([]corev1.Pod)
+		pods := ret.Object["pods"].([]pod.ExtendPod)
 		s := pods[0].Name
 		Expect(s).To(Equal("pod2"))
 	})
