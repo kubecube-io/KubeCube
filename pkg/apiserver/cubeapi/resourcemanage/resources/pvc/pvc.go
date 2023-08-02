@@ -24,6 +24,7 @@ import (
 	resourcemanage "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/enum"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/pod"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
@@ -32,8 +33,8 @@ import (
 
 type PvcExtend struct {
 	v1.PersistentVolumeClaim
-	Pods  []v1.Pod `json:"pods,omitempty"`
-	Total int      `json:"total,omitempty"`
+	Pods  []pod.ExtendPod `json:"pods,omitempty"`
+	Total int             `json:"total,omitempty"`
 }
 
 func init() {
@@ -78,7 +79,7 @@ func (p *Pvc) getPvc() (*unstructured.Unstructured, *errcode.ErrorInfo) {
 		}
 		// if response has pods, and result is pod array, then add it as extendInfo
 		if podRes, ok := workloadMap.Object["pods"]; ok {
-			if pods, ok := podRes.([]v1.Pod); ok {
+			if pods, ok := podRes.([]pod.ExtendPod); ok {
 				extend := PvcExtend{
 					PersistentVolumeClaim: pvc,
 					Pods:                  pods,
