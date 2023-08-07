@@ -49,6 +49,7 @@ const (
 	existsOp             = "Exists"
 	mountPki             = "/etc/kubernetes/pki"
 	mountName            = "pki-mount"
+	helmVolumeName       = "helm-pkg"
 )
 
 func deployResources(ctx context.Context, cli client.Client, memberCluster, pivotCluster *clusterv1.Cluster) error {
@@ -197,7 +198,7 @@ func makeDeployment(cluster string, isMemberCluster bool) *appsv1.Deployment {
 		}
 
 		helmVolume = corev1.Volume{
-			Name: "helm-pkg",
+			Name: helmVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
@@ -231,7 +232,7 @@ func makeDeployment(cluster string, isMemberCluster bool) *appsv1.Deployment {
 
 		kubeConfigVolumeMount = corev1.VolumeMount{Name: kubeConfigSecretName, MountPath: "/etc/kubeconfigs", ReadOnly: true}
 		tlsVolumeMount        = corev1.VolumeMount{Name: tlsSecretName, MountPath: "/etc/tls", ReadOnly: true}
-		helmVolumeMount       = corev1.VolumeMount{Name: "helm-pkg", MountPath: "/root/helmchartpkg"}
+		helmVolumeMount       = corev1.VolumeMount{Name: helmVolumeName, MountPath: "/root/helmchartpkg"}
 		timeZoneVolumeMount   = corev1.VolumeMount{Name: "localtime", MountPath: "/etc/localtime"}
 		//configVolumeMount     = corev1.VolumeMount{Name: "config-volume", MountPath: "/etc/config", ReadOnly: true}
 
@@ -292,7 +293,7 @@ func makeDeployment(cluster string, isMemberCluster bool) *appsv1.Deployment {
 							},
 							VolumeMounts: []corev1.VolumeMount{
 								{
-									Name:      "helm-pkg",
+									Name:      helmVolumeName,
 									MountPath: "/root/helmchartpkg",
 								},
 							},
