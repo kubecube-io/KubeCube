@@ -147,3 +147,7 @@ func updateUserStatus(ctx context.Context, cli client.Client, user *v1.User, sco
 		return nil
 	})
 }
+
+func updateUserStatusErrStr(user string, err error) string {
+	return fmt.Sprintf("update user %v status failed: %v", user, err)
+}

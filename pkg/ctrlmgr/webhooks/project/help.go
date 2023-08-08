@@ -18,6 +18,7 @@ package project
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/types"
@@ -31,11 +32,13 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/domain"
 )
 
+var notFoundLabelErr = errors.New("can not find .metadata.labels.kubecube.io/tenant label")
+
 func (r *Validator) ValidateCreate(project *tenantv1.Project) error {
 	tenantName := project.Labels[constants.TenantLabel]
 	if tenantName == "" {
-		clog.Info("can not find .metadata.labels.kubecube.io/tenant label")
-		return fmt.Errorf("can not find .metadata.labels.kubecube.io/tenant label")
+		clog.Info(notFoundLabelErr.Error())
+		return notFoundLabelErr
 	}
 
 	ctx := context.Background()
@@ -57,8 +60,8 @@ func (r *Validator) ValidateUpdate(_ *tenantv1.Project, currentProject *tenantv1
 
 	tenantName := currentProject.Labels[constants.TenantLabel]
 	if tenantName == "" {
-		clog.Info("can not find .metadata.labels.kubecube.io/tenant label")
-		return fmt.Errorf("can not find .metadata.labels.kubecube.io/tenant label")
+		clog.Info(notFoundLabelErr.Error())
+		return notFoundLabelErr
 	}
 
 	ctx := context.Background()

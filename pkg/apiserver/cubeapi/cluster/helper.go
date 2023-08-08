@@ -512,3 +512,34 @@ func getAssignedResource(cli mgrclient.Client, cluster string) (cpu resource.Qua
 	}
 	return cpu, mem, gpu, err
 }
+
+func listAllHncNsFunc(ctx context.Context) func(cli mgrclient.Client) (corev1.NamespaceList, error) {
+	return func(cli mgrclient.Client) (corev1.NamespaceList, error) {
+		nsLIst := corev1.NamespaceList{}
+		labelSelector, err := labels.Parse(constants.HncTenantLabel)
+		if err != nil {
+			return nsLIst, err
+		}
+		err = cli.Cache().List(ctx, &nsLIst, &client.ListOptions{LabelSelector: labelSelector})
+		return nsLIst, err
+	}
+}
+
+func listHncNsByTenantsFunc(ctx context.Context, tenantList []string) func(cli mgrclient.Client) (corev1.NamespaceList, error) {
+	return func(cli mgrclient.Client) (corev1.NamespaceList, error) {
+		nsLIst := corev1.NamespaceList{}
+		for _, tenant := range tenantList {
+			tempNsList := corev1.NamespaceList{}
+			labelSelector, err := labels.Parse(fmt.Sprintf("%v=%v", constants.HncTenantLabel, tenant))
+			if err != nil {
+				return tempNsList, err
+			}
+			err = cli.Cache().List(ctx, &tempNsList, &client.ListOptions{LabelSelector: labelSelector})
+			if err != nil {
+				return tempNsList, err
+			}
+			nsLIst.Items = append(nsLIst.Items, tempNsList.Items...)
+		}
+		return nsLIst, nil
+	}
+}

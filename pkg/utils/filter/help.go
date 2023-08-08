@@ -30,6 +30,10 @@ type PageBean struct {
 	Items interface{} `json:"items"`
 }
 
+func fieldNotExistErr(field interface{}) error {
+	return fmt.Errorf("field %v not exsit", field)
+}
+
 // GetDeepValue get value by metadata.xx.xx.xx, multi level key
 func GetDeepValue(item interface{}, keyStr string) ([]string, error) {
 	fields := strings.Split(keyStr, ".")
@@ -77,7 +81,7 @@ func getRes(item interface{}, index int, fields []string) (interface{}, error) {
 			// any field not found return directly
 			next, ok := info[fields[index]]
 			if !ok {
-				return nil, fmt.Errorf("field %v not exsit", fields[index])
+				return nil, fieldNotExistErr(fields[index])
 			}
 			return getRes(next, 0, []string{key})
 		}
@@ -85,7 +89,7 @@ func getRes(item interface{}, index int, fields []string) (interface{}, error) {
 		if index == n-1 {
 			v, ok := info[fields[index]]
 			if !ok {
-				return nil, fmt.Errorf("field %v not exsit", fields[index])
+				return nil, fieldNotExistErr(fields[index])
 			}
 			return v, nil
 		}
@@ -93,7 +97,7 @@ func getRes(item interface{}, index int, fields []string) (interface{}, error) {
 		// any field not found return directly
 		next, ok := info[fields[index]]
 		if !ok {
-			return nil, fmt.Errorf("field %v not exsit", fields[index])
+			return nil, fieldNotExistErr(fields[index])
 		}
 		return getRes(next, index+1, fields)
 	case unstructured.Unstructured:
@@ -105,7 +109,7 @@ func getRes(item interface{}, index int, fields []string) (interface{}, error) {
 			// any field not found return directly
 			next, ok := info.Object[fields[index]]
 			if !ok {
-				return nil, fmt.Errorf("field %v not exsit", fields[index])
+				return nil, fieldNotExistErr(fields[index])
 			}
 			return getRes(next, 0, []string{key})
 		}
@@ -113,7 +117,7 @@ func getRes(item interface{}, index int, fields []string) (interface{}, error) {
 		if index == n-1 {
 			v, ok := info.Object[fields[index]]
 			if !ok {
-				return nil, fmt.Errorf("field %v not exsit", fields[index])
+				return nil, fieldNotExistErr(fields[index])
 			}
 			return v, nil
 		}
@@ -121,7 +125,7 @@ func getRes(item interface{}, index int, fields []string) (interface{}, error) {
 		// any field not found return directly
 		next, ok := info.Object[fields[index]]
 		if !ok {
-			return nil, fmt.Errorf("field %v not exsit", fields[index])
+			return nil, fieldNotExistErr(fields[index])
 		}
 		return getRes(next, index+1, fields)
 	// if the value is []map[string]interface{}, so we need get all value which key is, so just foreach it
@@ -167,7 +171,7 @@ func getRes(item interface{}, index int, fields []string) (interface{}, error) {
 			// any field not found return directly
 			next, ok := info[fields[index]]
 			if !ok {
-				return nil, fmt.Errorf("field %v not exsit", fields[index])
+				return nil, fieldNotExistErr(fields[index])
 			}
 			return getRes(next, 0, []string{key})
 		}
@@ -175,7 +179,7 @@ func getRes(item interface{}, index int, fields []string) (interface{}, error) {
 		if index == n-1 {
 			v, ok := info[fields[index]]
 			if !ok {
-				return nil, fmt.Errorf("field %v not exsit", fields[index])
+				return nil, fieldNotExistErr(fields[index])
 			}
 			return v, nil
 		}
@@ -183,7 +187,7 @@ func getRes(item interface{}, index int, fields []string) (interface{}, error) {
 		// any field not found return directly
 		next, ok := info[fields[index]]
 		if !ok {
-			return nil, fmt.Errorf("field %v not exsit", fields[index])
+			return nil, fieldNotExistErr(fields[index])
 		}
 		return getRes(next, index+1, fields)
 	}

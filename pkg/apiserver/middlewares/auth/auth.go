@@ -57,59 +57,70 @@ func WithinWhiteList(url *url.URL, method string, whiteList map[string]string) b
 
 func Auth() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if !WithinWhiteList(c.Request.URL, c.Request.Method, AuthWhiteList) {
-			authJwtImpl := jwt.GetAuthJwtImpl()
-			if generic.Config.GenericAuthIsEnable {
-				h := generic.GetProvider()
-				user, err := h.Authenticate(c.Request.Header)
-				if err != nil {
-					clog.Warn("generic auth error: %v", err)
-					response.FailReturn(c, errcode.AuthenticateError)
-					return
-				}
-				newToken, err := authJwtImpl.GenerateToken(&v1beta1.UserInfo{Username: user.GetUserName()})
-				if err != nil {
-					clog.Warn(err.Error())
-					response.FailReturn(c, errcode.AuthenticateError)
-					return
-				}
-				b := jwt.BearerTokenPrefix + " " + newToken
-				c.Request.Header.Set(constants.AuthorizationHeader, b)
-				c.SetCookie(constants.AuthorizationHeader, b, int(authJwtImpl.TokenExpireDuration), "/", "", false, true)
-				c.Request.Header.Set(constants.ImpersonateUserKey, user.GetUserName())
-				for k, v := range user.GetRespHeader() {
-					if k == "Cookie" {
-						if len(v) > 1 {
-							c.Header(k, v[0])
-						}
-						break
-					}
-				}
-				c.Set(constants.UserName, user.GetUserName())
-				c.Set(constants.EventAccountId, user.GetAccountId())
-			} else {
-				userToken, err := token.GetTokenFromReq(c.Request)
-				if err != nil {
-					clog.Warn("request api %v auth failed: %v", c.Request.URL, err)
-					response.FailReturn(c, errcode.AuthenticateError)
-					return
-				}
+		if WithinWhiteList(c.Request.URL, c.Request.Method, AuthWhiteList) {
+			return
+		}
 
-				user, newToken, err := authJwtImpl.RefreshToken(userToken)
-				if err != nil {
-					clog.Warn(err.Error())
-					response.FailReturn(c, errcode.AuthenticateError)
-					return
-				}
+		authJwtImpl := jwt.GetAuthJwtImpl()
 
-				v := jwt.BearerTokenPrefix + " " + newToken
+		if generic.Config.GenericAuthIsEnable {
+			genericAuth(c, authJwtImpl)
+		} else {
+			defaultAuth(c, authJwtImpl)
+		}
+		c.Next()
+	}
+}
 
-				c.Request.Header.Set(constants.AuthorizationHeader, v)
-				c.Request.Header.Set(constants.ImpersonateUserKey, user.Username)
-				c.SetCookie(constants.AuthorizationHeader, v, int(authJwtImpl.TokenExpireDuration), "/", "", false, true)
-				c.Set(constants.UserName, user.Username)
+func defaultAuth(c *gin.Context, authJwtImpl *jwt.AuthJwt) {
+	userToken, err := token.GetTokenFromReq(c.Request)
+	if err != nil {
+		clog.Warn("request api %v auth failed: %v", c.Request.URL, err)
+		response.FailReturn(c, errcode.AuthenticateError)
+		return
+	}
+
+	user, newToken, err := authJwtImpl.RefreshToken(userToken)
+	if err != nil {
+		clog.Warn(err.Error())
+		response.FailReturn(c, errcode.AuthenticateError)
+		return
+	}
+
+	v := jwt.BearerTokenPrefix + " " + newToken
+
+	c.Request.Header.Set(constants.AuthorizationHeader, v)
+	c.Request.Header.Set(constants.ImpersonateUserKey, user.Username)
+	c.SetCookie(constants.AuthorizationHeader, v, int(authJwtImpl.TokenExpireDuration), "/", "", false, true)
+	c.Set(constants.UserName, user.Username)
+}
+
+func genericAuth(c *gin.Context, authJwtImpl *jwt.AuthJwt) {
+	h := generic.GetProvider()
+	user, err := h.Authenticate(c.Request.Header)
+	if err != nil {
+		clog.Warn("generic auth error: %v", err)
+		response.FailReturn(c, errcode.AuthenticateError)
+		return
+	}
+	newToken, err := authJwtImpl.GenerateToken(&v1beta1.UserInfo{Username: user.GetUserName()})
+	if err != nil {
+		clog.Warn(err.Error())
+		response.FailReturn(c, errcode.AuthenticateError)
+		return
+	}
+	b := jwt.BearerTokenPrefix + " " + newToken
+	c.Request.Header.Set(constants.AuthorizationHeader, b)
+	c.SetCookie(constants.AuthorizationHeader, b, int(authJwtImpl.TokenExpireDuration), "/", "", false, true)
+	c.Request.Header.Set(constants.ImpersonateUserKey, user.GetUserName())
+	for k, v := range user.GetRespHeader() {
+		if k == "Cookie" {
+			if len(v) > 1 {
+				c.Header(k, v[0])
 			}
-			c.Next()
+			break
 		}
 	}
+	c.Set(constants.UserName, user.GetUserName())
+	c.Set(constants.EventAccountId, user.GetAccountId())
 }
