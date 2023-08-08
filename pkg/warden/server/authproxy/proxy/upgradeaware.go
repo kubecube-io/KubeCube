@@ -42,6 +42,8 @@ import (
 	"k8s.io/klog/v2"
 )
 
+const closedNetworkErrMsg = "use of closed network connection"
+
 // UpgradeRequestRoundTripper provides an additional method to decorate a request
 // with any authentication or other protocol level information prior to performing
 // an upgrade on the server. Any response will be handled by the intercepting
@@ -343,7 +345,7 @@ func (h *UpgradeAwareHandler) tryUpgrade(w http.ResponseWriter, req *http.Reques
 		requestHijackedConn.SetWriteDeadline(deadline)
 		// write the response to the client
 		err := backendHTTPResponse.Write(requestHijackedConn)
-		if err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
+		if err != nil && !strings.Contains(err.Error(), closedNetworkErrMsg) {
 			klog.Errorf("Error proxying data from backend to client: %v", err)
 		}
 		// Indicate we handled the request
@@ -373,7 +375,7 @@ func (h *UpgradeAwareHandler) tryUpgrade(w http.ResponseWriter, req *http.Reques
 			writer = backendConn
 		}
 		_, err := io.Copy(writer, requestHijackedConn)
-		if err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
+		if err != nil && !strings.Contains(err.Error(), closedNetworkErrMsg) {
 			klog.Errorf("Error proxying data from client to backend: %v", err)
 		}
 		close(writerComplete)
@@ -387,7 +389,7 @@ func (h *UpgradeAwareHandler) tryUpgrade(w http.ResponseWriter, req *http.Reques
 			reader = backendConn
 		}
 		_, err := io.Copy(requestHijackedConn, reader)
-		if err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
+		if err != nil && !strings.Contains(err.Error(), closedNetworkErrMsg) {
 			klog.Errorf("Error proxying data from backend to client: %v", err)
 		}
 		close(readerComplete)

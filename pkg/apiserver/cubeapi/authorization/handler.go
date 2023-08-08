@@ -117,7 +117,7 @@ func (h *handler) getAuthItemsByLabelSelector(c *gin.Context) {
 
 	selector, err := labels.Parse(labelSelector)
 	if err != nil {
-		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, "labels selector invalid: %v", err))
+		response.FailReturn(c, errcode.ParamsInvalid(err))
 		return
 	}
 
@@ -704,12 +704,10 @@ func (h *handler) createBinds(c *gin.Context) {
 	}
 
 	if access := access.AllowAccess(constants.LocalCluster, c.Request, constants.CreateVerb, clusterRoleBinding); !access {
-		clog.Debug("permission check fail")
 		response.FailReturn(c, errcode.ForbiddenErr)
 		return
 	}
 	if access := access.AllowAccess(constants.LocalCluster, c.Request, constants.CreateVerb, roleBinding); !access {
-		clog.Debug("permission check fail")
 		response.FailReturn(c, errcode.ForbiddenErr)
 		return
 	}
@@ -793,7 +791,6 @@ func (h *handler) deleteBinds(c *gin.Context) {
 	}
 
 	if access := access.AllowAccess(constants.LocalCluster, c.Request, constants.DeleteVerb, &roleBinding); !access {
-		clog.Debug("permission check fail")
 		response.FailReturn(c, errcode.ForbiddenErr)
 		return
 	}
@@ -809,7 +806,6 @@ func (h *handler) deleteBinds(c *gin.Context) {
 			}
 		} else {
 			if access := access.AllowAccess(constants.LocalCluster, c.Request, constants.DeleteVerb, crb); !access {
-				clog.Debug("permission check fail")
 				response.FailReturn(c, errcode.ForbiddenErr)
 				return
 			}

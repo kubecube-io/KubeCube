@@ -52,6 +52,7 @@ var _ = Describe("Key", func() {
 	accessKey := key.GetUUID()
 	secretKey := key.GetUUID()
 	userName := "test"
+	bearerPrefix := "bearer "
 
 	BeforeEach(func() {
 		testUser = userv1.User{
@@ -109,7 +110,7 @@ var _ = Describe("Key", func() {
 		request := http.Request{
 			Header: http.Header{},
 		}
-		request.Header.Add(constants.AuthorizationHeader, "bearer "+token)
+		request.Header.Add(constants.AuthorizationHeader, bearerPrefix+token)
 		c.Request = &request
 		key.CreateKey(c)
 		Expect(w.Code).To(Equal(http.StatusOK))
@@ -129,7 +130,7 @@ var _ = Describe("Key", func() {
 			URL:    u,
 			Header: http.Header{},
 		}
-		request.Header.Add(constants.AuthorizationHeader, "bearer "+token)
+		request.Header.Add(constants.AuthorizationHeader, bearerPrefix+token)
 		c.Request = &request
 		key.DeleteKey(c)
 		Expect(w.Code).To(Equal(http.StatusOK))
@@ -142,7 +143,7 @@ var _ = Describe("Key", func() {
 		request := http.Request{
 			Header: http.Header{},
 		}
-		request.Header.Add(constants.AuthorizationHeader, "bearer "+token)
+		request.Header.Add(constants.AuthorizationHeader, bearerPrefix+token)
 		c.Request = &request
 		key.ListKey(c)
 		Expect(w.Code).To(Equal(http.StatusOK))
@@ -160,7 +161,7 @@ var _ = Describe("Key", func() {
 			URL:    u,
 			Header: http.Header{},
 		}
-		request.Header.Add(constants.AuthorizationHeader, "bearer "+token)
+		request.Header.Add(constants.AuthorizationHeader, bearerPrefix+token)
 		c.Request = &request
 		key.GetTokenByKey(c)
 		Expect(w.Code).To(Equal(http.StatusOK))
@@ -179,7 +180,7 @@ var _ = Describe("Key", func() {
 			URL:    u,
 			Header: http.Header{},
 		}
-		request.Header.Add(constants.AuthorizationHeader, "bearer "+token)
+		request.Header.Add(constants.AuthorizationHeader, bearerPrefix+token)
 		c.Request = &request
 		key.GetTokenByKey(c)
 		Expect(w.Code).To(Equal(http.StatusBadRequest))

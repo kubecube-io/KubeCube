@@ -64,6 +64,47 @@ func (s *Reconciler) OnServiceAdd(obj interface{}) {
 	return
 }
 
+func handleTcpInfo(oldService, newService *v1.Service, tcpInfo map[int]*service.ExternalAccessInfo, res []service.ExternalAccessInfo) []service.ExternalAccessInfo {
+	for oldTcpServicePort, value := range tcpInfo {
+		for _, servicePort := range oldService.Spec.Ports {
+			// find old service port name
+			if servicePort.Port == int32(oldTcpServicePort) && servicePort.Protocol == v1.ProtocolTCP {
+				name := servicePort.Name
+				// find new service port by name
+				for _, newServicePort := range newService.Spec.Ports {
+					if newServicePort.Name == name && newServicePort.Protocol == v1.ProtocolTCP {
+						//update service port
+						value.ServicePort = int(newServicePort.Port)
+						res = append(res, *value)
+						continue
+					}
+				}
+			}
+		}
+	}
+
+	return res
+}
+
+func handleUdpInfo(oldService, newService *v1.Service, udpInfo map[int]*service.ExternalAccessInfo, res []service.ExternalAccessInfo) []service.ExternalAccessInfo {
+	for oldUdpServicePort, value := range udpInfo {
+		for _, servicePort := range oldService.Spec.Ports {
+			if servicePort.Port == int32(oldUdpServicePort) && servicePort.Protocol == v1.ProtocolUDP {
+				name := servicePort.Name
+				for _, newServicePort := range newService.Spec.Ports {
+					if newServicePort.Name == name && newServicePort.Protocol == v1.ProtocolUDP {
+						value.ServicePort = int(newServicePort.Port)
+						res = append(res, *value)
+						continue
+					}
+				}
+			}
+		}
+	}
+
+	return res
+}
+
 func (s *Reconciler) OnServiceUpdate(oldObj, newObj interface{}) {
 	oldService := oldObj.(*v1.Service)
 	newService := newObj.(*v1.Service)
@@ -82,37 +123,9 @@ func (s *Reconciler) OnServiceUpdate(oldObj, newObj interface{}) {
 	}
 
 	var result []service.ExternalAccessInfo
-	for oldTcpServicePort, value := range tcpInfo {
-		for _, servicePort := range oldService.Spec.Ports {
-			// find old service port name
-			if servicePort.Port == int32(oldTcpServicePort) && servicePort.Protocol == v1.ProtocolTCP {
-				name := servicePort.Name
-				// find new service port by name
-				for _, newServicePort := range newService.Spec.Ports {
-					if newServicePort.Name == name && newServicePort.Protocol == v1.ProtocolTCP {
-						//update service port
-						value.ServicePort = int(newServicePort.Port)
-						result = append(result, *value)
-						continue
-					}
-				}
-			}
-		}
-	}
-	for oldUdpServicePort, value := range udpInfo {
-		for _, servicePort := range oldService.Spec.Ports {
-			if servicePort.Port == int32(oldUdpServicePort) && servicePort.Protocol == v1.ProtocolUDP {
-				name := servicePort.Name
-				for _, newServicePort := range newService.Spec.Ports {
-					if newServicePort.Name == name && newServicePort.Protocol == v1.ProtocolUDP {
-						value.ServicePort = int(newServicePort.Port)
-						result = append(result, *value)
-						continue
-					}
-				}
-			}
-		}
-	}
+	result = handleTcpInfo(oldService, newService, tcpInfo, result)
+	result = handleUdpInfo(oldService, newService, tcpInfo, result)
+
 	err = externalHandler.SetExternalAccess(result)
 	if err != nil {
 		clog.Debug("update service external access error, %+v", err)
