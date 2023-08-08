@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
 type CrdReconciler struct {
@@ -82,9 +83,9 @@ func (r *CrdReconciler) mutateClusterRole(ctx context.Context, crd v1.CustomReso
 	resources := []string{crd.Spec.Names.Plural}
 
 	if crd.Spec.Scope == "Cluster" {
-		names = []string{"aggregate-to-platform-admin", "aggregate-to-reviewer", "aggregate-to-project-admin-cluster", "aggregate-to-tenant-admin-cluster"}
+		names = []string{constants.AggPlatformAdmin, constants.AggReviewer, constants.AggProjectAdminCluster, constants.AggTenantAdminCluster}
 	} else {
-		names = []string{"aggregate-to-platform-admin", "aggregate-to-reviewer", "aggregate-to-project-admin", "aggregate-to-tenant-admin"}
+		names = []string{constants.AggPlatformAdmin, constants.AggReviewer, constants.AggProjectAdmin, constants.AggTenantAdmin}
 	}
 
 	roles := make([]*rbacv1.ClusterRole, 0, len(names))
@@ -94,11 +95,11 @@ func (r *CrdReconciler) mutateClusterRole(ctx context.Context, crd v1.CustomReso
 		if err := r.pivotClient.Get(ctx, types.NamespacedName{Name: name}, role); err != nil {
 			return nil, err
 		}
-		if name == "aggregate-to-platform-admin" || name == "aggregate-to-project-admin" || name == "aggregate-to-tenant-admin" {
-			verbs = []string{"get", "list", "watch", "create", "delete", "deletecollection", "update", "patch"}
+		if name == constants.AggPlatformAdmin || name == constants.AggProjectAdmin || name == constants.AggTenantAdmin {
+			verbs = []string{constants.GetVerb, constants.ListVerb, constants.WatchVerb, constants.CreateVerb, constants.DeleteVerb, constants.DeleteCollectionVerb, constants.UpdateVerb, constants.PatchVerb}
 		}
-		if name == "aggregate-to-reviewer" || name == "aggregate-to-project-admin-cluster" || name == "aggregate-to-tenant-admin-cluster" {
-			verbs = []string{"get", "list", "watch"}
+		if name == constants.AggReviewer || name == constants.AggProjectAdminCluster || name == constants.AggTenantAdminCluster {
+			verbs = []string{constants.GetVerb, constants.ListVerb, constants.WatchVerb}
 		}
 		newPolicyRule := makePolicyRule(resources, nil, verbs)
 		role.Rules = insertRules(role.Rules, newPolicyRule)

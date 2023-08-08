@@ -272,6 +272,27 @@ func (h *Handler) handleProxyApi(ctx context.Context, c *gin.Context, e Event) *
 	// get object type from url
 	queryUrl := strings.TrimPrefix(strings.Split(requestURI, "?")[0], constants.ApiPathRoot)
 	urlstrs := strings.Split(queryUrl, "/")
+	objectType, objectName = processUrlStr(urlstrs)
+
+	method := c.Request.Method
+	var objectTypeTitle string
+	if len(objectType) > 0 {
+		objectTypeTitle = strings.Title(objectType[:len(objectType)-1])
+	}
+	e.EventName = h.EnInstance.Translate(ctx, method) + objectTypeTitle
+	e.Description = h.Translate(ctx, method) + h.Translate(ctx, objectType)
+
+	if http.MethodPost == method && objectName == "" {
+		objectName = c.GetString(constants.EventObjectName)
+	}
+	e.ResourceReports = []Resource{{
+		ResourceType: objectType[:len(objectType)-1],
+		ResourceName: objectName,
+	}}
+	return &e
+}
+
+func processUrlStr(urlstrs []string) (objectType string, objectName string) {
 	length := len(urlstrs)
 	for i, str := range urlstrs {
 		if str == constants.K8sResourceNamespace {
@@ -300,22 +321,7 @@ func (h *Handler) handleProxyApi(ctx context.Context, c *gin.Context, e Event) *
 		}
 	}
 
-	method := c.Request.Method
-	var objectTypeTitle string
-	if len(objectType) > 0 {
-		objectTypeTitle = strings.Title(objectType[:len(objectType)-1])
-	}
-	e.EventName = h.EnInstance.Translate(ctx, method) + objectTypeTitle
-	e.Description = h.Translate(ctx, method) + h.Translate(ctx, objectType)
-
-	if http.MethodPost == method && objectName == "" {
-		objectName = c.GetString(constants.EventObjectName)
-	}
-	e.ResourceReports = []Resource{{
-		ResourceType: objectType[:len(objectType)-1],
-		ResourceName: objectName,
-	}}
-	return &e
+	return objectType, objectName
 }
 
 func isProxyApi(requestURI string) bool {

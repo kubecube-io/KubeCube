@@ -18,6 +18,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -42,6 +43,8 @@ const (
 	TCP = "TCP"
 	UDP = "UDP"
 )
+
+var updateErr = errors.New("update fail")
 
 type ExternalAccess struct {
 	ctx                      context.Context
@@ -152,11 +155,11 @@ func (s *ExternalAccess) SetExternalAccess(externalServices []ExternalAccessInfo
 	var udpcm v1.ConfigMap
 	err = s.client.Get(s.ctx, types.NamespacedName{Namespace: s.NginxNamespace, Name: s.NginxTcpServiceConfigMap}, &tcpcm)
 	if err != nil {
-		return fmt.Errorf("can not find configmap %s in %s from cluster, %v", s.NginxTcpServiceConfigMap, s.NginxNamespace, err)
+		return fmt.Errorf("can not find tcp configmap %s in %s from cluster, %v", s.NginxTcpServiceConfigMap, s.NginxNamespace, err)
 	}
 	err = s.client.Get(s.ctx, types.NamespacedName{Namespace: s.NginxNamespace, Name: s.NginxUdpServiceConfigMap}, &udpcm)
 	if err != nil {
-		return fmt.Errorf("can not find configmap %s in %s from cluster, %v", s.NginxUdpServiceConfigMap, s.NginxNamespace, err)
+		return fmt.Errorf("can not find udp configmap %s in %s from cluster, %v", s.NginxUdpServiceConfigMap, s.NginxNamespace, err)
 	}
 	if tcpcm.Data == nil {
 		tcpcm.Data = make(map[string]string)
@@ -226,11 +229,11 @@ func (s *ExternalAccess) SetExternalAccess(externalServices []ExternalAccessInfo
 
 	err = s.client.Update(s.ctx, &tcpcm)
 	if err != nil {
-		return fmt.Errorf("update fail")
+		return updateErr
 	}
 	err = s.client.Update(s.ctx, &udpcm)
 	if err != nil {
-		return fmt.Errorf("update fail")
+		return updateErr
 	}
 	return nil
 }
@@ -242,11 +245,11 @@ func (s *ExternalAccess) GetExternalAccessConfigMap() (tcpResultMap map[int]*Ext
 	udpResultMap = make(map[int]*ExternalAccessInfo)
 	err = s.client.Get(s.ctx, types.NamespacedName{Namespace: s.NginxNamespace, Name: s.NginxTcpServiceConfigMap}, &tcpcm)
 	if err != nil {
-		return tcpResultMap, udpResultMap, fmt.Errorf("can not find configmap %s in %s from cluster, %v", s.NginxTcpServiceConfigMap, s.NginxNamespace, err)
+		return tcpResultMap, udpResultMap, fmt.Errorf("can not find tcp configmap %s in %s from cluster, %v", s.NginxTcpServiceConfigMap, s.NginxNamespace, err)
 	}
 	err = s.client.Get(s.ctx, types.NamespacedName{Namespace: s.NginxNamespace, Name: s.NginxUdpServiceConfigMap}, &udpcm)
 	if err != nil {
-		return tcpResultMap, udpResultMap, fmt.Errorf("can not find configmap %s in %s from cluster, %v", s.NginxUdpServiceConfigMap, s.namespace, err)
+		return tcpResultMap, udpResultMap, fmt.Errorf("can not find udp configmap %s in %s from cluster, %v", s.NginxUdpServiceConfigMap, s.namespace, err)
 	}
 
 	// configmap.data:
@@ -347,14 +350,14 @@ func (s *ExternalAccess) DeleteExternalAccess() error {
 		if apierrors.IsNotFound(err) {
 			return nil
 		}
-		return fmt.Errorf("can not find configmap %s in %s from cluster, %v", s.NginxTcpServiceConfigMap, s.NginxNamespace, err)
+		return fmt.Errorf("can not get tcp configmap %s in %s from cluster, %v", s.NginxTcpServiceConfigMap, s.NginxNamespace, err)
 	}
 	err = s.client.Get(s.ctx, types.NamespacedName{Namespace: s.NginxNamespace, Name: s.NginxUdpServiceConfigMap}, &udpcm)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
 		}
-		return fmt.Errorf("can not find configmap %s in %s from cluster, %v", s.NginxUdpServiceConfigMap, s.NginxNamespace, err)
+		return fmt.Errorf("can not get udp configmap %s in %s from cluster, %v", s.NginxUdpServiceConfigMap, s.NginxNamespace, err)
 	}
 	// clear old
 	value := fmt.Sprintf("%s/%s:", s.namespace, s.name)
@@ -370,11 +373,11 @@ func (s *ExternalAccess) DeleteExternalAccess() error {
 	}
 	err = s.client.Update(s.ctx, &tcpcm)
 	if err != nil {
-		return fmt.Errorf("update fail")
+		return updateErr
 	}
 	err = s.client.Update(s.ctx, &udpcm)
 	if err != nil {
-		return fmt.Errorf("update fail")
+		return updateErr
 	}
 	return nil
 }

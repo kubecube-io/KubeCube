@@ -181,88 +181,7 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 	}
 
 	// create director
-	director := func(req *http.Request) {
-		labelSelector := selector.ParseLabelSelector(c.Query("selector"))
-
-		uri, err := url.ParseRequestURI(internalCluster.Config.Host)
-		if err != nil {
-			response.FailReturn(c, errcode.BadRequest(fmt.Errorf("could not parse host, host: %s , err: %v", internalCluster.Config.Host, err)))
-			return
-		}
-		uri.RawQuery = c.Request.URL.RawQuery
-		uri.Path = proxyUrl
-		req.URL = uri
-		req.Host = internalCluster.Config.Host
-
-		err = requestutil.AddFieldManager(req, username)
-		if err != nil {
-			clog.Warn("fail to add fieldManager due to %v", err)
-		}
-		if needConvert {
-			// replace request body and url if need
-			if convertedObj != nil {
-				r := bytes.NewReader(convertedObj)
-				body := io.NopCloser(r)
-				req.Body = body
-				req.ContentLength = int64(r.Len())
-			}
-			req.URL.Path = convertedUrl
-		}
-
-		//In order to improve processing efficiency
-		//this method converts requests starting with metadata.labels in the selector into k8s labelSelector requests
-		// todo This method can be further optimized and extracted as a function to improve readability
-		if len(labelSelector) > 0 {
-			labelSelectorQueryString := ""
-			// Take out the query value in the selector and stitch it into the query field of labelSelector
-			// for example: selector=metadata.labels.key=value1|value2|value3
-			// then it should be converted to: key+in+(value1,value2,value3)
-			for key, value := range labelSelector {
-				if len(value) < 1 {
-					continue
-				}
-				labelSelectorQueryString += key
-				labelSelectorQueryString += "+in+("
-				labelSelectorQueryString += strings.Join(value, ",")
-				labelSelectorQueryString += ")"
-				labelSelectorQueryString += ","
-			}
-			if len(labelSelectorQueryString) > 0 {
-				labelSelectorQueryString = strings.TrimRight(labelSelectorQueryString, ",")
-			}
-			labelSelectorQueryString = url.PathEscape(labelSelectorQueryString)
-			// Old query parameters may have the following conditions:
-			// empty
-			// has selector: selector=key=value
-			// has selector and labelSelector: selector=key=value&labelSelector=key=value
-			// has selector and labelSelector and others: selector=key=value&labelSelector=key=value&fieldSelector=key=value
-			// so, use & to split it
-			queryArray := strings.Split(req.URL.RawQuery, "&")
-			queryString := ""
-			labelSelectorSet := false
-			for _, v := range queryArray {
-				//if it start with labelSelector=, then append converted labelSelector string
-				if strings.HasPrefix(v, "labelSelector=") {
-					queryString += v + "," + labelSelectorQueryString
-					labelSelectorSet = true
-					// else if url like: selector=key=value&labelSelector, then use converted labelSelector string replace it
-				} else if strings.HasPrefix(v, "labelSelector") {
-					queryString += "labelSelector=" + labelSelectorQueryString
-					labelSelectorSet = true
-					// else no need to do this
-				} else {
-					queryString += v
-				}
-				queryString += "&"
-			}
-			// If the query parameter does not exist labelSelector
-			// append converted labelSelector string
-			if len(queryString) > 0 && labelSelectorSet == false {
-				queryString += "&labelSelector=" + labelSelectorQueryString
-			}
-			req.URL.RawQuery = queryString
-		}
-	}
+	director := directerFunc(c, internalCluster, proxyUrl, username, convertedUrl, needConvert, convertedObj)
 
 	errorHandler := func(resp http.ResponseWriter, req *http.Request, err error) {
 		if err != nil {
@@ -300,6 +219,96 @@ func (h *ProxyHandler) ProxyHandle(c *gin.Context) {
 		requestProxy.ModifyResponse = filter.filterResponse
 	}
 	requestProxy.ServeHTTP(c.Writer, c.Request)
+}
+
+func directerFunc(c *gin.Context, internalCluster *multicluster.InternalCluster, proxyUrl, username, convertedUrl string, needConvert bool, convertedObj []byte) func(req *http.Request) {
+	return func(req *http.Request) {
+		labelSelector := selector.ParseLabelSelector(c.Query("selector"))
+
+		uri, err := url.ParseRequestURI(internalCluster.Config.Host)
+		if err != nil {
+			response.FailReturn(c, errcode.BadRequest(fmt.Errorf("could not parse host, host: %s , err: %v", internalCluster.Config.Host, err)))
+			return
+		}
+		uri.RawQuery = c.Request.URL.RawQuery
+		uri.Path = proxyUrl
+		req.URL = uri
+		req.Host = internalCluster.Config.Host
+
+		err = requestutil.AddFieldManager(req, username)
+		if err != nil {
+			clog.Warn("fail to add fieldManager due to %v", err)
+		}
+		if needConvert {
+			// replace request body and url if need
+			if convertedObj != nil {
+				r := bytes.NewReader(convertedObj)
+				body := io.NopCloser(r)
+				req.Body = body
+				req.ContentLength = int64(r.Len())
+			}
+			req.URL.Path = convertedUrl
+		}
+
+		//In order to improve processing efficiency
+		//this method converts requests starting with metadata.labels in the selector into k8s labelSelector requests
+		// todo This method can be further optimized and extracted as a function to improve readability
+		if len(labelSelector) > 0 {
+			convertsLabelSelectorForReq(req, labelSelector)
+		}
+	}
+}
+
+func convertsLabelSelectorForReq(req *http.Request, labelSelector map[string][]string) {
+	labelSelectorQueryString := ""
+	// Take out the query value in the selector and stitch it into the query field of labelSelector
+	// for example: selector=metadata.labels.key=value1|value2|value3
+	// then it should be converted to: key+in+(value1,value2,value3)
+	for key, value := range labelSelector {
+		if len(value) < 1 {
+			continue
+		}
+		labelSelectorQueryString += key
+		labelSelectorQueryString += "+in+("
+		labelSelectorQueryString += strings.Join(value, ",")
+		labelSelectorQueryString += ")"
+		labelSelectorQueryString += ","
+	}
+	if len(labelSelectorQueryString) > 0 {
+		labelSelectorQueryString = strings.TrimRight(labelSelectorQueryString, ",")
+	}
+	labelSelectorQueryString = url.PathEscape(labelSelectorQueryString)
+	// Old query parameters may have the following conditions:
+	// empty
+	// has selector: selector=key=value
+	// has selector and labelSelector: selector=key=value&labelSelector=key=value
+	// has selector and labelSelector and others: selector=key=value&labelSelector=key=value&fieldSelector=key=value
+	// so, use & to split it
+	queryArray := strings.Split(req.URL.RawQuery, "&")
+	queryString := ""
+	labelSelectorSet := false
+	for _, v := range queryArray {
+		//if it start with labelSelector=, then append converted labelSelector string
+		if strings.HasPrefix(v, "labelSelector=") {
+			queryString += v + "," + labelSelectorQueryString
+			labelSelectorSet = true
+			// else if url like: selector=key=value&labelSelector, then use converted labelSelector string replace it
+		} else if strings.HasPrefix(v, "labelSelector") {
+			queryString += "labelSelector=" + labelSelectorQueryString
+			labelSelectorSet = true
+			// else no need to do this
+		} else {
+			queryString += v
+		}
+		queryString += "&"
+	}
+	// If the query parameter does not exist labelSelector
+	// append converted labelSelector string
+	if len(queryString) > 0 && labelSelectorSet == false {
+		queryString += "&labelSelector=" + labelSelectorQueryString
+	}
+
+	req.URL.RawQuery = queryString
 }
 
 // product match/sort/page to other function

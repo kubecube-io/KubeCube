@@ -18,7 +18,6 @@ package cluster
 
 import (
 	"encoding/base64"
-	"fmt"
 	"net/http"
 	"sort"
 	"strconv"
@@ -200,7 +199,7 @@ func (h *handler) getClusterInfo(c *gin.Context) {
 
 	selector, err := labels.Parse(nodeLabelSelector)
 	if err != nil {
-		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, "labels selector invalid: %v", err))
+		response.FailReturn(c, errcode.ParamsInvalid(err))
 		return
 	}
 
@@ -271,7 +270,7 @@ func (h *handler) getClusterLivedata(c *gin.Context) {
 
 	selector, err := labels.Parse(nodeLabelSelector)
 	if err != nil {
-		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, "labels selector invalid: %v", err))
+		response.FailReturn(c, errcode.ParamsInvalid(err))
 		return
 	}
 
@@ -347,7 +346,7 @@ func (h *handler) getClusterResource(c *gin.Context) {
 
 	selector, err := labels.Parse(nodeLabelSelector)
 	if err != nil {
-		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, "labels selector invalid: %v", err))
+		response.FailReturn(c, errcode.ParamsInvalid(err))
 		return
 	}
 
@@ -421,34 +420,11 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 	}
 
 	// list all hnc managed namespaces
-	listFunc := func(cli mgrclient.Client) (v1.NamespaceList, error) {
-		nsLIst := v1.NamespaceList{}
-		labelSelector, err := labels.Parse(constants.HncTenantLabel)
-		if err != nil {
-			return nsLIst, err
-		}
-		err = cli.Cache().List(ctx, &nsLIst, &client.ListOptions{LabelSelector: labelSelector})
-		return nsLIst, err
-	}
+	listFunc := listAllHncNsFunc(ctx)
 
 	// list hnc managed namespaces by given tenants
 	if len(tenantList) > 0 {
-		listFunc = func(cli mgrclient.Client) (v1.NamespaceList, error) {
-			nsLIst := v1.NamespaceList{}
-			for _, tenant := range tenantList {
-				tempNsList := v1.NamespaceList{}
-				labelSelector, err := labels.Parse(fmt.Sprintf("%v=%v", constants.HncTenantLabel, tenant))
-				if err != nil {
-					return tempNsList, err
-				}
-				err = cli.Cache().List(ctx, &tempNsList, &client.ListOptions{LabelSelector: labelSelector})
-				if err != nil {
-					return tempNsList, err
-				}
-				nsLIst.Items = append(nsLIst.Items, tempNsList.Items...)
-			}
-			return nsLIst, nil
-		}
+		listFunc = listHncNsByTenantsFunc(ctx, tenantList)
 	}
 
 	items := make([]respBody, 0)
@@ -465,43 +441,46 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 		for _, ns := range nsList.Items {
 			project, ok1 := ns.Labels[constants.HncProjectLabel]
 			tenant, ok2 := ns.Labels[constants.HncTenantLabel]
-			if ok1 && ok2 && ns.ObjectMeta.DeletionTimestamp.IsZero() {
-				// filter project ns(such as kubecube-project-project-1).
-				if ns.Labels[constants.ProjectNsPrefix+project+constants.HncSuffix] != constants.HncProjectDepth {
-					continue
-				}
 
-				if fuzzyName != "" && !strings.Contains(ns.Name, fuzzyName) {
-					continue
-				}
-
-				// only care about ns under project that the user can see
-				// todo: use better way
-				allowed, err := rbac.IsAllowResourceAccess(&rbac.DefaultResolver{Cache: cli.Cache()}, user, "pods", constants.GetVerb, constants.ProjectNsPrefix+project)
-				if err != nil {
-					response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
-					return
-				}
-
-				if !allowed {
-					continue
-				}
-
-				clusterName := cluster.RawCluster.Annotations[constants.CubeCnAnnotation]
-				if len(clusterName) == 0 {
-					clusterName = cluster.Name
-				}
-				item := respBody{
-					Namespace:     ns.Name,
-					Cluster:       cluster.Name,
-					ClusterName:   clusterName,
-					Project:       project,
-					Tenant:        tenant,
-					NamespaceBody: ns,
-				}
-
-				items = append(items, item)
+			if !ok1 || !ok2 || !ns.ObjectMeta.DeletionTimestamp.IsZero() {
+				continue
 			}
+
+			// filter project ns(such as kubecube-project-project-1).
+			if ns.Labels[constants.ProjectNsPrefix+project+constants.HncSuffix] != constants.HncProjectDepth {
+				continue
+			}
+
+			if fuzzyName != "" && !strings.Contains(ns.Name, fuzzyName) {
+				continue
+			}
+
+			// only care about ns under project that the user can see
+			// todo: use better way
+			allowed, err := rbac.IsAllowResourceAccess(&rbac.DefaultResolver{Cache: cli.Cache()}, user, "pods", constants.GetVerb, constants.ProjectNsPrefix+project)
+			if err != nil {
+				response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
+				return
+			}
+
+			if !allowed {
+				continue
+			}
+
+			clusterName := cluster.RawCluster.Annotations[constants.CubeCnAnnotation]
+			if len(clusterName) == 0 {
+				clusterName = cluster.Name
+			}
+			item := respBody{
+				Namespace:     ns.Name,
+				Cluster:       cluster.Name,
+				ClusterName:   clusterName,
+				Project:       project,
+				Tenant:        tenant,
+				NamespaceBody: ns,
+			}
+
+			items = append(items, item)
 		}
 	}
 
@@ -594,7 +573,6 @@ func (h *handler) addCluster(c *gin.Context) {
 	}
 
 	if access := access.AllowAccess(constants.LocalCluster, c.Request, constants.CreateVerb, cluster); !access {
-		clog.Debug("permission check fail")
 		response.FailReturn(c, errcode.ForbiddenErr)
 		return
 	}
@@ -659,13 +637,11 @@ func (h *handler) createNsAndQuota(c *gin.Context) {
 	}
 
 	if access := access.AllowAccess(data.Cluster, c.Request, constants.CreateVerb, data.SubNamespaceAnchor); !access {
-		clog.Debug("permission check fail")
 		response.FailReturn(c, errcode.ForbiddenErr)
 		return
 	}
 
 	if access := access.AllowAccess(data.Cluster, c.Request, constants.CreateVerb, data.ResourceQuota); !access {
-		clog.Debug("permission check fail")
 		response.FailReturn(c, errcode.ForbiddenErr)
 		return
 	}

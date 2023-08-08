@@ -97,7 +97,6 @@ func CreateUser(c *gin.Context) {
 		return
 	}
 	if access := access.AllowAccess(constants.LocalCluster, c.Request, constants.CreateVerb, user); !access {
-		clog.Debug("permission check fail")
 		response.FailReturn(c, errcode.ForbiddenErr)
 		return
 	}
@@ -158,7 +157,6 @@ func UpdateUser(c *gin.Context) {
 	// if user want to update the other people`s info,need to check permission
 	if !access.IsSelf(c.Request, name) {
 		if access := access.AllowAccess(constants.LocalCluster, c.Request, constants.ListVerb, originUser); !access {
-			clog.Debug("permission check fail")
 			response.FailReturn(c, errcode.ForbiddenErr)
 			return
 		}
@@ -474,7 +472,6 @@ func BatchCreateUser(c *gin.Context) {
 	c.Set(constants.EventResourceType, "user")
 	check := &userv1.User{}
 	if access := access.AllowAccess(constants.LocalCluster, c.Request, constants.CreateVerb, check); !access {
-		clog.Debug("permission check fail")
 		response.FailReturn(c, errcode.ForbiddenErr)
 		return
 	}
@@ -619,6 +616,14 @@ func GetMembersByNS(c *gin.Context) {
 		return
 	}
 
+	res := getMembers(roleBindingList)
+
+	clog.Debug("%v has members: %v", ns, res)
+
+	response.SuccessReturn(c, res)
+}
+
+func getMembers(roleBindingList v1.RoleBindingList) []string {
 	membersSet := sets.NewString()
 	for _, rb := range roleBindingList.Items {
 		// match roleBinding witch has specified annotation
@@ -640,11 +645,7 @@ func GetMembersByNS(c *gin.Context) {
 		}
 	}
 
-	res := membersSet.List()
-
-	clog.Debug("%v has members: %v", ns, res)
-
-	response.SuccessReturn(c, res)
+	return membersSet.List()
 }
 
 /**

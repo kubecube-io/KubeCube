@@ -142,26 +142,28 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 	}
 
+	if namespace.Labels == nil {
+		return ctrl.Result{}, nil
+	}
+
 	// ensure namespace has hnc managed labels
-	if namespace.Labels != nil {
-		needUpdate := false
-		for k, v := range env.HncManagedLabels {
-			if _, ok := namespace.Labels[k]; ok && v == "-" {
-				delete(namespace.Labels, k)
-				needUpdate = true
-				continue
-			}
-			if namespace.Labels[k] != v {
-				namespace.Labels[k] = v
-				needUpdate = true
-			}
+	needUpdate := false
+	for k, v := range env.HncManagedLabels {
+		if _, ok := namespace.Labels[k]; ok && v == "-" {
+			delete(namespace.Labels, k)
+			needUpdate = true
+			continue
 		}
-		if needUpdate {
-			err = r.Client.Update(ctx, &namespace, &client.UpdateOptions{})
-			if err != nil {
-				log.Warn("update tenant namespace %v labels failed: $v", namespace.Name, err)
-				return ctrl.Result{}, err
-			}
+		if namespace.Labels[k] != v {
+			namespace.Labels[k] = v
+			needUpdate = true
+		}
+	}
+	if needUpdate {
+		err = r.Client.Update(ctx, &namespace, &client.UpdateOptions{})
+		if err != nil {
+			log.Warn("update tenant namespace %v labels failed: $v", namespace.Name, err)
+			return ctrl.Result{}, err
 		}
 	}
 
