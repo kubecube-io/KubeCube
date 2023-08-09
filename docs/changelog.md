@@ -1,8 +1,16 @@
 # v1.8.5
 
+## BugFix
+- add pod status reason and fix deployment [#324](https://github.com/kubecube-io/KubeCube/pull/324)
+- update containerd version [#322](https://github.com/kubecube-io/KubeCube/pull/322)
+- fix watch request [#321](https://github.com/kubecube-io/KubeCube/pull/321)
+
 ## Feature
 - Feat expose klog set [#305](https://github.com/kubecube-io/KubeCube/pull/318)
 - add configmap history(alpha)  [#301](https://github.com/kubecube-io/KubeCube/pull/319)
+- add pod reason for pvc and query pod in all namespace [#327](https://github.com/kubecube-io/KubeCube/pull/327)
+- support to change log level when running [#326](https://github.com/kubecube-io/KubeCube/pull/326)
+- optimize code lint [#328](https://github.com/kubecube-io/KubeCube/pull/328)
 
 ## Dependencies
 
