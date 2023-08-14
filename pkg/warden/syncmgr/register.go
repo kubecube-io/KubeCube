@@ -21,6 +21,7 @@ import (
 	"strconv"
 
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
@@ -58,39 +59,62 @@ func (s *SyncManager) SetupCtrlWithManager(resource client.Object, objFunc Gener
 
 	r := reconcile.Func(func(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 		var (
-			action = Skip
-			err    error
-			obj    = resource
+			action   = Skip
+			err      error
+			pivotObj = resource
+			localObj = resource
 		)
 
 		// record sync log
 		defer func() {
-			clog.Info("sync: %s %v, name: %v, namespace: %v, err: %v", action, obj.GetObjectKind().GroupVersionKind().Kind, obj.GetName(), obj.GetNamespace(), err)
+			clog.Info("sync: %s %v, name: %v, namespace: %v, err: %v", action, pivotObj.GetObjectKind().GroupVersionKind().Kind, pivotObj.GetName(), pivotObj.GetNamespace(), err)
 		}()
 
+		getLocalObj := func() error {
+
+			localObj, err = objFunc(pivotObj)
+			if err != nil {
+				return err
+			}
+
+			trimObjMeta(pivotObj)
+
+			err = localClient.Get(ctx, req.NamespacedName, localObj)
+			return err
+		}
+
+		// delete
 		deleteObjFunc := func() (reconcile.Result, error) {
-			gvk, err := apiutil.GVKForObject(obj, s.Manager.GetScheme())
+			err = getLocalObj()
+			if err != nil {
+				if errors.IsNotFound(err) {
+					return ctrl.Result{}, nil
+				}
+				return reconcile.Result{}, err
+			}
+			var gvk schema.GroupVersionKind
+			gvk, err = apiutil.GVKForObject(localObj, s.Manager.GetScheme())
 			if err != nil {
 				return ctrl.Result{}, err
 			}
 			groupKind := gvk.GroupKind()
 			if groupKind.Group == tenantv1.GroupVersion.Group {
 				if groupKind.Kind == "Tenant" || groupKind.Kind == "Project" {
-					err = s.updateSpecialObjForDelete(obj, objFunc, ctx, req)
+					err = s.updateSpecialObjForDelete(localObj, objFunc, ctx, req)
 					if err != nil {
 						return ctrl.Result{}, err
 					}
 				}
 			}
 			action = Delete
-			err = localClient.Delete(ctx, obj, &client.DeleteOptions{})
+			err = localClient.Delete(ctx, localObj, &client.DeleteOptions{})
 			if err != nil && errors.IsNotFound(err) {
 				return reconcile.Result{}, nil
 			}
 			return reconcile.Result{}, err
 		}
 
-		if err = pivotClient.Get(ctx, req.NamespacedName, obj); err != nil {
+		if err = pivotClient.Get(ctx, req.NamespacedName, pivotObj); err != nil {
 			// If the object is a tenant or project, add an annotation to inform the webhook to allow it to be deleted
 			// delete: when object is not exist in pivot cluster
 			if errors.IsNotFound(err) {
@@ -99,51 +123,43 @@ func (s *SyncManager) SetupCtrlWithManager(resource client.Object, objFunc Gener
 			return reconcile.Result{}, err
 		}
 
-		newObj, err := objFunc(obj)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-
-		trimObjMeta(obj)
-
-		err = localClient.Get(ctx, req.NamespacedName, newObj)
+		err = getLocalObj()
 		if err != nil {
 			if errors.IsNotFound(err) {
 				// create: when object is not exist in local cluster
 				action = Create
-				err = localClient.Create(ctx, obj, &client.CreateOptions{})
+				err = localClient.Create(ctx, pivotObj, &client.CreateOptions{})
 				if err != nil {
-					return reconcile.Result{Requeue: true}, err
+					return ctrl.Result{}, err
 				}
-				return reconcile.Result{}, nil
+				return ctrl.Result{}, nil
 			}
-			return reconcile.Result{}, err
+			return ctrl.Result{}, err
 		}
-
 		//If it is the same resource, the managed resource must be created first than the local resource.
 		//Based on this, if the management and control creation time is later than the local creation time, it is a new resource
 		//Warning, this relies on the local clock, which can cause problems when the clock is wrong or when the clock goes backwards
 
-		pivotCreateTimestamp := obj.GetCreationTimestamp()
-		localCreateTimestamp := newObj.GetCreationTimestamp()
+		pivotCreateTimestamp := pivotObj.GetCreationTimestamp()
+		localCreateTimestamp := localObj.GetCreationTimestamp()
 		if pivotCreateTimestamp.UnixNano() > localCreateTimestamp.UnixNano() {
 			result, err := deleteObjFunc()
 			if err != nil {
 				return result, err
 			}
 			action = Create
-			err = localClient.Create(ctx, obj, &client.CreateOptions{})
+			err = localClient.Create(ctx, pivotObj, &client.CreateOptions{})
 			if err != nil {
 				return reconcile.Result{Requeue: true}, err
 			}
 			return reconcile.Result{}, nil
 		}
 
-		pivotRsVersion, err := strconv.Atoi(obj.GetAnnotations()[pivotResourceVersion])
+		pivotRsVersion, err := strconv.Atoi(pivotObj.GetAnnotations()[pivotResourceVersion])
 		if err != nil {
 			return reconcile.Result{}, err
 		}
-		localRsVersion, err := strconv.Atoi(newObj.GetAnnotations()[pivotResourceVersion])
+		localRsVersion, err := strconv.Atoi(localObj.GetAnnotations()[pivotResourceVersion])
 		if err != nil {
 			return reconcile.Result{}, err
 		}
@@ -151,9 +167,9 @@ func (s *SyncManager) SetupCtrlWithManager(resource client.Object, objFunc Gener
 		// update: when pivot resource version bigger than local resource version
 		if pivotRsVersion > localRsVersion {
 			action = Update
-			obj.SetResourceVersion(newObj.GetResourceVersion())
-			obj.SetUID(newObj.GetUID())
-			err = localClient.Update(ctx, obj, &client.UpdateOptions{})
+			pivotObj.SetResourceVersion(localObj.GetResourceVersion())
+			pivotObj.SetUID(localObj.GetUID())
+			err = localClient.Update(ctx, pivotObj, &client.UpdateOptions{})
 			if err != nil {
 				return reconcile.Result{}, err
 			}
