@@ -106,6 +106,7 @@ func (d *Deployment) addExtendInfo(deploymentList appsv1.DeploymentList) []Exten
 		deployment := deployment
 		go func() {
 			result := d.getDeployExtendInfo(deployment)
+			// Because it needs to be added to the resultList, it needs to be locked, otherwise, concurrent append operations on the same resultList will have atomicity problems
 			d.lock.Lock()
 			resultList = append(resultList, result)
 			d.lock.Unlock()
