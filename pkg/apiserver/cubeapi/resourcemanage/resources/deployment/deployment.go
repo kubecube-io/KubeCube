@@ -41,6 +41,7 @@ type Deployment struct {
 	client          mgrclient.Client
 	namespace       string
 	filterCondition *filter.Condition
+	lock            sync.Mutex
 }
 
 func init() {
@@ -105,7 +106,9 @@ func (d *Deployment) addExtendInfo(deploymentList appsv1.DeploymentList) []Exten
 		deployment := deployment
 		go func() {
 			result := d.getDeployExtendInfo(deployment)
+			d.lock.Lock()
 			resultList = append(resultList, result)
+			d.lock.Unlock()
 			wg.Done()
 		}()
 	}
