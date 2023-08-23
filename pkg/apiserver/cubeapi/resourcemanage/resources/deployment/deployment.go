@@ -99,17 +99,15 @@ func (d *Deployment) getExtendDeployments() (*unstructured.Unstructured, *errcod
 }
 
 func (d *Deployment) addExtendInfo(deploymentList appsv1.DeploymentList) []ExtentDeployment {
-	resultList := make([]ExtentDeployment, 0)
+	resultList := make([]ExtentDeployment, len(deploymentList.Items))
 	wg := &sync.WaitGroup{}
-	for _, deployment := range deploymentList.Items {
+	for i, deployment := range deploymentList.Items {
 		wg.Add(1)
 		deployment := deployment
+		i := i
 		go func() {
 			result := d.getDeployExtendInfo(deployment)
-			// Because it needs to be added to the resultList, it needs to be locked, otherwise, concurrent append operations on the same resultList will have atomicity problems
-			d.lock.Lock()
-			resultList = append(resultList, result)
-			d.lock.Unlock()
+			resultList[i] = result
 			wg.Done()
 		}()
 	}
