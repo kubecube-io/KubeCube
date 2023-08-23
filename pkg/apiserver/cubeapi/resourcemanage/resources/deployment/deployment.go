@@ -98,16 +98,15 @@ func (d *Deployment) getExtendDeployments() (*unstructured.Unstructured, *errcod
 }
 
 func (d *Deployment) addExtendInfo(deploymentList appsv1.DeploymentList) []ExtentDeployment {
-	resultList := make([]ExtentDeployment, 0)
+	resultList := make([]ExtentDeployment, len(deploymentList.Items))
 	wg := &sync.WaitGroup{}
-	for _, deployment := range deploymentList.Items {
+	for i, deployment := range deploymentList.Items {
 		wg.Add(1)
-		deployment := deployment
-		go func() {
-			result := d.getDeployExtendInfo(deployment)
-			resultList = append(resultList, result)
+		go func(i int, deploy appsv1.Deployment) {
+			result := d.getDeployExtendInfo(deploy)
+			resultList[i] = result
 			wg.Done()
-		}()
+		}(i, deployment)
 	}
 	wg.Wait()
 	return resultList
