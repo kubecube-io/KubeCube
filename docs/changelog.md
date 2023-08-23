@@ -1,7 +1,7 @@
 # v1.8.7
 
 ## BugFix
-- add lock, fix list deployment bug [#331](https://github.com/kubecube-io/KubeCube/pull/331)
+- fix list deployment bug [#331](https://github.com/kubecube-io/KubeCube/pull/331)
 
 ## Dependencies
 

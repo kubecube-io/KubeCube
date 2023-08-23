@@ -41,7 +41,6 @@ type Deployment struct {
 	client          mgrclient.Client
 	namespace       string
 	filterCondition *filter.Condition
-	lock            sync.Mutex
 }
 
 func init() {
