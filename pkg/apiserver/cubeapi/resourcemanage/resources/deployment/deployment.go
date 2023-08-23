@@ -102,13 +102,11 @@ func (d *Deployment) addExtendInfo(deploymentList appsv1.DeploymentList) []Exten
 	wg := &sync.WaitGroup{}
 	for i, deployment := range deploymentList.Items {
 		wg.Add(1)
-		deployment := deployment
-		i := i
-		go func() {
-			result := d.getDeployExtendInfo(deployment)
+		go func(i int, deploy appsv1.Deployment) {
+			result := d.getDeployExtendInfo(deploy)
 			resultList[i] = result
 			wg.Done()
-		}()
+		}(i, deployment)
 	}
 	wg.Wait()
 	return resultList
