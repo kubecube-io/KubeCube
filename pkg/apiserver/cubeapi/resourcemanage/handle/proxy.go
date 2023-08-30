@@ -347,11 +347,16 @@ func needModifyResponse(proxyUrl string, c *gin.Context) bool {
 	// When there is a watch, it is a long connection request.
 	// At this time, the returned data should not be filtered
 	// watch is divided into two cases, one is watch=true in the query parameter, and the other is watch in the path, such as /api/v1/watch/namespaces/default/pods
-	// 1. watch=true in the query parameter
+	// 1. follow=true || watch = true in the query parameter
+	follow := c.Query("follow")
+	isFollow, _ := strconv.ParseBool(follow)
+	if isFollow {
+		return false
+	}
 	watch := c.Query("watch")
 	isWatch, _ := strconv.ParseBool(watch)
 	if isWatch {
-		modifyResponse = false
+		return false
 	}
 	// 2. watch in the path
 	if len(proxyUrl) > 0 {
