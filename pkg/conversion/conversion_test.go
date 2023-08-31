@@ -182,10 +182,24 @@ func TestConvertURL(t *testing.T) {
 			wantErr:          false,
 		},
 		{
+			name:             "core namespaced watch api",
+			url:              "/api/v1/watch/namespaces/default/pods",
+			gvr:              &schema.GroupVersionResource{Version: testVersion, Resource: "pods"},
+			wantConvertedUrl: "/api/test-version/watch/namespaces/default/pods",
+			wantErr:          false,
+		},
+		{
 			name:             "core cluster api",
 			url:              "/api/v1/namespaces/test-ns",
 			gvr:              &schema.GroupVersionResource{Version: testVersion, Resource: "namespaces"},
 			wantConvertedUrl: "/api/test-version/namespaces/test-ns",
+			wantErr:          false,
+		},
+		{
+			name:             "core cluster watch api",
+			url:              "/api/v1/watch/namespaces/test-ns",
+			gvr:              &schema.GroupVersionResource{Version: testVersion, Resource: "namespaces"},
+			wantConvertedUrl: "/api/test-version/watch/namespaces/test-ns",
 			wantErr:          false,
 		},
 		{
@@ -196,10 +210,24 @@ func TestConvertURL(t *testing.T) {
 			wantErr:          false,
 		},
 		{
+			name:             "no-core namespaced watch api",
+			url:              "/apis/batch/v1/watch/namespaces/default/jobs",
+			gvr:              &schema.GroupVersionResource{Group: testGroup, Version: testVersion, Resource: "jobs"},
+			wantConvertedUrl: "/apis/test-group/test-version/watch/namespaces/default/jobs",
+			wantErr:          false,
+		},
+		{
 			name:             "no-core cluster api",
 			url:              "/apis/rbac.authorization.k8s.io/v1/clusterroles",
 			gvr:              &schema.GroupVersionResource{Group: testGroup, Version: testVersion, Resource: "clusterroles"},
 			wantConvertedUrl: "/apis/test-group/test-version/clusterroles",
+			wantErr:          false,
+		},
+		{
+			name:             "no-core cluster watch api",
+			url:              "/apis/rbac.authorization.k8s.io/v1/watch/clusterroles",
+			gvr:              &schema.GroupVersionResource{Group: testGroup, Version: testVersion, Resource: "clusterroles"},
+			wantConvertedUrl: "/apis/test-group/test-version/watch/clusterroles",
 			wantErr:          false,
 		},
 	}
@@ -274,7 +302,7 @@ func TestGvr2Gvk(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "normal gvr",
+			name:    "normal rawGvr",
 			gvr:     &schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"},
 			want:    &schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"},
 			wantErr: false,
@@ -295,7 +323,7 @@ func TestGvr2Gvk(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "unknown gvr",
+			name:    "unknown rawGvr",
 			gvr:     &schema.GroupVersionResource{Group: "unknown", Version: "unknown", Resource: "unknown"},
 			wantErr: true,
 		},

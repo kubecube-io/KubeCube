@@ -47,7 +47,7 @@ type VersionConverter struct {
 	// clusterInfo hold the version info of target cluster
 	clusterInfo *version.Info
 
-	// RestMapper is response to map gvk and gvr
+	// RestMapper is response to map gvk and rawGvr
 	RestMapper meta.RESTMapper
 }
 
@@ -147,7 +147,7 @@ func (c *VersionConverter) ObjectGreeting(obj runtime.Object) (greetBack GreetBa
 	return c.GvkGreeting(&gvk)
 }
 
-// GvrGreeting describes if given gvr is available in target cluster.
+// GvrGreeting describes if given rawGvr is available in target cluster.
 // a recommend group version kind will return if it cloud not pass through.
 func (c *VersionConverter) GvrGreeting(gvr *schema.GroupVersionResource) (greetBack GreetBackType, rawGvk *schema.GroupVersionKind, recommendGvk *schema.GroupVersionKind, err error) {
 	gvk, err := Gvr2Gvk(c.RestMapper, gvr)
@@ -239,7 +239,7 @@ func (c *VersionConverter) Decode(data []byte, defaults *schema.GroupVersionKind
 	return decoder.Decode(data, defaults, into)
 }
 
-// Gvr2Gvk convert gvr to gvk by specified cluster
+// Gvr2Gvk convert rawGvr to gvk by specified cluster
 func Gvr2Gvk(mapper meta.RESTMapper, gvr *schema.GroupVersionResource) (*schema.GroupVersionKind, error) {
 	kinds, err := mapper.KindsFor(*gvr)
 	if err != nil {
@@ -254,7 +254,7 @@ func Gvr2Gvk(mapper meta.RESTMapper, gvr *schema.GroupVersionResource) (*schema.
 	return &kinds[0], nil
 }
 
-// Gvk2Gvr convert gvk to gvr by specified cluster
+// Gvk2Gvr convert gvk to rawGvr by specified cluster
 func Gvk2Gvr(mapper meta.RESTMapper, gvk *schema.GroupVersionKind) (*schema.GroupVersionResource, error) {
 	m, err := mapper.RESTMapping(gvk.GroupKind(), gvk.Version)
 	if err != nil {
@@ -264,7 +264,7 @@ func Gvk2Gvr(mapper meta.RESTMapper, gvk *schema.GroupVersionKind) (*schema.Grou
 	return &m.Resource, nil
 }
 
-// ConvertURL convert url by given gvr
+// ConvertURL convert url by given rawGvr
 func ConvertURL(url string, gvr *schema.GroupVersionResource) (convertedUrl string, err error) {
 	const sep = "/"
 
@@ -296,9 +296,9 @@ func ConvertURL(url string, gvr *schema.GroupVersionResource) (convertedUrl stri
 	return sep + strings.Join(ss, "/"), nil
 }
 
-// ParseURL parse k8s api url into gvr
+// ParseURL parse k8s api url into rawGvr
 func ParseURL(url string) (bool, bool, *schema.GroupVersionResource, error) {
-	invalidUrlErr := fmt.Errorf("url not k8s format: %s", url)
+	notExpectedUrlErr := fmt.Errorf("url format not expected: %s", url)
 
 	const (
 		coreApiPrefix    = "/api/"
@@ -319,21 +319,21 @@ func ParseURL(url string) (bool, bool, *schema.GroupVersionResource, error) {
 	case isCoreApi && isNamespaced:
 		// like: /api/v1/namespaces/{namespace}/pods
 		if len(ss) < 5 {
-			return false, false, nil, invalidUrlErr
+			return false, false, nil, notExpectedUrlErr
 		}
 		gvr.Version = ss[1]
 		gvr.Resource = ss[4]
 	case isCoreApi && !isNamespaced:
 		// like: /api/v1/namespaces/{name}
 		if len(ss) < 3 {
-			return false, false, nil, invalidUrlErr
+			return false, false, nil, notExpectedUrlErr
 		}
 		gvr.Version = ss[1]
 		gvr.Resource = ss[2]
 	case isNonCoreApi && isNamespaced:
 		// like: /apis/batch/v1/namespaces/{namespace}/jobs
 		if len(ss) < 6 {
-			return false, false, nil, invalidUrlErr
+			return false, false, nil, notExpectedUrlErr
 		}
 		gvr.Group = ss[1]
 		gvr.Version = ss[2]
@@ -341,13 +341,13 @@ func ParseURL(url string) (bool, bool, *schema.GroupVersionResource, error) {
 	case isNonCoreApi && !isNamespaced:
 		// like: /apis/rbac.authorization.k8s.io/v1/clusterroles
 		if len(ss) < 4 {
-			return false, false, nil, invalidUrlErr
+			return false, false, nil, notExpectedUrlErr
 		}
 		gvr.Group = ss[1]
 		gvr.Version = ss[2]
 		gvr.Resource = ss[3]
 	default:
-		return false, false, nil, invalidUrlErr
+		return false, false, nil, notExpectedUrlErr
 	}
 
 	return isCoreApi, isNamespaced, gvr, nil
