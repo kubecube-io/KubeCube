@@ -27,6 +27,7 @@ import (
 	project "github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/project"
 	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/quota"
 	tenant "github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/tenant"
+	user "github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/user"
 	hotplug2 "github.com/kubecube-io/kubecube/pkg/warden/localmgr/webhooks/hotplug"
 	project2 "github.com/kubecube-io/kubecube/pkg/warden/localmgr/webhooks/project"
 	quota2 "github.com/kubecube-io/kubecube/pkg/warden/localmgr/webhooks/quota"
@@ -88,6 +89,13 @@ func setupControllersWithManager(m *LocalManager, controllers string) error {
 
 	if ctrlopts.IsControllerEnabled("clusterrolebinding", ctrls) {
 		err = binding.SetupClusterRoleBindingReconcilerWithManager(m.Manager, nil)
+		if err != nil {
+			return err
+		}
+	}
+
+	if ctrlopts.IsControllerEnabled("user", ctrls) {
+		err = user.SetupWithManager(m.Manager, nil)
 		if err != nil {
 			return err
 		}

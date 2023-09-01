@@ -21,15 +21,16 @@ import (
 	"errors"
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/labels"
 
 	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/domain"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 var notFoundLabelErr = errors.New("can not find .metadata.labels.kubecube.io/tenant label")
@@ -84,10 +85,15 @@ func (r *Validator) ValidateDelete(project *tenantv1.Project) error {
 	// check the namespace we take over has been already deleted
 	ctx := context.Background()
 	clusters := multicluster.Interface().FuzzyCopy()
-	for _, cluster := range clusters {
-		namespaceList := v1alpha2.SubnamespaceAnchorList{}
 
-		if err := cluster.Client.Cache().List(ctx, &namespaceList, client.InNamespace(project.Spec.Namespace)); err != nil {
+	lbSelector, err := labels.Parse(fmt.Sprintf("%v%v.tree.hnc.x-k8s.io/depth=1", constants.ProjectNsPrefix, project.Name))
+	if err != nil {
+		return err
+	}
+
+	for _, cluster := range clusters {
+		namespaceList := v1.NamespaceList{}
+		if err := cluster.Client.Cache().List(ctx, &namespaceList, &client.ListOptions{LabelSelector: lbSelector}); err != nil {
 			clog.Error("Can not list namespaces under this project: %v", err.Error())
 			return fmt.Errorf("can not list namespaces under this project")
 		}

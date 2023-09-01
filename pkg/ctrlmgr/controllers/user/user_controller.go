@@ -83,6 +83,8 @@ func (r *UserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 
 // calculateUserRelationShip calculates user relationship by scope bindings.
 func calculateUserRelationShip(user *userv1.User) {
+	user.Status.BelongTenants = []string{}
+	user.Status.BelongProjects = []string{}
 	for _, binding := range user.Spec.ScopeBindings {
 		switch binding.ScopeType {
 		case userv1.PlatformScope:

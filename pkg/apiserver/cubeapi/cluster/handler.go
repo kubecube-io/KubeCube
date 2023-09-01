@@ -17,7 +17,6 @@ limitations under the License.
 package cluster
 
 import (
-	"context"
 	"encoding/base64"
 	"net/http"
 	"sort"
@@ -32,7 +31,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/wait"
 	userinfo "k8s.io/apiserver/pkg/authentication/user"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
@@ -49,6 +47,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
+	"github.com/kubecube-io/kubecube/pkg/utils/transition"
 )
 
 const subPath = "/clusters"
@@ -637,54 +636,28 @@ func (h *handler) createNsAndQuota(c *gin.Context) {
 		return
 	}
 
-	if access := access.AllowAccess(data.Cluster, c.Request, constants.CreateVerb, data.SubNamespaceAnchor); !access {
-		response.FailReturn(c, errcode.ForbiddenErr)
-		return
-	}
-
-	if access := access.AllowAccess(data.Cluster, c.Request, constants.CreateVerb, data.ResourceQuota); !access {
-		response.FailReturn(c, errcode.ForbiddenErr)
-		return
-	}
 	username := c.GetString(constants.UserName)
 	cli := clients.Interface().Kubernetes(data.Cluster)
 	ctx := c.Request.Context()
 
-	err = cli.Direct().Create(ctx, data.SubNamespaceAnchor)
+	ns := transition.SubNs2Ns(data.SubNamespaceAnchor)
+	if ns == nil {
+		response.FailReturn(c, errcode.InvalidBodyFormat)
+		return
+	}
+
+	// create namespace directly
+	err = cli.Direct().Create(ctx, ns)
 	if err != nil {
 		response.FailReturn(c, errcode.BadRequest(err))
 		return
 	}
 
 	rollback := func() {
-		err := cli.Direct().Delete(ctx, data.SubNamespaceAnchor)
+		err := cli.Direct().Delete(ctx, ns)
 		if err != nil {
 			clog.Error(err.Error())
 		}
-		err = cli.ClientSet().CoreV1().Namespaces().Delete(ctx, data.SubNamespaceAnchor.Name, metav1.DeleteOptions{})
-		if err != nil {
-			if !errors.IsNotFound(err) {
-				clog.Error(err.Error())
-			}
-		}
-	}
-
-	// wait for namespace created
-	err = wait.PollUntilContextTimeout(c, 200*time.Millisecond, 2*time.Second, false, func(ctx context.Context) (done bool, err error) {
-		_, err = cli.ClientSet().CoreV1().Namespaces().Get(ctx, data.SubNamespaceAnchor.Name, metav1.GetOptions{})
-		if err != nil {
-			if errors.IsNotFound(err) {
-				return false, nil
-			}
-			return false, err
-		} else {
-			return true, nil
-		}
-	})
-	if err != nil {
-		rollback()
-		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
-		return
 	}
 
 	const (

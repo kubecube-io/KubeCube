@@ -21,11 +21,9 @@ import (
 	"fmt"
 	"strings"
 
-	v1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
-	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -85,62 +83,17 @@ func parseUserNameWithID(name string) string {
 	return strings.Split(name, "-")[0]
 }
 
-func addUserToTenant(user *v1.User, tenant string) {
-	tenantSet := sets.NewString(user.Status.BelongTenants...)
-	tenantSet.Insert(tenant)
-	user.Status.BelongTenants = tenantSet.List()
-	clog.Info("ensure user %v belongs to tenant %v", user.Name, tenant)
-}
-
-func addUserToProject(user *v1.User, project string) {
-	projectSet := sets.NewString(user.Status.BelongProjects...)
-	projectSet.Insert(project)
-	user.Status.BelongProjects = projectSet.List()
-	clog.Info("ensure user %v belongs to project %v", user.Name, project)
-}
-
-func moveUserFromTenant(user *v1.User, tenant string) {
-	tenantSet := sets.NewString(user.Status.BelongTenants...)
-	tenantSet.Delete(tenant)
-	user.Status.BelongTenants = tenantSet.List()
-	clog.Info("move tenant %v of user %v", tenant, user.Name)
-}
-
-func moveUserFromProject(user *v1.User, project string) {
-	projectSet := sets.NewString(user.Status.BelongProjects...)
-	projectSet.Delete(project)
-	user.Status.BelongProjects = projectSet.List()
-	clog.Info("move project %v of user %v", user.Name, project)
-}
-
-func appointUserAdmin(user *v1.User) {
-	user.Status.PlatformAdmin = true
-	clog.Info("appoint user %v is platform admin", user.Name)
-}
-
-func impeachUserAdmin(user *v1.User) {
-	user.Status.PlatformAdmin = false
-	clog.Info("impeach platform admin of user %v", user.Name)
-}
-
-func updateUserStatus(ctx context.Context, cli client.Client, user *v1.User, scope string) error {
+func updateRoleBinding(ctx context.Context, cli client.Client, binding *rbacv1.RoleBinding) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		newUser := &v1.User{}
-		err := cli.Get(ctx, types.NamespacedName{Name: user.Name}, newUser)
+		newBinding := &rbacv1.RoleBinding{}
+		err := cli.Get(ctx, types.NamespacedName{Name: binding.Name}, newBinding)
 		if err != nil {
 			return err
 		}
 
-		switch scope {
-		case constants.ClusterRolePlatform:
-			newUser.Status.PlatformAdmin = user.Status.PlatformAdmin
-		case constants.ClusterRoleTenant:
-			newUser.Status.BelongTenants = user.Status.BelongTenants
-		case constants.ClusterRoleProject:
-			newUser.Status.BelongProjects = user.Status.BelongProjects
-		}
+		newBinding.Labels = binding.Labels
 
-		err = cli.Status().Update(ctx, newUser)
+		err = cli.Status().Update(ctx, newBinding)
 		if err != nil {
 			return err
 		}
@@ -148,6 +101,30 @@ func updateUserStatus(ctx context.Context, cli client.Client, user *v1.User, sco
 	})
 }
 
-func updateUserStatusErrStr(user string, err error) string {
-	return fmt.Sprintf("update user %v status failed: %v", user, err)
+func updateClusterRoleBinding(ctx context.Context, cli client.Client, binding *rbacv1.ClusterRoleBinding) error {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		newBinding := &rbacv1.ClusterRoleBinding{}
+		err := cli.Get(ctx, types.NamespacedName{Name: binding.Name}, newBinding)
+		if err != nil {
+			return err
+		}
+
+		newBinding.Labels = binding.Labels
+
+		err = cli.Status().Update(ctx, newBinding)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+func setBindingUserLabel(labels map[string]string, user string) map[string]string {
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+
+	labels[constants.LabelRelationship] = user
+
+	return labels
 }

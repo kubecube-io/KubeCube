@@ -23,7 +23,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -36,7 +35,6 @@ import (
 	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-	"github.com/kubecube-io/kubecube/pkg/utils/env"
 )
 
 var _ reconcile.Reconciler = &TenantReconciler{}
@@ -87,15 +85,13 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		return ctrl.Result{}, nil
 	}
 
+	needUpdate := false
+
 	// if .spec.namespace not equal the standard name
 	nsName := constants.TenantNsPrefix + req.Name
 	if tenant.Spec.Namespace != nsName {
 		tenant.Spec.Namespace = nsName
-		err = r.Client.Update(ctx, &tenant)
-		if err != nil {
-			log.Error("update tenant .spec.namespace fail, %v", err)
-			return ctrl.Result{}, err
-		}
+		needUpdate = true
 	}
 
 	// if annotation not content kubecube.io/sync, add it
@@ -106,63 +102,13 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 	if _, ok := ano[constants.SyncAnnotation]; !ok {
 		ano[constants.SyncAnnotation] = "1"
 		tenant.Annotations = ano
+		needUpdate = true
+	}
+
+	if needUpdate {
 		err = r.Client.Update(ctx, &tenant)
 		if err != nil {
-			log.Error("update tenant .metadata.annotations fail, %v", err)
-			return ctrl.Result{}, err
-		}
-	}
-
-	// weather namespace exist, create one
-	namespace := corev1.Namespace{}
-	err = r.Client.Get(ctx, types.NamespacedName{Name: nsName}, &namespace)
-	if err != nil {
-		if !errors.IsNotFound(err) {
-			log.Warn("get tenant namespaces fail, %v", err)
-			return ctrl.Result{}, err
-		}
-		newNamespace := corev1.Namespace{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Namespace",
-				APIVersion: "v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name: nsName,
-				Annotations: map[string]string{
-					constants.SyncAnnotation: "1",
-					"hnc.x-k8s.io/ns":        "true", // todo: deprecated annotation
-				},
-				Labels: env.EnsureManagedLabels(env.HncManagedLabels),
-			},
-		}
-		err = r.Client.Create(ctx, &newNamespace)
-		if err != nil {
-			log.Warn("create tenant namespaces fail, %v", err)
-			return ctrl.Result{}, err
-		}
-	}
-
-	if namespace.Labels == nil {
-		return ctrl.Result{}, nil
-	}
-
-	// ensure namespace has hnc managed labels
-	needUpdate := false
-	for k, v := range env.HncManagedLabels {
-		if _, ok := namespace.Labels[k]; ok && v == "-" {
-			delete(namespace.Labels, k)
-			needUpdate = true
-			continue
-		}
-		if namespace.Labels[k] != v {
-			namespace.Labels[k] = v
-			needUpdate = true
-		}
-	}
-	if needUpdate {
-		err = r.Client.Update(ctx, &namespace, &client.UpdateOptions{})
-		if err != nil {
-			log.Warn("update tenant namespace %v labels failed: $v", namespace.Name, err)
+			log.Error("update tenant fail, %v", err)
 			return ctrl.Result{}, err
 		}
 	}

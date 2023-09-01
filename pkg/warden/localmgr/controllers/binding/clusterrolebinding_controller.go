@@ -28,10 +28,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	v12 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
+	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/options"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/transition"
 )
 
 type ClusterRoleBindingReconciler struct {
@@ -48,7 +49,7 @@ func (r *ClusterRoleBindingReconciler) Reconcile(ctx context.Context, req ctrl.R
 	clusterRoleBinding := &v1.ClusterRoleBinding{}
 	if err := r.Get(ctx, req.NamespacedName, clusterRoleBinding); err != nil {
 		if errors.IsNotFound(err) {
-			return r.syncUserOnDelete(ctx, req.Name)
+			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, err
 	}
@@ -65,7 +66,7 @@ func (r *ClusterRoleBindingReconciler) syncUserOnCreate(ctx context.Context, clu
 
 	foundUser := false
 
-	user := &v12.User{}
+	user := &userv1.User{}
 	err = r.Get(ctx, types.NamespacedName{Name: userName}, user)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -88,58 +89,17 @@ func (r *ClusterRoleBindingReconciler) syncUserOnCreate(ctx context.Context, clu
 		return ctrl.Result{}, nil
 	}
 
-	appointUserAdmin(user)
-
-	err = updateUserStatus(ctx, r.Client, user, constants.ClusterRolePlatform)
+	// add user relationship label
+	clusterRoleBinding.Labels = setBindingUserLabel(clusterRoleBinding.Labels, user.Name)
+	err = updateClusterRoleBinding(ctx, r.Client, clusterRoleBinding)
 	if err != nil {
-		clog.Error(updateUserStatusErrStr(user.Name, err))
 		return ctrl.Result{}, err
 	}
 
-	return ctrl.Result{}, nil
-}
+	// update user scope binding
+	transition.AddUserScopeBindings(user, string(userv1.PlatformScope), "platform", clusterRoleBinding.RoleRef.Name)
 
-func (r *ClusterRoleBindingReconciler) syncUserOnDelete(ctx context.Context, name string) (ctrl.Result, error) {
-	userName, err := parseUserInClusterRoleBinding(name)
-	if err != nil {
-		clog.Error("parse ClusterRoleBinding %v failed: %v", name, err)
-		return ctrl.Result{}, err
-	}
-
-	foundUser := false
-
-	user := &v12.User{}
-	err = r.Get(ctx, types.NamespacedName{Name: userName}, user)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			// give another chance to match username format {user}-{id}
-			err = r.Get(ctx, types.NamespacedName{Name: parseUserNameWithID(userName)}, user)
-			if err == nil {
-				foundUser = true
-			} else {
-				foundUser = false
-			}
-		} else {
-			clog.Error("get user %v failed: %v", userName, err)
-			return ctrl.Result{}, err
-		}
-	} else {
-		foundUser = true
-	}
-
-	if !foundUser {
-		return ctrl.Result{}, nil
-	}
-
-	impeachUserAdmin(user)
-
-	err = updateUserStatus(ctx, r.Client, user, constants.ClusterRolePlatform)
-	if err != nil {
-		clog.Error(updateUserStatusErrStr(user.Name, err))
-		return ctrl.Result{}, err
-	}
-
-	return ctrl.Result{}, nil
+	return ctrl.Result{}, transition.UpdateUserSpec(ctx, r.Client, user)
 }
 
 func SetupClusterRoleBindingReconcilerWithManager(mgr ctrl.Manager, _ *options.Options) error {
@@ -154,7 +114,8 @@ func SetupClusterRoleBindingReconcilerWithManager(mgr ctrl.Manager, _ *options.O
 			if !ok {
 				return false
 			}
-			if obj.RoleRef.Kind == constants.KindClusterRole && obj.RoleRef.Name == constants.PlatformAdmin {
+			v, ok := obj.GetLabels()[constants.RbacLabel]
+			if ok && v == "true" {
 				return true
 			}
 			return false
@@ -164,13 +125,6 @@ func SetupClusterRoleBindingReconcilerWithManager(mgr ctrl.Manager, _ *options.O
 			return false
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			obj, ok := deleteEvent.Object.(*v1.ClusterRoleBinding)
-			if !ok {
-				return false
-			}
-			if obj.RoleRef.Kind == constants.KindClusterRole && obj.RoleRef.Name == constants.PlatformAdmin {
-				return true
-			}
 			return false
 		},
 	}

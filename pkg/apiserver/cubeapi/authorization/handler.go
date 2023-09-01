@@ -22,17 +22,14 @@ import (
 	"net/http"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/apimachinery/pkg/util/wait"
 	userinfo "k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/apiserver/pkg/authorization/authorizer"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -45,11 +42,11 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
-	"github.com/kubecube-io/kubecube/pkg/utils/access"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/env"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
+	"github.com/kubecube-io/kubecube/pkg/utils/transition"
 )
 
 const subPath = "/authorization"
@@ -688,74 +685,29 @@ func (h *handler) createBinds(c *gin.Context) {
 		return
 	}
 
-	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
-		ObjectMeta: v1.ObjectMeta{
-			Annotations: map[string]string{constants.SyncAnnotation: "true"},
-			Name:        "gen-" + roleBinding.Name,
-		},
-		Subjects: []rbacv1.Subject{{
-			Kind: "User",
-			Name: roleBinding.Subjects[0].Name,
-		}},
-		RoleRef: rbacv1.RoleRef{
-			APIGroup: constants.K8sGroupRBAC,
-			Kind:     constants.K8sKindClusterRole,
-		},
-	}
-
-	if access := access.AllowAccess(constants.LocalCluster, c.Request, constants.CreateVerb, clusterRoleBinding); !access {
-		response.FailReturn(c, errcode.ForbiddenErr)
-		return
-	}
-	if access := access.AllowAccess(constants.LocalCluster, c.Request, constants.CreateVerb, roleBinding); !access {
-		response.FailReturn(c, errcode.ForbiddenErr)
-		return
-	}
-	// we should create specified ClusterRoleBinding for different RoleRef
-	if roleBinding.RoleRef.Kind == constants.K8sKindClusterRole && roleBinding.RoleRef.Name != constants.ReviewerCluster {
-		if _, ok := roleBinding.Labels[constants.TenantLabel]; ok {
-			clusterRoleBinding.RoleRef.Name = constants.TenantAdminCluster
-		}
-		if _, ok := roleBinding.Labels[constants.ProjectLabel]; ok {
-			clusterRoleBinding.RoleRef.Name = constants.ProjectAdminCluster
-		}
-		// platform level ignored
-	}
-
-	// wait for sub ns create done, remove it when delete hnc dependence.
-	err = wait.PollUntilContextTimeout(c, 100*time.Second, 1*time.Second, false, func(ctx context.Context) (done bool, err error) {
-		namespace := corev1.Namespace{}
-		err = cli.Direct().Get(ctx, types.NamespacedName{Name: roleBinding.Namespace}, &namespace)
-		if err != nil {
-			return false, nil
-		}
-		return true, nil
-	})
+	// translate rolebinding to scopebinding
+	scopeType, scopeName, role, userName, err := transition.TransBinding(roleBinding.Labels, roleBinding.Subjects[0], roleBinding.RoleRef)
 	if err != nil {
+		response.FailReturn(c, errcode.InvalidBodyFormat)
+		return
+	}
+
+	// add user scope binding
+	u := &user.User{}
+	err = cli.Cache().Get(ctx, types.NamespacedName{Name: userName}, u)
+	if err != nil {
+		clog.Error(err.Error())
 		response.FailReturn(c, errcode.BadRequest(err))
 		return
 	}
 
-	err = cli.Direct().Create(ctx, roleBinding)
+	transition.AddUserScopeBindings(u, scopeType, scopeName, role)
+
+	err = transition.UpdateUserSpec(ctx, cli.Direct(), u)
 	if err != nil {
-		if errors.IsAlreadyExists(err) {
-			response.FailReturn(c, errcode.AlreadyExist(roleBinding.Name))
-			return
-		}
+		clog.Error(err.Error())
 		response.FailReturn(c, errcode.BadRequest(err))
 		return
-	}
-
-	if len(clusterRoleBinding.RoleRef.Name) > 0 {
-		err = cli.Direct().Create(ctx, clusterRoleBinding)
-		if err != nil {
-			if errors.IsAlreadyExists(err) {
-				response.FailReturn(c, errcode.AlreadyExist(clusterRoleBinding.Name))
-				return
-			}
-			response.FailReturn(c, errcode.BadRequest(err))
-			return
-		}
 	}
 
 	response.SuccessJsonReturn(c, "success")
@@ -790,39 +742,27 @@ func (h *handler) deleteBinds(c *gin.Context) {
 		return
 	}
 
-	if access := access.AllowAccess(constants.LocalCluster, c.Request, constants.DeleteVerb, &roleBinding); !access {
-		response.FailReturn(c, errcode.ForbiddenErr)
+	// translate rolebinding to scopebinding
+	scopeType, scopeName, role, userName, err := transition.TransBinding(roleBinding.Labels, roleBinding.Subjects[0], roleBinding.RoleRef)
+	if err != nil {
+		response.FailReturn(c, errcode.InvalidBodyFormat)
 		return
 	}
-	if roleBinding.RoleRef.Kind == constants.K8sKindClusterRole {
-		clusterRoleBindingName := "gen-" + roleBinding.Name
-		crb := &rbacv1.ClusterRoleBinding{}
-		if err := cli.Cache().Get(ctx, types.NamespacedName{Name: clusterRoleBindingName}, crb); err != nil {
-			if errors.IsNotFound(err) {
-				clog.Warn(err.Error())
-			} else {
-				response.FailReturn(c, errcode.BadRequest(err))
-				return
-			}
-		} else {
-			if access := access.AllowAccess(constants.LocalCluster, c.Request, constants.DeleteVerb, crb); !access {
-				response.FailReturn(c, errcode.ForbiddenErr)
-				return
-			}
-		}
-		err = cli.ClientSet().RbacV1().ClusterRoleBindings().Delete(ctx, clusterRoleBindingName, v1.DeleteOptions{})
-		if err != nil {
-			if errors.IsNotFound(err) {
-				clog.Warn(err.Error())
-			} else {
-				response.FailReturn(c, errcode.BadRequest(err))
-				return
-			}
-		}
+
+	// remove user scope binding
+	u := &user.User{}
+	err = cli.Cache().Get(ctx, types.NamespacedName{Name: userName}, u)
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.BadRequest(err))
+		return
 	}
 
-	err = cli.ClientSet().RbacV1().RoleBindings(key.Namespace).Delete(ctx, key.Name, v1.DeleteOptions{})
+	transition.RemoveUserScopeBindings(u, scopeType, scopeName, role)
+
+	err = transition.UpdateUserSpec(ctx, cli.Direct(), u)
 	if err != nil {
+		clog.Error(err.Error())
 		response.FailReturn(c, errcode.BadRequest(err))
 		return
 	}

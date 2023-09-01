@@ -107,12 +107,45 @@ func (r *UserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 }
 
 func (r *UserReconciler) syncUser(ctx context.Context, user *userv1.User) (ctrl.Result, error) {
-	err := r.refreshBindings(ctx, user)
+	err := r.refreshStatus(ctx, user)
+	if err != nil {
+		clog.Error(updateUserStatusErrStr(user.Name, err))
+		return ctrl.Result{}, err
+	}
+
+	err = r.refreshBindings(ctx, user)
 	if err != nil {
 		clog.Error("refresh bindings failed: %v", err)
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
+}
+
+// refreshStatus refresh status according to scope bindings.
+func (r *UserReconciler) refreshStatus(ctx context.Context, user *userv1.User) error {
+	if user.Spec.ScopeBindings == nil {
+		return nil
+	}
+
+	// reset status here
+	user.Status.BelongProjects = []string{}
+	user.Status.BelongProjects = []string{}
+	user.Status.PlatformAdmin = false
+
+	for _, binding := range user.Spec.ScopeBindings {
+		switch binding.ScopeType {
+		case userv1.TenantScope:
+			addUserToTenant(user, binding.ScopeName)
+		case userv1.ProjectScope:
+			addUserToProject(user, binding.ScopeName)
+		case userv1.PlatformScope:
+			if binding.Role == constants.PlatformAdmin {
+				appointUserAdmin(user)
+			}
+		}
+	}
+
+	return updateUserStatus(ctx, r.Client, user)
 }
 
 // refreshBindings refresh related RoleBindings under binding scope.
@@ -196,6 +229,13 @@ func (r *UserReconciler) refreshNsBinding(ctx context.Context, user string, bind
 	lb := map[string]string{
 		constants.RbacLabel:         constants.TrueStr,
 		constants.LabelRelationship: user,
+	}
+
+	if binding.ScopeType == userv1.TenantScope {
+		lb[constants.TenantLabel] = binding.ScopeName
+	}
+	if binding.ScopeType == userv1.ProjectScope {
+		lb[constants.ProjectLabel] = binding.ScopeName
 	}
 
 	var errs []error

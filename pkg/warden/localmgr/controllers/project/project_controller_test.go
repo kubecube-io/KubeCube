@@ -99,8 +99,4 @@ func TestReconcile(t *testing.T) {
 	if !errors.Is(err, context.DeadlineExceeded) {
 		assert.Nil(err)
 	}
-
-	subnamespace := hnc.SubnamespaceAnchor{}
-	err = fakeClient.Get(ctx, types.NamespacedName{Namespace: "kubecube-tenant-test-tenant1", Name: "kubecube-project-test-project1"}, &subnamespace)
-	assert.Nil(err)
 }
