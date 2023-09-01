@@ -36,12 +36,6 @@ import (
 // NOTE: This file is copied from k8s.io/kubernetes/dashboard/src/app/backend/resource/container/logs.go.
 // We have expanded some function and delete some we did not use, such as HandleLogs.
 
-const (
-	LogDefaultLines = int64(1000)
-	LogDefaultBytes = int64(5242880) // 5MB
-	LogDefaultSince = int64(1800)    // 30min
-)
-
 type ProxyPodLog struct {
 	ctx             context.Context
 	client          client.Client
@@ -71,30 +65,31 @@ func (podLog *ProxyPodLog) HandleLogs(c *gin.Context) {
 	sinceSeconds := c.Query("sinceSeconds")
 	follow := c.Query("follow")
 
-	lines := LogDefaultLines
-	var err error
-	if len(tailLines) > 0 {
-		lines, err = strconv.ParseInt(tailLines, 10, 64)
+	if len(tailLines) == 0 {
+		response.FailReturn(c, errcode.ParamsMissing("tailLines"))
+		return
 	}
+	lines, err := strconv.ParseInt(tailLines, 10, 64)
 	if err != nil {
 		response.FailReturn(c, errcode.ParamsInvalid(err))
 		return
 	}
 	isTimestamps, _ := strconv.ParseBool(timestamps)
 	isFollow, _ := strconv.ParseBool(follow)
-
-	limit := LogDefaultBytes // 5MBi
-	if len(limitBytes) > 0 {
-		limit, err = strconv.ParseInt(limitBytes, 10, 64)
+	if len(limitBytes) == 0 {
+		response.FailReturn(c, errcode.ParamsMissing("limitBytes"))
+		return
 	}
+	limit, err := strconv.ParseInt(limitBytes, 10, 64)
 	if err != nil {
 		response.FailReturn(c, errcode.ParamsInvalid(err))
 		return
 	}
-	seconds := LogDefaultSince // 30min
-	if len(sinceSeconds) > 0 {
-		seconds, err = strconv.ParseInt(sinceSeconds, 10, 64)
+	if len(sinceSeconds) == 0 {
+		response.FailReturn(c, errcode.ParamsMissing("sinceSeconds"))
+		return
 	}
+	seconds, err := strconv.ParseInt(sinceSeconds, 10, 64)
 	if err != nil {
 		response.FailReturn(c, errcode.ParamsInvalid(err))
 		return

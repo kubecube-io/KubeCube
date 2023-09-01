@@ -64,3 +64,7 @@ func AlreadyExist(resource interface{}) *ErrorInfo {
 func ParamsInvalid(err error) *ErrorInfo {
 	return New(paramsInvalid, err)
 }
+
+func ParamsMissing(param string) *ErrorInfo {
+	return New(missingParam, param)
+}
