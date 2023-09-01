@@ -114,6 +114,8 @@ func (e *ExtendHandler) ExtendHandle(c *gin.Context) {
 	return
 }
 
+// GetPodContainerLog get k8s pod log and page log
+// Deprecated: Use GetProxyPodContainerLog instead, get better performance
 func GetPodContainerLog(c *gin.Context) {
 	cluster := c.Param("cluster")
 	namespace := c.Param("namespace")
@@ -132,6 +134,28 @@ func GetPodContainerLog(c *gin.Context) {
 		return
 	}
 	podLog := NewPodLog(client, namespace, condition)
+	podLog.HandleLogs(c)
+}
+
+// GetProxyPodContainerLog get native k8s pod container log
+func GetProxyPodContainerLog(c *gin.Context) {
+	cluster := c.Param("cluster")
+	namespace := c.Param("namespace")
+	condition := parseQueryParams(c)
+	// k8s client
+	client := clients.Interface().Kubernetes(cluster)
+	if client == nil {
+		response.FailReturn(c, errcode.ClusterNotFoundError(cluster))
+		return
+	}
+	// access
+	username := c.GetString(constants.UserName)
+	access := resources.NewSimpleAccess(cluster, username, namespace)
+	if allow := access.AccessAllow("", "pods", "list"); !allow {
+		response.FailReturn(c, errcode.ForbiddenErr)
+		return
+	}
+	podLog := NewProxyPodLog(client, namespace, condition)
 	podLog.HandleLogs(c)
 }
 

@@ -40,6 +40,9 @@ const (
 	HttpHeaderContentType        = "Content-type"
 	HttpHeaderContentDisposition = "Content-Disposition"
 	HttpHeaderContentTypeOctet   = "application/octet-stream"
+	HttpHeaderTransferEncoding   = "Transfer-Encoding"
+	HttpHeaderChunked            = "chunked"
+	HttpHeaderTextHtml           = "text/html"
 
 	ImpersonateUserKey  = "Impersonate-User"
 	ImpersonateGroupKey = "Impersonate-Group"
