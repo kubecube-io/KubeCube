@@ -53,6 +53,15 @@ func NewProxyPodLog(client client.Client, namespace string, condition *filter.Co
 	}
 }
 
+// HandleLogs @router /api/v1/namespaces/{namespace}/proxy/pods/{resourceName}/log [get]
+// resourceName: pod name, required
+// namespace: pod namespace, required
+// container: container name, required
+// tailLines: tail lines, required
+// timestamps: show timestamps or not, optional
+// limitBytes: limit bytes, required
+// sinceSeconds: since seconds, optional
+// follow: follow or not, optional
 func (podLog *ProxyPodLog) HandleLogs(c *gin.Context) {
 	k8sClient := podLog.client.ClientSet()
 
@@ -85,22 +94,23 @@ func (podLog *ProxyPodLog) HandleLogs(c *gin.Context) {
 		response.FailReturn(c, errcode.ParamsInvalid(err))
 		return
 	}
-	if len(sinceSeconds) == 0 {
-		response.FailReturn(c, errcode.ParamsMissing("sinceSeconds"))
-		return
-	}
-	seconds, err := strconv.ParseInt(sinceSeconds, 10, 64)
-	if err != nil {
-		response.FailReturn(c, errcode.ParamsInvalid(err))
-		return
+	seconds := int64(0)
+	if len(sinceSeconds) > 0 {
+		seconds, err = strconv.ParseInt(sinceSeconds, 10, 64)
+		if err != nil {
+			response.FailReturn(c, errcode.ParamsInvalid(err))
+			return
+		}
 	}
 	logOptions := &v1.PodLogOptions{
-		Container:    container,
-		Follow:       isFollow,
-		Timestamps:   isTimestamps,
-		TailLines:    &lines,
-		LimitBytes:   &limit,
-		SinceSeconds: &seconds,
+		Container:  container,
+		Follow:     isFollow,
+		Timestamps: isTimestamps,
+		TailLines:  &lines,
+		LimitBytes: &limit,
+	}
+	if seconds > 0 {
+		logOptions.SinceSeconds = &seconds
 	}
 	logStream, err := k8sClient.CoreV1().Pods(namespace).GetLogs(pod, logOptions).Stream(c)
 	if err != nil {
@@ -120,6 +130,13 @@ func (podLog *ProxyPodLog) HandleLogs(c *gin.Context) {
 		bytes, err := r.ReadBytes('\n')
 		if err != nil {
 			if errors.Is(err, io.EOF) {
+				if isFollow {
+					_, err := writer.Write([]byte("EOF"))
+					if err != nil {
+						response.FailReturn(c, errcode.BadRequest(err))
+						return
+					}
+				}
 				return
 			}
 			clog.Warn("read log fail: %v", err)
