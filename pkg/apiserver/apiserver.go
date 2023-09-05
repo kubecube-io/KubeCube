@@ -140,9 +140,12 @@ func withSimpleServer(s *APIServer) *APIServer {
 	router := gin.New()
 	router.Use(gin.Recovery())
 
-	// The url pointing to API definition
-	url := ginSwagger.URL("/swagger/doc.json")
-	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler, url))
+	if s.SwagEnable {
+		// The url pointing to API definition
+		url := ginSwagger.URL("/swagger/doc.json")
+		router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler, url))
+	}
+
 	router.GET("/healthz", healthz.HealthyCheck)
 
 	s.SimpleServer = &http.Server{

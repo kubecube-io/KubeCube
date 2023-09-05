@@ -41,6 +41,11 @@ func init() {
 			Value:       7777,
 			Destination: &CubeOpts.APIServerOpts.GenericPort,
 		},
+		&cli.BoolFlag{
+			Name:        "swag-enable",
+			Value:       false,
+			Destination: &CubeOpts.APIServerOpts.SwagEnable,
+		},
 		&cli.StringFlag{
 			Name:        "tls-cert",
 			Destination: &CubeOpts.APIServerOpts.TlsCert,
