@@ -110,6 +110,7 @@ func registerCubeAPI(cfg *Config) http.Handler {
 		k8sApiExtend.Any("/clusters/:cluster/namespaces/:namespace/:resourceType/:resourceName", extendHandler.ExtendHandle)
 		k8sApiExtend.Any("/clusters/:cluster/namespaces/:namespace/:resourceType", extendHandler.ExtendHandle)
 		k8sApiExtend.GET("/clusters/:cluster/namespaces/:namespace/logs/:resourceName", resourcemanage.GetPodContainerLog)
+		k8sApiExtend.GET("/clusters/:cluster/namespaces/:namespace/proxy/logs/:resourceName", resourcemanage.GetProxyPodContainerLog)
 		k8sApiExtend.POST("/clusters/:cluster/yaml/deploy", yamlDeployHandler.Deploy)
 		k8sApiExtend.GET("/ingressDomainSuffix", resourcemanage.IngressDomainSuffix)
 	}
