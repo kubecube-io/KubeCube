@@ -42,7 +42,7 @@ func init() {
 			Destination: &CubeOpts.APIServerOpts.GenericPort,
 		},
 		&cli.BoolFlag{
-			Name:        "swag-enable",
+			Name:        "enable-swag",
 			Value:       false,
 			Destination: &CubeOpts.APIServerOpts.SwagEnable,
 		},
