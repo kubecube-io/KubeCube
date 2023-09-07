@@ -131,11 +131,11 @@ func NewClientFor(ctx context.Context, cfg *rest.Config) (Client, error) {
 	c.cache.WaitForCacheSync(ctx)
 
 	// add a timed task, call RefreshCacheDiscovery method every hour, refresh the cache
-	tick := time.Tick(time.Minute)
+	tick := time.NewTimer(time.Minute)
 	go func() {
 		for {
 			select {
-			case <-tick:
+			case <-tick.C:
 				c.RefreshCacheDiscovery()
 			case <-ctx.Done():
 				return
