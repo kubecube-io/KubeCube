@@ -19,6 +19,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"time"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -129,6 +130,18 @@ func NewClientFor(ctx context.Context, cfg *rest.Config) (Client, error) {
 	}()
 	c.cache.WaitForCacheSync(ctx)
 
+	// add a timed task, call RefreshCacheDiscovery method every hour, refresh the cache
+	tick := time.Tick(time.Minute)
+	go func() {
+		for {
+			select {
+			case <-tick:
+				c.RefreshCacheDiscovery()
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
 	return c, nil
 }
 
@@ -165,4 +178,9 @@ func WithSchemes(fns ...func(s *runtime.Scheme) error) {
 	for _, fn := range fns {
 		utilruntime.Must(fn(scheme))
 	}
+}
+
+// RefreshCacheDiscovery refresh cache discovery
+func (c *InternalClient) RefreshCacheDiscovery() {
+	c.cacheDiscovery.Invalidate()
 }
