@@ -42,6 +42,7 @@ type HttpConfig struct {
 	InsecurePort int    `yaml:"insecurePort,omitempty"`
 	SecurePort   int    `yaml:"securePort, omitempty"`
 	GenericPort  int    `yaml:"genericPort,omitempty"`
+	SwagEnable   bool   `yaml:"swagEnable,omitempty"`
 	TlsCert      string `yaml:"tlsCert,omitempty"`
 	TlsKey       string `yaml:"tlsKey,omitempty"`
 	CaCert       string `yaml:"caCert,omitempty"`
