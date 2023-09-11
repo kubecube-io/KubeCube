@@ -17,12 +17,13 @@ limitations under the License.
 package yamldeploy
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 
 	"github.com/kubecube-io/kubecube/test/e2e/framework"
-	"github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo/v2"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -88,7 +89,7 @@ metadata:
 		var ns *corev1.Namespace
 		var err error
 		ginkgo.BeforeEach(func() {
-			ns, err = framework.CreateNamespace(f.BaseName)
+			ns, err = framework.CreateNamespace(context.Background(), f.BaseName)
 			framework.ExpectNoError(err)
 		})
 		ginkgo.AfterEach(func() {

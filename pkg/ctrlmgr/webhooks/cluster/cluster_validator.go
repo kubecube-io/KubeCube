@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
 	"github.com/kubecube-io/kubecube/pkg/clog"
@@ -56,39 +57,39 @@ func (c *ClusterValidator) DeepCopyObject() runtime.Object {
 	return &ClusterValidator{}
 }
 
-func (c *ClusterValidator) ValidateCreate() error {
+func (c *ClusterValidator) ValidateCreate() (warnings admission.Warnings, err error) {
 	log := clusterLog.WithValues("ValidateCreate", c.Name)
 	log.Debug("Create validate start")
-	err := generateValidate(c.Cluster)
+	err = generateValidate(c.Cluster)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if err = domain.ValidatorDomainSuffix([]string{c.Spec.IngressDomainSuffix}); err != nil {
-		return err
+		return nil, err
 	}
 	log.Debug("Create validate success")
-	return nil
+	return nil, nil
 }
 
-func (c *ClusterValidator) ValidateUpdate(old runtime.Object) error {
+func (c *ClusterValidator) ValidateUpdate(old runtime.Object) (warnings admission.Warnings, err error) {
 	log := clusterLog.WithValues("ValidateUpdate", c.Name)
 	log.Debug("Update validate start")
-	err := generateValidate(c.Cluster)
+	err = generateValidate(c.Cluster)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if err = domain.ValidatorDomainSuffix([]string{c.Spec.IngressDomainSuffix}); err != nil {
-		return err
+		return nil, err
 	}
 	log.Debug("Update validate success")
-	return nil
+	return nil, nil
 }
 
-func (c *ClusterValidator) ValidateDelete() error {
+func (c *ClusterValidator) ValidateDelete() (warnings admission.Warnings, err error) {
 
-	return nil
+	return nil, nil
 }
 
 const qnameCharFmt string = "[A-Za-z0-9\u4e00-\u9fa5]"

@@ -20,13 +20,15 @@ package fake
 
 import (
 	"context"
+	json "encoding/json"
+	"fmt"
 
 	v1alpha1 "k8s.io/api/scheduling/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
+	schedulingv1alpha1 "k8s.io/client-go/applyconfigurations/scheduling/v1alpha1"
 	testing "k8s.io/client-go/testing"
 )
 
@@ -35,9 +37,9 @@ type FakePriorityClasses struct {
 	Fake *FakeSchedulingV1alpha1
 }
 
-var priorityclassesResource = schema.GroupVersionResource{Group: "scheduling.k8s.io", Version: "v1alpha1", Resource: "priorityclasses"}
+var priorityclassesResource = v1alpha1.SchemeGroupVersion.WithResource("priorityclasses")
 
-var priorityclassesKind = schema.GroupVersionKind{Group: "scheduling.k8s.io", Version: "v1alpha1", Kind: "PriorityClass"}
+var priorityclassesKind = v1alpha1.SchemeGroupVersion.WithKind("PriorityClass")
 
 // Get takes name of the priorityClass, and returns the corresponding priorityClass object, and an error if there is any.
 func (c *FakePriorityClasses) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.PriorityClass, err error) {
@@ -99,7 +101,7 @@ func (c *FakePriorityClasses) Update(ctx context.Context, priorityClass *v1alpha
 // Delete takes name of the priorityClass and deletes it. Returns an error if one occurs.
 func (c *FakePriorityClasses) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(priorityclassesResource, name), &v1alpha1.PriorityClass{})
+		Invokes(testing.NewRootDeleteActionWithOptions(priorityclassesResource, name, opts), &v1alpha1.PriorityClass{})
 	return err
 }
 
@@ -115,6 +117,27 @@ func (c *FakePriorityClasses) DeleteCollection(ctx context.Context, opts v1.Dele
 func (c *FakePriorityClasses) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.PriorityClass, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewRootPatchSubresourceAction(priorityclassesResource, name, pt, data, subresources...), &v1alpha1.PriorityClass{})
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*v1alpha1.PriorityClass), err
+}
+
+// Apply takes the given apply declarative configuration, applies it and returns the applied priorityClass.
+func (c *FakePriorityClasses) Apply(ctx context.Context, priorityClass *schedulingv1alpha1.PriorityClassApplyConfiguration, opts v1.ApplyOptions) (result *v1alpha1.PriorityClass, err error) {
+	if priorityClass == nil {
+		return nil, fmt.Errorf("priorityClass provided to Apply must not be nil")
+	}
+	data, err := json.Marshal(priorityClass)
+	if err != nil {
+		return nil, err
+	}
+	name := priorityClass.Name
+	if name == nil {
+		return nil, fmt.Errorf("priorityClass.Name must be provided to Apply")
+	}
+	obj, err := c.Fake.
+		Invokes(testing.NewRootPatchSubresourceAction(priorityclassesResource, *name, types.ApplyPatchType, data), &v1alpha1.PriorityClass{})
 	if obj == nil {
 		return nil, err
 	}

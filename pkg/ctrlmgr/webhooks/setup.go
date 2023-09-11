@@ -19,7 +19,7 @@ package webhooks
 import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
-	admisson "sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	clusterWebhook "github.com/kubecube-io/kubecube/pkg/ctrlmgr/webhooks/cluster"
 	hotplugWebhook "github.com/kubecube-io/kubecube/pkg/ctrlmgr/webhooks/hotplug"
@@ -35,9 +35,10 @@ func SetupWithWebhooks(mgr manager.Manager) {
 	hookServer := mgr.GetWebhookServer()
 
 	client := mgr.GetClient()
-	hookServer.Register("/validate-cluster-kubecube-io-v1-cluster", admisson.ValidatingWebhookFor(clusterWebhook.NewClusterValidator(client)))
-	hookServer.Register("/validate-hotplug-kubecube-io-v1-hotplug", admisson.ValidatingWebhookFor(hotplugWebhook.NewHotplugValidator(client)))
-	hookServer.Register("/validate-quota-kubecube-io-v1-cube-resource-quota", &webhook.Admission{Handler: &quota.CubeResourceQuotaValidator{Client: client}})
-	hookServer.Register("/validate-tenant-kubecube-io-v1-tenant", &webhook.Admission{Handler: &tenant.Validator{}})
-	hookServer.Register("/validate-tenant-kubecube-io-v1-project", &webhook.Admission{Handler: &project.Validator{Client: client}})
+	decoder := admission.NewDecoder(mgr.GetScheme())
+	hookServer.Register("/validate-cluster-kubecube-io-v1-cluster", admission.ValidatingWebhookFor(mgr.GetScheme(), clusterWebhook.NewClusterValidator(client)))
+	hookServer.Register("/validate-hotplug-kubecube-io-v1-hotplug", admission.ValidatingWebhookFor(mgr.GetScheme(), hotplugWebhook.NewHotplugValidator(client)))
+	hookServer.Register("/validate-quota-kubecube-io-v1-cube-resource-quota", &webhook.Admission{Handler: quota.NewCubeResourceQuotaValidator(client, decoder)})
+	hookServer.Register("/validate-tenant-kubecube-io-v1-tenant", &webhook.Admission{Handler: tenant.NewValidator(decoder)})
+	hookServer.Register("/validate-tenant-kubecube-io-v1-project", &webhook.Admission{Handler: project.NewValidator(client, decoder)})
 }

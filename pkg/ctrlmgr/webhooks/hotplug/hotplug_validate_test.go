@@ -51,26 +51,26 @@ func TestValidateDelete(t *testing.T) {
 	// test delete if project still exist
 	hotplugValidate := NewHotplugValidator(fakeClient)
 	hotplugValidate.Name = "test-cluster1"
-	err := hotplugValidate.ValidateCreate()
+	_, err := hotplugValidate.ValidateCreate()
 	assert.Nil(err)
 
 	hotplugValidate.Name = "common"
-	err = hotplugValidate.ValidateCreate()
+	_, err = hotplugValidate.ValidateCreate()
 	assert.Nil(err)
 
 	hotplugValidate.Name = "test-cluster2"
-	err = hotplugValidate.ValidateCreate()
+	_, err = hotplugValidate.ValidateCreate()
 	assert.NotNil(err)
 	assert.Equal("the test-cluster2 not exist", err.Error())
 
 	hotplugValidate.Name = "test-cluster1"
 	hotplugValidate.Spec.Component = []hotplugv1.ComponentConfig{{Name: "abc"}, {Name: "def"}}
-	err = hotplugValidate.ValidateCreate()
+	_, err = hotplugValidate.ValidateCreate()
 	assert.Nil(err)
 
 	hotplugValidate.Name = "test-cluster1"
 	hotplugValidate.Spec.Component = []hotplugv1.ComponentConfig{{Name: "abc"}, {Name: "abc"}}
-	err = hotplugValidate.ValidateCreate()
+	_, err = hotplugValidate.ValidateCreate()
 	assert.NotNil(err)
 	assert.Equal("the component name is repeat", err.Error())
 }

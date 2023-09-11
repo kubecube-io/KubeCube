@@ -20,14 +20,16 @@ import (
 	"context"
 	"fmt"
 
-	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
-	hotplugv1 "github.com/kubecube-io/kubecube/pkg/apis/hotplug/v1"
-	"github.com/kubecube-io/kubecube/pkg/clog"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+
+	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
+	hotplugv1 "github.com/kubecube-io/kubecube/pkg/apis/hotplug/v1"
+	"github.com/kubecube-io/kubecube/pkg/clog"
 )
 
 var (
@@ -54,7 +56,7 @@ func (t *HotplugValidator) DeepCopyObject() runtime.Object {
 	return &HotplugValidator{}
 }
 
-func (t *HotplugValidator) ValidateCreate() error {
+func (t *HotplugValidator) ValidateCreate() (warnings admission.Warnings, err error) {
 	log := hotplugLog.WithValues("Validate", t.Name)
 
 	// the cluster exist
@@ -64,10 +66,10 @@ func (t *HotplugValidator) ValidateCreate() error {
 		err := hotplugClient.Get(ctx, types.NamespacedName{Name: t.Name}, &cluster)
 		if err != nil {
 			if errors.IsNotFound(err) {
-				return fmt.Errorf("the %s not exist", t.Name)
+				return nil, fmt.Errorf("the %s not exist", t.Name)
 			}
 			log.Info("can not get cluster info from pivot cluster, %v", err)
-			return fmt.Errorf("the warden server error, %v", err)
+			return nil, fmt.Errorf("the warden server error, %v", err)
 		}
 	}
 	// the component no dump
@@ -81,17 +83,17 @@ func (t *HotplugValidator) ValidateCreate() error {
 		m[c.Name] = struct{}{}
 	}
 	if isRepeat {
-		return fmt.Errorf("the component name is repeat")
+		return nil, fmt.Errorf("the component name is repeat")
 	}
-	return nil
+	return nil, nil
 }
 
-func (t *HotplugValidator) ValidateUpdate(old runtime.Object) error {
+func (t *HotplugValidator) ValidateUpdate(old runtime.Object) (warnings admission.Warnings, err error) {
 
 	return t.ValidateCreate()
 }
 
-func (t *HotplugValidator) ValidateDelete() error {
+func (t *HotplugValidator) ValidateDelete() (warnings admission.Warnings, err error) {
 
-	return nil
+	return nil, nil
 }

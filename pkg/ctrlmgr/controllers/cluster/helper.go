@@ -62,7 +62,7 @@ func createResource(ctx context.Context, obj client.Object, c client.Client, clu
 }
 
 // waitForJobComplete block and wait until job meets completed
-func waitForJobComplete(cli client.Client, namespacedName types.NamespacedName) error {
+func waitForJobComplete(ctx context.Context, cli client.Client, namespacedName types.NamespacedName) error {
 	isJobCompleted := func(j v1.Job) bool {
 		status := j.Status
 		for _, c := range status.Conditions {
@@ -73,7 +73,7 @@ func waitForJobComplete(cli client.Client, namespacedName types.NamespacedName) 
 		return false
 	}
 
-	return wait.Poll(3*time.Second, 5*time.Minute, func() (done bool, err error) {
+	return wait.PollUntilContextTimeout(ctx, 3*time.Second, 5*time.Minute, false, func(ctx context.Context) (done bool, err error) {
 		j := v1.Job{}
 		err = cli.Get(context.Background(), namespacedName, &j)
 		if err != nil {

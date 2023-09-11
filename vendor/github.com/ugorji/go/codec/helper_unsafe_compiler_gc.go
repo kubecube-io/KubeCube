@@ -12,12 +12,35 @@ import (
 	"unsafe"
 )
 
+// keep in sync with
+//
+//	$GOROOT/src/cmd/compile/internal/gc/reflect.go: MAXKEYSIZE, MAXELEMSIZE
+//	$GOROOT/src/runtime/map.go: maxKeySize, maxElemSize
+//	$GOROOT/src/reflect/type.go: maxKeySize, maxElemSize
+//
+// We use these to determine whether the type is stored indirectly in the map or not.
+const (
+	// mapMaxKeySize  = 128
+	mapMaxElemSize = 128
+)
+
 func unsafeGrowslice(typ unsafe.Pointer, old unsafeSlice, cap, incr int) (v unsafeSlice) {
 	return growslice(typ, old, cap+incr)
 }
 
-func rvType(rv reflect.Value) reflect.Type {
-	return rvPtrToType(((*unsafeReflectValue)(unsafe.Pointer(&rv))).typ) // rv.Type()
+// func rvType(rv reflect.Value) reflect.Type {
+// 	return rvPtrToType(((*unsafeReflectValue)(unsafe.Pointer(&rv))).typ)
+// 	// return rv.Type()
+// }
+
+// mapStoresElemIndirect tells if the element type is stored indirectly in the map.
+//
+// This is used to determine valIsIndirect which is passed into mapSet/mapGet calls.
+//
+// If valIsIndirect doesn't matter, then just return false and ignore the value
+// passed in mapGet/mapSet calls
+func mapStoresElemIndirect(elemsize uintptr) bool {
+	return elemsize > mapMaxElemSize
 }
 
 func mapSet(m, k, v reflect.Value, keyFastKind mapKeyFastKind, valIsIndirect, valIsRef bool) {
@@ -109,13 +132,9 @@ func mapGet(m, k, v reflect.Value, keyFastKind mapKeyFastKind, valIsIndirect, va
 //go:linkname unsafeZeroArr runtime.zeroVal
 var unsafeZeroArr [1024]byte
 
-//go:linkname rvPtrToType reflect.toType
-//go:noescape
-func rvPtrToType(typ unsafe.Pointer) reflect.Type
-
-//go:linkname growslice runtime.growslice
-//go:noescape
-func growslice(typ unsafe.Pointer, old unsafeSlice, cap int) unsafeSlice
+// //go:linkname rvPtrToType reflect.toType
+// //go:noescape
+// func rvPtrToType(typ unsafe.Pointer) reflect.Type
 
 //go:linkname mapassign_fast32 runtime.mapassign_fast32
 //go:noescape
@@ -137,14 +156,6 @@ func mapassign_fast64ptr(typ unsafe.Pointer, m unsafe.Pointer, key unsafe.Pointe
 //go:noescape
 func mapassign_faststr(typ unsafe.Pointer, m unsafe.Pointer, s string) unsafe.Pointer
 
-//go:linkname mapassign runtime.mapassign
-//go:noescape
-func mapassign(typ unsafe.Pointer, m unsafe.Pointer, key unsafe.Pointer) unsafe.Pointer
-
-//go:linkname mapaccess2 runtime.mapaccess2
-//go:noescape
-func mapaccess2(typ unsafe.Pointer, m unsafe.Pointer, key unsafe.Pointer) (val unsafe.Pointer, ok bool)
-
 //go:linkname mapaccess2_fast32 runtime.mapaccess2_fast32
 //go:noescape
 func mapaccess2_fast32(typ unsafe.Pointer, m unsafe.Pointer, key uint32) (val unsafe.Pointer, ok bool)
@@ -156,15 +167,3 @@ func mapaccess2_fast64(typ unsafe.Pointer, m unsafe.Pointer, key uint64) (val un
 //go:linkname mapaccess2_faststr runtime.mapaccess2_faststr
 //go:noescape
 func mapaccess2_faststr(typ unsafe.Pointer, m unsafe.Pointer, key string) (val unsafe.Pointer, ok bool)
-
-/*
-
-//go:linkname unsafe_New reflect.unsafe_New
-//go:noescape
-func unsafe_New(typ unsafe.Pointer) unsafe.Pointer
-
-//go:linkname unsafe_NewArray reflect.unsafe_NewArray
-//go:noescape
-func unsafe_NewArray(typ unsafe.Pointer, cap int) unsafe.Pointer
-
-*/

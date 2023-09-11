@@ -18,6 +18,7 @@ package filter
 
 import (
 	"fmt"
+	"k8s.io/apimachinery/pkg/runtime"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -217,4 +218,15 @@ func GetDeepFloat64(item unstructured.Unstructured, keyStr string) (value float6
 	key := strings.Join(keys[i:], ".")
 	value = temp[key].(float64)
 	return
+}
+
+func ConvertListToUnstructured(list interface{}) (unstructured.Unstructured, error) {
+	data := make(map[string]interface{})
+	data["items"] = list
+	u := unstructured.Unstructured{}
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(data, &u)
+	if err != nil && !runtime.IsMissingKind(err) && !runtime.IsMissingVersion(err) {
+		return u, err
+	}
+	return u, nil
 }

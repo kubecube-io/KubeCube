@@ -36,6 +36,14 @@ type ResourceQuotaValidator struct {
 	decoder     *admission.Decoder
 }
 
+func NewValidator(pivotClient, localClient client.Client, decoder *admission.Decoder) *ResourceQuotaValidator {
+	return &ResourceQuotaValidator{
+		PivotClient: pivotClient,
+		LocalClient: localClient,
+		decoder:     decoder,
+	}
+}
+
 func (r *ResourceQuotaValidator) Handle(ctx context.Context, req admission.Request) admission.Response {
 	oldQuota := &v1.ResourceQuota{}
 	currentQuota := &v1.ResourceQuota{}
@@ -86,10 +94,4 @@ func (r *ResourceQuotaValidator) Handle(ctx context.Context, req admission.Reque
 	//go callback(q, req.Operation == admissionv1.Delete)
 
 	return admission.Allowed("")
-}
-
-// InjectDecoder injects the decoder.
-func (r *ResourceQuotaValidator) InjectDecoder(d *admission.Decoder) error {
-	r.decoder = d
-	return nil
 }

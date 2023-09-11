@@ -101,7 +101,7 @@ func (d *Pod) getRs() error {
 	}
 	// Only the owner reference UID is needed as a filtering condition.
 	condition := &filter.Condition{
-		Exact: map[string]sets.String{ownerUidLabel: val},
+		Exact: map[string]sets.Set[string]{ownerUidLabel: val},
 	}
 	rsList := appsv1.ReplicaSetList{}
 	var err error
@@ -123,7 +123,7 @@ func (d *Pod) getRs() error {
 	set := d.filterCondition.Exact[ownerUidLabel]
 	for _, rs := range rsList.Items {
 		if set == nil {
-			set = sets.NewString()
+			set = sets.Set[string]{}
 		}
 		uid := rs.UID
 		if len(uid) > 0 {

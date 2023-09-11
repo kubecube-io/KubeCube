@@ -119,7 +119,13 @@ func (f *Filter) doFilter(data []byte, filterCondition *Condition) (*unstructure
 	}
 	res := &unstructured.Unstructured{}
 	if !obj.IsList() {
-		err := f.convertRes(obj, res, obj.GroupVersionKind().Version)
+		listObject, err := f.versionConvert([]unstructured.Unstructured{*obj})
+		if err != nil {
+			clog.Error("convert obj error: %s", err)
+			return nil, err
+		}
+		obj = &listObject[0]
+		err = f.convertRes(obj, res, obj.GroupVersionKind().Version)
 		if err != nil {
 			return nil, err
 		}
@@ -199,20 +205,24 @@ func (f *Filter) filter(listObject []unstructured.Unstructured, filterCondition 
 	if err != nil {
 		clog.Debug("page items error: %s", err)
 	}
-
-	if f.ConverterContext != nil && f.EnableConvert {
-		convertParam := ConvertParam{
-			enableConvert: f.EnableConvert,
-			rawGvr:        f.RawGvr,
-			convertedGvr:  f.ConvertedGvr,
-			converter:     f.Converter,
-		}
-		listObject, err = ConvertHandler(listObject, &convertParam)
-		if err != nil {
-			clog.Error("convert obj error: %s", err)
-		}
+	listObject, err = f.versionConvert(listObject)
+	if err != nil {
+		clog.Error("convert obj error: %s", err)
 	}
 	return listObject, total, nil
+}
+
+func (f *Filter) versionConvert(listObject []unstructured.Unstructured) ([]unstructured.Unstructured, error) {
+	if f.ConverterContext == nil || !f.EnableConvert {
+		return listObject, nil
+	}
+	convertParam := ConvertParam{
+		enableConvert: f.EnableConvert,
+		rawGvr:        f.RawGvr,
+		convertedGvr:  f.ConvertedGvr,
+		converter:     f.Converter,
+	}
+	return ConvertHandler(listObject, &convertParam)
 }
 
 func (f *Filter) convertRes(in, out, version interface{}) error {

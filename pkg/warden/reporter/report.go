@@ -63,7 +63,7 @@ func (r *Reporter) registerIfNeed(ctx context.Context) error {
 
 	clog.Info("pivot kubecube address is %v", r.PivotCubeHost)
 
-	return wait.Poll(3*time.Second, 15*time.Second, func() (done bool, err error) {
+	return wait.PollUntilContextTimeout(ctx, 3*time.Second, 15*time.Second, false, func(ctx context.Context) (done bool, err error) {
 		cluster := &clusterv1.Cluster{
 			ObjectMeta: metav1.ObjectMeta{Name: r.Cluster},
 			Spec: clusterv1.ClusterSpec{

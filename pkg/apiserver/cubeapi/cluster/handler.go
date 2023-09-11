@@ -17,6 +17,7 @@ limitations under the License.
 package cluster
 
 import (
+	"context"
 	"encoding/base64"
 	"net/http"
 	"sort"
@@ -669,7 +670,7 @@ func (h *handler) createNsAndQuota(c *gin.Context) {
 	}
 
 	// wait for namespace created
-	err = wait.Poll(200*time.Millisecond, 2*time.Second, func() (done bool, err error) {
+	err = wait.PollUntilContextTimeout(c, 200*time.Millisecond, 2*time.Second, false, func(ctx context.Context) (done bool, err error) {
 		_, err = cli.ClientSet().CoreV1().Namespaces().Get(ctx, data.SubNamespaceAnchor.Name, metav1.GetOptions{})
 		if err != nil {
 			if errors.IsNotFound(err) {

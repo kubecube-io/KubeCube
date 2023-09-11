@@ -2,8 +2,8 @@
 ROOTDIR=$(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
 # Used to populate version variable in main package.
-VERSION ?= $(shell git describe --match 'v[0-9]*' --dirty='.m' --always)
-REVISION ?= $(shell git rev-parse HEAD)$(shell if ! git diff --no-ext-diff --quiet --exit-code; then echo .m; fi)
+VERSION=$(shell git describe --match 'v[0-9]*' --dirty='.m' --always)
+REVISION=$(shell git rev-parse HEAD)$(shell if ! git diff --no-ext-diff --quiet --exit-code; then echo .m; fi)
 
 
 PKG=github.com/docker/distribution
@@ -50,7 +50,7 @@ version/version.go:
 
 check: ## run all linters (TODO: enable "unused", "varcheck", "ineffassign", "unconvert", "staticheck", "goimports", "structcheck")
 	@echo "$(WHALE) $@"
-	gometalinter --config .gometalinter.json ./...
+	@GO111MODULE=off golangci-lint run
 
 test: ## run tests, except integration test with test.short
 	@echo "$(WHALE) $@"

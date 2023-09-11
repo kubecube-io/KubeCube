@@ -137,7 +137,7 @@ func (r *CubeResourceQuotaReconciler) initCubeQuotaStatus(ctx context.Context, c
 			return err
 		}
 		newQuota.Status = cubeQuota.Status
-		err = r.Status().Update(ctx, newQuota, &client.UpdateOptions{})
+		err = r.Status().Update(ctx, newQuota, &client.SubResourceUpdateOptions{})
 		if err != nil {
 			return err
 		}
@@ -169,7 +169,7 @@ func (r *CubeResourceQuotaReconciler) ensureSpecAndStatusConsistent(ctx context.
 				return err
 			}
 			newQuota.Status = cubeQuota.Status
-			err = r.Status().Update(ctx, newQuota, &client.UpdateOptions{})
+			err = r.Status().Update(ctx, newQuota, &client.SubResourceUpdateOptions{})
 			if err != nil {
 				return err
 			}

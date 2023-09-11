@@ -25,7 +25,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/multicluster"
 	"github.com/kubecube-io/kubecube/pkg/multicluster/client/fake"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	appsv1 "k8s.io/api/apps/v1"
 	coordinationv1 "k8s.io/api/coordination/v1"
@@ -43,7 +43,7 @@ var _ = Describe("Auth", func() {
 	BeforeEach(func() {
 		test123 = &userv1.User{
 			TypeMeta: metav1.TypeMeta{
-				APIVersion: "apiextensions.k8s.io/v1",
+				APIVersion: "user.kubecube.io/v1",
 				Kind:       "User",
 			},
 			ObjectMeta: metav1.ObjectMeta{
@@ -63,9 +63,9 @@ var _ = Describe("Auth", func() {
 		coordinationv1.AddToScheme(scheme)
 		opts := &fake.Options{
 			Scheme:               scheme,
-			Objs:                 []client.Object{},
+			Objs:                 []client.Object{test123},
 			ClientSetRuntimeObjs: []runtime.Object{},
-			Lists:                []client.ObjectList{&userv1.UserList{Items: []userv1.User{*test123}}},
+			Lists:                []client.ObjectList{},
 		}
 		multicluster.InitFakeMultiClusterMgrWithOpts(opts)
 		clients.InitCubeClientSetWithOpts(nil)

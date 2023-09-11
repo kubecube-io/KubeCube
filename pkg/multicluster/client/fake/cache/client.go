@@ -33,8 +33,8 @@ type FakeClient struct {
 	Cache  *informertest.FakeInformers
 }
 
-func (c *FakeClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object) error {
-	return c.Client.Get(ctx, key, obj)
+func (c *FakeClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+	return c.Client.Get(ctx, key, obj, opts...)
 }
 
 func (c *FakeClient) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {

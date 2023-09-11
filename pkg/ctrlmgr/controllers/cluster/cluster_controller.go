@@ -254,7 +254,7 @@ func SetupWithManager(mgr ctrl.Manager, opts *options.Options) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&clusterv1.Cluster{}).
-		Watches(&source.Channel{Source: r.Affected}, &handler.EnqueueRequestForObject{}).
+		WatchesRawSource(&source.Channel{Source: r.Affected}, &handler.EnqueueRequestForObject{}).
 		WithEventFilter(predicateFunc).
 		Complete(r)
 }

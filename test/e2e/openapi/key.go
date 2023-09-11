@@ -22,7 +22,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
 	"github.com/kubecube-io/kubecube/test/e2e/framework"
-	"github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo/v2"
 )
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary

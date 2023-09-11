@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -95,7 +96,7 @@ func TestReconcile(t *testing.T) {
 	req.Name = "test-project1"
 	req.NamespacedName = types.NamespacedName{Name: req.Name}
 	_, err = projectReconcile.Reconcile(ctx, req)
-	if err.Error() != "timed out waiting for the condition" {
+	if !errors.Is(err, context.DeadlineExceeded) {
 		assert.Nil(err)
 	}
 

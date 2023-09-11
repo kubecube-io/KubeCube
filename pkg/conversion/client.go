@@ -48,12 +48,12 @@ func WrapClient(cli client.Client, c SingleVersionConverter, convertBack bool) c
 		Client:                    cli,
 		WriterWithConverter:       WrapWriter(cli, c, convertBack),
 		ReaderWithConverter:       WrapReader(cli, c),
-		StatusWriterWithConverter: WrapStatusWriter(cli, c, convertBack),
+		StatusWriterWithConverter: WrapStatusWriter(cli.Status(), c, convertBack),
 	}
 }
 
-func (w *wrapperClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object) error {
-	return w.ReaderWithConverter.Get(ctx, key, obj)
+func (w *wrapperClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+	return w.ReaderWithConverter.Get(ctx, key, obj, opts...)
 }
 
 func (w *wrapperClient) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
@@ -63,7 +63,6 @@ func (w *wrapperClient) List(ctx context.Context, list client.ObjectList, opts .
 func (w *wrapperClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
 	return w.WriterWithConverter.Create(ctx, obj, opts...)
 }
-
 func (w *wrapperClient) Delete(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
 	return w.WriterWithConverter.Delete(ctx, obj, opts...)
 }
@@ -111,8 +110,8 @@ func WrapCache(cac cache.Cache, c SingleVersionConverter) cache.Cache {
 	}
 }
 
-func (w *wrapperCache) Get(ctx context.Context, key client.ObjectKey, obj client.Object) error {
-	return w.ReaderWithConverter.Get(ctx, key, obj)
+func (w *wrapperCache) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+	return w.ReaderWithConverter.Get(ctx, key, obj, opts...)
 }
 
 func (w *wrapperCache) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
@@ -242,7 +241,7 @@ func WrapReader(r client.Reader, c SingleVersionConverter) ReaderWithConverter {
 // Get retrieves an obj for the given object key from the Kubernetes Cluster.
 // obj must be a struct pointer so that obj can be updated with the response
 // returned by the Server.
-func (r *wrapperReader) Get(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+func (r *wrapperReader) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opt ...client.GetOption) error {
 	converted, rawGvk, isPassThrough, err := tryConvert(obj, r.SingleVersionConverter)
 	if err != nil {
 		return err
@@ -250,7 +249,7 @@ func (r *wrapperReader) Get(ctx context.Context, key client.ObjectKey, obj clien
 	if isPassThrough {
 		return r.Reader.Get(ctx, key, obj)
 	}
-	if err = r.Reader.Get(ctx, key, converted); err != nil {
+	if err = r.Reader.Get(ctx, key, converted, opt...); err != nil {
 		return err
 	}
 	if err = tryConvertBack(converted, obj, rawGvk, r.SingleVersionConverter); err != nil {
@@ -302,7 +301,7 @@ func WrapStatusWriter(r client.StatusWriter, c SingleVersionConverter, convertBa
 	}
 }
 
-func (w *wrapperStatusWriter) Update(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+func (w *wrapperStatusWriter) Update(ctx context.Context, obj client.Object, opts ...client.SubResourceUpdateOption) error {
 	converted, rawGvk, isPassThrough, err := tryConvert(obj, w.SingleVersionConverter)
 	if err != nil {
 		return err
@@ -321,7 +320,7 @@ func (w *wrapperStatusWriter) Update(ctx context.Context, obj client.Object, opt
 	return nil
 }
 
-func (w *wrapperStatusWriter) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+func (w *wrapperStatusWriter) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.SubResourcePatchOption) error {
 	converted, rawGvk, isPassThrough, err := tryConvert(obj, w.SingleVersionConverter)
 	if err != nil {
 		return err

@@ -38,6 +38,13 @@ type CubeResourceQuotaValidator struct {
 	decoder *admission.Decoder
 }
 
+func NewCubeResourceQuotaValidator(client client.Client, decoder *admission.Decoder) *CubeResourceQuotaValidator {
+	return &CubeResourceQuotaValidator{
+		Client:  client,
+		decoder: decoder,
+	}
+}
+
 func (r *CubeResourceQuotaValidator) Handle(ctx context.Context, req admission.Request) admission.Response {
 	oldQuota := &quotav1.CubeResourceQuota{}
 	currentQuota := &quotav1.CubeResourceQuota{}
@@ -101,10 +108,4 @@ func (r *CubeResourceQuotaValidator) Handle(ctx context.Context, req admission.R
 	//go callback(q, req.Operation == v1.Delete)
 
 	return admission.Allowed("")
-}
-
-// InjectDecoder injects the decoder.
-func (r *CubeResourceQuotaValidator) InjectDecoder(d *admission.Decoder) error {
-	r.decoder = d
-	return nil
 }

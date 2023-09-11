@@ -19,7 +19,7 @@ package filter
 import "k8s.io/apimachinery/pkg/util/sets"
 
 type Condition struct {
-	Exact     map[string]sets.String
+	Exact     map[string]sets.Set[string]
 	Fuzzy     map[string][]string
 	Limit     int
 	Offset    int

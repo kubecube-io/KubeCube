@@ -37,7 +37,7 @@ type EndpointSlice struct {
 	// supported:
 	// * IPv4: Represents an IPv4 Address.
 	// * IPv6: Represents an IPv6 Address.
-	// * FQDN: Represents a Fully Qualified Domain Name.
+	// * FQDN: Represents a Fully Qualified Domain Name. [DEPRECATED]
 	AddressType AddressType
 	// endpoints is a list of unique endpoints in this slice. Each slice may
 	// include a maximum of 1000 endpoints.
@@ -87,26 +87,23 @@ type Endpoint struct {
 	// endpoint.
 	// +optional
 	TargetRef *api.ObjectReference
-	// topology contains arbitrary topology information associated with the
-	// endpoint. These key/value pairs must conform with the label format.
-	// https://kubernetes.io/docs/concepts/overview/working-with-objects/labels
-	// Topology may include a maximum of 16 key/value pairs. This includes, but
-	// is not limited to the following well known keys:
-	// * kubernetes.io/hostname: the value indicates the hostname of the node
-	//   where the endpoint is located. This should match the corresponding
-	//   node label.
-	// * topology.kubernetes.io/zone: the value indicates the zone where the
-	//   endpoint is located. This should match the corresponding node label.
-	// * topology.kubernetes.io/region: the value indicates the region where the
-	//   endpoint is located. This should match the corresponding node label.
-	// This field is deprecated and will be removed in future api versions.
+	// deprecatedTopology is deprecated and only retained for round-trip
+	// compatibility with v1beta1 Topology field.  When v1beta1 is removed, this
+	// should be removed, too.
 	// +optional
-	Topology map[string]string
+	DeprecatedTopology map[string]string
 	// nodeName represents the name of the Node hosting this endpoint. This can
-	// be used to determine endpoints local to a Node. This field can be enabled
-	// with the EndpointSliceNodeName feature gate.
+	// be used to determine endpoints local to a Node.
 	// +optional
 	NodeName *string
+	// zone is the name of the Zone this endpoint exists in.
+	// +optional
+	Zone *string
+	// hints contains information associated with how an endpoint should be
+	// consumed.
+	// +featureGate=TopologyAwareHints
+	// +optional
+	Hints *EndpointHints
 }
 
 // EndpointConditions represents the current condition of an endpoint.
@@ -115,29 +112,42 @@ type EndpointConditions struct {
 	// according to whatever system is managing the endpoint. A nil value
 	// indicates an unknown state. In most cases consumers should interpret this
 	// unknown state as ready. For compatibility reasons, ready should never be
-	// "true" for terminating endpoints.
+	// "true" for terminating endpoints, except when the normal readiness
+	// behavior is being explicitly overridden, for example when the associated
+	// Service has set the publishNotReadyAddresses flag.
 	Ready *bool
 
 	// serving is identical to ready except that it is set regardless of the
 	// terminating state of endpoints. This condition should be set to true for
 	// a ready endpoint that is terminating. If nil, consumers should defer to
-	// the ready condition. This field can be enabled with the
-	// EndpointSliceTerminatingCondition feature gate.
+	// the ready condition.
 	// +optional
 	Serving *bool
 
 	// terminating indicates that this endpoint is terminating. A nil value
 	// indicates an unknown state. Consumers should interpret this unknown state
-	// to mean that the endpoint is not terminating. This field can be enabled
-	// with the EndpointSliceTerminatingCondition feature gate.
+	// to mean that the endpoint is not terminating.
 	// +optional
 	Terminating *bool
+}
+
+// EndpointHints provides hints describing how an endpoint should be consumed.
+type EndpointHints struct {
+	// forZones indicates the zone(s) this endpoint should be consumed by to
+	// enable topology aware routing. May contain a maximum of 8 entries.
+	ForZones []ForZone
+}
+
+// ForZone provides information about which zones should consume this endpoint.
+type ForZone struct {
+	// name represents the name of the zone.
+	Name string
 }
 
 // EndpointPort represents a Port used by an EndpointSlice.
 type EndpointPort struct {
 	// The name of this port. All ports in an EndpointSlice must have a unique
-	// name. If the EndpointSlice is dervied from a Kubernetes service, this
+	// name. If the EndpointSlice is derived from a Kubernetes service, this
 	// corresponds to the Service.ports[].name.
 	// Name must either be an empty string or pass DNS_LABEL validation:
 	// * must be no more than 63 characters long.
@@ -152,10 +162,17 @@ type EndpointPort struct {
 	// interpreted in the context of the specific consumer.
 	Port *int32
 	// The application protocol for this port.
+	// This is used as a hint for implementations to offer richer behavior for protocols that they understand.
 	// This field follows standard Kubernetes label syntax.
-	// Un-prefixed names are reserved for IANA standard service names (as per
-	// RFC-6335 and http://www.iana.org/assignments/service-names).
-	// Non-standard protocols should use prefixed names such as
+	// Valid values are either:
+	//
+	// * Un-prefixed protocol names - reserved for IANA standard service names (as per
+	// RFC-6335 and https://www.iana.org/assignments/service-names).
+	//
+	// * Kubernetes-defined prefixed names:
+	//   * 'kubernetes.io/h2c' - HTTP/2 over cleartext as described in https://www.rfc-editor.org/rfc/rfc7540
+	//
+	// * Other protocols should use implementation-defined prefixed names such as
 	// mycompany.com/my-custom-protocol.
 	// +optional
 	AppProtocol *string

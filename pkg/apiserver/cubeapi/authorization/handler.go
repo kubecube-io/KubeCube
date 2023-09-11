@@ -723,7 +723,7 @@ func (h *handler) createBinds(c *gin.Context) {
 	}
 
 	// wait for sub ns create done, remove it when delete hnc dependence.
-	err = wait.Poll(100*time.Second, 1*time.Second, func() (done bool, err error) {
+	err = wait.PollUntilContextTimeout(c, 100*time.Second, 1*time.Second, false, func(ctx context.Context) (done bool, err error) {
 		namespace := corev1.Namespace{}
 		err = cli.Direct().Get(ctx, types.NamespacedName{Name: roleBinding.Namespace}, &namespace)
 		if err != nil {

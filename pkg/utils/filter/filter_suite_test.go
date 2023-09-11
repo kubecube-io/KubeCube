@@ -19,11 +19,11 @@ package filter
 import (
 	"testing"
 
-	. "github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
 func TestHandle(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Filter Suite")
+	RegisterFailHandler(ginkgo.Fail)
+	ginkgo.RunSpecs(t, "Filter Suite")
 }
