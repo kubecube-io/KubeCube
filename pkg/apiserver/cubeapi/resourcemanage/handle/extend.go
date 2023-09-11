@@ -248,14 +248,14 @@ func IngressDomainSuffix(c *gin.Context) {
 	}
 
 	// because the cluster ingress domain suffix may repeat to project ingress domain suffix,so we use set in here to deduplication
-	tmpSet := sets.String{}
+	tmpSet := sets.Set[string]{}
 	if len(cluster.Spec.IngressDomainSuffix) != 0 {
 		tmpSet.Insert(cluster.Spec.IngressDomainSuffix)
 	}
 	for _, suffix := range project.Spec.IngressDomainSuffix {
 		tmpSet.Insert(suffix)
 	}
-	res := tmpSet.List()
+	res := sets.List(tmpSet)
 
 	response.SuccessReturn(c, res)
 }

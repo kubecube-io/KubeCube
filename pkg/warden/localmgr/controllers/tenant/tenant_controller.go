@@ -196,8 +196,8 @@ func (r *TenantReconciler) deleteNSofTenant(tenantName string) error {
 		clog.Error("delete namespace of tenant err: %s", err.Error())
 		return err
 	}
-	err := wait.Poll(waitInterval, waitTimeout,
-		func() (bool, error) {
+	err := wait.PollUntilContextTimeout(ctx, waitInterval, waitTimeout, false,
+		func(ctx context.Context) (bool, error) {
 			e := r.Client.Get(ctx, types.NamespacedName{Name: name}, namespace)
 			if errors.IsNotFound(e) {
 				return true, nil

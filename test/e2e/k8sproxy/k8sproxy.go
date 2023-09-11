@@ -17,13 +17,14 @@ limitations under the License.
 package k8sproxy
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/kubecube-io/kubecube/test/e2e/framework"
-	"github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo/v2"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -63,7 +64,7 @@ var _ = ginkgo.Describe("Test k8s proxy", func() {
 	ginkgo.Context("Test deployment", func() {
 		var ns *v1.Namespace
 		ginkgo.BeforeEach(func() {
-			ns, _ = framework.CreateNamespace(f.BaseName)
+			ns, _ = framework.CreateNamespace(context.Background(), f.BaseName)
 		})
 		ginkgo.AfterEach(func() {
 			_ = framework.DeleteNamespace(ns)

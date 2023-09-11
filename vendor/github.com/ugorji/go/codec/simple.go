@@ -5,6 +5,7 @@ package codec
 
 import (
 	"math"
+	"reflect"
 	"time"
 )
 
@@ -153,12 +154,12 @@ func (e *simpleEncDriver) encLen(bd byte, length int) {
 	}
 }
 
-func (e *simpleEncDriver) EncodeExt(v interface{}, xtag uint64, ext Ext) {
+func (e *simpleEncDriver) EncodeExt(v interface{}, basetype reflect.Type, xtag uint64, ext Ext) {
 	var bs0, bs []byte
 	if ext == SelfExt {
 		bs0 = e.e.blist.get(1024)
 		bs = bs0
-		e.e.sideEncode(v, &bs)
+		e.e.sideEncode(v, basetype, &bs)
 	} else {
 		bs = ext.WriteExt(v)
 	}
@@ -238,11 +239,16 @@ type simpleDecDriver struct {
 	_ bool
 	noBuiltInTypes
 	decDriverNoopContainerReader
+	decDriverNoopNumberHelper
 	d Decoder
 }
 
 func (d *simpleDecDriver) decoder() *Decoder {
 	return &d.d
+}
+
+func (d *simpleDecDriver) descBd() string {
+	return sprintf("%v (%s)", d.bd, simpledesc(d.bd))
 }
 
 func (d *simpleDecDriver) readNextBd() {
@@ -289,7 +295,21 @@ func (d *simpleDecDriver) TryNil() bool {
 	return d.advanceNil()
 }
 
-func (d *simpleDecDriver) decCheckInteger() (ui uint64, neg bool) {
+func (d *simpleDecDriver) decFloat() (f float64, ok bool) {
+	ok = true
+	switch d.bd {
+	case simpleVdFloat32:
+		f = float64(math.Float32frombits(bigen.Uint32(d.d.decRd.readn4())))
+	case simpleVdFloat64:
+		f = math.Float64frombits(bigen.Uint64(d.d.decRd.readn8()))
+	default:
+		ok = false
+	}
+	return
+}
+
+func (d *simpleDecDriver) decInteger() (ui uint64, neg, ok bool) {
+	ok = true
 	switch d.bd {
 	case simpleVdPosInt:
 		ui = uint64(d.d.decRd.readn1())
@@ -312,7 +332,8 @@ func (d *simpleDecDriver) decCheckInteger() (ui uint64, neg bool) {
 		ui = uint64(bigen.Uint64(d.d.decRd.readn8()))
 		neg = true
 	default:
-		d.d.errorf("integer only valid from pos/neg integer1..8. Invalid descriptor: %v", d.bd)
+		ok = false
+		// d.d.errorf("integer only valid from pos/neg integer1..8. Invalid descriptor: %v", d.bd)
 	}
 	// DO NOT do this check below, because callers may only want the unsigned value:
 	//
@@ -327,11 +348,7 @@ func (d *simpleDecDriver) DecodeInt64() (i int64) {
 	if d.advanceNil() {
 		return
 	}
-	ui, neg := d.decCheckInteger()
-	i = chkOvf.SignedIntV(ui)
-	if neg {
-		i = -i
-	}
+	i = decNegintPosintFloatNumberHelper{&d.d}.int64(d.decInteger())
 	d.bdRead = false
 	return
 }
@@ -340,10 +357,7 @@ func (d *simpleDecDriver) DecodeUint64() (ui uint64) {
 	if d.advanceNil() {
 		return
 	}
-	ui, neg := d.decCheckInteger()
-	if neg {
-		d.d.errorf("assigning negative signed value to unsigned type")
-	}
+	ui = decNegintPosintFloatNumberHelper{&d.d}.uint64(d.decInteger())
 	d.bdRead = false
 	return
 }
@@ -352,17 +366,7 @@ func (d *simpleDecDriver) DecodeFloat64() (f float64) {
 	if d.advanceNil() {
 		return
 	}
-	if d.bd == simpleVdFloat32 {
-		f = float64(math.Float32frombits(bigen.Uint32(d.d.decRd.readn4())))
-	} else if d.bd == simpleVdFloat64 {
-		f = math.Float64frombits(bigen.Uint64(d.d.decRd.readn8()))
-	} else {
-		if d.bd >= simpleVdPosInt && d.bd <= simpleVdNegInt+3 {
-			f = float64(d.DecodeInt64())
-		} else {
-			d.d.errorf("float only valid from float32/64: Invalid descriptor: %v", d.bd)
-		}
-	}
+	f = decNegintPosintFloatNumberHelper{&d.d}.float64(d.decFloat())
 	d.bdRead = false
 	return
 }
@@ -445,6 +449,9 @@ func (d *simpleDecDriver) DecodeBytes(bs []byte) (bsOut []byte) {
 		for i := 0; i < len(bs); i++ {
 			bs[i] = uint8(chkOvf.UintV(d.DecodeUint64(), 8))
 		}
+		for i := len(bs); i < slen; i++ {
+			bs = append(bs, uint8(chkOvf.UintV(d.DecodeUint64(), 8)))
+		}
 		return bs
 	}
 
@@ -475,7 +482,7 @@ func (d *simpleDecDriver) DecodeTime() (t time.Time) {
 	return
 }
 
-func (d *simpleDecDriver) DecodeExt(rv interface{}, xtag uint64, ext Ext) {
+func (d *simpleDecDriver) DecodeExt(rv interface{}, basetype reflect.Type, xtag uint64, ext Ext) {
 	if xtag > 0xff {
 		d.d.errorf("ext: tag must be <= 0xff; got: %v", xtag)
 	}
@@ -489,7 +496,7 @@ func (d *simpleDecDriver) DecodeExt(rv interface{}, xtag uint64, ext Ext) {
 		re.Tag = realxtag
 		re.setData(xbs, zerocopy)
 	} else if ext == SelfExt {
-		d.d.sideDecode(rv, xbs)
+		d.d.sideDecode(rv, basetype, xbs)
 	} else {
 		ext.ReadExt(rv, xbs)
 	}

@@ -33,6 +33,13 @@ type Validator struct {
 	decoder *admission.Decoder
 }
 
+func NewValidator(client client.Client, decoder *admission.Decoder) *Validator {
+	return &Validator{
+		Client:  client,
+		decoder: decoder,
+	}
+}
+
 func (r *Validator) Handle(ctx context.Context, req admission.Request) admission.Response {
 	oldProject := tenantv1.Project{}
 	currentProject := tenantv1.Project{}
@@ -76,10 +83,4 @@ func (r *Validator) Handle(ctx context.Context, req admission.Request) admission
 		return admission.Allowed("")
 	}
 	return admission.Allowed("")
-}
-
-// InjectDecoder injects the decoder.
-func (r *Validator) InjectDecoder(d *admission.Decoder) error {
-	r.decoder = d
-	return nil
 }

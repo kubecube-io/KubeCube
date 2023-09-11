@@ -18,12 +18,12 @@ package user
 
 import (
 	"context"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -127,8 +127,8 @@ var _ = ginkgo.Describe("Test user action", func() {
 			framework.ExpectNoError(err)
 			err = cli.Direct().Create(ctx, user1)
 			framework.ExpectNoError(err)
-			err = wait.Poll(waitInterval, waitTimeout,
-				func() (bool, error) {
+			err = wait.PollUntilContextTimeout(ctx, waitInterval, waitTimeout, false,
+				func(ctx context.Context) (bool, error) {
 					err = cli.Direct().Get(ctx, client.ObjectKey{Name: "test124"}, user1)
 					if err != nil {
 						return false, nil
@@ -143,7 +143,7 @@ var _ = ginkgo.Describe("Test user action", func() {
 			resp, err := f.HttpHelper.Client.Do(&req)
 			framework.ExpectEqual(resp.StatusCode, http.StatusOK)
 			framework.ExpectNoError(err)
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			framework.ExpectNoError(err)
 			var userList userpkg.UserList
 			err = json.Unmarshal(body, &userList)

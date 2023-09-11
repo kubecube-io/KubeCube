@@ -26,11 +26,11 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/ctrlmgr"
 	"github.com/kubecube-io/kubecube/pkg/cube"
 	"github.com/kubecube-io/kubecube/pkg/utils/international"
-
 	"github.com/urfave/cli/v2"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/klog/v2"
 	"k8s.io/sample-controller/pkg/signals"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 var (
@@ -69,6 +69,7 @@ func run(s *options.CubeOptions, stop <-chan struct{}) {
 		clog.Fatal("klog level set failed: %v", err)
 	}
 
+	log.SetLogger(klog.NewKlogr())
 	// initialize cube client set
 	clients.InitCubeClientSetWithOpts(s.ClientMgrOpts)
 

@@ -28,9 +28,9 @@ const k8sLabelPrefix = "metadata.labels"
 // fuzzy query：selector=key1~value1,key2~value2,key3~value3
 // multi query: selector=key=value1|value2|value3
 // support mixed query：selector=key1~value1,key2=value2,key3=value3
-func ParseSelector(selectorStr string) (exact map[string]sets.String, fuzzy map[string][]string) {
-	exact = make(map[string]sets.String, 0)
-	fuzzy = make(map[string][]string, 0)
+func ParseSelector(selectorStr string) (exact map[string]sets.Set[string], fuzzy map[string][]string) {
+	exact = make(map[string]sets.Set[string])
+	fuzzy = make(map[string][]string)
 
 	if selectorStr == "" {
 		return
@@ -41,7 +41,7 @@ func ParseSelector(selectorStr string) (exact map[string]sets.String, fuzzy map[
 		if i := strings.IndexAny(label, "~="); i > 0 {
 			if label[i] == '=' {
 				values := strings.Split(label[i+1:], "|")
-				set := sets.NewString()
+				set := sets.Set[string]{}
 				for _, value := range values {
 					set.Insert(value)
 				}

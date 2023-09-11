@@ -117,7 +117,7 @@ func deployResources(ctx context.Context, cli client.Client, memberCluster, pivo
 		}
 
 		// wait until job complete
-		err = waitForJobComplete(cli, types.NamespacedName{Name: prevJob.Name, Namespace: prevJob.Namespace})
+		err = waitForJobComplete(ctx, cli, types.NamespacedName{Name: prevJob.Name, Namespace: prevJob.Namespace})
 		if err != nil {
 			return err
 		}

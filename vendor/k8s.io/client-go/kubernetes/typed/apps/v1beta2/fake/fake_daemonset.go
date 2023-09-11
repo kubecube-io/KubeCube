@@ -20,13 +20,15 @@ package fake
 
 import (
 	"context"
+	json "encoding/json"
+	"fmt"
 
 	v1beta2 "k8s.io/api/apps/v1beta2"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
+	appsv1beta2 "k8s.io/client-go/applyconfigurations/apps/v1beta2"
 	testing "k8s.io/client-go/testing"
 )
 
@@ -36,9 +38,9 @@ type FakeDaemonSets struct {
 	ns   string
 }
 
-var daemonsetsResource = schema.GroupVersionResource{Group: "apps", Version: "v1beta2", Resource: "daemonsets"}
+var daemonsetsResource = v1beta2.SchemeGroupVersion.WithResource("daemonsets")
 
-var daemonsetsKind = schema.GroupVersionKind{Group: "apps", Version: "v1beta2", Kind: "DaemonSet"}
+var daemonsetsKind = v1beta2.SchemeGroupVersion.WithKind("DaemonSet")
 
 // Get takes name of the daemonSet, and returns the corresponding daemonSet object, and an error if there is any.
 func (c *FakeDaemonSets) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1beta2.DaemonSet, err error) {
@@ -117,7 +119,7 @@ func (c *FakeDaemonSets) UpdateStatus(ctx context.Context, daemonSet *v1beta2.Da
 // Delete takes name of the daemonSet and deletes it. Returns an error if one occurs.
 func (c *FakeDaemonSets) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(daemonsetsResource, c.ns, name), &v1beta2.DaemonSet{})
+		Invokes(testing.NewDeleteActionWithOptions(daemonsetsResource, c.ns, name, opts), &v1beta2.DaemonSet{})
 
 	return err
 }
@@ -134,6 +136,51 @@ func (c *FakeDaemonSets) DeleteCollection(ctx context.Context, opts v1.DeleteOpt
 func (c *FakeDaemonSets) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta2.DaemonSet, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(daemonsetsResource, c.ns, name, pt, data, subresources...), &v1beta2.DaemonSet{})
+
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*v1beta2.DaemonSet), err
+}
+
+// Apply takes the given apply declarative configuration, applies it and returns the applied daemonSet.
+func (c *FakeDaemonSets) Apply(ctx context.Context, daemonSet *appsv1beta2.DaemonSetApplyConfiguration, opts v1.ApplyOptions) (result *v1beta2.DaemonSet, err error) {
+	if daemonSet == nil {
+		return nil, fmt.Errorf("daemonSet provided to Apply must not be nil")
+	}
+	data, err := json.Marshal(daemonSet)
+	if err != nil {
+		return nil, err
+	}
+	name := daemonSet.Name
+	if name == nil {
+		return nil, fmt.Errorf("daemonSet.Name must be provided to Apply")
+	}
+	obj, err := c.Fake.
+		Invokes(testing.NewPatchSubresourceAction(daemonsetsResource, c.ns, *name, types.ApplyPatchType, data), &v1beta2.DaemonSet{})
+
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*v1beta2.DaemonSet), err
+}
+
+// ApplyStatus was generated because the type contains a Status member.
+// Add a +genclient:noStatus comment above the type to avoid generating ApplyStatus().
+func (c *FakeDaemonSets) ApplyStatus(ctx context.Context, daemonSet *appsv1beta2.DaemonSetApplyConfiguration, opts v1.ApplyOptions) (result *v1beta2.DaemonSet, err error) {
+	if daemonSet == nil {
+		return nil, fmt.Errorf("daemonSet provided to Apply must not be nil")
+	}
+	data, err := json.Marshal(daemonSet)
+	if err != nil {
+		return nil, err
+	}
+	name := daemonSet.Name
+	if name == nil {
+		return nil, fmt.Errorf("daemonSet.Name must be provided to Apply")
+	}
+	obj, err := c.Fake.
+		Invokes(testing.NewPatchSubresourceAction(daemonsetsResource, c.ns, *name, types.ApplyPatchType, data, "status"), &v1beta2.DaemonSet{})
 
 	if obj == nil {
 		return nil, err

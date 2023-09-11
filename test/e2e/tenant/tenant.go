@@ -20,11 +20,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/rand"
 	"strconv"
 
-	"github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo/v2"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -66,7 +66,7 @@ var _ = ginkgo.Describe("Test Tenant and Project", func() {
 			resp, err := f.HttpHelper.Client.Do(&req)
 			framework.ExpectNoError(err)
 			defer resp.Body.Close()
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			framework.ExpectNoError(err)
 			var statusErr metav1.Status
 			err = json.Unmarshal(body, &statusErr)
@@ -84,10 +84,10 @@ var _ = ginkgo.Describe("Test Tenant and Project", func() {
 		})
 
 		ginkgo.It("has namespace in tenant.spec and project.spec", func() {
-			err := wait.Poll(f.Timeouts.WaitInterval, f.Timeouts.WaitTimeout,
-				func() (bool, error) {
+			err := wait.PollUntilContextTimeout(context.Background(), f.Timeouts.WaitInterval, f.Timeouts.WaitTimeout, false,
+				func(ctx context.Context) (bool, error) {
 					var tenant tenantv1.Tenant
-					err := cli.Direct().Get(context.TODO(), types.NamespacedName{Name: tenantName}, &tenant)
+					err := cli.Direct().Get(ctx, types.NamespacedName{Name: tenantName}, &tenant)
 					if err != nil {
 						return false, nil
 					} else {
@@ -97,10 +97,10 @@ var _ = ginkgo.Describe("Test Tenant and Project", func() {
 				})
 			framework.ExpectNoError(err)
 
-			err = wait.Poll(f.Timeouts.WaitInterval, f.Timeouts.WaitTimeout,
-				func() (bool, error) {
+			err = wait.PollUntilContextTimeout(context.Background(), f.Timeouts.WaitInterval, f.Timeouts.WaitTimeout, false,
+				func(ctx context.Context) (bool, error) {
 					var project tenantv1.Project
-					err := cli.Direct().Get(context.TODO(), types.NamespacedName{Name: projectName}, &project)
+					err := cli.Direct().Get(ctx, types.NamespacedName{Name: projectName}, &project)
 					if err != nil {
 						return false, nil
 					} else {
@@ -117,7 +117,7 @@ var _ = ginkgo.Describe("Test Tenant and Project", func() {
 			resp, err := f.HttpHelper.Client.Do(&req)
 			framework.ExpectNoError(err)
 			defer resp.Body.Close()
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			framework.ExpectNoError(err)
 			var statusErr metav1.Status
 			err = json.Unmarshal(body, &statusErr)
@@ -131,16 +131,16 @@ var _ = ginkgo.Describe("Test Tenant and Project", func() {
 			req := f.HttpHelper.Delete(f.HttpHelper.FormatUrl(url))
 			r, err := f.HttpHelper.Client.Do(&req)
 			framework.ExpectNoError(err)
-			b, err := ioutil.ReadAll(r.Body)
+			b, err := io.ReadAll(r.Body)
 			framework.ExpectNoError(err)
 			var subns hnc.SubnamespaceAnchor
 			err = json.Unmarshal(b, &subns)
 			framework.ExpectNoError(err)
 			framework.ExpectEqual(constants.ProjectNsPrefix+projectName, subns.Name)
 			// wait namespace deleted
-			err = wait.Poll(f.Timeouts.WaitInterval, f.Timeouts.WaitTimeout, func() (bool, error) {
+			err = wait.PollUntilContextTimeout(context.Background(), f.Timeouts.WaitInterval, f.Timeouts.WaitTimeout, false, func(ctx context.Context) (bool, error) {
 				var ns v1.Namespace
-				err := cli.Direct().Get(context.TODO(), types.NamespacedName{Name: constants.ProjectNsPrefix + projectName}, &ns)
+				err := cli.Direct().Get(ctx, types.NamespacedName{Name: constants.ProjectNsPrefix + projectName}, &ns)
 				if err != nil && apierrors.IsNotFound(err) {
 					return true, nil
 				}
@@ -152,7 +152,7 @@ var _ = ginkgo.Describe("Test Tenant and Project", func() {
 			resp, err := f.HttpHelper.Client.Do(&req)
 			framework.ExpectNoError(err)
 			defer resp.Body.Close()
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			framework.ExpectNoError(err)
 			var status metav1.Status
 			err = json.Unmarshal(body, &status)
@@ -166,7 +166,7 @@ var _ = ginkgo.Describe("Test Tenant and Project", func() {
 			resp, err := f.HttpHelper.Client.Do(&req)
 			framework.ExpectNoError(err)
 			defer resp.Body.Close()
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			framework.ExpectNoError(err)
 			var statusErr metav1.Status
 			err = json.Unmarshal(body, &statusErr)
@@ -185,7 +185,7 @@ var _ = ginkgo.Describe("Test Tenant and Project", func() {
 			resp, err := f.HttpHelper.Client.Do(&req)
 			framework.ExpectNoError(err)
 			defer resp.Body.Close()
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			framework.ExpectNoError(err)
 			var status metav1.Status
 			err = json.Unmarshal(body, &status)

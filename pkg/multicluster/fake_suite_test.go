@@ -19,18 +19,15 @@ package multicluster_test
 import (
 	"testing"
 
-	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
-
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
 func TestFakerMultiClusterMgr(t *testing.T) {
 	RegisterFailHandler(Fail)
 	suiteName := "Fake multi cluster manager"
-	RunSpecsWithDefaultAndCustomReporters(t, suiteName, []Reporter{printer.NewlineReporter{}, printer.NewProwReporter(suiteName)})
+	RunSpecs(t, suiteName)
 }
 
-var _ = BeforeSuite(func(done Done) {
-	close(done)
-}, 60)
+var _ = BeforeSuite(func(done SpecContext) {
+})

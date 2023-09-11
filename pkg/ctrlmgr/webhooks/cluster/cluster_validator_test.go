@@ -50,22 +50,22 @@ func TestValidateCreate(t *testing.T) {
 
 	// check false ingress domain suffix
 	clusterValidate.Spec.IngressDomainSuffix = "test.com."
-	err := clusterValidate.ValidateCreate()
+	_, err := clusterValidate.ValidateCreate()
 	assert.NotNil(err)
 
 	// check false ingress domain suffix
 	clusterValidate.Spec.IngressDomainSuffix = "*^.com"
-	err = clusterValidate.ValidateCreate()
+	_, err = clusterValidate.ValidateCreate()
 	assert.NotNil(err)
 
 	//check true ingress domain suffix
 	clusterValidate.Spec.IngressDomainSuffix = ".com"
-	err = clusterValidate.ValidateCreate()
+	_, err = clusterValidate.ValidateCreate()
 	assert.NotNil(err)
 
 	//check true ingress domain suffix
 	clusterValidate.Spec.IngressDomainSuffix = "test.com"
-	err = clusterValidate.ValidateCreate()
+	_, err = clusterValidate.ValidateCreate()
 	assert.Nil(err)
 }
 
@@ -84,21 +84,21 @@ func TestValidateUpdate(t *testing.T) {
 
 	// check false ingress domain suffix
 	clusterValidate.Spec.IngressDomainSuffix = "test.com."
-	err := clusterValidate.ValidateUpdate(nil)
+	_, err := clusterValidate.ValidateUpdate(nil)
 	assert.NotNil(err)
 
 	// check false ingress domain suffix
 	clusterValidate.Spec.IngressDomainSuffix = "*^.com"
-	err = clusterValidate.ValidateUpdate(nil)
+	_, err = clusterValidate.ValidateUpdate(nil)
 	assert.NotNil(err)
 
 	//check true ingress domain suffix
 	clusterValidate.Spec.IngressDomainSuffix = ".com"
-	err = clusterValidate.ValidateUpdate(nil)
+	_, err = clusterValidate.ValidateUpdate(nil)
 	assert.NotNil(err)
 
 	//check true ingress domain suffix
 	clusterValidate.Spec.IngressDomainSuffix = "test.com"
-	err = clusterValidate.ValidateUpdate(nil)
+	_, err = clusterValidate.ValidateUpdate(nil)
 	assert.Nil(err)
 }

@@ -22,6 +22,7 @@ import (
 	hotplugv1 "github.com/kubecube-io/kubecube/pkg/apis/hotplug/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 type HotplugValidator struct {
@@ -42,31 +43,31 @@ func (t *HotplugValidator) DeepCopyObject() runtime.Object {
 	return &HotplugValidator{}
 }
 
-func (t *HotplugValidator) ValidateCreate() error {
+func (t *HotplugValidator) ValidateCreate() (warnings admission.Warnings, err error) {
 
 	if t.Annotations != nil {
 		if v, ok := t.Annotations["kubecube.io/sync"]; ok {
 			if v == "true" {
-				return nil
+				return nil, nil
 			}
 		}
 	}
 	// member cluster do not allow change the config
 	if t.isMemberCluster {
-		return fmt.Errorf("there is not allow change hotplug config in the member cluster, please do it in the pivot cluster")
+		return nil, fmt.Errorf("there is not allow change hotplug config in the member cluster, please do it in the pivot cluster")
 	}
-	return nil
+	return nil, nil
 }
 
-func (t *HotplugValidator) ValidateUpdate(old runtime.Object) error {
+func (t *HotplugValidator) ValidateUpdate(old runtime.Object) (warnings admission.Warnings, err error) {
 
 	return t.ValidateCreate()
 }
 
-func (t *HotplugValidator) ValidateDelete() error {
+func (t *HotplugValidator) ValidateDelete() (warnings admission.Warnings, err error) {
 	// member cluster do not allow change the config
 	if t.isMemberCluster {
-		return fmt.Errorf("there is not allow change hotplug config in the member cluster, please do it in the pivot cluster")
+		return nil, fmt.Errorf("there is not allow change hotplug config in the member cluster, please do it in the pivot cluster")
 	}
-	return nil
+	return nil, nil
 }

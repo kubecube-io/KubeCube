@@ -14,6 +14,9 @@ import (
 
 var unsafeZeroArr [1024]byte
 
+// runtime.growslice does not work with gccgo, failing with "growslice: cap out of range" error.
+// consequently, we just call newarray followed by typedslicecopy directly.
+
 func unsafeGrowslice(typ unsafe.Pointer, old unsafeSlice, cap, incr int) (v unsafeSlice) {
 	size := rtsize2(typ)
 	if size == 0 {
@@ -21,7 +24,10 @@ func unsafeGrowslice(typ unsafe.Pointer, old unsafeSlice, cap, incr int) (v unsa
 	}
 	newcap := int(growCap(uint(cap), uint(size), uint(incr)))
 	v = unsafeSlice{Data: newarray(typ, newcap), Len: old.Len, Cap: newcap}
-	memmove(v.Data, old.Data, size*uintptr(old.Len))
+	if old.Len > 0 {
+		typedslicecopy(typ, v, old)
+	}
+	// memmove(v.Data, old.Data, size*uintptr(old.Len))
 	return
 }
 
@@ -34,7 +40,9 @@ func unsafeGrowslice(typ unsafe.Pointer, old unsafeSlice, cap, incr int) (v unsa
 // failing with "error: undefined reference" error.
 // so we just use runtime.{mapassign, mapaccess2} directly
 
-func mapSet(m, k, v reflect.Value, _ mapKeyFastKind, valIsIndirect, valIsRef bool) {
+func mapStoresElemIndirect(elemsize uintptr) bool { return false }
+
+func mapSet(m, k, v reflect.Value, _ mapKeyFastKind, _, valIsRef bool) {
 	var urv = (*unsafeReflectValue)(unsafe.Pointer(&k))
 	var kptr = unsafeMapKVPtr(urv)
 	urv = (*unsafeReflectValue)(unsafe.Pointer(&v))
@@ -48,7 +56,7 @@ func mapSet(m, k, v reflect.Value, _ mapKeyFastKind, valIsIndirect, valIsRef boo
 	typedmemmove(vtyp, vvptr, vptr)
 }
 
-func mapGet(m, k, v reflect.Value, _ mapKeyFastKind, valIsIndirect, valIsRef bool) (_ reflect.Value) {
+func mapGet(m, k, v reflect.Value, _ mapKeyFastKind, _, valIsRef bool) (_ reflect.Value) {
 	var urv = (*unsafeReflectValue)(unsafe.Pointer(&k))
 	var kptr = unsafeMapKVPtr(urv)
 	urv = (*unsafeReflectValue)(unsafe.Pointer(&m))
@@ -70,11 +78,3 @@ func mapGet(m, k, v reflect.Value, _ mapKeyFastKind, valIsIndirect, valIsRef boo
 
 	return v
 }
-
-//go:linkname mapassign runtime.mapassign
-//go:noescape
-func mapassign(typ unsafe.Pointer, m unsafe.Pointer, key unsafe.Pointer) unsafe.Pointer
-
-//go:linkname mapaccess2 runtime.mapaccess2
-//go:noescape
-func mapaccess2(typ unsafe.Pointer, m unsafe.Pointer, key unsafe.Pointer) (val unsafe.Pointer, ok bool)

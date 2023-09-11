@@ -18,12 +18,13 @@ package getter
 
 import (
 	"bytes"
+	"net/http"
 	"time"
 
 	"github.com/pkg/errors"
 
-	"helm.sh/helm/v3/internal/experimental/registry"
 	"helm.sh/helm/v3/pkg/cli"
+	"helm.sh/helm/v3/pkg/registry"
 )
 
 // options are generic parameters to be provided to the getter during instantiation.
@@ -38,10 +39,12 @@ type options struct {
 	insecureSkipVerifyTLS bool
 	username              string
 	password              string
+	passCredentialsAll    bool
 	userAgent             string
 	version               string
 	registryClient        *registry.Client
 	timeout               time.Duration
+	transport             *http.Transport
 }
 
 // Option allows specifying various settings configurable by the user for overriding the defaults
@@ -61,6 +64,12 @@ func WithBasicAuth(username, password string) Option {
 	return func(opts *options) {
 		opts.username = username
 		opts.password = password
+	}
+}
+
+func WithPassCredentialsAll(pass bool) Option {
+	return func(opts *options) {
+		opts.passCredentialsAll = pass
 	}
 }
 
@@ -109,6 +118,13 @@ func WithRegistryClient(client *registry.Client) Option {
 func WithUntar() Option {
 	return func(opts *options) {
 		opts.unTar = true
+	}
+}
+
+// WithTransport sets the http.Transport to allow overwriting the HTTPGetter default.
+func WithTransport(transport *http.Transport) Option {
+	return func(opts *options) {
+		opts.transport = transport
 	}
 }
 
@@ -162,7 +178,7 @@ var httpProvider = Provider{
 }
 
 var ociProvider = Provider{
-	Schemes: []string{"oci"},
+	Schemes: []string{registry.OCIScheme},
 	New:     NewOCIGetter,
 }
 

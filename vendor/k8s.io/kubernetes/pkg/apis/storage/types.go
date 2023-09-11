@@ -158,7 +158,7 @@ type VolumeAttachmentSource struct {
 	// a persistent volume defined by a pod's inline VolumeSource. This field
 	// is populated only for the CSIMigration feature. It contains
 	// translated fields from a pod's inline VolumeSource to a
-	// PersistentVolumeSpec. This field is alpha-level and is only
+	// PersistentVolumeSpec. This field is beta-level and is only
 	// honored by servers that enabled the CSIMigration feature.
 	// +optional
 	InlineVolumeSpec *api.PersistentVolumeSpec
@@ -274,14 +274,22 @@ type CSIDriverSpec struct {
 	// If the CSIDriverRegistry feature gate is enabled and the value is
 	// specified to false, the attach operation will be skipped.
 	// Otherwise the attach operation will be called.
+	//
+	// This field is immutable.
+	//
 	// +optional
 	AttachRequired *bool
 
 	// Defines if the underlying volume supports changing ownership and
 	// permission of the volume before being mounted.
 	// Refer to the specific FSGroupPolicy values for additional details.
-	// This field is alpha-level, and is only honored by servers
-	// that enable the CSIVolumeFSGroupPolicy feature gate.
+	//
+	// This field is immutable.
+	//
+	// Defaults to ReadWriteOnceWithFSType, which will examine each volume
+	// to determine if Kubernetes should modify ownership and permissions of the volume.
+	// With the default policy the defined fsGroup will only be applied
+	// if a fstype is defined and the volume's access mode contains ReadWriteOnce.
 	// +optional
 	FSGroupPolicy *FSGroupPolicy
 
@@ -300,6 +308,18 @@ type CSIDriverSpec struct {
 	// "csi.storage.k8s.io/pod.name": pod.Name
 	// "csi.storage.k8s.io/pod.namespace": pod.Namespace
 	// "csi.storage.k8s.io/pod.uid": string(pod.UID)
+	// "csi.storage.k8s.io/ephemeral": "true" if the volume is an ephemeral inline volume
+	//                                 defined by a CSIVolumeSource, otherwise "false"
+	//
+	// "csi.storage.k8s.io/ephemeral" is a new feature in Kubernetes 1.16. It is only
+	// required for drivers which support both the "Persistent" and "Ephemeral" VolumeLifecycleMode.
+	// Other drivers can leave pod info disabled and/or ignore this field.
+	// As Kubernetes 1.15 doesn't support this field, drivers can only support one mode when
+	// deployed on such a cluster and the deployment determines which mode that is, for example
+	// via a command line parameter of the driver.
+	//
+	// This field is immutable.
+	//
 	// +optional
 	PodInfoOnMount *bool
 
@@ -315,6 +335,9 @@ type CSIDriverSpec struct {
 	// https://kubernetes-csi.github.io/docs/ephemeral-local-volumes.html
 	// A driver can support one or more of these mode and
 	// more modes may be added in the future.
+	//
+	// This field is immutable.
+	//
 	// +optional
 	VolumeLifecycleModes []VolumeLifecycleMode
 
@@ -332,8 +355,7 @@ type CSIDriverSpec struct {
 	// unset or false and it can be flipped later when storage
 	// capacity information has been published.
 	//
-	// This is an alpha field and only available when the CSIStorageCapacity
-	// feature is enabled. The default is false.
+	// This field was immutable in Kubernetes <= 1.22 and now is mutable.
 	//
 	// +optional
 	StorageCapacity *bool
@@ -354,9 +376,6 @@ type CSIDriverSpec struct {
 	// most one token is empty string. To receive a new token after expiry,
 	// RequiresRepublish can be used to trigger NodePublishVolume periodically.
 	//
-	// This is an alpha feature and only available when the
-	// CSIServiceAccountToken feature is enabled.
-	//
 	// +optional
 	// +listType=atomic
 	TokenRequests []TokenRequest
@@ -369,11 +388,30 @@ type CSIDriverSpec struct {
 	// to NodePublishVolume should only update the contents of the volume. New
 	// mount points will not be seen by a running container.
 	//
-	// This is an alpha feature and only available when the
-	// CSIServiceAccountToken feature is enabled.
-	//
 	// +optional
 	RequiresRepublish *bool
+
+	// SELinuxMount specifies if the CSI driver supports "-o context"
+	// mount option.
+	//
+	// When "true", the CSI driver must ensure that all volumes provided by this CSI
+	// driver can be mounted separately with different `-o context` options. This is
+	// typical for storage backends that provide volumes as filesystems on block
+	// devices or as independent shared volumes.
+	// Kubernetes will call NodeStage / NodePublish with "-o context=xyz" mount
+	// option when mounting a ReadWriteOncePod volume used in Pod that has
+	// explicitly set SELinux context. In the future, it may be expanded to other
+	// volume AccessModes. In any case, Kubernetes will ensure that the volume is
+	// mounted only with a single SELinux context.
+	//
+	// When "false", Kubernetes won't pass any special SELinux mount options to the driver.
+	// This is typical for volumes that represent subdirectories of a bigger shared filesystem.
+	//
+	// Default is "false".
+	//
+	// +featureGate=SELinuxMountReadWriteOncePod
+	// +optional
+	SELinuxMount *bool
 }
 
 // FSGroupPolicy specifies if a CSI Driver supports modifying
@@ -392,10 +430,11 @@ const (
 	ReadWriteOnceWithFSTypeFSGroupPolicy FSGroupPolicy = "ReadWriteOnceWithFSType"
 
 	// FileFSGroupPolicy indicates that CSI driver supports volume ownership
-	// and permission change via fsGroup, and Kubernetes may use fsGroup
-	// to change permissions and ownership of the volume to match user requested fsGroup in
+	// and permission change via fsGroup, and Kubernetes will change the permissions
+	// and ownership of every file in the volume to match the user requested fsGroup in
 	// the pod's SecurityPolicy regardless of fstype or access mode.
-	// This mode should be defined if the fsGroup is expected to always change on mount
+	// Use this mode if Kubernetes should modify the permissions and ownership
+	// of the volume.
 	FileFSGroupPolicy FSGroupPolicy = "File"
 
 	// NoneFSGroupPolicy indicates that volumes will be mounted without performing
@@ -555,7 +594,13 @@ type CSINodeList struct {
 //
 // The producer of these objects can decide which approach is more suitable.
 //
-// This is an alpha feature and only available when the CSIStorageCapacity feature is enabled.
+// They are consumed by the kube-scheduler when a CSI driver opts into
+// capacity-aware scheduling with CSIDriverSpec.StorageCapacity. The scheduler
+// compares the MaximumVolumeSize against the requested size of pending volumes
+// to filter out unsuitable nodes. If MaximumVolumeSize is unset, it falls back
+// to a comparison against the less precise Capacity. If that is also unset,
+// the scheduler assumes that capacity is insufficient and tries some other
+// node.
 type CSIStorageCapacity struct {
 	metav1.TypeMeta
 	// Standard object's metadata. The name has no particular meaning. It must be
@@ -573,7 +618,7 @@ type CSIStorageCapacity struct {
 	// NodeTopology defines which nodes have access to the storage
 	// for which capacity was reported. If not set, the storage is
 	// not accessible from any node in the cluster. If empty, the
-	// storage is accessible from all nodes.  This field is
+	// storage is accessible from all nodes. This field is
 	// immutable.
 	//
 	// +optional
@@ -594,10 +639,24 @@ type CSIStorageCapacity struct {
 	// The semantic is currently (CSI spec 1.2) defined as:
 	// The available capacity, in bytes, of the storage that can be used
 	// to provision volumes. If not set, that information is currently
-	// unavailable and treated like zero capacity.
+	// unavailable.
 	//
 	// +optional
 	Capacity *resource.Quantity
+
+	// MaximumVolumeSize is the value reported by the CSI driver in its GetCapacityResponse
+	// for a GetCapacityRequest with topology and parameters that match the
+	// previous fields.
+	//
+	// This is defined since CSI spec 1.4.0 as the largest size
+	// that may be used in a
+	// CreateVolumeRequest.capacity_range.required_bytes field to
+	// create a volume with the same parameters as those in
+	// GetCapacityRequest. The corresponding value in the Kubernetes
+	// API is ResourceRequirements.Requests in a volume claim.
+	//
+	// +optional
+	MaximumVolumeSize *resource.Quantity
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

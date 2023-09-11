@@ -19,12 +19,12 @@ package filter
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
 
-	. "github.com/onsi/ginkgo"
+	"github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -32,14 +32,14 @@ import (
 	v1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
 )
 
-var _ = Describe("Filter", func() {
+var _ = ginkgo.Describe("Filter", func() {
 	var (
 		list = v1.ClusterList{
 			Items: make([]v1.Cluster, 0),
 		}
 	)
 
-	BeforeEach(func() {
+	ginkgo.BeforeEach(func() {
 		list.Kind = "List"
 		list.APIVersion = "v1"
 		for i := 0; i < 20; i++ {
@@ -65,17 +65,17 @@ var _ = Describe("Filter", func() {
 		}
 	})
 
-	AfterEach(func() {
+	ginkgo.AfterEach(func() {
 		list = v1.ClusterList{
 			Items: make([]v1.Cluster, 0),
 		}
 	})
 
-	It("TestModifyResponses", func() {
+	ginkgo.It("TestModifyResponses", func() {
 		listJson, _ := json.Marshal(list)
 		r := http.Response{}
 		buf := bytes.NewBufferString(string(listJson))
-		r.Body = ioutil.NopCloser(buf)
+		r.Body = io.NopCloser(buf)
 		r.Header = make(map[string][]string)
 		r.Header["Content-Length"] = []string{fmt.Sprint(buf.Len())}
 
@@ -94,7 +94,7 @@ var _ = Describe("Filter", func() {
 		err := GetEmptyFilter().ModifyResponse(&r, condition)
 		Expect(err).To(BeNil())
 
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		Expect(err).To(BeNil())
 		var result map[string]interface{}
 		err = json.Unmarshal(body, &result)
@@ -108,7 +108,7 @@ var _ = Describe("Filter", func() {
 		}
 	})
 
-	It("TestFilterResult", func() {
+	ginkgo.It("TestFilterResult", func() {
 		// create condition
 		fuzzy := make(map[string][]string)
 		fuzzy["metadata.name"] = []string{"a-name"}
@@ -130,10 +130,10 @@ var _ = Describe("Filter", func() {
 		}
 	})
 
-	It("TestExactMatch", func() {
+	ginkgo.It("TestExactMatch", func() {
 		// create condition
-		exact := make(map[string]sets.String)
-		exact["metadata.name"] = sets.NewString("a-name2")
+		exact := make(map[string]sets.Set[string])
+		exact["metadata.name"] = sets.New[string]("a-name2")
 		condition := &Condition{
 			Exact: exact,
 		}
@@ -143,10 +143,10 @@ var _ = Describe("Filter", func() {
 		Expect("a-name2").To(Equal(list.Items[0].Name))
 	})
 
-	It("TestArrayExactMatch", func() {
+	ginkgo.It("TestArrayExactMatch", func() {
 		// create condition
-		exact := make(map[string]sets.String)
-		exact["metadata.annotations.kubecube.test.io/app"] = sets.NewString("a-name2", "b-name2")
+		exact := make(map[string]sets.Set[string])
+		exact["metadata.annotations.kubecube.test.io/app"] = sets.New[string]("a-name2", "b-name2")
 		condition := &Condition{
 			Exact: exact,
 		}
@@ -156,10 +156,10 @@ var _ = Describe("Filter", func() {
 		Expect("a-name2").To(Equal(list.Items[0].Name))
 	})
 
-	It("TestExactArrayMatch", func() {
+	ginkgo.It("TestExactArrayMatch", func() {
 		// create condition
-		exact := make(map[string]sets.String)
-		exact["metadata.annotations.kubecube.test.io/app"] = sets.NewString("a-name1", "a-name2")
+		exact := make(map[string]sets.Set[string])
+		exact["metadata.annotations.kubecube.test.io/app"] = sets.New[string]("a-name1", "a-name2")
 		condition := &Condition{
 			Exact: exact,
 		}
@@ -170,7 +170,7 @@ var _ = Describe("Filter", func() {
 		Expect("a-name2").To(Equal(list.Items[1].Name))
 	})
 
-	It("TestFuzzyMatch", func() {
+	ginkgo.It("TestFuzzyMatch", func() {
 		// create condition
 		fuzzy := make(map[string][]string)
 		fuzzy["metadata.name"] = []string{"b-name"}
@@ -184,7 +184,7 @@ var _ = Describe("Filter", func() {
 		}
 	})
 
-	It("TestArrayFuzzyMatch", func() {
+	ginkgo.It("TestArrayFuzzyMatch", func() {
 		// create condition
 		fuzzy := make(map[string][]string)
 		fuzzy["metadata.annotations.kubecube.test.io/app"] = []string{"-name2"}
@@ -197,7 +197,7 @@ var _ = Describe("Filter", func() {
 		Expect("a-name2").To(Equal(list.Items[0].Name))
 	})
 
-	It("TestFuzzyArrayMatch", func() {
+	ginkgo.It("TestFuzzyArrayMatch", func() {
 		// create condition
 		fuzzy := make(map[string][]string)
 		fuzzy["metadata.name"] = []string{"-name11", "-name12"}
@@ -212,10 +212,10 @@ var _ = Describe("Filter", func() {
 		Expect("b-name12").To(Equal(list.Items[1].Name))
 	})
 
-	It("TestSort", func() {
+	ginkgo.It("TestSort", func() {
 		// create condition
-		exact := make(map[string]sets.String)
-		exact["metadata.name"] = sets.NewString("a-name2")
+		exact := make(map[string]sets.Set[string])
+		exact["metadata.name"] = sets.New[string]("a-name2")
 		fuzzy := make(map[string][]string)
 		fuzzy["metadata.name"] = []string{"b-name"}
 		condition := &Condition{
@@ -238,7 +238,7 @@ var _ = Describe("Filter", func() {
 		}
 	})
 
-	It("TestPage", func() {
+	ginkgo.It("TestPage", func() {
 		// create condition
 		condition := &Condition{
 			Limit:     2,
@@ -254,7 +254,7 @@ var _ = Describe("Filter", func() {
 		Expect("a-name3").To(Equal(list.Items[1].Name))
 	})
 
-	It("TestGetDeepValue", func() {
+	ginkgo.It("TestGetDeepValue", func() {
 		listJson, _ := json.Marshal(list)
 		var result map[string]interface{}
 		err := json.Unmarshal(listJson, &result)

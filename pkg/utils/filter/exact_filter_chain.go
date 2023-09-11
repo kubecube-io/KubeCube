@@ -23,7 +23,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/clog"
 )
 
-func ExactFilter(items []unstructured.Unstructured, exact map[string]sets.String) ([]unstructured.Unstructured, error) {
+func ExactFilter(items []unstructured.Unstructured, exact map[string]sets.Set[string]) ([]unstructured.Unstructured, error) {
 	if len(items) < 1 {
 		return items, nil
 	}

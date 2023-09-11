@@ -99,8 +99,9 @@ func setupControllersWithManager(m *LocalManager, controllers string) error {
 // setupWithWebhooks set up webhooks into manager
 func setupWithWebhooks(m *LocalManager) {
 	hookServer := m.GetWebhookServer()
-	hookServer.Register("/warden-validate-tenant-kubecube-io-v1-tenant", &webhook.Admission{Handler: &tenant2.Validator{Client: m.GetClient(), IsMember: m.IsMemberCluster}})
-	hookServer.Register("/warden-validate-tenant-kubecube-io-v1-project", &webhook.Admission{Handler: &project2.Validator{Client: m.GetClient(), IsMember: m.IsMemberCluster}})
-	hookServer.Register("/validate-core-kubernetes-v1-resource-quota", &webhook.Admission{Handler: &quota2.ResourceQuotaValidator{PivotClient: m.PivotClient.Direct(), LocalClient: m.GetClient()}})
-	hookServer.Register("/warden-validate-hotplug-kubecube-io-v1-hotplug", admisson.ValidatingWebhookFor(hotplug2.NewHotplugValidator(m.IsMemberCluster)))
+	decoder := admisson.NewDecoder(m.GetScheme())
+	hookServer.Register("/warden-validate-tenant-kubecube-io-v1-tenant", &webhook.Admission{Handler: tenant2.NewValidator(m.GetClient(), m.IsMemberCluster, decoder)})
+	hookServer.Register("/warden-validate-tenant-kubecube-io-v1-project", &webhook.Admission{Handler: project2.NewValidator(m.GetClient(), m.IsMemberCluster, decoder)})
+	hookServer.Register("/validate-core-kubernetes-v1-resource-quota", &webhook.Admission{Handler: quota2.NewValidator(m.PivotClient.Direct(), m.GetClient(), decoder)})
+	hookServer.Register("/warden-validate-hotplug-kubecube-io-v1-hotplug", admisson.ValidatingWebhookFor(m.GetScheme(), hotplug2.NewHotplugValidator(m.IsMemberCluster)))
 }

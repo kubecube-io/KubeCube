@@ -39,7 +39,7 @@ func UpdateClusterStatus(ctx context.Context, cli client.Client, cluster *cluste
 
 		newCluster.Status = cluster.Status
 
-		err = cli.Status().Update(ctx, newCluster, &client.UpdateOptions{})
+		err = cli.Status().Update(ctx, newCluster, &client.SubResourceUpdateOptions{})
 		if err != nil {
 			return err
 		}

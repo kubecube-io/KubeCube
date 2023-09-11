@@ -192,7 +192,7 @@ func UpdateUserSpecImpl(c *gin.Context, newUser *userv1.User) *errcode.ErrorInfo
 
 func UpdateUserStatusImpl(c *gin.Context, newUser *userv1.User) *errcode.ErrorInfo {
 	kClient := clients.Interface().Kubernetes(constants.LocalCluster).Direct()
-	err := kClient.Status().Update(c.Request.Context(), newUser, &client.UpdateOptions{})
+	err := kClient.Status().Update(c.Request.Context(), newUser, &client.SubResourceUpdateOptions{})
 	if err != nil {
 		clog.Error("update user status to k8s error: %s", err)
 		return errcode.UpdateResourceError(resourceTypeUser)

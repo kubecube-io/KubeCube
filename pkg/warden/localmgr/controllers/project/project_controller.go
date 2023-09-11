@@ -181,7 +181,7 @@ func (r *ProjectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 	if errors.IsNotFound(err) {
-		err = wait.Poll(2*time.Second, 120*time.Second, func() (done bool, err error) {
+		err = wait.PollUntilContextTimeout(ctx, waitInterval, waitTimeout, false, func(ctx context.Context) (done bool, err error) {
 			err = r.Client.Get(ctx, types.NamespacedName{Name: constants.ProjectNsPrefix + project.Name}, &projectNs)
 			if err != nil {
 				return false, nil
@@ -251,8 +251,8 @@ func (r *ProjectReconciler) deleteSubNSOfProject(projectName string) error {
 			clog.Error("delete subnamespace of project err: %v", err)
 			return fmt.Errorf("delete subnamespace of project err")
 		}
-		err := wait.Poll(waitInterval, waitTimeout,
-			func() (bool, error) {
+		err := wait.PollUntilContextTimeout(ctx, waitInterval, waitTimeout, false,
+			func(ctx context.Context) (bool, error) {
 				e := r.Client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, &subNamespace)
 				if errors.IsNotFound(e) {
 					return true, nil

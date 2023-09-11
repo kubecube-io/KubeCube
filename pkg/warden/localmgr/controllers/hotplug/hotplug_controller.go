@@ -129,7 +129,7 @@ func (h *HotplugReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		isReleaseExist := false
 		release, err := helm.Status(namespace, name)
 		if err != nil {
-			if !errors.As(err, &driver.ErrReleaseNotFound) {
+			if !errors.Is(err, driver.ErrReleaseNotFound) {
 				log.Info("get release %v failed: %v", name, err)
 				return ctrl.Result{}, err
 			}

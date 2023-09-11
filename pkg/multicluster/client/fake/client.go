@@ -70,7 +70,7 @@ func NewFakeClientsFor(fn func(c *FakerClient)) mgrclient.Client {
 func NewFakeClients(opts *Options) mgrclient.Client {
 	c := new(FakerClient)
 
-	cli := clientFake.NewClientBuilder().WithScheme(opts.Scheme).WithObjects(opts.Objs...).WithRuntimeObjects(opts.ClientRuntimeObjs...).WithLists(opts.Lists...).Build()
+	cli := clientFake.NewClientBuilder().WithScheme(opts.Scheme).WithObjects(opts.Objs...).WithRuntimeObjects(opts.ClientRuntimeObjs...).WithStatusSubresource(opts.Objs...).WithLists(opts.Lists...).Build()
 	c.client = cli
 	c.rawClientSet = clientSetFake.NewSimpleClientset(opts.ClientSetRuntimeObjs...)
 	c.metrics = metricsFake.NewSimpleClientset(opts.MetricsRuntimeObjs...)

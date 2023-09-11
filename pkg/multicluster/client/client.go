@@ -115,7 +115,11 @@ func NewClientFor(ctx context.Context, cfg *rest.Config) (Client, error) {
 
 	c.cacheDiscovery = memory.NewMemCacheClient(c.discovery)
 
-	c.restMapper, err = apiutil.NewDynamicRESTMapper(cfg)
+	httpClient, err := rest.HTTPClientFor(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("new http client failed: %v", err)
+	}
+	c.restMapper, err = apiutil.NewDynamicRESTMapper(cfg, httpClient)
 	if err != nil {
 		return nil, fmt.Errorf("new rest mapper failed: %v", err)
 	}

@@ -24,6 +24,7 @@ import (
 	batchv1beta1 "k8s.io/api/batch/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	resourcemanage "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
@@ -32,14 +33,15 @@ import (
 	jobRes "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/resources/job"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
-	mgrclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
+	"github.com/kubecube-io/kubecube/pkg/conversion"
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/filter"
 )
 
 type CronJob struct {
 	ctx             context.Context
-	client          mgrclient.Client
+	client          client.Client
+	cache           cache.Cache
 	namespace       string
 	filterCondition *filter.Condition
 }
@@ -57,7 +59,13 @@ func handle(param resourcemanage.ExtendContext) (interface{}, *errcode.ErrorInfo
 	if kubernetes == nil {
 		return nil, errcode.ClusterNotFoundError(param.Cluster)
 	}
-	cronjob := NewCronJob(kubernetes, param.Namespace, param.FilterCondition)
+	convertor, err := conversion.NewVersionConvertor(kubernetes.CacheDiscovery(), kubernetes.RESTMapper())
+	if err != nil {
+		return nil, errcode.BadRequest(err)
+	}
+	client := conversion.WrapClient(kubernetes.Direct(), convertor, true)
+	cache := conversion.WrapCache(kubernetes.Cache(), convertor)
+	cronjob := NewCronJob(client, cache, param.Namespace, param.FilterCondition)
 	if param.ResourceName == "" {
 		return cronjob.getExtendCronJobs()
 	} else {
@@ -65,11 +73,12 @@ func handle(param resourcemanage.ExtendContext) (interface{}, *errcode.ErrorInfo
 	}
 }
 
-func NewCronJob(client mgrclient.Client, namespace string, condition *filter.Condition) CronJob {
+func NewCronJob(client client.Client, cache cache.Cache, namespace string, condition *filter.Condition) CronJob {
 	ctx := context.Background()
 	return CronJob{
 		ctx:             ctx,
 		client:          client,
+		cache:           cache,
 		namespace:       namespace,
 		filterCondition: condition,
 	}
@@ -81,7 +90,7 @@ func (c *CronJob) getExtendCronJobs() (*unstructured.Unstructured, *errcode.Erro
 
 	// get deployment list from k8s cluster
 	var cronJobList batchv1beta1.CronJobList
-	err := c.client.Cache().List(c.ctx, &cronJobList, client.InNamespace(c.namespace))
+	err := c.cache.List(c.ctx, &cronJobList, client.InNamespace(c.namespace))
 	if err != nil {
 		clog.Error("can not find cronjob in %s from cluster, %v", c.namespace, err)
 		return nil, errcode.BadRequest(err)
@@ -106,7 +115,7 @@ func (c *CronJob) getExtendCronJobs() (*unstructured.Unstructured, *errcode.Erro
 func (c *CronJob) getExtendCronJob(name string) (*unstructured.Unstructured, *errcode.ErrorInfo) {
 	// get deployment list from k8s cluster
 	var cronJob batchv1beta1.CronJob
-	err := c.client.Cache().Get(c.ctx, types.NamespacedName{Namespace: c.namespace, Name: name}, &cronJob)
+	err := c.cache.Get(c.ctx, types.NamespacedName{Namespace: c.namespace, Name: name}, &cronJob)
 	if err != nil {
 		clog.Error("can not find cronjob %s/%s from cluster, %v", c.namespace, name, err)
 		return nil, errcode.BadRequest(err)
@@ -163,7 +172,7 @@ func (c *CronJob) addExtendInfo(cronJobList batchv1beta1.CronJobList) []unstruct
 func (c *CronJob) getOwnerJobs() map[string][]interface{} {
 	result := make(map[string][]interface{})
 	var jobList batchv1.JobList
-	err := c.client.Cache().List(c.ctx, &jobList, client.InNamespace(c.namespace))
+	err := c.cache.List(c.ctx, &jobList, client.InNamespace(c.namespace))
 	if err != nil {
 		clog.Error("can not find jobs from cluster, %v", err)
 		return nil

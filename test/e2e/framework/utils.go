@@ -34,7 +34,7 @@ import (
 )
 
 // Create namespace
-func CreateNamespace(baseName string) (*v1.Namespace, error) {
+func CreateNamespace(ctx context.Context, baseName string) (*v1.Namespace, error) {
 	cli := clients.Interface().Kubernetes(constants.LocalCluster)
 	labels := map[string]string{
 		"e2e-run":       string(uuid.NewUUID()),
@@ -47,8 +47,8 @@ func CreateNamespace(baseName string) (*v1.Namespace, error) {
 			Labels: labels,
 		},
 	}
-	if err := wait.PollImmediate(WaitInterval, WaitTimeout, func() (bool, error) {
-		err := cli.Direct().Create(context.TODO(), namespaceObj)
+	if err := wait.PollUntilContextTimeout(ctx, WaitInterval, WaitTimeout, true, func(ctx context.Context) (bool, error) {
+		err := cli.Direct().Create(ctx, namespaceObj)
 		if err != nil {
 			if apierrors.IsAlreadyExists(err) {
 				// regenerate on conflict
@@ -69,16 +69,17 @@ func CreateNamespace(baseName string) (*v1.Namespace, error) {
 
 // Delete Namespace
 func DeleteNamespace(ns *v1.Namespace) error {
+	ctx := context.Background()
 	cli := clients.Interface().Kubernetes(constants.LocalCluster)
-	err := cli.Direct().Delete(context.TODO(), ns)
+	err := cli.Direct().Delete(ctx, ns)
 	if err != nil && !apierrors.IsNotFound(err) {
 		clog.Error("error deleting namespace %s: %v", ns.Name, err)
 		return err
 	}
-	if err = wait.Poll(WaitInterval, WaitTimeout,
-		func() (bool, error) {
+	if err = wait.PollUntilContextTimeout(ctx, WaitInterval, WaitTimeout, false,
+		func(ctx context.Context) (bool, error) {
 			var nsTemp v1.Namespace
-			err := cli.Direct().Get(context.TODO(), types.NamespacedName{Name: ns.Name}, &nsTemp)
+			err := cli.Direct().Get(ctx, types.NamespacedName{Name: ns.Name}, &nsTemp)
 			if err != nil {
 				if apierrors.IsNotFound(err) {
 					return true, nil

@@ -25,6 +25,7 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/klog/v2"
 	"k8s.io/sample-controller/pkg/signals"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 var (
@@ -49,6 +50,7 @@ func run(s *options.WardenOptions, stop <-chan struct{}) {
 		clog.Fatal("klog level set failed: %v", err)
 	}
 
+	log.SetLogger(klog.NewKlogr())
 	w := warden.NewWardenWithOpts(s.GenericWardenOpts)
 
 	err := w.Initialize()

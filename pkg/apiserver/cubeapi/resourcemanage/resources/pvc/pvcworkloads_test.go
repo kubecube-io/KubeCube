@@ -17,7 +17,7 @@ limitations under the License.
 package pvc
 
 import (
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -64,7 +64,7 @@ var _ = Describe("Pvc", func() {
 	})
 	JustBeforeEach(func() {
 		scheme := runtime.NewScheme()
-		corev1.AddToScheme(scheme)
+		_ = corev1.AddToScheme(scheme)
 		opts := &fake.Options{
 			Scheme:               scheme,
 			Objs:                 []client.Object{},
