@@ -94,14 +94,14 @@ func NewHandler() *handler {
 	nn := types.NamespacedName{Name: constants.AuthMappingCM, Namespace: env.CubeNamespace()}
 	err := h.Client.Direct().Get(context.Background(), nn, &cm)
 	if err != nil {
-		clog.Warn("get auth item configmap %v failed: %v", nn, err)
+		clog.Fatal("get auth item configmap %v failed: %v", nn, err)
 	}
 
 	platformCm := corev1.ConfigMap{}
 	nn1 := types.NamespacedName{Name: constants.AuthPlatformMappingCM, Namespace: env.CubeNamespace()}
 	err = h.Client.Direct().Get(context.Background(), nn1, &platformCm)
 	if err != nil {
-		clog.Warn("get platform auth item configmap %v failed: %v", nn1, err)
+		clog.Fatal("get platform auth item configmap %v failed: %v", nn1, err)
 	}
 
 	h.cmData = cm.Data
