@@ -26,7 +26,6 @@ import (
 	"k8s.io/apiserver/pkg/authorization/authorizer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
 	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
 	"github.com/kubecube-io/kubecube/pkg/authorizer/mapping"
 	"github.com/kubecube-io/kubecube/pkg/authorizer/rbac"
@@ -180,68 +179,28 @@ func getRolesByNs(ctx context.Context, cli mgrclient.Client, ns string) (map[str
 	return r, nil
 }
 
-func isPlatformAdmin(r rbac.Interface, user string) bool {
-	_, clusterRoles, err := r.RolesFor(rbac.User2UserInfo(user), "")
-	if err != nil {
-		clog.Error(err.Error())
-		return false
-	}
-	for _, clusterRole := range clusterRoles {
-		if clusterRole.Name == constants.PlatformAdmin {
-			return true
-		}
-	}
-	return false
+func isPlatformAdmin(user *userv1.User) bool {
+	return user.Status.PlatformAdmin
 }
 
-func isTenantAdmin(r rbac.Interface, cli mgrclient.Client, user string) bool {
-	tenantList := tenantv1.TenantList{}
-	err := cli.Cache().List(context.Background(), &tenantList)
-	if err != nil {
-		clog.Error(err.Error())
-		return false
-	}
-
-	for _, t := range tenantList.Items {
-		ns := t.Spec.Namespace
-		_, clusterRoles, err := r.RolesFor(rbac.User2UserInfo(user), ns)
-		if err != nil {
-			clog.Warn(err.Error())
-			continue
-		}
-		for _, r := range clusterRoles {
-			if r.Name == constants.TenantAdmin {
-				return true
-			}
+func isTenantAdmin(user *userv1.User) bool {
+	var res bool
+	for _, binding := range user.Spec.ScopeBindings {
+		if binding.Role == constants.TenantAdmin {
+			res = true
 		}
 	}
-
-	return false
+	return res
 }
 
-func isProjectAdmin(r rbac.Interface, cli mgrclient.Client, user string) bool {
-	projectList := tenantv1.ProjectList{}
-	err := cli.Cache().List(context.Background(), &projectList)
-	if err != nil {
-		clog.Error(err.Error())
-		return false
-	}
-
-	for _, p := range projectList.Items {
-		ns := p.Spec.Namespace
-		_, clusterRoles, err := r.RolesFor(rbac.User2UserInfo(user), ns)
-		if err != nil {
-			clog.Warn(err.Error())
-			continue
-		}
-		for _, r := range clusterRoles {
-			if r.Name == constants.ProjectAdmin {
-				return true
-			}
+func isProjectAdmin(user *userv1.User) bool {
+	var res bool
+	for _, binding := range user.Spec.ScopeBindings {
+		if binding.Role == constants.ProjectAdmin {
+			res = true
 		}
 	}
-
-	return false
+	return res
 }
 
 func isAllowedAccess(rbac rbac.Interface, user, resource, namespace string, auth mapping.VerbRepresent) bool {

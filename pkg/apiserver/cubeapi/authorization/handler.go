@@ -646,17 +646,25 @@ func (h *handler) getProjectByUser(c *gin.Context) {
 // @Success 200 {object} map[string]bool "{"platformAdmin":true,"tenantAdmin":true,"projectAdmin":true}"
 // @Router /api/v1/cube/authorization/identities [get]
 func (h *handler) getIdentity(c *gin.Context) {
-	user := c.Query("user")
+	userName := c.Query("user")
 
-	if len(user) == 0 {
-		user = c.GetString(constants.UserName)
+	if len(userName) == 0 {
+		userName = c.GetString(constants.UserName)
 	}
 
 	r := make(map[string]bool)
 
-	r["platformAdmin"] = isPlatformAdmin(h.Interface, user)
-	r["tenantAdmin"] = isTenantAdmin(h.Interface, h.Client, user)
-	r["projectAdmin"] = isProjectAdmin(h.Interface, h.Client, user)
+	u := &user.User{}
+	err := h.Cache().Get(context.Background(), types.NamespacedName{Name: userName}, u)
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.BadRequest(err))
+		return
+	}
+
+	r["platformAdmin"] = isPlatformAdmin(u)
+	r["tenantAdmin"] = isTenantAdmin(u)
+	r["projectAdmin"] = isProjectAdmin(u)
 
 	response.SuccessReturn(c, r)
 }
