@@ -60,8 +60,12 @@ func (r *ClusterRoleBindingReconciler) Reconcile(ctx context.Context, req ctrl.R
 func (r *ClusterRoleBindingReconciler) syncUserOnCreate(ctx context.Context, clusterRoleBinding *v1.ClusterRoleBinding) (ctrl.Result, error) {
 	userName, err := parseUserInClusterRoleBinding(clusterRoleBinding.Name)
 	if err != nil {
-		clog.Error("parse ClusterRoleBinding %v failed: %v", clusterRoleBinding.Name, err)
-		return ctrl.Result{}, err
+		clog.Warn("parse ClusterRoleBinding %v failed: %v", clusterRoleBinding.Name, err)
+		return ctrl.Result{}, nil
+	}
+
+	if userName == "" {
+		return ctrl.Result{}, nil
 	}
 
 	foundUser := false
@@ -112,6 +116,11 @@ func SetupClusterRoleBindingReconcilerWithManager(mgr ctrl.Manager, _ *options.O
 		CreateFunc: func(event event.CreateEvent) bool {
 			obj, ok := event.Object.(*v1.ClusterRoleBinding)
 			if !ok {
+				return false
+			}
+			_, ok = obj.GetLabels()[constants.LabelRelationship]
+			if ok {
+				// do not handle bindings that has processed
 				return false
 			}
 			v, ok := obj.GetLabels()[constants.RbacLabel]

@@ -22,7 +22,7 @@ var namespacePredicateFn = builder.WithPredicates(predicate.Funcs{
 		return allowedPaas(e.Object.GetLabels())
 	},
 	UpdateFunc: func(e event.UpdateEvent) bool {
-		return false
+		return allowedPaas(e.ObjectNew.GetLabels())
 	},
 	DeleteFunc: func(event.DeleteEvent) bool {
 		return false
@@ -33,7 +33,7 @@ var namespacePredicateFn = builder.WithPredicates(predicate.Funcs{
 })
 
 func (r *UserReconciler) namespaceHandleFunc() handler.MapFunc {
-	return func(obj client.Object) []reconcile.Request {
+	return func(ctx context.Context, obj client.Object) []reconcile.Request {
 		var requests []reconcile.Request
 
 		// paas filter it sure there must be tenant and project

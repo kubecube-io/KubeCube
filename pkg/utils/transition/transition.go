@@ -3,6 +3,7 @@ package transition
 import (
 	"context"
 	"fmt"
+	"github.com/kubecube-io/kubecube/pkg/clog"
 
 	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
@@ -13,10 +14,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
 )
 
-func SubNs2Ns(subNs *v1alpha2.SubnamespaceAnchor) *v1.Namespace {
+func SubNs2Ns(subNs *SubnamespaceAnchor) *v1.Namespace {
 	if subNs.Labels == nil {
 		return nil
 	}
@@ -115,10 +115,53 @@ func UpdateUserSpec(ctx context.Context, cli client.Client, user *userv1.User) e
 
 		newUser.Spec = user.Spec
 
-		err = cli.Status().Update(ctx, newUser)
+		err = cli.Update(ctx, newUser)
 		if err != nil {
 			return err
 		}
 		return nil
 	})
+}
+
+func RefreshUserStatus(user *userv1.User) {
+	if user.Spec.ScopeBindings == nil {
+		return
+	}
+
+	// reset status here
+	user.Status.BelongTenants = []string{}
+	user.Status.BelongProjects = []string{}
+	user.Status.PlatformAdmin = false
+
+	for _, binding := range user.Spec.ScopeBindings {
+		switch binding.ScopeType {
+		case userv1.TenantScope:
+			addUserToTenant(user, binding.ScopeName)
+		case userv1.ProjectScope:
+			addUserToProject(user, binding.ScopeName)
+		case userv1.PlatformScope:
+			if binding.Role == constants.PlatformAdmin {
+				appointUserAdmin(user)
+			}
+		}
+	}
+}
+
+func addUserToTenant(user *userv1.User, tenant string) {
+	tenantSet := sets.NewString(user.Status.BelongTenants...)
+	tenantSet.Insert(tenant)
+	user.Status.BelongTenants = tenantSet.List()
+	clog.Info("ensure user %v belongs to tenant %v", user.Name, tenant)
+}
+
+func addUserToProject(user *userv1.User, project string) {
+	projectSet := sets.NewString(user.Status.BelongProjects...)
+	projectSet.Insert(project)
+	user.Status.BelongProjects = projectSet.List()
+	clog.Info("ensure user %v belongs to project %v", user.Name, project)
+}
+
+func appointUserAdmin(user *userv1.User) {
+	user.Status.PlatformAdmin = true
+	clog.Info("appoint user %v is platform admin", user.Name)
 }

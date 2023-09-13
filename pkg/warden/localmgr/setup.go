@@ -21,7 +21,6 @@ import (
 	admisson "sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/kubecube-io/kubecube/pkg/utils/ctrlopts"
-	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/binding"
 	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/crds"
 	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/hotplug"
 	project "github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/project"
@@ -75,20 +74,6 @@ func setupControllersWithManager(m *LocalManager, controllers string) error {
 
 	if ctrlopts.IsControllerEnabled("quota", ctrls) {
 		err = quota.SetupWithManager(m.Manager, m.PivotClient.Direct())
-		if err != nil {
-			return err
-		}
-	}
-
-	if ctrlopts.IsControllerEnabled("rolebinding", ctrls) {
-		err = binding.SetupRoleBindingReconcilerWithManager(m.Manager, nil)
-		if err != nil {
-			return err
-		}
-	}
-
-	if ctrlopts.IsControllerEnabled("clusterrolebinding", ctrls) {
-		err = binding.SetupClusterRoleBindingReconcilerWithManager(m.Manager, nil)
 		if err != nil {
 			return err
 		}

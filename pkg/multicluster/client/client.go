@@ -33,7 +33,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
-	hnc "sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
 
 	"github.com/kubecube-io/kubecube/pkg/apis"
 	"github.com/kubecube-io/kubecube/pkg/clog"
@@ -48,7 +47,6 @@ func initScheme() *runtime.Scheme {
 	// register for all k8s and crd resource
 	utilruntime.Must(clientgoscheme.AddToScheme(s))
 	utilruntime.Must(apis.AddToScheme(s))
-	utilruntime.Must(hnc.AddToScheme(s))
 	utilruntime.Must(apiextensionsv1.AddToScheme(s))
 	return s
 }

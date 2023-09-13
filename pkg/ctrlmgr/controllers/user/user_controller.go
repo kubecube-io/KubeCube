@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"github.com/kubecube-io/kubecube/pkg/utils/transition"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -30,7 +31,6 @@ import (
 	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/options"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
 var _ reconcile.Reconciler = &UserReconciler{}
@@ -73,30 +73,12 @@ func (r *UserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		return ctrl.Result{}, err
 	}
 
-	calculateUserRelationShip(user)
+	transition.RefreshUserStatus(user)
 
 	err = r.Status().Update(ctx, user)
 
 	// use reconcile retry if we met error
 	return ctrl.Result{}, err
-}
-
-// calculateUserRelationShip calculates user relationship by scope bindings.
-func calculateUserRelationShip(user *userv1.User) {
-	user.Status.BelongTenants = []string{}
-	user.Status.BelongProjects = []string{}
-	for _, binding := range user.Spec.ScopeBindings {
-		switch binding.ScopeType {
-		case userv1.PlatformScope:
-			if binding.ScopeName == constants.PlatformAdmin {
-				user.Status.PlatformAdmin = true
-			}
-		case userv1.TenantScope:
-			user.Status.BelongTenants = append(user.Status.BelongTenants, binding.ScopeName)
-		case userv1.ProjectScope:
-			user.Status.BelongProjects = append(user.Status.BelongProjects, binding.ScopeName)
-		}
-	}
 }
 
 // SetupWithManager sets up the controller with the Manager.

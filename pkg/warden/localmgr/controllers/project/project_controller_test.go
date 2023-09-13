@@ -28,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-	hnc "sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
 
 	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
@@ -65,7 +64,6 @@ func TestReconcile(t *testing.T) {
 	scheme := runtime.NewScheme()
 	_ = tenantv1.AddToScheme(scheme)
 	_ = corev1.AddToScheme(scheme)
-	_ = hnc.AddToScheme(scheme)
 
 	// crete
 	tenant1 := tenantTemplate("test-tenant1")

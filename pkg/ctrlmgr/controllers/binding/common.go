@@ -70,6 +70,9 @@ func parseUserInRoleBinding(name, namespace string) (user string, tenant string,
 // The valid name format as follow:
 // {user}-in-cluster
 func parseUserInClusterRoleBinding(name string) (string, error) {
+	if strings.HasPrefix(name, "gen-") {
+		return "", nil
+	}
 	if !strings.HasSuffix(name, "-in-cluster") {
 		return "", fmt.Errorf("parse user in ClusterRoleBinding %s failed", name)
 	}
@@ -86,14 +89,14 @@ func parseUserNameWithID(name string) string {
 func updateRoleBinding(ctx context.Context, cli client.Client, binding *rbacv1.RoleBinding) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		newBinding := &rbacv1.RoleBinding{}
-		err := cli.Get(ctx, types.NamespacedName{Name: binding.Name}, newBinding)
+		err := cli.Get(ctx, types.NamespacedName{Name: binding.Name, Namespace: binding.Namespace}, newBinding)
 		if err != nil {
 			return err
 		}
 
 		newBinding.Labels = binding.Labels
 
-		err = cli.Status().Update(ctx, newBinding)
+		err = cli.Update(ctx, newBinding)
 		if err != nil {
 			return err
 		}
@@ -111,7 +114,7 @@ func updateClusterRoleBinding(ctx context.Context, cli client.Client, binding *r
 
 		newBinding.Labels = binding.Labels
 
-		err = cli.Status().Update(ctx, newBinding)
+		err = cli.Update(ctx, newBinding)
 		if err != nil {
 			return err
 		}

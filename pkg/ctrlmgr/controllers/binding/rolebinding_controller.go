@@ -60,8 +60,8 @@ func (r *RoleBindingReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 func (r *RoleBindingReconciler) syncUserOnCreate(ctx context.Context, roleBinding *v1.RoleBinding) (ctrl.Result, error) {
 	userName, tenant, project, err := parseUserInRoleBinding(roleBinding.Name, roleBinding.Namespace)
 	if err != nil {
-		clog.Error("parse RoleBinding(%s/%s) failed: %v", roleBinding.Name, roleBinding.Namespace, err)
-		return ctrl.Result{}, err
+		clog.Warn("parse RoleBinding(%s/%s) failed: %v", roleBinding.Name, roleBinding.Namespace, err)
+		return ctrl.Result{}, nil
 	}
 
 	if len(userName+tenant+project) == 0 {
@@ -104,6 +104,11 @@ func SetupRoleBindingReconcilerWithManager(mgr ctrl.Manager, _ *options.Options)
 
 	predicateFunc := predicate.Funcs{
 		CreateFunc: func(event event.CreateEvent) bool {
+			_, ok := event.Object.GetLabels()[constants.LabelRelationship]
+			if ok {
+				// do not handle bindings that has processed
+				return false
+			}
 			v, ok := event.Object.GetLabels()[constants.RbacLabel]
 			if ok && v == "true" {
 				return true

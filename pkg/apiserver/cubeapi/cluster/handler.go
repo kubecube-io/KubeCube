@@ -25,16 +25,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	v1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/types"
-	userinfo "k8s.io/apiserver/pkg/authentication/user"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
-
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
 	"github.com/kubecube-io/kubecube/pkg/authorizer/rbac"
 	"github.com/kubecube-io/kubecube/pkg/clients"
@@ -48,6 +38,14 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
 	"github.com/kubecube-io/kubecube/pkg/utils/transition"
+	v1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
+	userinfo "k8s.io/apiserver/pkg/authentication/user"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const subPath = "/clusters"
@@ -614,9 +612,9 @@ func (h *handler) registerCluster(c *gin.Context) {
 }
 
 type nsAndQuota struct {
-	Cluster            string                       `json:"cluster"`
-	SubNamespaceAnchor *v1alpha2.SubnamespaceAnchor `json:"subNamespaceAnchor"`
-	ResourceQuota      *v1.ResourceQuota            `json:"resourceQuota"`
+	Cluster            string                         `json:"cluster"`
+	SubNamespaceAnchor *transition.SubnamespaceAnchor `json:"subNamespaceAnchor"`
+	ResourceQuota      *v1.ResourceQuota              `json:"resourceQuota"`
 }
 
 // createNsAndQuota create quota when rbac was spread to new namespace

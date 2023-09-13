@@ -19,24 +19,23 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"github.com/kubecube-io/kubecube/pkg/utils/transition"
 
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/util/retry"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
-
-	"k8s.io/apimachinery/pkg/runtime"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
 	"github.com/kubecube-io/kubecube/pkg/clog"
@@ -123,28 +122,7 @@ func (r *UserReconciler) syncUser(ctx context.Context, user *userv1.User) (ctrl.
 
 // refreshStatus refresh status according to scope bindings.
 func (r *UserReconciler) refreshStatus(ctx context.Context, user *userv1.User) error {
-	if user.Spec.ScopeBindings == nil {
-		return nil
-	}
-
-	// reset status here
-	user.Status.BelongProjects = []string{}
-	user.Status.BelongProjects = []string{}
-	user.Status.PlatformAdmin = false
-
-	for _, binding := range user.Spec.ScopeBindings {
-		switch binding.ScopeType {
-		case userv1.TenantScope:
-			addUserToTenant(user, binding.ScopeName)
-		case userv1.ProjectScope:
-			addUserToProject(user, binding.ScopeName)
-		case userv1.PlatformScope:
-			if binding.Role == constants.PlatformAdmin {
-				appointUserAdmin(user)
-			}
-		}
-	}
-
+	transition.RefreshUserStatus(user)
 	return updateUserStatus(ctx, r.Client, user)
 }
 
@@ -211,7 +189,7 @@ func (r *UserReconciler) generateClusterRoleBinding(ctx context.Context, user st
 		clusterRoleBinding.RoleRef.Name = constants.TenantAdminCluster
 	}
 	if scopeType == userv1.ProjectScope {
-		clusterRoleBinding.RoleRef.Name = constants.ProjectNsPrefix
+		clusterRoleBinding.RoleRef.Name = constants.ProjectAdminCluster
 	}
 
 	clusterRoleBinding.Name = "gen-" + hash.GenerateBindingName(user, clusterRoleBinding.RoleRef.Name, "")
@@ -413,6 +391,6 @@ func SetupWithManager(mgr ctrl.Manager, _ *options.Options) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&userv1.User{}).
-		Watches(&source.Kind{Type: &corev1.Namespace{}}, handler.EnqueueRequestsFromMapFunc(r.namespaceHandleFunc()), namespacePredicateFn).
+		Watches(&corev1.Namespace{}, handler.EnqueueRequestsFromMapFunc(r.namespaceHandleFunc()), namespacePredicateFn).
 		Complete(r)
 }
