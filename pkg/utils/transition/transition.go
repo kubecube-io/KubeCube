@@ -147,17 +147,27 @@ func RefreshUserStatus(user *userv1.User) {
 	}
 }
 
+func UserBelongsToTenant(user *userv1.User, tenant string) bool {
+	tenantSet := sets.New[string](user.Status.BelongTenants...)
+	return tenantSet.Has(tenant)
+}
+
+func UserBelongsToProject(user *userv1.User, project string) bool {
+	projectSet := sets.New[string](user.Status.BelongProjects...)
+	return projectSet.Has(project)
+}
+
 func addUserToTenant(user *userv1.User, tenant string) {
-	tenantSet := sets.NewString(user.Status.BelongTenants...)
+	tenantSet := sets.New[string](user.Status.BelongTenants...)
 	tenantSet.Insert(tenant)
-	user.Status.BelongTenants = tenantSet.List()
+	user.Status.BelongTenants = sets.List[string](tenantSet)
 	clog.Info("ensure user %v belongs to tenant %v", user.Name, tenant)
 }
 
 func addUserToProject(user *userv1.User, project string) {
-	projectSet := sets.NewString(user.Status.BelongProjects...)
+	projectSet := sets.New[string](user.Status.BelongProjects...)
 	projectSet.Insert(project)
-	user.Status.BelongProjects = projectSet.List()
+	user.Status.BelongProjects = sets.List[string](projectSet)
 	clog.Info("ensure user %v belongs to project %v", user.Name, project)
 }
 

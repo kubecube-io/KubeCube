@@ -26,6 +26,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
+	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
 	"github.com/kubecube-io/kubecube/pkg/authorizer/rbac"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
@@ -385,6 +386,15 @@ func (h *handler) getClusterResource(c *gin.Context) {
 	response.SuccessReturn(c, res)
 }
 
+type respBody struct {
+	Namespace     string       `json:"namespace"`
+	Cluster       string       `json:"cluster"`
+	ClusterName   string       `json:"clusterName,omitempty"`
+	Project       string       `json:"project"`
+	Tenant        string       `json:"tenant"`
+	NamespaceBody v1.Namespace `json:"namespaceBody"`
+}
+
 // getSubNamespaces list sub namespace by tenant
 // @Summary Get sub namespace
 // @Description get sub namespaces by tenant
@@ -394,15 +404,6 @@ func (h *handler) getClusterResource(c *gin.Context) {
 // @Failure 500 {object} errcode.ErrorInfo
 // @Router /api/v1/cube/clusters/subnamespaces  [get]
 func (h *handler) getSubNamespaces(c *gin.Context) {
-	type respBody struct {
-		Namespace     string       `json:"namespace"`
-		Cluster       string       `json:"cluster"`
-		ClusterName   string       `json:"clusterName,omitempty"`
-		Project       string       `json:"project"`
-		Tenant        string       `json:"tenant"`
-		NamespaceBody v1.Namespace `json:"namespaceBody"`
-	}
-
 	fuzzyName := c.Query("fuzzyname")
 	tenantArray := c.Query("tenant")
 	tenantList := strings.Split(tenantArray, "|")
@@ -412,9 +413,16 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 	ctx := c.Request.Context()
 	clusters := multicluster.Interface().FuzzyCopy()
 
-	user := c.Query("user")
-	if len(user) == 0 {
-		user = c.GetString(constants.UserName)
+	userName := c.Query("user")
+	if len(userName) == 0 {
+		userName = c.GetString(constants.UserName)
+	}
+
+	user := &userv1.User{}
+	err := h.Cache().Get(ctx, types.NamespacedName{Name: userName}, user)
+	if err != nil {
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
+		return
 	}
 
 	// list all hnc managed namespaces
@@ -453,15 +461,8 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 				continue
 			}
 
-			// only care about ns under project that the user can see
-			// todo: use better way
-			allowed, err := rbac.IsAllowResourceAccess(&rbac.DefaultResolver{Cache: cli.Cache()}, user, "pods", constants.GetVerb, constants.ProjectNsPrefix+project)
-			if err != nil {
-				response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
-				return
-			}
-
-			if !allowed {
+			// only care about ns under project that the userName can see
+			if !transition.UserBelongsToTenant(user, tenant) && !transition.UserBelongsToProject(user, project) {
 				continue
 			}
 
