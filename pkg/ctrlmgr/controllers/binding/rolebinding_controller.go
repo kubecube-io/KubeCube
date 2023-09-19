@@ -46,6 +46,7 @@ func newRoleBindingReconciler(mgr manager.Manager) (*RoleBindingReconciler, erro
 }
 
 func (r *RoleBindingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	clog.Debug("Reconcile RoleBinding(%v/%v)", req.Name, req.Namespace)
 	roleBinding := &v1.RoleBinding{}
 	if err := r.Get(ctx, req.NamespacedName, roleBinding); err != nil {
 		if errors.IsNotFound(err) {
@@ -73,16 +74,10 @@ func (r *RoleBindingReconciler) syncUserOnCreate(ctx context.Context, roleBindin
 	err = r.Get(ctx, types.NamespacedName{Name: userName}, user)
 	if err != nil {
 		if errors.IsNotFound(err) {
+			clog.Warn(err.Error())
 			return ctrl.Result{}, nil
 		}
 		clog.Error("get user %v failed: %v", userName, err)
-		return ctrl.Result{}, err
-	}
-
-	// add user relationship label to RoleBinding
-	roleBinding.Labels = setBindingUserLabel(roleBinding.Labels, user.Name)
-	err = updateRoleBinding(ctx, r.Client, roleBinding)
-	if err != nil {
 		return ctrl.Result{}, err
 	}
 
@@ -92,8 +87,14 @@ func (r *RoleBindingReconciler) syncUserOnCreate(ctx context.Context, roleBindin
 	} else if len(project) > 0 {
 		transition.AddUserScopeBindings(user, string(userv1.ProjectScope), project, roleBinding.RoleRef.Name)
 	}
+	err = transition.UpdateUserSpec(ctx, r.Client, user)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
 
-	return ctrl.Result{}, transition.UpdateUserSpec(ctx, r.Client, user)
+	// add user relationship label to RoleBinding
+	roleBinding.Labels = setBindingUserLabel(roleBinding.Labels, user.Name)
+	return ctrl.Result{}, updateRoleBinding(ctx, r.Client, roleBinding)
 }
 
 func SetupRoleBindingReconcilerWithManager(mgr ctrl.Manager, _ *options.Options) error {
@@ -104,11 +105,11 @@ func SetupRoleBindingReconcilerWithManager(mgr ctrl.Manager, _ *options.Options)
 
 	predicateFunc := predicate.Funcs{
 		CreateFunc: func(event event.CreateEvent) bool {
-			_, ok := event.Object.GetLabels()[constants.LabelRelationship]
-			if ok {
-				// do not handle bindings that has processed
-				return false
-			}
+			//_, ok := event.Object.GetLabels()[constants.LabelRelationship]
+			//if ok {
+			//	// do not handle bindings that has processed
+			//	return false
+			//}
 			v, ok := event.Object.GetLabels()[constants.RbacLabel]
 			if ok && v == "true" {
 				return true

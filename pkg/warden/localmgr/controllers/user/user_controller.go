@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"github.com/kubecube-io/kubecube/pkg/utils/transition"
 
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/rbac/v1"
@@ -29,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -42,6 +42,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/options"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"github.com/kubecube-io/kubecube/pkg/utils/hash"
+	"github.com/kubecube-io/kubecube/pkg/utils/transition"
 )
 
 const (
@@ -92,10 +93,12 @@ func (r *UserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	// user cr lifecycle is under warden control
 	if user.DeletionTimestamp == nil {
 		if err := r.ensureFinalizer(ctx, user); err != nil {
+			clog.Error(err.Error())
 			return ctrl.Result{}, err
 		}
 	} else {
 		if err := r.removeFinalizer(ctx, user); err != nil {
+			clog.Error(err.Error())
 			return ctrl.Result{}, err
 		}
 		// stop reconciliation as the item is being deleted
@@ -117,6 +120,13 @@ func (r *UserReconciler) syncUser(ctx context.Context, user *userv1.User) (ctrl.
 		clog.Error("refresh bindings failed: %v", err)
 		return ctrl.Result{}, err
 	}
+
+	err = r.cleanOrphanBindings(ctx, user)
+	if err != nil {
+		clog.Error("clean up orphan bindings failed: %v", err)
+		return ctrl.Result{}, err
+	}
+
 	return ctrl.Result{}, nil
 }
 
@@ -124,6 +134,68 @@ func (r *UserReconciler) syncUser(ctx context.Context, user *userv1.User) (ctrl.
 func (r *UserReconciler) refreshStatus(ctx context.Context, user *userv1.User) error {
 	transition.RefreshUserStatus(user)
 	return updateUserStatus(ctx, r.Client, user)
+}
+
+func (r *UserReconciler) cleanOrphanBindings(ctx context.Context, user *userv1.User) error {
+	ls, err := labels.Parse(fmt.Sprintf("%v=%v", constants.LabelRelationship, user.Name))
+	if err != nil {
+		return err
+	}
+
+	bindingUnique := []string{}
+	for _, binding := range user.Spec.ScopeBindings {
+		bindingUnique = append(bindingUnique, transition.ScopeBindingUnique(binding))
+	}
+
+	bindingUniqueSet := sets.New[string](bindingUnique...)
+
+	isTenantMember := len(user.Status.BelongTenants) > 0
+	isProjectMember := len(user.Status.BelongProjects) > 0
+
+	crbs := &v1.ClusterRoleBindingList{}
+	err = r.List(ctx, crbs, &client.ListOptions{LabelSelector: ls})
+	if err != nil {
+		return err
+	}
+	for _, crb := range crbs.Items {
+		if isGenBinding(crb.Name) && (isTenantMember || isProjectMember) {
+			continue
+		}
+		scopeType, scopeName, role, _, err := transition.TransBinding(crb.Labels, crb.Subjects[0], crb.RoleRef)
+		if err != nil {
+			clog.Warn(err.Error())
+			continue
+		}
+		if !bindingUniqueSet.Has(scopeName + scopeType + role) {
+			clog.Info("clean up orphan ClusterRoleBinding (%v)", crb.Name)
+			err = r.Delete(ctx, &crb)
+			if err != nil && errors.IsNotFound(err) {
+				return err
+			}
+		}
+	}
+
+	rbs := &v1.RoleBindingList{}
+	err = r.List(ctx, rbs, &client.ListOptions{LabelSelector: ls})
+	if err != nil {
+		return err
+	}
+	for _, rb := range rbs.Items {
+		scopeType, scopeName, role, _, err := transition.TransBinding(rb.Labels, rb.Subjects[0], rb.RoleRef)
+		if err != nil {
+			clog.Warn(err.Error())
+			continue
+		}
+		if !bindingUniqueSet.Has(scopeName + scopeType + role) {
+			clog.Info("clean up orphan RoleBinding (%v/%v)", rb.Name, rb.Namespace)
+			err = r.Delete(ctx, &rb)
+			if err != nil && errors.IsNotFound(err) {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 // refreshBindings refresh related RoleBindings under binding scope.
@@ -172,6 +244,7 @@ func (r *UserReconciler) generateClusterRoleBinding(ctx context.Context, user st
 			Labels: map[string]string{
 				constants.RbacLabel:         constants.TrueStr,
 				constants.LabelRelationship: user,
+				constants.PlatformLabel:     constants.ClusterRolePlatform,
 			},
 		},
 		Subjects: []v1.Subject{{
@@ -257,6 +330,7 @@ func (r *UserReconciler) refreshPlatformBinding(ctx context.Context, user string
 			Labels: map[string]string{
 				constants.RbacLabel:         constants.TrueStr,
 				constants.LabelRelationship: user,
+				constants.PlatformLabel:     constants.ClusterRolePlatform,
 			},
 			// we do not need warden sync here, every warden should process user event in self cluster
 		},
@@ -284,15 +358,28 @@ func (r *UserReconciler) bindingsGc(ctx context.Context, user string) error {
 		return err
 	}
 
-	err = r.DeleteAllOf(ctx, &v1.ClusterRoleBinding{}, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{LabelSelector: ls}})
+	crbs := &v1.ClusterRoleBindingList{}
+	err = r.List(ctx, crbs, &client.ListOptions{LabelSelector: ls})
 	if err != nil {
 		return err
 	}
+	for _, crb := range crbs.Items {
+		err = r.Delete(ctx, &crb)
+		if err != nil && !errors.IsNotFound(err) {
+			return err
+		}
+	}
 
-	// delete all bindings matched across all namespaces
-	err = r.DeleteAllOf(ctx, &v1.RoleBinding{}, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{LabelSelector: ls}})
+	rbs := &v1.RoleBindingList{}
+	err = r.List(ctx, rbs, &client.ListOptions{LabelSelector: ls})
 	if err != nil {
 		return err
+	}
+	for _, rb := range rbs.Items {
+		err = r.Delete(ctx, &rb)
+		if err != nil && !errors.IsNotFound(err) {
+			return err
+		}
 	}
 
 	return nil

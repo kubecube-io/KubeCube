@@ -45,21 +45,19 @@ func parseUserInRoleBinding(name, namespace string) (user string, tenant string,
 
 	if len(tenantInfos) == 2 {
 		user, tenant = tenantInfos[0], tenantInfos[1]
-		if !strings.HasPrefix(namespace, constants.TenantNsPrefix) {
-			return "", "", "", nil
-		}
-		tenantMirror := strings.TrimPrefix(namespace, constants.TenantNsPrefix)
-		if tenant != tenantMirror {
-			return "", "", "", fmt.Errorf("RoleBinding (%s/%s) is not inconsistent with name and namespace", name, namespace)
+		if strings.HasPrefix(namespace, constants.TenantNsPrefix) {
+			tenantMirror := strings.TrimPrefix(namespace, constants.TenantNsPrefix)
+			if tenant != tenantMirror {
+				return "", "", "", fmt.Errorf("RoleBinding (%s/%s) is not inconsistent with name and namespace", name, namespace)
+			}
 		}
 	} else if len(projectInfos) == 2 {
 		user, project = projectInfos[0], projectInfos[1]
-		if !strings.HasPrefix(namespace, constants.ProjectNsPrefix) {
-			return "", "", "", nil
-		}
-		projectMirror := strings.TrimPrefix(namespace, constants.ProjectNsPrefix)
-		if project != projectMirror {
-			return "", "", "", fmt.Errorf("RoleBinding (%s/%s) is not inconsistent with name and namespace", name, namespace)
+		if strings.HasPrefix(namespace, constants.ProjectNsPrefix) {
+			projectMirror := strings.TrimPrefix(namespace, constants.ProjectNsPrefix)
+			if project != projectMirror {
+				return "", "", "", fmt.Errorf("RoleBinding (%s/%s) is not inconsistent with name and namespace", name, namespace)
+			}
 		}
 	}
 

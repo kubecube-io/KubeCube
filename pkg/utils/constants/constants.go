@@ -109,6 +109,9 @@ const (
 	// ProjectLabel represent which project resource relate with
 	ProjectLabel = "kubecube.io/project"
 
+	// PlatformLabel represent which project resource relate with
+	PlatformLabel = "kubecube.io/platform"
+
 	// TenantNsPrefix represent the namespace which relate with tenant
 	TenantNsPrefix = "kubecube-tenant-"
 

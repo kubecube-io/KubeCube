@@ -46,6 +46,7 @@ func newClusterRoleBindingReconciler(mgr manager.Manager) (*ClusterRoleBindingRe
 }
 
 func (r *ClusterRoleBindingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	clog.Debug("Reconcile ClusterRoleBinding(%v)", req.Name)
 	clusterRoleBinding := &v1.ClusterRoleBinding{}
 	if err := r.Get(ctx, req.NamespacedName, clusterRoleBinding); err != nil {
 		if errors.IsNotFound(err) {
@@ -93,17 +94,16 @@ func (r *ClusterRoleBindingReconciler) syncUserOnCreate(ctx context.Context, clu
 		return ctrl.Result{}, nil
 	}
 
-	// add user relationship label
-	clusterRoleBinding.Labels = setBindingUserLabel(clusterRoleBinding.Labels, user.Name)
-	err = updateClusterRoleBinding(ctx, r.Client, clusterRoleBinding)
+	// update user scope binding
+	transition.AddUserScopeBindings(user, string(userv1.PlatformScope), constants.ClusterRolePlatform, clusterRoleBinding.RoleRef.Name)
+	err = transition.UpdateUserSpec(ctx, r.Client, user)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	// update user scope binding
-	transition.AddUserScopeBindings(user, string(userv1.PlatformScope), "platform", clusterRoleBinding.RoleRef.Name)
-
-	return ctrl.Result{}, transition.UpdateUserSpec(ctx, r.Client, user)
+	// add user relationship label
+	clusterRoleBinding.Labels = setBindingUserLabel(clusterRoleBinding.Labels, user.Name)
+	return ctrl.Result{}, updateClusterRoleBinding(ctx, r.Client, clusterRoleBinding)
 }
 
 func SetupClusterRoleBindingReconcilerWithManager(mgr ctrl.Manager, _ *options.Options) error {
@@ -118,11 +118,11 @@ func SetupClusterRoleBindingReconcilerWithManager(mgr ctrl.Manager, _ *options.O
 			if !ok {
 				return false
 			}
-			_, ok = obj.GetLabels()[constants.LabelRelationship]
-			if ok {
-				// do not handle bindings that has processed
-				return false
-			}
+			//_, ok = obj.GetLabels()[constants.LabelRelationship]
+			//if ok {
+			//	// do not handle bindings that has processed
+			//	return false
+			//}
 			v, ok := obj.GetLabels()[constants.RbacLabel]
 			if ok && v == "true" {
 				return true

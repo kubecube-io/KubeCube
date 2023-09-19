@@ -52,6 +52,7 @@ func TransBinding(labels map[string]string, sub rbacv1.Subject, ref rbacv1.RoleR
 
 	tenant := labels[constants.TenantLabel]
 	project := labels[constants.ProjectLabel]
+	platform := labels[constants.PlatformLabel]
 
 	if len(tenant) > 0 {
 		scopeType = constants.ClusterRoleTenant
@@ -69,7 +70,15 @@ func TransBinding(labels map[string]string, sub rbacv1.Subject, ref rbacv1.RoleR
 		return
 	}
 
-	err = fmt.Errorf("invalid labels")
+	if len(platform) > 0 {
+		scopeType = constants.ClusterRolePlatform
+		scopeName = constants.ClusterRolePlatform
+		role = ref.Name
+		user = sub.Name
+		return
+	}
+
+	err = fmt.Errorf("invalid labels: %v", labels)
 	return
 }
 
@@ -79,7 +88,7 @@ func AddUserScopeBindings(user *userv1.User, scopeType, scopeName, role string) 
 		bindingUnique = append(bindingUnique, ScopeBindingUnique(binding))
 	}
 
-	bindingUniqueSet := sets.NewString(bindingUnique...)
+	bindingUniqueSet := sets.New[string](bindingUnique...)
 
 	if !bindingUniqueSet.Has(scopeName + scopeType + role) {
 		user.Spec.ScopeBindings = append(user.Spec.ScopeBindings, userv1.ScopeBinding{
@@ -87,6 +96,7 @@ func AddUserScopeBindings(user *userv1.User, scopeType, scopeName, role string) 
 			ScopeType: userv1.BindingScopeType(scopeType),
 			Role:      role,
 		})
+		clog.Info("add ScopeBinding for user %v: type (%v), scope (%v), role (%v))", user.Name, scopeType, scopeName, role)
 	}
 }
 
@@ -94,6 +104,7 @@ func RemoveUserScopeBindings(user *userv1.User, scopeType, scopeName, role strin
 	newScopeBindings := []userv1.ScopeBinding{}
 	for _, binding := range user.Spec.ScopeBindings {
 		if binding.ScopeName == scopeName && string(binding.ScopeType) == scopeType && binding.Role == role {
+			clog.Info("remove ScopeBinding for user %v: type (%v), scope (%v), role (%v))", user.Name, scopeType, scopeName, role)
 			continue
 		}
 		newScopeBindings = append(newScopeBindings, binding)
@@ -124,10 +135,6 @@ func UpdateUserSpec(ctx context.Context, cli client.Client, user *userv1.User) e
 }
 
 func RefreshUserStatus(user *userv1.User) {
-	if user.Spec.ScopeBindings == nil {
-		return
-	}
-
 	// reset status here
 	user.Status.BelongTenants = []string{}
 	user.Status.BelongProjects = []string{}

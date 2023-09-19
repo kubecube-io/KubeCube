@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	v1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -33,4 +34,8 @@ func updateUserStatus(ctx context.Context, cli client.Client, user *v1.User) err
 
 func updateUserStatusErrStr(user string, err error) string {
 	return fmt.Sprintf("update user %v status failed: %v", user, err)
+}
+
+func isGenBinding(name string) bool {
+	return strings.HasPrefix(name, "gen-")
 }
