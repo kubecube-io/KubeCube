@@ -733,6 +733,7 @@ func (h *handler) getCubeResourceQuota(c *gin.Context) {
 	ts := c.Query("tenants")
 	cs := c.Query("clusters")
 	userName := c.Query("user")
+	ctx := c.Request.Context()
 
 	tenants, clusters := strings.Split(ts, ";"), strings.Split(cs, ";")
 
@@ -748,13 +749,13 @@ func (h *handler) getCubeResourceQuota(c *gin.Context) {
 		tenants = nil
 	}
 
-	visibleTenants, err := getVisibleTenants(h.Client, userName, tenants)
+	visibleTenants, err := getVisibleTenants(ctx, h.Client, userName, tenants)
 	if err != nil {
 		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 		return
 	}
 
-	res, err := listCubeResourceQuota(h.Client, visibleTenants, clusters)
+	res, err := listCubeResourceQuota(ctx, h.Client, visibleTenants, clusters)
 	if err != nil {
 		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 		return
