@@ -271,10 +271,14 @@ func GetVisibleTenants(ctx context.Context, cli mgrclient.Client, username strin
 		return nil, err
 	}
 
+	if user.Status.PlatformAdmin {
+		return tenants.Items, nil
+	}
+
 	tenantSet := sets.NewString(user.Status.BelongTenants...)
 	res := []tenantv1.Tenant{}
 	for _, t := range tenants.Items {
-		if !user.Status.PlatformAdmin && !tenantSet.Has(t.Name) {
+		if !tenantSet.Has(t.Name) {
 			continue
 		}
 		res = append(res, t)
