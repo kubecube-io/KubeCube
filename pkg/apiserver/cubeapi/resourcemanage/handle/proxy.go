@@ -21,7 +21,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -100,7 +99,7 @@ func (h *ProxyHandler) tryVersionConvert(cluster, url string, req *http.Request)
 		return true, nil, convertedUrl, nil
 	}
 
-	data, err := ioutil.ReadAll(req.Body)
+	data, err := io.ReadAll(req.Body)
 	if err != nil {
 		return false, nil, "", err
 	}

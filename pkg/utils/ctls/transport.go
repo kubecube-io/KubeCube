@@ -20,7 +20,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"net"
 	"net/http"
 	"time"
@@ -65,7 +65,7 @@ func MakeInsecureTransport() *http.Transport {
 }
 
 func MakeTlsTransportByFile(caFile string) (*http.Transport, error) {
-	caCert, err := ioutil.ReadFile(caFile)
+	caCert, err := os.ReadFile(caFile)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +74,7 @@ func MakeTlsTransportByFile(caFile string) (*http.Transport, error) {
 }
 
 func MakeMTlsTransportByFile(caFile, certFile, keyFile string) (*http.Transport, error) {
-	caCert, err := ioutil.ReadFile(caFile)
+	caCert, err := os.ReadFile(caFile)
 	if err != nil {
 		return nil, err
 	}

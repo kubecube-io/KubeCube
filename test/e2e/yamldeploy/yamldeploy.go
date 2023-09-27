@@ -20,7 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 
 	"github.com/kubecube-io/kubecube/test/e2e/framework"
 	"github.com/onsi/ginkgo/v2"
@@ -42,7 +42,7 @@ metadata:
 			resp, err := f.HttpHelper.Client.Do(&req)
 			framework.ExpectNoError(err)
 			defer resp.Body.Close()
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			framework.ExpectNoError(err)
 			var ns corev1.Namespace
 			err = json.Unmarshal(body, &ns)
@@ -69,7 +69,7 @@ metadata:
 			resp, err := f.HttpHelper.Client.Do(&req)
 			framework.ExpectNoError(err)
 			defer resp.Body.Close()
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			framework.ExpectNoError(err)
 			var ns corev1.Namespace
 			err = json.Unmarshal(body, &ns)
@@ -125,7 +125,7 @@ spec:
 			resp, err := f.HttpHelper.Client.Do(&req)
 			framework.ExpectNoError(err)
 			defer resp.Body.Close()
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			framework.ExpectNoError(err)
 			var dp appsv1.Deployment
 			err = json.Unmarshal(body, &dp)

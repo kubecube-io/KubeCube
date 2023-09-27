@@ -18,7 +18,8 @@ package hotplug_test
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -43,8 +44,8 @@ var _ = Describe("Helm", func() {
 		// create temporary directory for test case
 		var err error
 		var dir string
-		dir, err = ioutil.TempDir("", "helm-test")
-		ioutil.WriteFile(filepath.Join(dir, ".kubeconfig"), []byte(genKubeconfig("test")), 0644)
+		dir, err = os.MkdirTemp("", "helm-test")
+		os.WriteFile(filepath.Join(dir, ".kubeconfig"), []byte(genKubeconfig("test")), 0644)
 		Expect(err).NotTo(HaveOccurred())
 		// override $HOME/.kube/config
 		clientcmd.RecommendedHomeFile = filepath.Join(dir, ".kubeconfig")
@@ -57,7 +58,7 @@ var _ = Describe("Helm", func() {
 	It("helm list", func() {
 		actionConfig := &action.Configuration{
 			Releases:       storage.Init(driver.NewMemory()),
-			KubeClient:     &kubefake.FailingKubeClient{PrintingKubeClient: kubefake.PrintingKubeClient{Out: ioutil.Discard}},
+			KubeClient:     &kubefake.FailingKubeClient{PrintingKubeClient: kubefake.PrintingKubeClient{Out: io.Discard}},
 			Capabilities:   chartutil.DefaultCapabilities,
 			RegistryClient: nil,
 			Log:            clog.Info,
@@ -79,7 +80,7 @@ var _ = Describe("Helm", func() {
 	It("helm get values", func() {
 		actionConfig := &action.Configuration{
 			Releases:       storage.Init(driver.NewMemory()),
-			KubeClient:     &kubefake.FailingKubeClient{PrintingKubeClient: kubefake.PrintingKubeClient{Out: ioutil.Discard}},
+			KubeClient:     &kubefake.FailingKubeClient{PrintingKubeClient: kubefake.PrintingKubeClient{Out: io.Discard}},
 			Capabilities:   chartutil.DefaultCapabilities,
 			RegistryClient: nil,
 			Log:            clog.Info,
@@ -99,7 +100,7 @@ var _ = Describe("Helm", func() {
 	It("helm uninstall", func() {
 		actionConfig := &action.Configuration{
 			Releases:       storage.Init(driver.NewMemory()),
-			KubeClient:     &kubefake.FailingKubeClient{PrintingKubeClient: kubefake.PrintingKubeClient{Out: ioutil.Discard}},
+			KubeClient:     &kubefake.FailingKubeClient{PrintingKubeClient: kubefake.PrintingKubeClient{Out: io.Discard}},
 			Capabilities:   chartutil.DefaultCapabilities,
 			RegistryClient: nil,
 			Log:            clog.Info,
@@ -117,7 +118,7 @@ var _ = Describe("Helm", func() {
 	It("helm install & upgrade", func() {
 		actionConfig := &action.Configuration{
 			Releases:       storage.Init(driver.NewMemory()),
-			KubeClient:     &kubefake.FailingKubeClient{PrintingKubeClient: kubefake.PrintingKubeClient{Out: ioutil.Discard}},
+			KubeClient:     &kubefake.FailingKubeClient{PrintingKubeClient: kubefake.PrintingKubeClient{Out: io.Discard}},
 			Capabilities:   chartutil.DefaultCapabilities,
 			RegistryClient: nil,
 			Log:            clog.Info,

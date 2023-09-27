@@ -17,7 +17,7 @@ limitations under the License.
 package kubeconfig
 
 import (
-	"io/ioutil"
+	"os"
 
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -112,5 +112,5 @@ func BuildKubeConfigForUser(cms []*ConfigMeta) ([]byte, error) {
 }
 
 func LoadKubeConfigFromFlags(kubeconfigPath string) ([]byte, error) {
-	return ioutil.ReadFile(kubeconfigPath)
+	return os.ReadFile(kubeconfigPath)
 }

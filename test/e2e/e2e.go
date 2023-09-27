@@ -18,7 +18,6 @@ package e2e
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -67,7 +66,7 @@ func Init() {
 	}
 
 	// read init yaml
-	yamlFile, err := ioutil.ReadFile("./mock/e2ebefore.yaml")
+	yamlFile, err := os.ReadFile("./mock/e2ebefore.yaml")
 	if err != nil {
 		clog.Error("failed to read yaml file : %v\n", err)
 		return
@@ -136,7 +135,7 @@ func Clean() {
 		return
 	}
 
-	yamlFile, err := ioutil.ReadFile("./mock/e2eafter.yaml")
+	yamlFile, err := os.ReadFile("./mock/e2eafter.yaml")
 	if err != nil {
 		clog.Info("failed to read yaml file : %v\n", err)
 		return
