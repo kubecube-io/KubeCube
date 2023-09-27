@@ -43,6 +43,7 @@ const (
 	LocalCluster clusterType = iota
 	PivotCluster
 	MemberCluster
+	AllCluster
 )
 
 // ManagerImpl instance implement interface,
@@ -278,7 +279,7 @@ func (m *MultiClustersMgr) ListClustersByType(t clusterType) []*InternalCluster 
 
 	var clusters []*InternalCluster
 	for _, v := range m.Clusters {
-		if v.Type == t {
+		if v.Type == t || (t == AllCluster && v.Type != LocalCluster) {
 			clusters = append(clusters, v)
 		}
 	}
@@ -294,7 +295,7 @@ func (m *MultiClustersMgr) ListClustersNameByType(t clusterType) []string {
 
 	var clusterNames []string
 	for _, v := range m.Clusters {
-		if v.Type == t {
+		if v.Type == t || (t == AllCluster && v.Type != LocalCluster) {
 			clusterNames = append(clusterNames, v.Name)
 		}
 	}

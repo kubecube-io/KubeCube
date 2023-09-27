@@ -26,7 +26,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
-	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
 	"github.com/kubecube-io/kubecube/pkg/authorizer/rbac"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
@@ -38,7 +37,6 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
-	"github.com/kubecube-io/kubecube/pkg/utils/transition"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -62,6 +60,7 @@ func (h *handler) AddApisTo(root *gin.Engine) {
 	r.POST("register", h.registerCluster)
 	r.POST("add", h.addCluster)
 	r.POST("nsquota", h.createNsAndQuota)
+	r.GET("cuberesourcequotas", h.getCubeResourceQuota)
 }
 
 type result struct {
@@ -715,4 +714,53 @@ func (h *handler) createNsAndQuota(c *gin.Context) {
 		username, data.SubNamespaceAnchor.Name, data.ResourceQuota.Name, data.Cluster)
 
 	response.SuccessJsonReturn(c, "success")
+}
+
+type getCubeResourceQuotaResp struct {
+	Total int                     `json:"total"`
+	Items []cubeResourceQuotaData `json:"items"`
+}
+
+type cubeResourceQuotaData struct {
+	ClusterName       string                     `json:"clusterName"`
+	ClusterIdentity   string                     `json:"clusterIdentity"`
+	Tenant            string                     `json:"tenant"`
+	CubeResourceQuota *quotav1.CubeResourceQuota `json:"cubeResourceQuota"`
+	ExclusiveNodeHard map[string]v1.ResourceList `json:"exclusiveNodeHard"`
+}
+
+func (h *handler) getCubeResourceQuota(c *gin.Context) {
+	ts := c.Query("tenants")
+	cs := c.Query("clusters")
+	userName := c.Query("user")
+
+	tenants, clusters := strings.Split(ts, ";"), strings.Split(cs, ";")
+
+	if len(userName) == 0 {
+		userName = c.GetString(constants.UserName)
+	}
+
+	if len(cs) == 0 {
+		clusters = multicluster.Interface().ListClustersNameByType(multicluster.AllCluster)
+	}
+
+	if len(ts) == 0 {
+		tenants = nil
+	}
+
+	visibleTenants, err := getVisibleTenants(h.Client, userName, tenants)
+	if err != nil {
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
+		return
+	}
+
+	res, err := listCubeResourceQuota(h.Client, visibleTenants, clusters)
+	if err != nil {
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
+		return
+	}
+
+	sortCubeResourceQuotas(res)
+
+	response.SuccessReturn(c, getCubeResourceQuotaResp{Total: len(res), Items: res})
 }

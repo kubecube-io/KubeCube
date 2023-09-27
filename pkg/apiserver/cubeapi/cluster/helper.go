@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -510,4 +511,135 @@ func listHncNsByTenantsFunc(ctx context.Context, tenantList []string) func(cli m
 		}
 		return nsLIst, nil
 	}
+}
+
+func getVisibleTenants(cli mgrclient.Client, userName string, tenants []string) ([]string, error) {
+	visibleTenants, err := authorization.GetVisibleTenants(context.Background(), cli, userName)
+	if err != nil {
+		return nil, err
+	}
+	visibleTenantsSet := sets.New[string]()
+	for _, t := range visibleTenants {
+		visibleTenantsSet.Insert(t.Name)
+	}
+	if len(tenants) == 0 {
+		return visibleTenantsSet.UnsortedList(), nil
+	}
+	queryTenantSet := sets.New[string](tenants...)
+	if !visibleTenantsSet.IsSuperset(queryTenantSet) {
+		return nil, fmt.Errorf("query tenants (%v) is not visible for user (%v)", queryTenantSet.UnsortedList(), userName)
+	}
+	return queryTenantSet.UnsortedList(), nil
+}
+
+func listCubeResourceQuota(cli mgrclient.Client, tenants []string, clusters []string) ([]cubeResourceQuotaData, error) {
+	ls := labels.NewSelector()
+	r1, err := labels.NewRequirement(constants.ClusterLabel, selection.In, clusters)
+	if err != nil {
+		return nil, err
+	}
+	r2, err := labels.NewRequirement(constants.TenantLabel, selection.In, tenants)
+	if err != nil {
+		return nil, err
+	}
+	ls = ls.Add(*r1)
+	ls = ls.Add(*r2)
+
+	list := v1.CubeResourceQuotaList{}
+	err = cli.Cache().List(context.Background(), &list, &client.ListOptions{LabelSelector: ls})
+	if err != nil {
+		return nil, err
+	}
+
+	// construct cube resource quota map
+	quotaMap := make(map[string]v1.CubeResourceQuota, len(list.Items))
+	for _, v := range list.Items {
+		meta.TrimObjectMeta(&v)
+		quotaMap[v.Name] = v
+	}
+
+	// construct cluster cn name map
+	clusterMap := make(map[string]string, len(clusters))
+	clusterList := clusterv1.ClusterList{}
+	err = cli.Cache().List(context.Background(), &clusterList)
+	if err != nil {
+		return nil, err
+	}
+	for _, v := range clusterList.Items {
+		if v.Annotations != nil {
+			cnName, ok := v.Annotations[constants.CubeCnAnnotation]
+			if ok {
+				clusterMap[v.Name] = cnName
+			}
+		}
+	}
+
+	res := make([]cubeResourceQuotaData, 0, len(tenants)*len(clusters))
+	for _, tenant := range tenants {
+		for _, cluster := range clusters {
+			v := cubeResourceQuotaData{
+				ClusterIdentity:   cluster,
+				ClusterName:       cluster,
+				Tenant:            tenant,
+				CubeResourceQuota: nil,
+				ExclusiveNodeHard: nil,
+			}
+			quotaName := strings.Join([]string{cluster, tenant}, ".")
+			q, ok := quotaMap[quotaName]
+			if ok {
+				v.CubeResourceQuota = &q
+			}
+			cnName, ok := clusterMap[cluster]
+			if ok {
+				v.ClusterName = cnName
+			}
+			clusterCli := clients.Interface().Kubernetes(cluster)
+			if clusterCli == nil {
+				return nil, fmt.Errorf("cluster %v not found", cluster)
+			}
+			v.ExclusiveNodeHard, err = getExclusiveNodeHard(clusterCli, tenant)
+			if err != nil {
+				return nil, err
+			}
+			res = append(res, v)
+		}
+	}
+	return res, nil
+}
+
+func getExclusiveNodeHard(cli mgrclient.Client, tenant string) (map[string]corev1.ResourceList, error) {
+	ls, err := labels.Parse(fmt.Sprintf("%v=%v", constants.LabelNodeTenant, tenant))
+	if err != nil {
+		return nil, err
+	}
+
+	nodeList := corev1.NodeList{}
+	err = cli.Cache().List(context.Background(), &nodeList, &client.ListOptions{LabelSelector: ls})
+	if err != nil {
+		return nil, err
+	}
+	ex := make(map[string]corev1.ResourceList, len(nodeList.Items))
+	for _, v := range nodeList.Items {
+		ex[v.Name] = v.Status.Capacity
+	}
+	return ex, nil
+}
+
+func sortCubeResourceQuotas(qs []cubeResourceQuotaData) []cubeResourceQuotaData {
+	sort.SliceStable(qs, func(i, j int) bool {
+		return qs[i].Tenant+qs[i].ClusterName < qs[j].Tenant+qs[j].ClusterName
+	})
+
+	res := []cubeResourceQuotaData{}
+	unsetted := []cubeResourceQuotaData{}
+
+	for _, v := range qs {
+		if len(v.ExclusiveNodeHard) == 0 || v.CubeResourceQuota == nil {
+			unsetted = append(unsetted, v)
+		} else {
+			res = append(res, v)
+		}
+	}
+	res = append(res, unsetted...)
+	return res
 }

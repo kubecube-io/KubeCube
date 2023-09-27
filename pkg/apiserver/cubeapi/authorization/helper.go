@@ -22,6 +22,8 @@ import (
 	"strings"
 
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	userinfo "k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/apiserver/pkg/authorization/authorizer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -254,4 +256,29 @@ func isPlatformRole(labels map[string]string) bool {
 		return false
 	}
 	return labels[constants.RoleLabel] == constants.ClusterRolePlatform
+}
+
+func GetVisibleTenants(ctx context.Context, cli mgrclient.Client, username string) ([]tenantv1.Tenant, error) {
+	user := userv1.User{}
+	err := cli.Cache().Get(ctx, types.NamespacedName{Name: username}, &user)
+	if err != nil {
+		return nil, err
+	}
+
+	tenants := tenantv1.TenantList{}
+	err = cli.Cache().List(ctx, &tenants)
+	if err != nil {
+		return nil, err
+	}
+
+	tenantSet := sets.NewString(user.Status.BelongTenants...)
+	res := []tenantv1.Tenant{}
+	for _, t := range tenants.Items {
+		if !user.Status.PlatformAdmin && !tenantSet.Has(t.Name) {
+			continue
+		}
+		res = append(res, t)
+	}
+
+	return res, nil
 }
