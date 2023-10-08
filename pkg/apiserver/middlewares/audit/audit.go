@@ -19,7 +19,7 @@ package audit
 import (
 	"bytes"
 	"context"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -248,7 +248,7 @@ func sendEvent(e *Event) {
 	}
 	defer resp.Body.Close()
 
-	respBytes, err := ioutil.ReadAll(resp.Body)
+	respBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		clog.Error("[audit] read response body error: %s", err)
 		return
@@ -418,7 +418,7 @@ func getPostObjectName(c *gin.Context) string {
 		return ""
 	}
 	// put request body back
-	c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(data))
+	c.Request.Body = io.NopCloser(bytes.NewBuffer(data))
 
 	obj := unstructured.Unstructured{}
 	if err = json.Unmarshal(data, &obj); err != nil {

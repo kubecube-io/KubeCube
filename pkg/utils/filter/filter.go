@@ -20,7 +20,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
-	"io/ioutil"
+	"io"
 
 	jsoniter "github.com/json-iterator/go"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -81,13 +81,13 @@ func (f *Filter) ModifyResponse(r *http.Response, filterCondition *Condition) er
 			clog.Info("can not read gzip body from response, %v", err)
 			return err
 		}
-		body, err = ioutil.ReadAll(reader)
+		body, err = io.ReadAll(reader)
 		if err != nil {
 			clog.Info("can not read gzip body from response, %v", err)
 			return err
 		}
 	default:
-		body, err = ioutil.ReadAll(r.Body)
+		body, err = io.ReadAll(r.Body)
 		if err != nil {
 			clog.Info("can not read body from response, %v", err)
 			return err
@@ -106,7 +106,7 @@ func (f *Filter) ModifyResponse(r *http.Response, filterCondition *Condition) er
 		clog.Warn("modify response failed: %s", err.Error())
 	}
 	buf := bytes.NewBuffer(body)
-	r.Body = ioutil.NopCloser(buf)
+	r.Body = io.NopCloser(buf)
 	r.Header["Content-Length"] = []string{fmt.Sprint(buf.Len())}
 	delete(r.Header, "Content-Encoding")
 	return nil

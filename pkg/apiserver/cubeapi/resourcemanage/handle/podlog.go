@@ -19,7 +19,6 @@ package resourcemanage
 import (
 	"context"
 	"io"
-	"io/ioutil"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -150,7 +149,7 @@ func readRawLogs(client kubernetes.Interface, namespace, podID string, logOption
 
 	defer readCloser.Close()
 
-	result, err := ioutil.ReadAll(readCloser)
+	result, err := io.ReadAll(readCloser)
 	if err != nil {
 		return "", err
 	}

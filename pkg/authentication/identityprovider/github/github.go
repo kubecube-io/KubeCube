@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -128,7 +128,7 @@ func (g *githubProvider) IdentityExchange(code string) (identityprovider.Identit
 		return nil, err
 	}
 
-	respBody, err := ioutil.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		clog.Error("read response error: %v", err)
 		return nil, err
@@ -160,7 +160,7 @@ func (g *githubProvider) IdentityExchange(code string) (identityprovider.Identit
 		return nil, err
 	}
 
-	respBody, err = ioutil.ReadAll(resp.Body)
+	respBody, err = io.ReadAll(resp.Body)
 	if err != nil {
 		clog.Error("read response error: %v", err)
 		return nil, err

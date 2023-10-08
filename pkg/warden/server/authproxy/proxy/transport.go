@@ -25,7 +25,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"path"
@@ -260,7 +259,7 @@ func (t *Transport) rewriteResponse(req *http.Request, resp *http.Response) (*ht
 		return resp, err
 	}
 
-	resp.Body = ioutil.NopCloser(newContent)
+	resp.Body = io.NopCloser(newContent)
 	// Update header node with new content-length
 	// TODO: Remove any hash/signature headers here?
 	resp.Header.Del("Content-Length")

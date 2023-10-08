@@ -18,7 +18,7 @@ package token
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -34,7 +34,7 @@ type header struct {
 func performRequest(r http.Handler, method, path string, body []byte, headers []header, cookies ...*http.Cookie) *httptest.ResponseRecorder {
 	req := httptest.NewRequest(method, path, nil)
 	if body != nil {
-		req.Body = ioutil.NopCloser(bytes.NewBuffer(body))
+		req.Body = io.NopCloser(bytes.NewBuffer(body))
 	}
 	for _, h := range headers {
 		req.Header.Add(h.Key, h.Value)

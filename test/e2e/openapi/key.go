@@ -17,7 +17,7 @@ limitations under the License.
 package openapi
 
 import (
-	"io/ioutil"
+	"io"
 
 	jsoniter "github.com/json-iterator/go"
 	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
@@ -36,7 +36,7 @@ var _ = ginkgo.Describe("Test OpenAPI", func() {
 			resp, err := f.HttpHelper.Client.Do(&req)
 			framework.ExpectNoError(err)
 			defer resp.Body.Close()
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			framework.ExpectNoError(err)
 			var result map[string]interface{}
 			err = json.Unmarshal(body, &result)
@@ -61,7 +61,7 @@ var _ = ginkgo.Describe("Test OpenAPI", func() {
 			resp, err := f.HttpHelper.Client.Do(&req)
 			framework.ExpectNoError(err)
 			defer resp.Body.Close()
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			framework.ExpectNoError(err)
 			var keyList userv1.KeyList
 			json.Unmarshal(body, &keyList)
@@ -72,7 +72,7 @@ var _ = ginkgo.Describe("Test OpenAPI", func() {
 				req := f.HttpHelper.Get(f.HttpHelper.FormatUrl(url), nil)
 				resp, err = f.HttpHelper.Client.Do(&req)
 				framework.ExpectNoError(err)
-				body, err = ioutil.ReadAll(resp.Body)
+				body, err = io.ReadAll(resp.Body)
 				framework.ExpectNoError(err)
 				var token map[string]string
 				err = json.Unmarshal(body, &token)
@@ -85,7 +85,7 @@ var _ = ginkgo.Describe("Test OpenAPI", func() {
 				req = f.HttpHelper.Delete(f.HttpHelper.FormatUrl(url))
 				resp, err = f.HttpHelper.Client.Do(&req)
 				framework.ExpectNoError(err)
-				body, err = ioutil.ReadAll(resp.Body)
+				body, err = io.ReadAll(resp.Body)
 				framework.ExpectNoError(err)
 				framework.ExpectEqual("{\"message\":\"success\"}", string(body))
 			}

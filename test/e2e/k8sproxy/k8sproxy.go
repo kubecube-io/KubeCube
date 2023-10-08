@@ -19,7 +19,7 @@ package k8sproxy
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	jsoniter "github.com/json-iterator/go"
@@ -40,7 +40,7 @@ var _ = ginkgo.Describe("Test k8s proxy", func() {
 			req := f.HttpHelper.Get(f.HttpHelper.FormatUrl("/proxy/clusters/pivot-cluster/api/v1/namespaces?pageSize=1000"), nil)
 			resp, err := f.HttpHelper.Client.Do(&req)
 			framework.ExpectNoError(err)
-			body, err := ioutil.ReadAll(resp.Body)
+			body, err := io.ReadAll(resp.Body)
 			framework.ExpectNoError(err)
 			var nsList v1.NamespaceList
 			err = json.Unmarshal(body, &nsList)
@@ -77,7 +77,7 @@ var _ = ginkgo.Describe("Test k8s proxy", func() {
 				resp, err := f.HttpHelper.Client.Do(&req)
 				framework.ExpectNoError(err)
 				defer resp.Body.Close()
-				body, err := ioutil.ReadAll(resp.Body)
+				body, err := io.ReadAll(resp.Body)
 				framework.ExpectNoError(err)
 				var deploy appsv1.Deployment
 				err = json.Unmarshal(body, &deploy)
@@ -92,7 +92,7 @@ var _ = ginkgo.Describe("Test k8s proxy", func() {
 				resp, err := f.HttpHelper.Client.Do(&req)
 				framework.ExpectNoError(err)
 				defer resp.Body.Close()
-				body, err := ioutil.ReadAll(resp.Body)
+				body, err := io.ReadAll(resp.Body)
 				framework.ExpectNoError(err)
 				var statusErr metav1.Status
 				err = json.Unmarshal(body, &statusErr)
@@ -113,7 +113,7 @@ var _ = ginkgo.Describe("Test k8s proxy", func() {
 			ret := f.HttpHelper.MultiUserRequest(http.MethodPost, url, deployJosn, nil)
 			for k, v := range ret {
 				framework.ExpectNoError(v.Err)
-				b, err := ioutil.ReadAll(v.Resp.Body)
+				b, err := io.ReadAll(v.Resp.Body)
 				framework.ExpectNoError(err)
 				var statusErr metav1.Status
 				err = json.Unmarshal(b, &statusErr)

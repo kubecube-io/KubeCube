@@ -19,8 +19,8 @@ package reporter
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/kubecube-io/kubecube/pkg/clog"
@@ -80,7 +80,7 @@ func (r *Reporter) Initialize() error {
 		Timeout:   5 * time.Second,
 	}
 
-	b, err := ioutil.ReadFile(r.LocalClusterKubeConfig)
+	b, err := os.ReadFile(r.LocalClusterKubeConfig)
 	if err != nil {
 		return err
 	}
