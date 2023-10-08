@@ -143,7 +143,7 @@ func (w *Warden) Run(stop <-chan struct{}) {
 
 // makePivotClient make client for pivot client
 func makePivotClient(opts *Config) (multiclient.Client, error) {
-	cfg := &restclient.Config{}
+	var cfg *restclient.Config
 	var err error
 	if len(opts.PivotClusterKubeConfig) != 0 {
 		cfg, err = clientcmd.BuildConfigFromFlags("", opts.PivotClusterKubeConfig)
