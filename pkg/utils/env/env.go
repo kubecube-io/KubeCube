@@ -195,12 +195,12 @@ func GetClusterClientConfig() config.Config {
 		qpsFloat32 = float32(qpsFloat)
 	}
 	burst := os.Getenv("CLUSTER_CLIENT_BURST")
-	burstInt, err := strconv.ParseInt(burst, 10, 64)
+	burstInt, err := strconv.Atoi(burst)
 	if err != nil {
 		burstInt = 10
 	}
 	timeout := os.Getenv("CLUSTER_CLIENT_TIMEOUT_SECONDS")
-	timeoutInt, err := strconv.ParseInt(timeout, 10, 64)
+	timeoutInt, err := strconv.Atoi(timeout)
 	if err != nil {
 		timeoutInt = 0
 	}
@@ -210,15 +210,15 @@ func GetClusterClientConfig() config.Config {
 		clusterCacheSyncEnableBool = false
 	}
 	clusterCacheSyncInterval := os.Getenv("DISCOVERY_CACHE_SYNC_PERIOD")
-	clusterCacheSyncIntervalInt, err := strconv.ParseInt(clusterCacheSyncInterval, 10, 64)
+	clusterCacheSyncIntervalInt, err := strconv.Atoi(clusterCacheSyncInterval)
 	if err != nil {
 		clusterCacheSyncIntervalInt = 60
 	}
 	return config.Config{
 		QPS:                      qpsFloat32,
-		Burst:                    int(burstInt),
-		TimeoutSecond:            int(timeoutInt),
+		Burst:                    burstInt,
+		TimeoutSecond:            timeoutInt,
 		ClusterCacheSyncEnable:   clusterCacheSyncEnableBool,
-		ClusterCacheSyncInterval: int(clusterCacheSyncIntervalInt),
+		ClusterCacheSyncInterval: clusterCacheSyncIntervalInt,
 	}
 }
