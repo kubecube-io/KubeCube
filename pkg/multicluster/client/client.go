@@ -19,6 +19,8 @@ package client
 import (
 	"context"
 	"fmt"
+	"github.com/kubecube-io/kubecube/pkg/utils/env"
+	"time"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -87,39 +89,45 @@ func NewClientFor(ctx context.Context, cfg *rest.Config) (Client, error) {
 	var err error
 	c := new(InternalClient)
 
+	config := env.GetClusterClientConfig()
+	clientCfg := rest.CopyConfig(cfg)
+	clientCfg.QPS = config.QPS
+	clientCfg.Burst = config.Burst
+	clientCfg.Timeout = time.Duration(config.TimeoutSecond) * time.Second
+
 	// todo(weilaaa): support wrap client with version convert
-	c.client, err = client.New(cfg, client.Options{Scheme: scheme})
+	c.client, err = client.New(clientCfg, client.Options{Scheme: scheme})
 	if err != nil {
 		return nil, fmt.Errorf("new k8s client failed: %v", err)
 	}
 
-	c.cache, err = cache.New(cfg, cache.Options{Scheme: scheme})
+	c.cache, err = cache.New(clientCfg, cache.Options{Scheme: scheme})
 	if err != nil {
 		return nil, fmt.Errorf("new k8s cache failed: %v", err)
 	}
 
-	c.metrics, err = versioned.NewForConfig(cfg)
+	c.metrics, err = versioned.NewForConfig(clientCfg)
 	if err != nil {
 		return nil, fmt.Errorf("new metrics client failed: %v", err)
 	}
 
-	c.rawClientSet, err = kubernetes.NewForConfig(cfg)
+	c.rawClientSet, err = kubernetes.NewForConfig(clientCfg)
 	if err != nil {
 		return nil, fmt.Errorf("new raw k8s clientSet failed: %v", err)
 	}
 
-	c.discovery, err = discovery.NewDiscoveryClientForConfig(cfg)
+	c.discovery, err = discovery.NewDiscoveryClientForConfig(clientCfg)
 	if err != nil {
 		return nil, fmt.Errorf("new discovery client failed: %v", err)
 	}
 
 	c.cacheDiscovery = memory.NewMemCacheClient(c.discovery)
 
-	httpClient, err := rest.HTTPClientFor(cfg)
+	httpClient, err := rest.HTTPClientFor(clientCfg)
 	if err != nil {
 		return nil, fmt.Errorf("new http client failed: %v", err)
 	}
-	c.restMapper, err = apiutil.NewDynamicRESTMapper(cfg, httpClient)
+	c.restMapper, err = apiutil.NewDynamicRESTMapper(clientCfg, httpClient)
 	if err != nil {
 		return nil, fmt.Errorf("new rest mapper failed: %v", err)
 	}
@@ -132,6 +140,21 @@ func NewClientFor(ctx context.Context, cfg *rest.Config) (Client, error) {
 		}
 	}()
 	c.cache.WaitForCacheSync(ctx)
+	if !config.ClusterCacheSyncEnable {
+		return c, nil
+	}
+	// add a timed task, call RefreshCacheDiscovery method every hour, refresh the cache
+	tick := time.NewTimer(time.Second * time.Duration(config.ClusterCacheSyncInterval))
+	go func() {
+		for {
+			select {
+			case <-tick.C:
+				c.RefreshCacheDiscovery()
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
 
 	return c, nil
 }
@@ -169,4 +192,9 @@ func WithSchemes(fns ...func(s *runtime.Scheme) error) {
 	for _, fn := range fns {
 		utilruntime.Must(fn(scheme))
 	}
+}
+
+// RefreshCacheDiscovery refresh cache discovery
+func (c *InternalClient) RefreshCacheDiscovery() {
+	c.cacheDiscovery.Invalidate()
 }

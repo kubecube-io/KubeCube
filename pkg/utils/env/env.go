@@ -17,13 +17,14 @@ limitations under the License.
 package env
 
 import (
+	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/multicluster/client/config"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
-
-	"github.com/kubecube-io/kubecube/pkg/clog"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
 type AuditSvcApi struct {
@@ -182,4 +183,42 @@ func hncManagedLabels() map[string]string {
 		labels[res[0]] = res[1]
 	}
 	return labels
+}
+
+func GetClusterClientConfig() config.Config {
+	qps := os.Getenv("CLUSTER_CLIENT_QPS")
+	qpsFloat, err := strconv.ParseFloat(qps, 32)
+	var qpsFloat32 float32
+	if err != nil {
+		qpsFloat32 = float32(5)
+	} else {
+		qpsFloat32 = float32(qpsFloat)
+	}
+	burst := os.Getenv("CLUSTER_CLIENT_BURST")
+	burstInt, err := strconv.ParseInt(burst, 10, 64)
+	if err != nil {
+		burstInt = 10
+	}
+	timeout := os.Getenv("CLUSTER_CLIENT_TIMEOUT_SECONDS")
+	timeoutInt, err := strconv.ParseInt(timeout, 10, 64)
+	if err != nil {
+		timeoutInt = 0
+	}
+	clusterCacheSyncEnable := os.Getenv("DISCOVERY_CACHE_SYNC_ENABLE")
+	clusterCacheSyncEnableBool, err := strconv.ParseBool(clusterCacheSyncEnable)
+	if err != nil {
+		clusterCacheSyncEnableBool = false
+	}
+	clusterCacheSyncInterval := os.Getenv("DISCOVERY_CACHE_SYNC_PERIOD")
+	clusterCacheSyncIntervalInt, err := strconv.ParseInt(clusterCacheSyncInterval, 10, 64)
+	if err != nil {
+		clusterCacheSyncIntervalInt = 60
+	}
+	return config.Config{
+		QPS:                      qpsFloat32,
+		Burst:                    int(burstInt),
+		TimeoutSecond:            int(timeoutInt),
+		ClusterCacheSyncEnable:   clusterCacheSyncEnableBool,
+		ClusterCacheSyncInterval: int(clusterCacheSyncIntervalInt),
+	}
 }

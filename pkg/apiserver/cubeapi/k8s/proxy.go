@@ -18,7 +18,10 @@ func NewHandler() *Handler {
 	if err != nil {
 		clog.Fatal("get local cluster failed: %v", err)
 	}
-	authProxyHandler, err := authproxy.GetHandlerByConfig(cluster.Config)
+	authProxyHandler := &authproxy.Handler{}
+	authProxyHandler.SetHandlerClient(cluster.Client)
+	err = authProxyHandler.SetHandlerTS(cluster.Config)
+
 	if err != nil {
 		clog.Fatal("get local cluster auth proxy handler failed: %v", err)
 	}

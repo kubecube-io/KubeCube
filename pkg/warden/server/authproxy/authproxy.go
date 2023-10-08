@@ -59,19 +59,20 @@ func NewHandler(localClusterKubeConfig string) (*Handler, error) {
 	if err != nil {
 		return nil, err
 	}
-	return GetHandlerByConfig(restConfig)
-}
-
-func GetHandlerByConfig(restConfig *rest.Config) (*Handler, error) {
 	h := &Handler{}
-	h.authMgr = jwt.GetAuthJwtImpl()
-
-	cli, err := client.NewClientFor(context.Background(), restConfig)
+	err = h.SetHandlerClientByRestConfig(restConfig)
 	if err != nil {
 		return nil, err
 	}
+	err = h.SetHandlerTS(restConfig)
+	if err != nil {
+		return nil, err
+	}
+	return h, nil
+}
 
-	h.cli = cli
+func (h *Handler) SetHandlerTS(restConfig *rest.Config) error {
+	h.authMgr = jwt.GetAuthJwtImpl()
 
 	host := restConfig.Host
 	if !strings.HasSuffix(host, "/") {
@@ -79,18 +80,18 @@ func GetHandlerByConfig(restConfig *rest.Config) (*Handler, error) {
 	}
 	target, err := url.Parse(host)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	responder := &responder{}
 	ts, err := rest.TransportFor(restConfig)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	upgradeTransport, err := makeUpgradeTransport(restConfig, 30*time.Second)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	p := proxy.NewUpgradeAwareHandler(target, ts, false, false, responder)
@@ -99,7 +100,20 @@ func GetHandlerByConfig(restConfig *rest.Config) (*Handler, error) {
 
 	h.proxy = p
 
-	return h, nil
+	return nil
+}
+
+func (h *Handler) SetHandlerClient(cli client.Client) {
+	h.cli = cli
+}
+
+func (h *Handler) SetHandlerClientByRestConfig(restConfig *rest.Config) error {
+	cli, err := client.NewClientFor(context.Background(), restConfig)
+	if err != nil {
+		return err
+	}
+	h.cli = cli
+	return nil
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
