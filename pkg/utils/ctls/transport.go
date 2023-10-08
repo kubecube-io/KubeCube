@@ -20,9 +20,9 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"os"
 	"net"
 	"net/http"
+	"os"
 	"time"
 )
 

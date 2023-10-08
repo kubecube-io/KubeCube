@@ -19,8 +19,8 @@ package reporter
 import (
 	"context"
 	"fmt"
-	"os"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/kubecube-io/kubecube/pkg/clog"
