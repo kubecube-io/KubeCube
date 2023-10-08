@@ -54,14 +54,17 @@ type Handler struct {
 }
 
 func NewHandler(localClusterKubeConfig string) (*Handler, error) {
-	h := &Handler{}
-	h.authMgr = jwt.GetAuthJwtImpl()
-
 	// get cluster info from rest config
 	restConfig, err := clientcmd.BuildConfigFromFlags("", localClusterKubeConfig)
 	if err != nil {
 		return nil, err
 	}
+	return GetHandlerByConfig(restConfig)
+}
+
+func GetHandlerByConfig(restConfig *rest.Config) (*Handler, error) {
+	h := &Handler{}
+	h.authMgr = jwt.GetAuthJwtImpl()
 
 	cli, err := client.NewClientFor(context.Background(), restConfig)
 	if err != nil {
@@ -124,6 +127,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// impersonate given user to access k8s-apiserver
 	r.Header.Set(constants.ImpersonateUserKey, userInfo.Username)
-
+	r.Header.Del(constants.AuthorizationHeader)
 	h.proxy.ServeHTTP(w, r)
 }

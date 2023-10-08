@@ -19,6 +19,7 @@ package apiserver
 import (
 	"context"
 	"fmt"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/k8s"
 	"net/http"
 	"time"
 
@@ -161,6 +162,7 @@ func apisOutsideMiddlewares(root *gin.Engine) {
 	scout.AddApisTo(root)
 
 	root.GET(constants.ApiPathRoot+"/extend/configmap/:configmap", resourcemanage.GetConfigMap)
+	root.Any(constants.ApiK8sProxyPath+"/*path", k8s.NewHandler().LocalClusterProxy)
 }
 
 func (s *APIServer) Initialize() error {
