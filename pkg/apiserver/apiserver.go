@@ -19,7 +19,6 @@ package apiserver
 import (
 	"context"
 	"fmt"
-	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/k8s"
 	"net/http"
 	"time"
 
@@ -28,6 +27,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/authorization"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/cluster"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/healthz"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/k8s"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/key"
 	resourcemanage "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/scout"

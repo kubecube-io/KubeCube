@@ -19,7 +19,6 @@ package client
 import (
 	"context"
 	"fmt"
-	"github.com/kubecube-io/kubecube/pkg/utils/env"
 	"time"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -39,6 +38,7 @@ import (
 
 	"github.com/kubecube-io/kubecube/pkg/apis"
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/env"
 )
 
 var (
