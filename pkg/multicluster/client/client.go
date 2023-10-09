@@ -143,7 +143,7 @@ func NewClientFor(ctx context.Context, cfg *rest.Config) (Client, error) {
 	if !config.ClusterCacheSyncEnable {
 		return c, nil
 	}
-	// add a timed task, call RefreshCacheDiscovery method every hour, refresh the cache
+	// add a timed task, call RefreshCacheDiscovery method , refresh the cache
 	tick := time.NewTimer(time.Second * time.Duration(config.ClusterCacheSyncInterval))
 	go func() {
 		for {
