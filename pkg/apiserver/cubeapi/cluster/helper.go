@@ -532,6 +532,11 @@ func getVisibleTenants(ctx context.Context, cli mgrclient.Client, userName strin
 	return queryTenantSet.UnsortedList(), nil
 }
 
+type clusterDate struct {
+	cnName string
+	state  *clusterv1.ClusterState
+}
+
 func listCubeResourceQuota(ctx context.Context, cli mgrclient.Client, tenants []string, clusters []string) ([]cubeResourceQuotaData, error) {
 	ls := labels.NewSelector()
 	r1, err := labels.NewRequirement(constants.ClusterLabel, selection.In, clusters)
@@ -559,7 +564,7 @@ func listCubeResourceQuota(ctx context.Context, cli mgrclient.Client, tenants []
 	}
 
 	// construct cluster cn name map
-	clusterMap := make(map[string]string, len(clusters))
+	clusterMap := make(map[string]clusterDate, len(clusters))
 	clusterList := clusterv1.ClusterList{}
 	err = cli.Cache().List(ctx, &clusterList)
 	if err != nil {
@@ -567,10 +572,12 @@ func listCubeResourceQuota(ctx context.Context, cli mgrclient.Client, tenants []
 	}
 	for _, v := range clusterList.Items {
 		if v.Annotations != nil {
+			c := clusterDate{state: v.Status.State}
 			cnName, ok := v.Annotations[constants.CubeCnAnnotation]
 			if ok {
-				clusterMap[v.Name] = cnName
+				c.cnName = cnName
 			}
+			clusterMap[v.Name] = c
 		}
 	}
 
@@ -589,10 +596,11 @@ func listCubeResourceQuota(ctx context.Context, cli mgrclient.Client, tenants []
 			if ok {
 				v.CubeResourceQuota = &q
 			}
-			cnName, ok := clusterMap[cluster]
+			data, ok := clusterMap[cluster]
 			if ok {
-				v.ClusterName = cnName
+				v.ClusterName = data.cnName
 			}
+			v.ClusterState = *data.state
 			clusterCli := clients.Interface().Kubernetes(cluster)
 			if clusterCli == nil {
 				return nil, fmt.Errorf("cluster %v not found", cluster)
