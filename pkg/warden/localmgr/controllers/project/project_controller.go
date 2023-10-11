@@ -19,8 +19,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"time"
-
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
@@ -38,12 +36,6 @@ import (
 )
 
 var _ reconcile.Reconciler = &ProjectReconciler{}
-
-const (
-	// Default timeouts to be used in TimeoutContext
-	waitInterval = 2 * time.Second
-	waitTimeout  = 120 * time.Second
-)
 
 // ProjectReconciler reconciles a Project object
 type ProjectReconciler struct {
