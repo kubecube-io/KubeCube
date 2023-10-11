@@ -173,7 +173,7 @@ func (c *VersionConverter) GvkGreeting(gvk *schema.GroupVersionKind) (greetBack 
 	// todo: cache the result of all resources
 	_, allResources, err := c.discovery.ServerGroupsAndResources()
 	if err != nil {
-		return IsUnknown, gvk, nil, err
+		clog.Warn("some api group is not available in target cluster, err: %s", err.Error())
 	}
 	if allResources != nil {
 		for _, gvs := range allResources {

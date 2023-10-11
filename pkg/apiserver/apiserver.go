@@ -27,6 +27,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/authorization"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/cluster"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/healthz"
+	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/k8s"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/key"
 	resourcemanage "github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/resourcemanage/handle"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/scout"
@@ -161,6 +162,7 @@ func apisOutsideMiddlewares(root *gin.Engine) {
 	scout.AddApisTo(root)
 
 	root.GET(constants.ApiPathRoot+"/extend/configmap/:configmap", resourcemanage.GetConfigMap)
+	root.Any(constants.ApiK8sProxyPath+"/*path", k8s.NewHandler().LocalClusterProxy)
 }
 
 func (s *APIServer) Initialize() error {
