@@ -639,15 +639,20 @@ func sortCubeResourceQuotas(qs []cubeResourceQuotaData) []cubeResourceQuotaData 
 	})
 
 	res := []cubeResourceQuotaData{}
-	unsetted := []cubeResourceQuotaData{}
+	bothUnsetted := []cubeResourceQuotaData{}
+	oneUnsetted := []cubeResourceQuotaData{}
 
 	for _, v := range qs {
-		if len(v.ExclusiveNodeHard) == 0 || v.CubeResourceQuota == nil {
-			unsetted = append(unsetted, v)
-		} else {
+		switch {
+		case len(v.ExclusiveNodeHard) == 0 && v.CubeResourceQuota == nil:
+			bothUnsetted = append(bothUnsetted, v)
+		case len(v.ExclusiveNodeHard) == 0 || v.CubeResourceQuota == nil:
+			oneUnsetted = append(oneUnsetted, v)
+		default:
 			res = append(res, v)
 		}
 	}
-	res = append(res, unsetted...)
+	res = append(res, oneUnsetted...)
+	res = append(res, bothUnsetted...)
 	return res
 }

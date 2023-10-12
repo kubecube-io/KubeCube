@@ -762,7 +762,7 @@ func (h *handler) getCubeResourceQuota(c *gin.Context) {
 		return
 	}
 
-	sortCubeResourceQuotas(res)
+	res = sortCubeResourceQuotas(res)
 
 	response.SuccessReturn(c, getCubeResourceQuotaResp{Total: len(res), Items: res})
 }
