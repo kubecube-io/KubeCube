@@ -532,7 +532,13 @@ func getVisibleTenants(ctx context.Context, cli mgrclient.Client, userName strin
 	if !visibleTenantsSet.IsSuperset(queryTenantSet) {
 		return nil, nil, fmt.Errorf("query tenants (%v) is not visible for user (%v)", queryTenantSet.UnsortedList(), userName)
 	}
-	return queryTenantSet.UnsortedList(), visibleTenants, nil
+	queryTenantsCr := []tenantv1.Tenant{}
+	for _, tenant := range visibleTenants {
+		if queryTenantSet.Has(tenant.Name) {
+			queryTenantsCr = append(queryTenantsCr, tenant)
+		}
+	}
+	return queryTenantSet.UnsortedList(), queryTenantsCr, nil
 }
 
 type clusterDate struct {
