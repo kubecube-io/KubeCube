@@ -22,7 +22,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/rbac/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
 
 	cluster "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
 	extension "github.com/kubecube-io/kubecube/pkg/apis/extension/v1"
@@ -74,8 +73,6 @@ func newGenericObj(obj client.Object) (client.Object, error) {
 		return &quota.CubeResourceQuota{}, nil
 	case *corev1.Namespace:
 		return &corev1.Namespace{}, nil
-	case *v1alpha2.SubnamespaceAnchor:
-		return &v1alpha2.SubnamespaceAnchor{}, nil
 	case *hotplug.Hotplug:
 		return &hotplug.Hotplug{}, nil
 	case *extension.ExternalResource:

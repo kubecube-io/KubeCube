@@ -18,21 +18,19 @@ import (
 	"fmt"
 	"net/http"
 
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
-
 	"github.com/kubecube-io/kubecube/pkg/apis"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/exit"
 	"github.com/kubecube-io/kubecube/pkg/warden/reporter"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 const healthProbeAddr = "0.0.0.0:9777"
@@ -47,8 +45,6 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(apis.AddToScheme(scheme))
-
-	utilruntime.Must(v1alpha2.AddToScheme(scheme))
 
 	utilruntime.Must(apiextensionsv1.AddToScheme(scheme))
 }

@@ -24,19 +24,18 @@ import (
 	"math/rand"
 	"strconv"
 
+	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
+	"github.com/kubecube-io/kubecube/pkg/clients"
+	"github.com/kubecube-io/kubecube/pkg/multicluster/client"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/transition"
+	"github.com/kubecube-io/kubecube/test/e2e/framework"
 	"github.com/onsi/ginkgo/v2"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
-	hnc "sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
-
-	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
-	"github.com/kubecube-io/kubecube/pkg/clients"
-	"github.com/kubecube-io/kubecube/pkg/multicluster/client"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-	"github.com/kubecube-io/kubecube/test/e2e/framework"
 )
 
 var _ = ginkgo.Describe("Test Tenant and Project", func() {
@@ -133,7 +132,7 @@ var _ = ginkgo.Describe("Test Tenant and Project", func() {
 			framework.ExpectNoError(err)
 			b, err := io.ReadAll(r.Body)
 			framework.ExpectNoError(err)
-			var subns hnc.SubnamespaceAnchor
+			var subns transition.SubnamespaceAnchor
 			err = json.Unmarshal(b, &subns)
 			framework.ExpectNoError(err)
 			framework.ExpectEqual(constants.ProjectNsPrefix+projectName, subns.Name)

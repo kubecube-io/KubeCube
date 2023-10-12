@@ -28,10 +28,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	v12 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
+	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/options"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/transition"
 )
 
 type RoleBindingReconciler struct {
@@ -45,10 +46,11 @@ func newRoleBindingReconciler(mgr manager.Manager) (*RoleBindingReconciler, erro
 }
 
 func (r *RoleBindingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	clog.Debug("Reconcile RoleBinding(%v/%v)", req.Name, req.Namespace)
 	roleBinding := &v1.RoleBinding{}
 	if err := r.Get(ctx, req.NamespacedName, roleBinding); err != nil {
 		if errors.IsNotFound(err) {
-			return r.syncUserOnDelete(ctx, req.Name, req.Namespace)
+			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{}, err
 	}
@@ -59,8 +61,8 @@ func (r *RoleBindingReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 func (r *RoleBindingReconciler) syncUserOnCreate(ctx context.Context, roleBinding *v1.RoleBinding) (ctrl.Result, error) {
 	userName, tenant, project, err := parseUserInRoleBinding(roleBinding.Name, roleBinding.Namespace)
 	if err != nil {
-		clog.Error("parse RoleBinding(%s/%s) failed: %v", roleBinding.Name, roleBinding.Namespace, err)
-		return ctrl.Result{}, err
+		clog.Warn("parse RoleBinding(%s/%s) failed: %v", roleBinding.Name, roleBinding.Namespace, err)
+		return ctrl.Result{}, nil
 	}
 
 	if len(userName+tenant+project) == 0 {
@@ -68,74 +70,31 @@ func (r *RoleBindingReconciler) syncUserOnCreate(ctx context.Context, roleBindin
 		return ctrl.Result{}, nil
 	}
 
-	user := &v12.User{}
+	user := &userv1.User{}
 	err = r.Get(ctx, types.NamespacedName{Name: userName}, user)
 	if err != nil {
 		if errors.IsNotFound(err) {
+			clog.Warn(err.Error())
 			return ctrl.Result{}, nil
 		}
 		clog.Error("get user %v failed: %v", userName, err)
 		return ctrl.Result{}, err
 	}
 
+	// add user scope bindings
 	if len(tenant) > 0 {
-		addUserToTenant(user, tenant)
-		err = updateUserStatus(ctx, r.Client, user, constants.ClusterRoleTenant)
-		if err != nil {
-			clog.Error(updateUserStatusErrStr(user.Name, err))
-			return ctrl.Result{}, err
-		}
+		transition.AddUserScopeBindings(user, string(userv1.TenantScope), tenant, roleBinding.RoleRef.Name)
 	} else if len(project) > 0 {
-		addUserToProject(user, project)
-		err = updateUserStatus(ctx, r.Client, user, constants.ClusterRoleProject)
-		if err != nil {
-			clog.Error(updateUserStatusErrStr(user.Name, err))
-			return ctrl.Result{}, err
-		}
+		transition.AddUserScopeBindings(user, string(userv1.ProjectScope), project, roleBinding.RoleRef.Name)
 	}
-
-	return ctrl.Result{}, nil
-}
-
-func (r *RoleBindingReconciler) syncUserOnDelete(ctx context.Context, name, namespace string) (ctrl.Result, error) {
-	userName, tenant, project, err := parseUserInRoleBinding(name, namespace)
+	err = transition.UpdateUserSpec(ctx, r.Client, user)
 	if err != nil {
-		clog.Error("parse RoleBinding(%s/%s) failed: %v", name, namespace, err)
 		return ctrl.Result{}, err
 	}
 
-	if len(userName+tenant+project) == 0 {
-		// do nothing if name and namespace not matched
-		return ctrl.Result{}, nil
-	}
-
-	user := &v12.User{}
-	err = r.Get(ctx, types.NamespacedName{Name: userName}, user)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			return ctrl.Result{}, nil
-		}
-		clog.Error("get user %v failed: %v", userName, err)
-		return ctrl.Result{}, err
-	}
-
-	if len(tenant) > 0 {
-		moveUserFromTenant(user, tenant)
-		err = updateUserStatus(ctx, r.Client, user, constants.ClusterRoleTenant)
-		if err != nil {
-			clog.Error(updateUserStatusErrStr(user.Name, err))
-			return ctrl.Result{}, err
-		}
-	} else if len(project) > 0 {
-		moveUserFromProject(user, project)
-		err = updateUserStatus(ctx, r.Client, user, constants.ClusterRoleProject)
-		if err != nil {
-			clog.Error(updateUserStatusErrStr(user.Name, err))
-			return ctrl.Result{}, err
-		}
-	}
-
-	return ctrl.Result{}, nil
+	// add user relationship label to RoleBinding
+	roleBinding.Labels = setBindingUserLabel(roleBinding.Labels, user.Name)
+	return ctrl.Result{}, updateRoleBinding(ctx, r.Client, roleBinding)
 }
 
 func SetupRoleBindingReconcilerWithManager(mgr ctrl.Manager, _ *options.Options) error {
@@ -146,6 +105,11 @@ func SetupRoleBindingReconcilerWithManager(mgr ctrl.Manager, _ *options.Options)
 
 	predicateFunc := predicate.Funcs{
 		CreateFunc: func(event event.CreateEvent) bool {
+			//_, ok := event.Object.GetLabels()[constants.LabelRelationship]
+			//if ok {
+			//	// do not handle bindings that has processed
+			//	return false
+			//}
 			v, ok := event.Object.GetLabels()[constants.RbacLabel]
 			if ok && v == "true" {
 				return true
@@ -157,10 +121,6 @@ func SetupRoleBindingReconcilerWithManager(mgr ctrl.Manager, _ *options.Options)
 			return false
 		},
 		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			v, ok := deleteEvent.Object.GetLabels()[constants.RbacLabel]
-			if ok && v == "true" {
-				return true
-			}
 			return false
 		},
 	}

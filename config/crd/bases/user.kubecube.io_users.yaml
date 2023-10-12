@@ -60,6 +60,27 @@ spec:
                 type: string
               phone:
                 type: string
+              scopeBindings:
+                description: ScopeBindings indicates user relationships with tenant,project
+                  or platform
+                items:
+                  properties:
+                    role:
+                      description: Role the rbac role name.
+                      type: string
+                    scopeName:
+                      description: ScopeName the specific scope name.
+                      type: string
+                    scopeType:
+                      description: ScopeType the binding scope type that support tenant,project
+                        and platform.
+                      type: string
+                  required:
+                  - role
+                  - scopeName
+                  - scopeType
+                  type: object
+                type: array
               state:
                 type: string
               wechat:

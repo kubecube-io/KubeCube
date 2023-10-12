@@ -21,12 +21,12 @@ import (
 	admisson "sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/kubecube-io/kubecube/pkg/utils/ctrlopts"
-	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/binding"
 	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/crds"
 	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/hotplug"
 	project "github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/project"
 	"github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/quota"
 	tenant "github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/tenant"
+	user "github.com/kubecube-io/kubecube/pkg/warden/localmgr/controllers/user"
 	hotplug2 "github.com/kubecube-io/kubecube/pkg/warden/localmgr/webhooks/hotplug"
 	project2 "github.com/kubecube-io/kubecube/pkg/warden/localmgr/webhooks/project"
 	quota2 "github.com/kubecube-io/kubecube/pkg/warden/localmgr/webhooks/quota"
@@ -79,15 +79,8 @@ func setupControllersWithManager(m *LocalManager, controllers string) error {
 		}
 	}
 
-	if ctrlopts.IsControllerEnabled("rolebinding", ctrls) {
-		err = binding.SetupRoleBindingReconcilerWithManager(m.Manager, nil)
-		if err != nil {
-			return err
-		}
-	}
-
-	if ctrlopts.IsControllerEnabled("clusterrolebinding", ctrls) {
-		err = binding.SetupClusterRoleBindingReconcilerWithManager(m.Manager, nil)
+	if ctrlopts.IsControllerEnabled("user", ctrls) {
+		err = user.SetupWithManager(m.Manager, nil)
 		if err != nil {
 			return err
 		}

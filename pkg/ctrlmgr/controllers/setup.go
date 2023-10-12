@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"errors"
+	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/controllers/binding"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -37,6 +38,8 @@ func init() {
 	setupFns["cluster"] = cluster.SetupWithManager
 	setupFns["user"] = user.SetupWithManager
 	setupFns["cuberesourcequota"] = quota.SetupWithManager
+	setupFns["clusterrolebinding"] = binding.SetupClusterRoleBindingReconcilerWithManager
+	setupFns["rolebinding"] = binding.SetupRoleBindingReconcilerWithManager
 }
 
 // SetupWithManager set up controllers into manager

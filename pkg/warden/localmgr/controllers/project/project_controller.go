@@ -19,34 +19,23 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"time"
-
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/wait"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 
 	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
-	"github.com/kubecube-io/kubecube/pkg/utils/env"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	hnc "sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 var _ reconcile.Reconciler = &ProjectReconciler{}
-
-const (
-	// Default timeouts to be used in TimeoutContext
-	waitInterval = 2 * time.Second
-	waitTimeout  = 120 * time.Second
-)
 
 // ProjectReconciler reconciles a Project object
 type ProjectReconciler struct {
@@ -88,15 +77,13 @@ func (r *ProjectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, nil
 	}
 
+	needUpdate := false
+
 	// if .spec.namespace is nil, add .spec.namespace
 	nsName := constants.ProjectNsPrefix + req.Name
 	if project.Spec.Namespace != nsName {
 		project.Spec.Namespace = nsName
-		err = r.Client.Update(ctx, &project)
-		if err != nil {
-			log.Error("update project .spec.namespace fail, %v", err)
-			return ctrl.Result{}, err
-		}
+		needUpdate = true
 	}
 
 	// if annotation not content kubecube.io/sync, add it
@@ -107,9 +94,13 @@ func (r *ProjectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 	if _, ok := ano[constants.SyncAnnotation]; !ok {
 		ano[constants.SyncAnnotation] = "1"
 		project.Annotations = ano
+		needUpdate = true
+	}
+
+	if needUpdate {
 		err = r.Client.Update(ctx, &project)
 		if err != nil {
-			log.Error("update project .metadata.annotations fail, %v", err)
+			log.Error("update project fail, %v", err)
 			return ctrl.Result{}, err
 		}
 	}
@@ -132,139 +123,47 @@ func (r *ProjectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, fmt.Errorf("the tenant %s do not content .spec.namespace", tenantName)
 	}
 
-	subnamesapceAchor := hnc.SubnamespaceAnchor{}
-	// Weather subnamespaceAchor exist
-	err = r.Client.Get(ctx, types.NamespacedName{Namespace: tenant.Spec.Namespace, Name: project.Spec.Namespace}, &subnamesapceAchor)
-	if err != nil {
-		if !errors.IsNotFound(err) {
-			log.Warn("create project subnamespaces fail, %v", err)
-			return ctrl.Result{}, err
-		}
-
-		newSubnamesapceAchor := hnc.SubnamespaceAnchor{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "SubnamespaceAnchor",
-				APIVersion: "hnc.x-k8s.io/v1alpha2",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      project.Spec.Namespace,
-				Namespace: tenant.Spec.Namespace,
-				Annotations: map[string]string{
-					constants.SyncAnnotation: "1",
-				},
-			},
-			Spec: hnc.SubnamespaceAnchorSpec{
-				Labels: []hnc.MetaKVP{
-					{
-						Key:   constants.HncTenantLabel,
-						Value: tenant.Name,
-					},
-					{
-						Key:   constants.HncProjectLabel,
-						Value: project.Name,
-					},
-				},
-			},
-		}
-		err = r.Client.Create(ctx, &newSubnamesapceAchor)
-		if err != nil {
-			log.Warn("create project subnamespaces fail, %v", err)
-			return ctrl.Result{}, err
-		}
-	}
-
-	projectNs := corev1.Namespace{}
-	projectNsName := constants.ProjectNsPrefix + project.Name
-	err = r.Client.Get(ctx, types.NamespacedName{Name: projectNsName}, &projectNs)
-	if err != nil && !errors.IsNotFound(err) {
-		log.Error(err.Error())
-		return ctrl.Result{}, err
-	}
-	if errors.IsNotFound(err) {
-		err = wait.PollUntilContextTimeout(ctx, waitInterval, waitTimeout, false, func(ctx context.Context) (done bool, err error) {
-			err = r.Client.Get(ctx, types.NamespacedName{Name: constants.ProjectNsPrefix + project.Name}, &projectNs)
-			if err != nil {
-				return false, nil
-			} else {
-				return true, nil
-			}
-		})
-		if err != nil {
-			log.Error("wait for hnc spread ns %v failed: %v", projectNsName, err)
-			return ctrl.Result{}, err
-		}
-	}
-
-	needUpdate := false
-	if projectNs.Labels != nil {
-		for k, v := range env.HncManagedLabels {
-			if _, ok := projectNs.Labels[k]; ok && v == "-" {
-				delete(projectNs.Labels, k)
-				needUpdate = true
-				continue
-			}
-			if projectNs.Labels[k] != v {
-				projectNs.Labels[k] = v
-				needUpdate = true
-			}
-		}
-	} else {
-		projectNs.Labels = env.EnsureManagedLabels(env.HncManagedLabels)
-		needUpdate = true
-	}
-
-	if needUpdate {
-		err = r.Client.Update(ctx, &projectNs, &client.UpdateOptions{})
-		if err != nil {
-			log.Warn("update project namespace %v labels failed: %v", projectNs.Name, err)
-			return ctrl.Result{}, err
-		}
-	}
-
 	return ctrl.Result{}, nil
 }
 
 func (r *ProjectReconciler) deleteProject(projectName string) (ctrl.Result, error) {
 	// delete subNamespace of project
 	err := r.deleteSubNSOfProject(projectName)
-	return ctrl.Result{}, err
+	if err != nil {
+		clog.Error(err.Error())
+		return ctrl.Result{}, err
+	}
+
+	return ctrl.Result{}, nil
 }
 
 func (r *ProjectReconciler) deleteSubNSOfProject(projectName string) error {
-	ctx := context.Background()
-	name := constants.ProjectNsPrefix + projectName
-	subNamespaceList := &v1alpha2.SubnamespaceAnchorList{}
-	if err := r.Client.List(ctx, subNamespaceList); err != nil {
-		if errors.IsNotFound(err) {
-			return nil
-		} else {
-			clog.Error("get subnamespacelist err: %v", err)
-			return fmt.Errorf("get subnamespace list err")
-		}
+	lbSelector, err := labels.Parse(fmt.Sprintf("%v%v.tree.hnc.x-k8s.io/depth=1", constants.ProjectNsPrefix, projectName))
+	if err != nil {
+		return err
 	}
-	for _, subNamespace := range subNamespaceList.Items {
-		if subNamespace.Name != name {
+
+	nsList := &v1.NamespaceList{}
+	err = r.List(context.TODO(), nsList, &client.ListOptions{LabelSelector: lbSelector})
+	if err != nil {
+		return err
+	}
+
+	errs := []error{}
+
+	for _, ns := range nsList.Items {
+		err = r.Delete(context.TODO(), ns.DeepCopy())
+		if err != nil && !errors.IsNotFound(err) {
+			err = fmt.Errorf("delete ns %v under project %v failed: %v", ns.Name, projectName, err)
+			errs = append(errs, err)
 			continue
 		}
-		namespace := subNamespace.Namespace
-		if err := r.Client.Delete(ctx, &subNamespace); err != nil {
-			clog.Error("delete subnamespace of project err: %v", err)
-			return fmt.Errorf("delete subnamespace of project err")
-		}
-		err := wait.PollUntilContextTimeout(ctx, waitInterval, waitTimeout, false,
-			func(ctx context.Context) (bool, error) {
-				e := r.Client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, &subNamespace)
-				if errors.IsNotFound(e) {
-					return true, nil
-				} else {
-					return false, nil
-				}
-			})
-		if err != nil {
-			clog.Error("wait for delete subnamespace of project err: %v", err)
-			return fmt.Errorf("wait for delete subnamespace of project err")
-		}
 	}
+
+	if len(errs) > 0 {
+		return utilerrors.NewAggregate(errs)
+	}
+
 	return nil
 }
 

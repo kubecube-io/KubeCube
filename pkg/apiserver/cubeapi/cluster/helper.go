@@ -25,13 +25,10 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
@@ -366,32 +363,6 @@ func convertUnit(data, expectedUnit string) int {
 	return int(value)
 }
 
-// isRelateWith return true if third level namespace exist under of ancestor namespace
-func isRelateWith(namespace string, cli cache.Cache, depth string, ctx context.Context) (bool, error) {
-	if depth == constants.HncCurrentDepth {
-		return true, nil
-	}
-
-	hncLabel := namespace + constants.HncSuffix
-	nsList := corev1.NamespaceList{}
-
-	selector, err := labels.Parse(fmt.Sprintf("%v=%v", hncLabel, depth))
-	if err != nil {
-		return false, err
-	}
-
-	err = cli.List(ctx, &nsList, &client.ListOptions{LabelSelector: selector})
-	if err != nil {
-		return false, err
-	}
-
-	if len(nsList.Items) > 0 {
-		return true, nil
-	}
-
-	return false, nil
-}
-
 // listClusterNames list all clusters name
 func listClusterNames() []string {
 	clusterNames := make([]string, 0)
@@ -408,40 +379,37 @@ func listClusterNames() []string {
 func getClustersByNamespace(namespace string, ctx context.Context) ([]string, error) {
 	clusterNames := make([]string, 0)
 	clusters := multicluster.Interface().FuzzyCopy()
-	key := types.NamespacedName{Name: namespace}
+
+	isTenant := strings.HasPrefix(namespace, constants.TenantNsPrefix)
+	isProject := strings.HasPrefix(namespace, constants.ProjectNsPrefix)
+
+	var lbSelector labels.Selector
+	var err error
+	switch {
+	case isTenant:
+		lbSelector, err = labels.Parse(fmt.Sprintf("%v=%v", constants.HncTenantLabel, strings.TrimPrefix(namespace, constants.TenantNsPrefix)))
+	case isProject:
+		lbSelector, err = labels.Parse(fmt.Sprintf("%v=%v", constants.HncProjectLabel, strings.TrimPrefix(namespace, constants.ProjectNsPrefix)))
+	default:
+		return nil, fmt.Errorf("unspport namespace sopce: %v", namespace)
+	}
+	if err != nil {
+		return nil, err
+	}
 
 	for _, cluster := range clusters {
 		cli := cluster.Client.Cache()
-		ns := corev1.Namespace{}
 		isRelated := true
 
-		err := cli.Get(ctx, key, &ns)
+		nsList := &corev1.NamespaceList{}
+		err = cli.List(ctx, nsList, &client.ListOptions{LabelSelector: lbSelector})
 		if err != nil {
-			if errors.IsNotFound(err) {
-				clog.Debug("cluster %s not work with namespace %v", cluster.Name, key.Name)
-				continue
-			}
-			clog.Error("get namespace %v from cluster %v failed: %v", key.Name, cluster.Name, err)
+			clog.Error("get namespace by selector (%v) from cluster %v failed: %v", lbSelector, cluster.Name, err)
 			continue
 		}
 
-		// example: kubecube-tenant-tenant1.tree.hnc.x-k8s.io/depth: "0"
-		if depth, ok := ns.Labels[namespace+constants.HncSuffix]; ok && depth == constants.HncCurrentDepth {
-			if strings.HasPrefix(namespace, constants.TenantNsPrefix) {
-				// if namespace is tenant hnc
-				isRelated, err = isRelateWith(namespace, cli, constants.HncTenantDepth, ctx)
-				if err != nil {
-					clog.Error("judge relationship of cluster % v and namespace %v failed: %v", cluster.Name, key.Name, err)
-					continue
-				}
-			} else if strings.HasPrefix(namespace, constants.ProjectNsPrefix) {
-				// if namespace is project hnc
-				isRelated, err = isRelateWith(namespace, cli, constants.HncProjectDepth, ctx)
-				if err != nil {
-					clog.Error("judge relationship of cluster % v and namespace %v failed: %v", cluster.Name, key.Name, err)
-					continue
-				}
-			}
+		if len(nsList.Items) == 0 {
+			isRelated = false
 		}
 
 		// add related cluster to result

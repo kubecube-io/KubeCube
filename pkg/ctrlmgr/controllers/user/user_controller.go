@@ -18,16 +18,18 @@ package controllers
 
 import (
 	"context"
+	"github.com/kubecube-io/kubecube/pkg/utils/transition"
 
+	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
+	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/options"
 )
 
@@ -36,7 +38,6 @@ var _ reconcile.Reconciler = &UserReconciler{}
 // UserReconciler reconciles a User object
 type UserReconciler struct {
 	client.Client
-	Log    logr.Logger
 	Scheme *runtime.Scheme
 }
 
@@ -61,23 +62,29 @@ func newReconciler(mgr manager.Manager) (*UserReconciler, error) {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.0/pkg/reconcile
 func (r *UserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	return ctrl.Result{}, nil
+	user := &userv1.User{}
+
+	err := r.Get(ctx, req.NamespacedName, user)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		clog.Error("get user %v failed: %v", req.Name, err)
+		return ctrl.Result{}, err
+	}
+
+	transition.RefreshUserStatus(user)
+
+	err = r.Status().Update(ctx, user)
+
+	// use reconcile retry if we met error
+	return ctrl.Result{}, err
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func SetupWithManager(mgr ctrl.Manager, _ *options.Options) error {
 	r, err := newReconciler(mgr)
 	if err != nil {
-		return err
-	}
-
-	// todo: register index func here
-	const userIndexKey = "todo"
-
-	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &userv1.User{}, userIndexKey, func(rawObj client.Object) []string {
-		_ = rawObj.(*userv1.User)
-		return nil
-	}); err != nil {
 		return err
 	}
 

@@ -17,7 +17,6 @@ limitations under the License.
 package cluster
 
 import (
-	"context"
 	"encoding/base64"
 	"net/http"
 	"sort"
@@ -26,18 +25,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	v1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/wait"
-	userinfo "k8s.io/apiserver/pkg/authentication/user"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/hierarchical-namespaces/api/v1alpha2"
-
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
+	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
 	"github.com/kubecube-io/kubecube/pkg/authorizer/rbac"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
@@ -49,6 +38,15 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/utils/errcode"
 	"github.com/kubecube-io/kubecube/pkg/utils/kubeconfig"
 	"github.com/kubecube-io/kubecube/pkg/utils/response"
+	"github.com/kubecube-io/kubecube/pkg/utils/transition"
+	v1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
+	userinfo "k8s.io/apiserver/pkg/authentication/user"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const subPath = "/clusters"
@@ -388,6 +386,15 @@ func (h *handler) getClusterResource(c *gin.Context) {
 	response.SuccessReturn(c, res)
 }
 
+type respBody struct {
+	Namespace     string       `json:"namespace"`
+	Cluster       string       `json:"cluster"`
+	ClusterName   string       `json:"clusterName,omitempty"`
+	Project       string       `json:"project"`
+	Tenant        string       `json:"tenant"`
+	NamespaceBody v1.Namespace `json:"namespaceBody"`
+}
+
 // getSubNamespaces list sub namespace by tenant
 // @Summary Get sub namespace
 // @Description get sub namespaces by tenant
@@ -397,15 +404,6 @@ func (h *handler) getClusterResource(c *gin.Context) {
 // @Failure 500 {object} errcode.ErrorInfo
 // @Router /api/v1/cube/clusters/subnamespaces  [get]
 func (h *handler) getSubNamespaces(c *gin.Context) {
-	type respBody struct {
-		Namespace     string       `json:"namespace"`
-		Cluster       string       `json:"cluster"`
-		ClusterName   string       `json:"clusterName,omitempty"`
-		Project       string       `json:"project"`
-		Tenant        string       `json:"tenant"`
-		NamespaceBody v1.Namespace `json:"namespaceBody"`
-	}
-
 	fuzzyName := c.Query("fuzzyname")
 	tenantArray := c.Query("tenant")
 	tenantList := strings.Split(tenantArray, "|")
@@ -415,9 +413,16 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 	ctx := c.Request.Context()
 	clusters := multicluster.Interface().FuzzyCopy()
 
-	user := c.Query("user")
-	if len(user) == 0 {
-		user = c.GetString(constants.UserName)
+	userName := c.Query("user")
+	if len(userName) == 0 {
+		userName = c.GetString(constants.UserName)
+	}
+
+	user := &userv1.User{}
+	err := h.Cache().Get(ctx, types.NamespacedName{Name: userName}, user)
+	if err != nil {
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
+		return
 	}
 
 	// list all hnc managed namespaces
@@ -456,15 +461,8 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 				continue
 			}
 
-			// only care about ns under project that the user can see
-			// todo: use better way
-			allowed, err := rbac.IsAllowResourceAccess(&rbac.DefaultResolver{Cache: cli.Cache()}, user, "pods", constants.GetVerb, constants.ProjectNsPrefix+project)
-			if err != nil {
-				response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
-				return
-			}
-
-			if !allowed {
+			// only care about ns under project that the userName can see
+			if !transition.UserBelongsToTenant(user, tenant) && !transition.UserBelongsToProject(user, project) {
 				continue
 			}
 
@@ -615,9 +613,9 @@ func (h *handler) registerCluster(c *gin.Context) {
 }
 
 type nsAndQuota struct {
-	Cluster            string                       `json:"cluster"`
-	SubNamespaceAnchor *v1alpha2.SubnamespaceAnchor `json:"subNamespaceAnchor"`
-	ResourceQuota      *v1.ResourceQuota            `json:"resourceQuota"`
+	Cluster            string                         `json:"cluster"`
+	SubNamespaceAnchor *transition.SubnamespaceAnchor `json:"subNamespaceAnchor"`
+	ResourceQuota      *v1.ResourceQuota              `json:"resourceQuota"`
 }
 
 // createNsAndQuota create quota when rbac was spread to new namespace
@@ -637,54 +635,28 @@ func (h *handler) createNsAndQuota(c *gin.Context) {
 		return
 	}
 
-	if access := access.AllowAccess(data.Cluster, c.Request, constants.CreateVerb, data.SubNamespaceAnchor); !access {
-		response.FailReturn(c, errcode.ForbiddenErr)
-		return
-	}
-
-	if access := access.AllowAccess(data.Cluster, c.Request, constants.CreateVerb, data.ResourceQuota); !access {
-		response.FailReturn(c, errcode.ForbiddenErr)
-		return
-	}
 	username := c.GetString(constants.UserName)
 	cli := clients.Interface().Kubernetes(data.Cluster)
 	ctx := c.Request.Context()
 
-	err = cli.Direct().Create(ctx, data.SubNamespaceAnchor)
+	ns := transition.SubNs2Ns(data.SubNamespaceAnchor)
+	if ns == nil {
+		response.FailReturn(c, errcode.InvalidBodyFormat)
+		return
+	}
+
+	// create namespace directly
+	err = cli.Direct().Create(ctx, ns)
 	if err != nil {
 		response.FailReturn(c, errcode.BadRequest(err))
 		return
 	}
 
 	rollback := func() {
-		err := cli.Direct().Delete(ctx, data.SubNamespaceAnchor)
+		err := cli.Direct().Delete(ctx, ns)
 		if err != nil {
 			clog.Error(err.Error())
 		}
-		err = cli.ClientSet().CoreV1().Namespaces().Delete(ctx, data.SubNamespaceAnchor.Name, metav1.DeleteOptions{})
-		if err != nil {
-			if !errors.IsNotFound(err) {
-				clog.Error(err.Error())
-			}
-		}
-	}
-
-	// wait for namespace created
-	err = wait.PollUntilContextTimeout(c, 200*time.Millisecond, 2*time.Second, false, func(ctx context.Context) (done bool, err error) {
-		_, err = cli.ClientSet().CoreV1().Namespaces().Get(ctx, data.SubNamespaceAnchor.Name, metav1.GetOptions{})
-		if err != nil {
-			if errors.IsNotFound(err) {
-				return false, nil
-			}
-			return false, err
-		} else {
-			return true, nil
-		}
-	})
-	if err != nil {
-		rollback()
-		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
-		return
 	}
 
 	const (

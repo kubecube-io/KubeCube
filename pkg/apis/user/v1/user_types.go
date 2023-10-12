@@ -49,6 +49,29 @@ type UserSpec struct {
 	LoginType LoginType `json:"loginType,omitempty"`
 	State     UserState `json:"state,omitempty"`
 	Wechat    string    `json:"wechat,omitempty"`
+
+	// ScopeBindings indicates user relationships with tenant,project or platform
+	// +optional
+	ScopeBindings []ScopeBinding `json:"scopeBindings,omitempty"`
+}
+
+type BindingScopeType string
+
+const (
+	TenantScope   BindingScopeType = "tenant"
+	ProjectScope  BindingScopeType = "project"
+	PlatformScope BindingScopeType = "platform"
+)
+
+type ScopeBinding struct {
+	// ScopeType the binding scope type that support tenant,project and platform.
+	ScopeType BindingScopeType `json:"scopeType"`
+
+	// ScopeName the specific scope name.
+	ScopeName string `json:"scopeName"`
+
+	// Role the rbac role name.
+	Role string `json:"role"`
 }
 
 // UserStatus defines the observed state of User

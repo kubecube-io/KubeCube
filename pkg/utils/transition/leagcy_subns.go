@@ -1,4 +1,5 @@
 /*
+Copyright 2023 KubeCube Authors
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -13,29 +14,31 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha2
+package transition
 
-import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
+import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 // Constants for the subnamespace anchor resource type and namespace annotation.
 const (
 	Anchors        = "subnamespaceanchors"
-	SubnamespaceOf = MetaGroup + "/subnamespace-of"
+	SubnamespaceOf = "hnc.x-k8s.io/subnamespace-of"
 )
+
+// MetaKVP represents a label or annotation
+type MetaKVP struct {
+	// Key is the name of the label or annotation. It must conform to the normal rules for Kubernetes
+	// label/annotation keys.
+	Key string `json:"key"`
+
+	// Value is the value of the label or annotation. It must confirm to the normal rules for
+	// Kubernetes label or annoation values, which are far more restrictive for labels than for
+	// anntations.
+	Value string `json:"value"`
+}
 
 // SubnamespaceAnchorState describes the state of the subnamespace. The state could be
 // "Missing", "Ok", "Conflict" or "Forbidden". The definitions will be described below.
 type SubnamespaceAnchorState string
-
-// Anchor states, which are documented in the comment to SubnamespaceAnchorStatus.State.
-const (
-	Missing   SubnamespaceAnchorState = "Missing"
-	Ok        SubnamespaceAnchorState = "Ok"
-	Conflict  SubnamespaceAnchorState = "Conflict"
-	Forbidden SubnamespaceAnchorState = "Forbidden"
-)
 
 // SubnamespaceAnchorStatus defines the observed state of SubnamespaceAnchor.
 type SubnamespaceAnchorStatus struct {
@@ -91,8 +94,4 @@ type SubnamespaceAnchorList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []SubnamespaceAnchor `json:"items"`
-}
-
-func init() {
-	SchemeBuilder.Register(&SubnamespaceAnchor{}, &SubnamespaceAnchorList{})
 }

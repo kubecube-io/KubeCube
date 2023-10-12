@@ -111,6 +111,9 @@ const (
 	// ProjectLabel represent which project resource relate with
 	ProjectLabel = "kubecube.io/project"
 
+	// PlatformLabel represent which project resource relate with
+	PlatformLabel = "kubecube.io/platform"
+
 	// TenantNsPrefix represent the namespace which relate with tenant
 	TenantNsPrefix = "kubecube-tenant-"
 
@@ -247,4 +250,14 @@ const (
 	NotReadyPodStatus    = "NotReady"
 	UnknownPodStatus     = "Unknown"
 	TerminatingPodStatus = "Terminating"
+)
+
+const (
+	TrueStr  = "true"
+	FalseStr = "false"
+)
+
+const (
+	// LabelRelationship mark a RoleBinding or ClusterRoleBindings belongs
+	LabelRelationship = "user.kubecube.io/relationship"
 )
