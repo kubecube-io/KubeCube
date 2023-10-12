@@ -34,6 +34,7 @@ import (
 
 	clusterv1 "github.com/kubecube-io/kubecube/pkg/apis/cluster/v1"
 	v1 "github.com/kubecube-io/kubecube/pkg/apis/quota/v1"
+	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
 	"github.com/kubecube-io/kubecube/pkg/apiserver/cubeapi/authorization"
 	"github.com/kubecube-io/kubecube/pkg/clients"
 	"github.com/kubecube-io/kubecube/pkg/clog"
@@ -515,23 +516,23 @@ func listHncNsByTenantsFunc(ctx context.Context, tenantList []string) func(cli m
 	}
 }
 
-func getVisibleTenants(ctx context.Context, cli mgrclient.Client, userName string, tenants []string) ([]string, error) {
+func getVisibleTenants(ctx context.Context, cli mgrclient.Client, userName string, tenants []string) ([]string, []tenantv1.Tenant, error) {
 	visibleTenants, err := authorization.GetVisibleTenants(ctx, cli, userName)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	visibleTenantsSet := sets.New[string]()
 	for _, t := range visibleTenants {
 		visibleTenantsSet.Insert(t.Name)
 	}
 	if len(tenants) == 0 {
-		return visibleTenantsSet.UnsortedList(), nil
+		return visibleTenantsSet.UnsortedList(), visibleTenants, nil
 	}
 	queryTenantSet := sets.New[string](tenants...)
 	if !visibleTenantsSet.IsSuperset(queryTenantSet) {
-		return nil, fmt.Errorf("query tenants (%v) is not visible for user (%v)", queryTenantSet.UnsortedList(), userName)
+		return nil, nil, fmt.Errorf("query tenants (%v) is not visible for user (%v)", queryTenantSet.UnsortedList(), userName)
 	}
-	return queryTenantSet.UnsortedList(), nil
+	return queryTenantSet.UnsortedList(), visibleTenants, nil
 }
 
 type clusterDate struct {
@@ -539,7 +540,7 @@ type clusterDate struct {
 	state  *clusterv1.ClusterState
 }
 
-func listCubeResourceQuota(ctx context.Context, cli mgrclient.Client, tenants []string, clusters []string) ([]cubeResourceQuotaData, error) {
+func listCubeResourceQuota(ctx context.Context, cli mgrclient.Client, tenants []string, tenantsCr []tenantv1.Tenant, clusters []string) ([]cubeResourceQuotaData, error) {
 	ls := labels.NewSelector()
 	r1, err := labels.NewRequirement(constants.ClusterLabel, selection.In, clusters)
 	if err != nil {
@@ -584,16 +585,17 @@ func listCubeResourceQuota(ctx context.Context, cli mgrclient.Client, tenants []
 	}
 
 	res := make([]cubeResourceQuotaData, 0, len(tenants)*len(clusters))
-	for _, tenant := range tenants {
+	for _, tenant := range tenantsCr {
 		for _, cluster := range clusters {
 			v := cubeResourceQuotaData{
 				ClusterIdentity:   cluster,
 				ClusterName:       cluster,
-				Tenant:            tenant,
+				Tenant:            tenant.Name,
+				TenantName:        tenant.Spec.DisplayName,
 				CubeResourceQuota: nil,
 				ExclusiveNodeHard: nil,
 			}
-			quotaName := strings.Join([]string{cluster, tenant}, ".")
+			quotaName := strings.Join([]string{cluster, tenant.Name}, ".")
 			q, ok := quotaMap[quotaName]
 			if ok {
 				v.CubeResourceQuota = &q
@@ -607,7 +609,7 @@ func listCubeResourceQuota(ctx context.Context, cli mgrclient.Client, tenants []
 			if clusterCli == nil {
 				return nil, fmt.Errorf("cluster %v not found", cluster)
 			}
-			v.ExclusiveNodeHard, err = getExclusiveNodeHard(clusterCli, tenant)
+			v.ExclusiveNodeHard, err = getExclusiveNodeHard(clusterCli, tenant.Name)
 			if err != nil {
 				return nil, err
 			}

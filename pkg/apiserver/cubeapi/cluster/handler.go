@@ -729,6 +729,7 @@ type cubeResourceQuotaData struct {
 	ClusterName       string                     `json:"clusterName"`
 	ClusterIdentity   string                     `json:"clusterIdentity"`
 	Tenant            string                     `json:"tenant"`
+	TenantName        string                     `json:"tenantName"`
 	CubeResourceQuota *quotav1.CubeResourceQuota `json:"cubeResourceQuota"`
 	ExclusiveNodeHard map[string]v1.ResourceList `json:"exclusiveNodeHard"`
 	ClusterState      clusterv1.ClusterState     `json:"clusterState"`
@@ -754,13 +755,13 @@ func (h *handler) getCubeResourceQuota(c *gin.Context) {
 		tenants = nil
 	}
 
-	visibleTenants, err := getVisibleTenants(ctx, h.Client, userName, tenants)
+	visibleTenants, visibleTenantsCr, err := getVisibleTenants(ctx, h.Client, userName, tenants)
 	if err != nil {
 		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 		return
 	}
 
-	res, err := listCubeResourceQuota(ctx, h.Client, visibleTenants, clusters)
+	res, err := listCubeResourceQuota(ctx, h.Client, visibleTenants, visibleTenantsCr, clusters)
 	if err != nil {
 		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
 		return
