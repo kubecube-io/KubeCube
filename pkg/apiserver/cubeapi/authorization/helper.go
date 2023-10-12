@@ -28,6 +28,7 @@ import (
 	"k8s.io/apiserver/pkg/authorization/authorizer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
 	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
 	"github.com/kubecube-io/kubecube/pkg/authorizer/mapping"
 	"github.com/kubecube-io/kubecube/pkg/authorizer/rbac"
