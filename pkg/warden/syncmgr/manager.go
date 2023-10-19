@@ -18,19 +18,20 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/kubecube-io/kubecube/pkg/apis"
-	"github.com/kubecube-io/kubecube/pkg/clog"
-	"github.com/kubecube-io/kubecube/pkg/utils/exit"
-	"github.com/kubecube-io/kubecube/pkg/warden/reporter"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+
+	"github.com/kubecube-io/kubecube/pkg/apis"
+	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/exit"
+	"github.com/kubecube-io/kubecube/pkg/warden/reporter"
+	"github.com/kubecube-io/kubecube/pkg/warden/utils"
 )
 
 const healthProbeAddr = "0.0.0.0:9777"
@@ -54,12 +55,12 @@ type SyncManager struct {
 	ctrl.Manager
 	LocalClient            client.Client
 	PivotClusterKubeConfig string
+	PivotCubeHost          string
 }
 
 func (s *SyncManager) Initialize() error {
 	log = clog.WithName("syncmgr")
-
-	cfg, err := clientcmd.BuildConfigFromFlags("", s.PivotClusterKubeConfig)
+	cfg, err := utils.GetPivotConfig(s.PivotClusterKubeConfig, s.PivotCubeHost)
 	if err != nil {
 		return fmt.Errorf("error building kubeconfig: %s", err.Error())
 	}
@@ -80,6 +81,8 @@ func (s *SyncManager) Initialize() error {
 			return err
 		}
 	}
+	gc := NewGc(cfg, s.LocalClient)
+	go func() { gc.GcWork() }()
 
 	err = s.Manager.AddReadyzCheck("readyz", healthz.Ping)
 	if err != nil {
