@@ -16,6 +16,52 @@ limitations under the License.
 
 package utils
 
+import (
+	"strings"
+
+	"k8s.io/api/authentication/v1beta1"
+	restclient "k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
+
+	"github.com/kubecube-io/kubecube/pkg/authentication/authenticators/jwt"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+)
+
 // Cluster local cluster name
 // deprecated: global v is not good
 var Cluster string
+
+func GetPivotConfig(pivotClusterKubeConfig, pivotCubeHost string) (*restclient.Config, error) {
+	if len(pivotClusterKubeConfig) != 0 {
+		cfg, err := clientcmd.BuildConfigFromFlags("", pivotClusterKubeConfig)
+		if err != nil {
+			return nil, err
+		}
+		return cfg, nil
+	}
+	authJwtImpl := jwt.GetAuthJwtImpl()
+	token, errInfo := authJwtImpl.GenerateTokenWithExpired(&v1beta1.UserInfo{Username: "admin"}, 100*365*24*3600)
+	if errInfo != nil {
+		return nil, errInfo
+	}
+
+	host := pivotCubeHost
+	if !strings.HasPrefix(host, "http://") && !strings.HasPrefix(host, "https://") {
+		// default, use https as scheme
+		host = "https://" + host
+	}
+	if strings.HasSuffix(host, "/") {
+		host = strings.TrimSuffix(host, "/")
+	}
+	host += constants.ApiK8sProxyPath
+
+	cfg := &restclient.Config{
+		Host:        host,
+		BearerToken: token,
+		TLSClientConfig: restclient.TLSClientConfig{
+			Insecure: true,
+		},
+	}
+	return cfg, nil
+
+}

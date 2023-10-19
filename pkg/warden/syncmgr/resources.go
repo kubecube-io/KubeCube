@@ -48,6 +48,22 @@ var syncResources = []client.Object{
 	&quota.CubeResourceQuota{},
 }
 
+var syncListResources = []client.ObjectList{
+	// k8s resources
+	&v1.RoleBindingList{},
+	&v1.ClusterRoleBindingList{},
+	&v1.RoleList{},
+	&v1.ClusterRoleList{},
+
+	// kubecube resources
+	&hotplug.HotplugList{},
+	&tenant.TenantList{},
+	&tenant.ProjectList{},
+	&user.UserList{},
+	&extension.ExternalResourceList{},
+	&quota.CubeResourceQuotaList{},
+}
+
 type GenericObjFunc func(obj client.Object) (client.Object, error)
 
 // newGenericObj new a struct point implemented client.Object
