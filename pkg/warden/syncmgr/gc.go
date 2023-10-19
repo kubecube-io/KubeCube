@@ -41,14 +41,11 @@ func NewGc(cfg *rest.Config, client client.Client) *Gc {
 func (g *Gc) GcWork() {
 	pivotClient, err := client.New(g.cfg, client.Options{Scheme: scheme})
 	if err != nil {
-		clog.Warn("error new pivot client: %s", err.Error())
+		clog.Fatal("error new pivot client: %s", err.Error())
 	}
 	for _, r := range syncListResources {
 		err := g.List(context.Background(), r)
 		if err != nil {
-			if errors.IsNotFound(err) {
-				continue
-			}
 			clog.Warn("error list resource: %s", err.Error())
 			continue
 		}

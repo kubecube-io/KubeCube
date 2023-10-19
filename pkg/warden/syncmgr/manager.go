@@ -82,7 +82,7 @@ func (s *SyncManager) Initialize() error {
 		}
 	}
 	gc := NewGc(cfg, s.LocalClient)
-	go func() { gc.GcWork() }()
+	go gc.GcWork()
 
 	err = s.Manager.AddReadyzCheck("readyz", healthz.Ping)
 	if err != nil {
