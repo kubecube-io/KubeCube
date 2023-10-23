@@ -18,6 +18,7 @@ package cluster
 
 import (
 	"encoding/base64"
+	quotav1 "github.com/kubecube-io/kubecube/pkg/apis/quota/v1"
 	"net/http"
 	"sort"
 	"strconv"
@@ -63,6 +64,7 @@ func (h *handler) AddApisTo(root *gin.Engine) {
 	r.POST("register", h.registerCluster)
 	r.POST("add", h.addCluster)
 	r.POST("nsquota", h.createNsAndQuota)
+	r.GET("cuberesourcequotas", h.getCubeResourceQuota)
 }
 
 type result struct {
@@ -742,4 +744,56 @@ func (h *handler) createNsAndQuota(c *gin.Context) {
 		username, data.SubNamespaceAnchor.Name, data.ResourceQuota.Name, data.Cluster)
 
 	response.SuccessJsonReturn(c, "success")
+}
+
+type getCubeResourceQuotaResp struct {
+	Total int                     `json:"total"`
+	Items []cubeResourceQuotaData `json:"items"`
+}
+
+type cubeResourceQuotaData struct {
+	ClusterName       string                     `json:"clusterName"`
+	ClusterIdentity   string                     `json:"clusterIdentity"`
+	Tenant            string                     `json:"tenant"`
+	TenantName        string                     `json:"tenantName"`
+	CubeResourceQuota *quotav1.CubeResourceQuota `json:"cubeResourceQuota"`
+	ExclusiveNodeHard map[string]v1.ResourceList `json:"exclusiveNodeHard"`
+	ClusterState      clusterv1.ClusterState     `json:"clusterState"`
+}
+
+func (h *handler) getCubeResourceQuota(c *gin.Context) {
+	ts := c.Query("tenants")
+	cs := c.Query("clusters")
+	userName := c.Query("user")
+	ctx := c.Request.Context()
+
+	tenants, clusters := strings.Split(ts, ";"), strings.Split(cs, ";")
+
+	if len(userName) == 0 {
+		userName = c.GetString(constants.UserName)
+	}
+
+	if len(cs) == 0 {
+		clusters = multicluster.Interface().ListClustersNameByType(multicluster.AllCluster)
+	}
+
+	if len(ts) == 0 {
+		tenants = nil
+	}
+
+	visibleTenants, visibleTenantsCr, err := getVisibleTenants(ctx, h.Client, userName, tenants)
+	if err != nil {
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
+		return
+	}
+
+	res, err := listCubeResourceQuota(ctx, h.Client, visibleTenants, visibleTenantsCr, clusters)
+	if err != nil {
+		response.FailReturn(c, errcode.CustomReturn(http.StatusBadRequest, err.Error()))
+		return
+	}
+
+	res = sortCubeResourceQuotas(res)
+
+	response.SuccessReturn(c, getCubeResourceQuotaResp{Total: len(res), Items: res})
 }
