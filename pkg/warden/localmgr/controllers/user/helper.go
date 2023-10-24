@@ -38,7 +38,7 @@ func updateUserStatus(ctx context.Context, cli client.Client, user *v1.User) err
 		// update status here
 		newUser.Status.PlatformAdmin = user.Status.PlatformAdmin
 		newUser.Status.BelongTenants = user.Status.BelongTenants
-		newUser.Status.BelongProjects = user.Status.BelongProjects
+		newUser.Status.BelongProjectInfos = user.Status.BelongProjectInfos
 
 		err = cli.Status().Update(ctx, newUser)
 		if err != nil {

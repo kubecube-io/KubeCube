@@ -86,11 +86,21 @@ type UserStatus struct {
 
 	// BelongProjects indicates the user belongs to those projects.
 	// +optional
+	// Deprecated: use BelongProjectInfos instead
 	BelongProjects []string `json:"belongProjects,omitempty"`
+
+	// BelongProjectInfos indicates the user belongs to those projects.
+	// +optional
+	BelongProjectInfos []ProjectInfo `json:"BelongProjectInfos,omitempty"`
 
 	// PlatformAdmin indicates the user is platform admin or not.
 	// +optional
 	PlatformAdmin bool `json:"platformAdmin,omitempty"`
+}
+
+type ProjectInfo struct {
+	Project string `json:"project,omitempty"`
+	Tenant  string `json:"tenant,omitempty"`
 }
 
 //+kubebuilder:object:root=true

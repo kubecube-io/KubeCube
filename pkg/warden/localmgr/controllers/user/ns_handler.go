@@ -82,9 +82,14 @@ func (r *UserReconciler) toFindRelatedUsers(tenant, project string) ([]string, e
 
 	for _, user := range userList.Items {
 		tenantSet := sets.NewString(user.Status.BelongTenants...)
-		projectSet := sets.NewString(user.Status.BelongProjects...)
-		if tenantSet.Has(tenant) || projectSet.Has(project) {
+		if tenantSet.Has(tenant) {
 			relatedUsers = append(relatedUsers, user.Name)
+			continue
+		}
+		for _, info := range user.Status.BelongProjectInfos {
+			if info.Project == project {
+				relatedUsers = append(relatedUsers, user.Name)
+			}
 		}
 	}
 
