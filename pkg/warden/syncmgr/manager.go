@@ -60,6 +60,7 @@ type SyncManager struct {
 
 func (s *SyncManager) Initialize() error {
 	log = clog.WithName("syncmgr")
+
 	cfg, err := utils.GetPivotConfig(s.PivotClusterKubeConfig, s.PivotCubeHost)
 	if err != nil {
 		return fmt.Errorf("error building kubeconfig: %s", err.Error())

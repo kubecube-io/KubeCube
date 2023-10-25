@@ -141,7 +141,6 @@ func makePivotClient(opts *Config) (multiclient.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	cli, err := multiclient.NewClientFor(context.Background(), cfg)
 	if err != nil {
 		return nil, err
