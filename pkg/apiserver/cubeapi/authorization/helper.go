@@ -19,6 +19,8 @@ package authorization
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/labels"
@@ -295,4 +297,63 @@ func isPlatformRole(labels map[string]string) bool {
 		return false
 	}
 	return labels[constants.RoleLabel] == constants.ClusterRolePlatform
+}
+
+func GetVisibleTenants(ctx context.Context, cli mgrclient.Client, username string) ([]tenantv1.Tenant, error) {
+	user := userv1.User{}
+	err := cli.Cache().Get(ctx, types.NamespacedName{Name: username}, &user)
+	if err != nil {
+		return nil, err
+	}
+
+	tenants := tenantv1.TenantList{}
+	err = cli.Cache().List(ctx, &tenants)
+	if err != nil {
+		return nil, err
+	}
+
+	if user.Status.PlatformAdmin {
+		return tenants.Items, nil
+	}
+
+	tenantSetFromProjects, err := getTenantsOfProjects(ctx, cli, user.Status.BelongProjects)
+	if err != nil {
+		return nil, err
+	}
+
+	tenantSet := sets.NewString(user.Status.BelongTenants...)
+	tenantSet = tenantSet.Union(tenantSetFromProjects)
+	res := []tenantv1.Tenant{}
+	for _, t := range tenants.Items {
+		if !tenantSet.Has(t.Name) {
+			continue
+		}
+		res = append(res, t)
+	}
+
+	return res, nil
+}
+
+func getTenantsOfProjects(ctx context.Context, cli mgrclient.Client, projects []string) (sets.String, error) {
+	tenants := sets.NewString()
+	for _, project := range projects {
+		p := tenantv1.Project{}
+		err := cli.Cache().Get(ctx, types.NamespacedName{Name: project}, &p)
+		if err != nil {
+			return nil, err
+		}
+		t, ok := getTenantByProject(p)
+		if ok {
+			tenants.Insert(t)
+		}
+	}
+	return tenants, nil
+}
+
+func getTenantByProject(p tenantv1.Project) (string, bool) {
+	if p.Labels == nil {
+		return "", false
+	}
+	v, ok := p.Labels[constants.TenantLabel]
+	return v, ok
 }

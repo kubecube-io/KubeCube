@@ -538,27 +538,10 @@ func (h *handler) getTenantByUser(c *gin.Context) {
 		userName = c.GetString(constants.UserName)
 	}
 
-	user := user.User{}
-	err := h.Client.Cache().Get(ctx, types.NamespacedName{Name: userName}, &user)
+	res, err := GetVisibleTenants(ctx, h.Client, userName)
 	if err != nil {
 		response.FailReturn(c, errcode.CustomReturn(http.StatusNotFound, err.Error()))
 		return
-	}
-
-	tenants := tenantv1.TenantList{}
-	err = h.Client.Cache().List(ctx, &tenants)
-	if err != nil {
-		response.FailReturn(c, errcode.CustomReturn(http.StatusNotFound, err.Error()))
-		return
-	}
-
-	tenantSet := sets.NewString(user.Status.BelongTenants...)
-	res := []tenantv1.Tenant{}
-	for _, t := range tenants.Items {
-		if !user.Status.PlatformAdmin && !tenantSet.Has(t.Name) {
-			continue
-		}
-		res = append(res, t)
 	}
 
 	sort.SliceStable(res, func(i, j int) bool {
