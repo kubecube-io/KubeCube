@@ -19,8 +19,6 @@ package warden
 import (
 	"context"
 
-	"k8s.io/client-go/tools/clientcmd"
-
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	multiclient "github.com/kubecube-io/kubecube/pkg/multicluster/client"
 	"github.com/kubecube-io/kubecube/pkg/warden/localmgr"
@@ -43,7 +41,7 @@ type Warden struct {
 }
 
 func NewWardenWithOpts(opts *Config) *Warden {
-	pivotClient, err := makePivotClient(opts.PivotClusterKubeConfig)
+	pivotClient, err := makePivotClient(opts)
 	if err != nil {
 		clog.Fatal("init pivot client failed: %v", err)
 	}
@@ -90,6 +88,7 @@ func NewWardenWithOpts(opts *Config) *Warden {
 	if opts.InMemberCluster {
 		w.SyncCtrl = &syncmgr.SyncManager{
 			PivotClusterKubeConfig: opts.PivotClusterKubeConfig,
+			PivotCubeHost:          opts.PivotCubeHost,
 		}
 	}
 
@@ -137,12 +136,11 @@ func (w *Warden) Run(stop <-chan struct{}) {
 }
 
 // makePivotClient make client for pivot client
-func makePivotClient(kubeconfig string) (multiclient.Client, error) {
-	cfg, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+func makePivotClient(opts *Config) (multiclient.Client, error) {
+	cfg, err := utils.GetPivotConfig(opts.PivotClusterKubeConfig, opts.PivotCubeHost)
 	if err != nil {
 		return nil, err
 	}
-
 	cli, err := multiclient.NewClientFor(context.Background(), cfg)
 	if err != nil {
 		return nil, err

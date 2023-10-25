@@ -26,6 +26,8 @@ const (
 	// ApiPathRoot the root api route
 	ApiPathRoot = "/api/v1/cube"
 
+	ApiK8sProxyPath = "/api/v1/cube/kubernetes"
+
 	// LocalCluster the internal cluster where program stand with
 	LocalCluster = "_local_cluster"
 
