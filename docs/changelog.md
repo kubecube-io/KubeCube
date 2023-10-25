@@ -1,7 +1,8 @@
 # v1.8.10
 
 ## BugFix
-- add list cube resource quota [#345](https://github.com/kubecube-io/KubeCube/pull/336)
+- fix remaining resources [#348](https://github.com/kubecube-io/KubeCube/pull/348)
+- add list cube resource quota [#345](https://github.com/kubecube-io/KubeCube/pull/345)
 
 ## Dependencies
 
