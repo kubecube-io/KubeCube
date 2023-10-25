@@ -316,7 +316,13 @@ func GetVisibleTenants(ctx context.Context, cli mgrclient.Client, username strin
 		return tenants.Items, nil
 	}
 
+	tenantSetFromProjects, err := getTenantsOfProjects(ctx, cli, user.Status.BelongProjects)
+	if err != nil {
+		return nil, err
+	}
+
 	tenantSet := sets.NewString(user.Status.BelongTenants...)
+	tenantSet = tenantSet.Union(tenantSetFromProjects)
 	res := []tenantv1.Tenant{}
 	for _, t := range tenants.Items {
 		if !tenantSet.Has(t.Name) {
@@ -326,4 +332,28 @@ func GetVisibleTenants(ctx context.Context, cli mgrclient.Client, username strin
 	}
 
 	return res, nil
+}
+
+func getTenantsOfProjects(ctx context.Context, cli mgrclient.Client, projects []string) (sets.String, error) {
+	tenants := sets.NewString()
+	for _, project := range projects {
+		p := tenantv1.Project{}
+		err := cli.Cache().Get(ctx, types.NamespacedName{Name: project}, &p)
+		if err != nil {
+			return nil, err
+		}
+		t, ok := getTenantByProject(p)
+		if ok {
+			tenants.Insert(t)
+		}
+	}
+	return tenants, nil
+}
+
+func getTenantByProject(p tenantv1.Project) (string, bool) {
+	if p.Labels == nil {
+		return "", false
+	}
+	v, ok := p.Labels[constants.TenantLabel]
+	return v, ok
 }

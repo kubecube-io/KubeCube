@@ -758,7 +758,7 @@ type cubeResourceQuotaData struct {
 	TenantName        string                     `json:"tenantName"`
 	CubeResourceQuota *quotav1.CubeResourceQuota `json:"cubeResourceQuota"`
 	ExclusiveNodeHard map[string]v1.ResourceList `json:"exclusiveNodeHard"`
-	ClusterState      clusterv1.ClusterState     `json:"clusterState"`
+	ClusterState      *clusterv1.ClusterState    `json:"clusterState"`
 }
 
 func (h *handler) getCubeResourceQuota(c *gin.Context) {

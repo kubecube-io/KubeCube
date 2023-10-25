@@ -612,14 +612,14 @@ func listCubeResourceQuota(ctx context.Context, cli mgrclient.Client, tenants []
 		return nil, err
 	}
 	for _, v := range clusterList.Items {
+		c := clusterDate{state: v.Status.State}
 		if v.Annotations != nil {
-			c := clusterDate{state: v.Status.State}
 			cnName, ok := v.Annotations[constants.CubeCnAnnotation]
 			if ok {
 				c.cnName = cnName
 			}
-			clusterMap[v.Name] = c
 		}
+		clusterMap[v.Name] = c
 	}
 
 	res := make([]cubeResourceQuotaData, 0, len(tenants)*len(clusters))
@@ -641,8 +641,8 @@ func listCubeResourceQuota(ctx context.Context, cli mgrclient.Client, tenants []
 			data, ok := clusterMap[cluster]
 			if ok {
 				v.ClusterName = data.cnName
+				v.ClusterState = data.state
 			}
-			v.ClusterState = *data.state
 			clusterCli := clients.Interface().Kubernetes(cluster)
 			if clusterCli == nil {
 				return nil, fmt.Errorf("cluster %v not found", cluster)
