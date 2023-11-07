@@ -1,3 +1,22 @@
+# v1.8.11
+
+## BugFix
+- fix cve-2016-2183 [#351](https://github.com/kubecube-io/KubeCube/pull/351)
+
+## Dependencies
+
+- hnc v1.0
+- nginx-ingress v0.46.0
+- helm 3.5
+- metrics-server v0.4.1
+- elasticsearch 7.8
+- kubecube-monitoring 15.4.8
+- thanos 3.18.0
+- logseer v1.0.0
+- logagent v1.0.0
+- kubecube-audit v1.2.0
+- kubecube-webconsole v1.2.4
+
 # v1.8.10
 
 ## BugFix
