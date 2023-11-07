@@ -23,16 +23,19 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 
-	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
-	"github.com/kubecube-io/kubecube/pkg/clog"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
+	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/env"
 )
 
 var _ reconcile.Reconciler = &ProjectReconciler{}
@@ -123,6 +126,14 @@ func (r *ProjectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, fmt.Errorf("the tenant %s do not content .spec.namespace", tenantName)
 	}
 
+	if env.CreateHNCNs() {
+		err = r.crateProjectNamespace(ctx, tenantName, project.Name)
+		if err != nil {
+			clog.Error(err.Error())
+			return ctrl.Result{}, err
+		}
+	}
+
 	return ctrl.Result{}, nil
 }
 
@@ -130,6 +141,15 @@ func (r *ProjectReconciler) deleteProject(projectName string) (ctrl.Result, erro
 	// delete subNamespace of project
 	err := r.deleteSubNSOfProject(projectName)
 	if err != nil {
+		clog.Error(err.Error())
+		return ctrl.Result{}, err
+	}
+
+	projectNs := &v1.Namespace{}
+	projectNs.Name = constants.ProjectNsPrefix + projectName
+
+	err = r.Delete(context.Background(), projectNs)
+	if err != nil && errors.IsNotFound(err) {
 		clog.Error(err.Error())
 		return ctrl.Result{}, err
 	}
@@ -176,4 +196,27 @@ func SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&tenantv1.Project{}).
 		Complete(r)
+}
+
+func (r *ProjectReconciler) crateProjectNamespace(ctx context.Context, tenant, project string) error {
+	ns := &v1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        fmt.Sprintf("kubecube-project-%v", project),
+			Annotations: map[string]string{constants.HncAnnotation: fmt.Sprintf("kubecube-tenant-%v", tenant)},
+			Labels: map[string]string{
+				constants.HncIncludedNsLabel:                                        "true",
+				fmt.Sprintf("kubecube-project-%v.tree.hnc.x-k8s.io/depth", project): "0",
+				fmt.Sprintf("kubecube-tenant-%v.tree.hnc.x-k8s.io/depth", tenant):   "1",
+				constants.HncProjectLabel:                                           project,
+				constants.HncTenantLabel:                                            tenant,
+			},
+		},
+	}
+
+	err := r.Create(ctx, ns)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return err
+	}
+
+	return nil
 }

@@ -608,7 +608,9 @@ func listCubeResourceQuota(ctx context.Context, cli mgrclient.Client, tenants []
 			}
 			data, ok := clusterMap[cluster]
 			if ok {
-				v.ClusterName = data.cnName
+				if len(data.cnName) > 0 {
+					v.ClusterName = data.cnName
+				}
 				v.ClusterState = data.state
 			}
 			clusterCli := clients.Interface().Kubernetes(cluster)
