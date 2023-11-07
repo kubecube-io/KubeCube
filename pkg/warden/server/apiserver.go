@@ -18,7 +18,9 @@ package server
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
+	"github.com/kubecube-io/kubecube/pkg/utils/safetls"
 	"net/http"
 	"time"
 
@@ -58,7 +60,14 @@ func (s *Server) Run(stop <-chan struct{}) {
 	mux := http.NewServeMux()
 	mux.Handle("/", authProxyHandler)
 
-	s.Server = &http.Server{Handler: mux, Addr: fmt.Sprintf("%s:%d", s.BindAddr, s.Port)}
+	s.Server = &http.Server{
+		Handler: mux,
+		Addr:    fmt.Sprintf("%s:%d", s.BindAddr, s.Port),
+		TLSConfig: &tls.Config{
+			PreferServerCipherSuites: true,
+			CipherSuites:             safetls.SafeTlsSuites,
+		},
+	}
 
 	go func() {
 		err := s.Server.ListenAndServeTLS(s.TlsCert, s.TlsKey)
