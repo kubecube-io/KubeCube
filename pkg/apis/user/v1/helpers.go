@@ -30,8 +30,8 @@ func BelongsToTenant(user *User, tenant string) bool {
 }
 
 func BelongsToProject(user *User, project string) bool {
-	for _, v := range user.Status.BelongProjects {
-		if v == project {
+	for _, v := range user.Status.BelongProjectInfos {
+		if v.Project == project {
 			return true
 		}
 	}

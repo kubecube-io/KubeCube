@@ -19,6 +19,7 @@ package transition
 import (
 	"context"
 	"fmt"
+	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 
 	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
@@ -150,10 +151,10 @@ func UpdateUserSpec(ctx context.Context, cli client.Client, user *userv1.User) e
 	})
 }
 
-func RefreshUserStatus(user *userv1.User) {
+func RefreshUserStatus(ctx context.Context, user *userv1.User, cli client.Client) {
 	// reset status here
 	user.Status.BelongTenants = []string{}
-	user.Status.BelongProjects = []string{}
+	user.Status.BelongProjectInfos = make([]userv1.ProjectInfo, 0)
 	user.Status.PlatformAdmin = false
 
 	for _, binding := range user.Spec.ScopeBindings {
@@ -161,7 +162,13 @@ func RefreshUserStatus(user *userv1.User) {
 		case userv1.TenantScope:
 			addUserToTenant(user, binding.ScopeName)
 		case userv1.ProjectScope:
-			addUserToProject(user, binding.ScopeName)
+			project := tenantv1.Project{}
+			err := cli.Get(ctx, types.NamespacedName{Name: binding.ScopeName}, &project)
+			if err != nil {
+				clog.Error("get project %v error: %v", binding.ScopeName, err)
+			}
+			tenant := project.Labels[constants.TenantLabel]
+			addUserToProject(user, binding.ScopeName, tenant)
 		case userv1.PlatformScope:
 			if binding.Role == constants.PlatformAdmin {
 				appointUserAdmin(user)
@@ -176,8 +183,12 @@ func UserBelongsToTenant(user *userv1.User, tenant string) bool {
 }
 
 func UserBelongsToProject(user *userv1.User, project string) bool {
-	projectSet := sets.New[string](user.Status.BelongProjects...)
-	return projectSet.Has(project)
+	for _, info := range user.Status.BelongProjectInfos {
+		if info.Project == project {
+			return true
+		}
+	}
+	return false
 }
 
 func addUserToTenant(user *userv1.User, tenant string) {
@@ -187,10 +198,13 @@ func addUserToTenant(user *userv1.User, tenant string) {
 	clog.Info("ensure user %v belongs to tenant %v", user.Name, tenant)
 }
 
-func addUserToProject(user *userv1.User, project string) {
-	projectSet := sets.New[string](user.Status.BelongProjects...)
-	projectSet.Insert(project)
-	user.Status.BelongProjects = sets.List[string](projectSet)
+func addUserToProject(user *userv1.User, project string, tenant string) {
+	projectSet := sets.New[userv1.ProjectInfo](user.Status.BelongProjectInfos...)
+	projectSet.Insert(userv1.ProjectInfo{
+		Project: project,
+		Tenant:  tenant,
+	})
+	user.Status.BelongProjectInfos = projectSet.UnsortedList()
 	clog.Info("ensure user %v belongs to project %v", user.Name, project)
 }
 

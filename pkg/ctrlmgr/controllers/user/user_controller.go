@@ -73,7 +73,7 @@ func (r *UserReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		return ctrl.Result{}, err
 	}
 
-	transition.RefreshUserStatus(user)
+	transition.RefreshUserStatus(ctx, user, r.Client)
 
 	err = r.Status().Update(ctx, user)
 

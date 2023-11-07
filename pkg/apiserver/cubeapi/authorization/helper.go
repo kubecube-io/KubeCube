@@ -277,12 +277,26 @@ func GetVisibleTenants(ctx context.Context, cli mgrclient.Client, username strin
 	}
 
 	tenantSet := sets.NewString(user.Status.BelongTenants...)
-	res := []tenantv1.Tenant{}
+	for _, info := range user.Status.BelongProjectInfos {
+		if len(info.Tenant) == 0 && len(info.Project) != 0 {
+			// the data is not correct, fix it
+			// get project
+			project := tenantv1.Project{}
+			err := cli.Cache().Get(ctx, types.NamespacedName{Name: info.Project}, &project)
+			if err != nil {
+				return nil, err
+			}
+			info.Tenant = project.Labels[constants.TenantLabel]
+			// todo trigger update user data
+		}
+		tenantSet.Insert(info.Tenant)
+	}
+	res := make([]tenantv1.Tenant, 0)
 	for _, t := range tenants.Items {
-		if !tenantSet.Has(t.Name) {
+		if tenantSet.Has(t.Name) {
+			res = append(res, t)
 			continue
 		}
-		res = append(res, t)
 	}
 
 	return res, nil

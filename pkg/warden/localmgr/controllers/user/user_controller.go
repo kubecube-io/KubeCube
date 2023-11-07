@@ -132,7 +132,7 @@ func (r *UserReconciler) syncUser(ctx context.Context, user *userv1.User) (ctrl.
 
 // refreshStatus refresh status according to scope bindings.
 func (r *UserReconciler) refreshStatus(ctx context.Context, user *userv1.User) error {
-	transition.RefreshUserStatus(user)
+	transition.RefreshUserStatus(ctx, user, r.Client)
 	return updateUserStatus(ctx, r.Client, user)
 }
 
@@ -150,7 +150,7 @@ func (r *UserReconciler) cleanOrphanBindings(ctx context.Context, user *userv1.U
 	bindingUniqueSet := sets.New[string](bindingUnique...)
 
 	isTenantMember := len(user.Status.BelongTenants) > 0
-	isProjectMember := len(user.Status.BelongProjects) > 0
+	isProjectMember := len(user.Status.BelongProjectInfos) > 0
 
 	crbs := &v1.ClusterRoleBindingList{}
 	err = r.List(ctx, crbs, &client.ListOptions{LabelSelector: ls})

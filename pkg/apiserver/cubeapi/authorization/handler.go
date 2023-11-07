@@ -559,36 +559,45 @@ func (h *handler) getTenantByUser(c *gin.Context) {
 // @Router /api/v1/cube/authorization/projects [get]
 func (h *handler) getProjectByUser(c *gin.Context) {
 	userName := c.Query("user")
+	if len(userName) == 0 {
+		userName = c.GetString(constants.UserName)
+	}
 	tenantArray := c.Query("tenant")
-	ctx := c.Request.Context()
 	cli := h.Client
+	user := user.User{}
+	err := h.Client.Cache().Get(c, types.NamespacedName{Name: userName}, &user)
+	if err != nil {
+		response.FailReturn(c, errcode.BadRequest(err))
+		return
+	}
+	projectList := tenantv1.ProjectList{}
+	err = cli.Cache().List(c, &projectList)
+	if err != nil {
+		response.FailReturn(c, errcode.BadRequest(err))
+		return
+	}
+	res := getUserProjects(&user, &projectList, tenantArray)
+	sort.SliceStable(res, func(i, j int) bool {
+		return res[i].CreationTimestamp.Time.After(res[j].CreationTimestamp.Time)
+	})
+
+	response.SuccessReturn(c, result{Total: len(res), Items: res})
+}
+
+func getUserProjects(user *user.User, projectList *tenantv1.ProjectList, tenantArray string) []tenantv1.Project {
+	res := make([]tenantv1.Project, 0)
 	tenants := strings.Split(tenantArray, "|")
 	if len(tenantArray) == 0 {
 		tenants = nil
 	}
-	if len(userName) == 0 {
-		userName = c.GetString(constants.UserName)
-	}
-
-	user := user.User{}
-	err := h.Client.Cache().Get(ctx, types.NamespacedName{Name: userName}, &user)
-	if err != nil {
-		response.FailReturn(c, errcode.BadRequest(err))
-		return
-	}
-
-	projectList := tenantv1.ProjectList{}
-	err = cli.Cache().List(ctx, &projectList)
-	if err != nil {
-		response.FailReturn(c, errcode.BadRequest(err))
-		return
-	}
 
 	tenantQuerySet := sets.NewString(tenants...)
-	projectSet := sets.NewString(user.Status.BelongProjects...)
+	projectSet := sets.NewString()
+	for _, p := range user.Status.BelongProjectInfos {
+		projectSet.Insert(p.Project)
+	}
 	tenantSet := sets.NewString(user.Status.BelongTenants...)
 
-	res := []tenantv1.Project{}
 	for _, p := range projectList.Items {
 		t, ok := p.Labels[constants.TenantLabel]
 		if !ok {
@@ -613,12 +622,7 @@ func (h *handler) getProjectByUser(c *gin.Context) {
 			res = append(res, p)
 		}
 	}
-
-	sort.SliceStable(res, func(i, j int) bool {
-		return res[i].CreationTimestamp.Time.After(res[j].CreationTimestamp.Time)
-	})
-
-	response.SuccessReturn(c, result{Total: len(res), Items: res})
+	return res
 }
 
 // getIdentity show a user identity of platform, tenant or project
