@@ -164,6 +164,10 @@ func EnsureManagedLabels(labels map[string]string) map[string]string {
 	return res
 }
 
+func CreateHNCNs() bool {
+	return os.Getenv("CREATE_HNC_NS") == "true"
+}
+
 func hncManagedLabels() map[string]string {
 	labels := make(map[string]string)
 

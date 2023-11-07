@@ -23,18 +23,20 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	v1 "github.com/kubecube-io/kubecube/pkg/apis/quota/v1"
 	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/env"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 var _ reconcile.Reconciler = &TenantReconciler{}
@@ -113,6 +115,14 @@ func (r *TenantReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		}
 	}
 
+	if env.CreateHNCNs() {
+		err = r.crateTenantNamespace(ctx, tenant.Name)
+		if err != nil {
+			clog.Error(err.Error())
+			return ctrl.Result{}, err
+		}
+	}
+
 	return ctrl.Result{}, nil
 }
 func (r *TenantReconciler) deleteTenant(tenantName string) (ctrl.Result, error) {
@@ -177,4 +187,24 @@ func SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&tenantv1.Tenant{}).
 		Complete(r)
+}
+
+func (r *TenantReconciler) crateTenantNamespace(ctx context.Context, tenant string) error {
+	ns := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        fmt.Sprintf("kubecube-tenant-%v", tenant),
+			Annotations: map[string]string{"hnc.x-k8s.io/ns": "true"},
+			Labels: map[string]string{
+				constants.HncIncludedNsLabel:                                      "true",
+				fmt.Sprintf("kubecube-tenant-%v.tree.hnc.x-k8s.io/depth", tenant): "0",
+			},
+		},
+	}
+
+	err := r.Create(ctx, ns)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return err
+	}
+
+	return nil
 }
