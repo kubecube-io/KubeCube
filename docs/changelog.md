@@ -1,3 +1,30 @@
+# v1.9.0
+
+## Feature
+- add a choice to create tenant project ns or not  [#349](https://github.com/kubecube-io/KubeCube/pull/349)
+- update user belong to project info [#347](https://github.com/kubecube-io/KubeCube/pull/347)
+- add warden gc work [#344](https://github.com/kubecube-io/KubeCube/pull/344)
+- Feature cube k8s proxy [#343](https://github.com/kubecube-io/KubeCube/pull/343)
+- optimize: add api for list cuberesourcequota[#342](https://github.com/kubecube-io/KubeCube/pull/342)
+- chore: remove refs to deprecated io/ioutil [#341](https://github.com/kubecube-io/KubeCube/pull/341)
+- Feat remove hnc  [#340](https://github.com/kubecube-io/KubeCube/pull/340)
+
+## BugFix
+- fix list cube resource quota [#346](https://github.com/kubecube-io/KubeCube/pull/346)
+
+## Dependencies
+
+- nginx-ingress v0.46.0
+- helm 3.12
+- metrics-server v0.4.1
+- elasticsearch 7.8
+- kubecube-monitoring 15.4.8
+- thanos 3.18.0
+- logseer v1.0.0
+- logagent v1.0.0
+- kubecube-audit v1.2.0
+- kubecube-webconsole v1.2.4
+
 # v1.8.9
 
 ## BugFix
