@@ -20,11 +20,11 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/kubecube-io/kubecube/pkg/utils/safetls"
 	"net/http"
 	"time"
 
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/safetls"
 	"github.com/kubecube-io/kubecube/pkg/warden/reporter"
 	"github.com/kubecube-io/kubecube/pkg/warden/server/authproxy"
 )
