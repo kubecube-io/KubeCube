@@ -18,11 +18,13 @@ package server
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/safetls"
 	"github.com/kubecube-io/kubecube/pkg/warden/reporter"
 	"github.com/kubecube-io/kubecube/pkg/warden/server/authproxy"
 )
@@ -58,7 +60,14 @@ func (s *Server) Run(stop <-chan struct{}) {
 	mux := http.NewServeMux()
 	mux.Handle("/", authProxyHandler)
 
-	s.Server = &http.Server{Handler: mux, Addr: fmt.Sprintf("%s:%d", s.BindAddr, s.Port)}
+	s.Server = &http.Server{
+		Handler: mux,
+		Addr:    fmt.Sprintf("%s:%d", s.BindAddr, s.Port),
+		TLSConfig: &tls.Config{
+			PreferServerCipherSuites: true,
+			CipherSuites:             safetls.SafeTlsSuites,
+		},
+	}
 
 	go func() {
 		err := s.Server.ListenAndServeTLS(s.TlsCert, s.TlsKey)

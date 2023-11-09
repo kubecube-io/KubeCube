@@ -18,6 +18,7 @@ package apiserver
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"time"
@@ -36,6 +37,7 @@ import (
 	"github.com/kubecube-io/kubecube/pkg/clog"
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	_ "github.com/kubecube-io/kubecube/pkg/utils/errcode"
+	"github.com/kubecube-io/kubecube/pkg/utils/safetls"
 
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -131,6 +133,10 @@ func NewAPIServerWithOpts(opts *Config) *APIServer {
 
 	if opts.SecurePort != 0 {
 		s.Server.Addr = fmt.Sprintf("%s:%d", s.Config.BindAddr, s.Config.SecurePort)
+		s.Server.TLSConfig = &tls.Config{
+			PreferServerCipherSuites: true,
+			CipherSuites:             safetls.SafeTlsSuites,
+		}
 	}
 
 	return withSimpleServer(s)
