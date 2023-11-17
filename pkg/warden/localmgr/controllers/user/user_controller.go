@@ -272,6 +272,10 @@ func (r *UserReconciler) generateClusterRoleBinding(ctx context.Context, user st
 
 // refreshNsBinding refresh the RoleBinding of tenant or project under current cluster.
 func (r *UserReconciler) refreshNsBinding(ctx context.Context, user string, binding userv1.ScopeBinding) error {
+	owner, err := r.getRoleBindOwner(ctx, binding)
+	if err != nil {
+		return err
+	}
 	namespaces, err := r.toFindNamespacesByScopeBinding(ctx, binding)
 	if err != nil {
 		return err
@@ -312,7 +316,13 @@ func (r *UserReconciler) refreshNsBinding(ctx context.Context, user string, bind
 				},
 			},
 		}
-		errs = append(errs, ignoreAlreadyExistErr(r.Create(ctx, b)))
+		_, err = controllerutil.CreateOrUpdate(ctx, r.Client, b, func() error {
+			b.OwnerReferences = []metav1.OwnerReference{*owner}
+			return nil
+		})
+		if err != nil {
+			errs = append(errs, err)
+		}
 	}
 	if len(errs) > 0 {
 		// any error occurs when refreshing bindings will do retry
@@ -324,6 +334,10 @@ func (r *UserReconciler) refreshNsBinding(ctx context.Context, user string, bind
 
 // refreshPlatformBinding refresh the ClusterRoleBinding under current cluster.
 func (r *UserReconciler) refreshPlatformBinding(ctx context.Context, user string, binding userv1.ScopeBinding) error {
+	owner, err := r.getRoleBindOwner(ctx, binding)
+	if err != nil {
+		return err
+	}
 	b := &v1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: hash.GenerateBindingName(user, binding.Role, ""),
@@ -332,6 +346,7 @@ func (r *UserReconciler) refreshPlatformBinding(ctx context.Context, user string
 				constants.LabelRelationship: user,
 				constants.PlatformLabel:     constants.ClusterRolePlatform,
 			},
+			OwnerReferences: []metav1.OwnerReference{*owner},
 			// we do not need warden sync here, every warden should process user event in self cluster
 		},
 		RoleRef: v1.RoleRef{
@@ -348,7 +363,27 @@ func (r *UserReconciler) refreshPlatformBinding(ctx context.Context, user string
 		},
 	}
 
-	return ignoreAlreadyExistErr(r.Create(ctx, b))
+	_, err = controllerutil.CreateOrUpdate(ctx, r.Client, b, func() error {
+		b.OwnerReferences = []metav1.OwnerReference{*owner}
+		return nil
+	})
+	return err
+}
+
+func (r *UserReconciler) getRoleBindOwner(ctx context.Context, binding userv1.ScopeBinding) (*metav1.OwnerReference, error) {
+	clusterRole := &v1.ClusterRole{}
+	err := r.Get(ctx, types.NamespacedName{Name: binding.Role}, clusterRole)
+	if err != nil {
+		return nil, err
+	}
+	b := true
+	return &metav1.OwnerReference{
+		APIVersion:         "rbac.authorization.k8s.io/v1",
+		Kind:               "ClusterRole",
+		Name:               binding.Role,
+		UID:                clusterRole.UID,
+		BlockOwnerDeletion: &b,
+	}, nil
 }
 
 // bindingsGc clean up RoleBindings or ClusterRoleBindings which are under scope bindings.
