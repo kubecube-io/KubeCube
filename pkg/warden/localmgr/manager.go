@@ -99,7 +99,7 @@ func (m *LocalManager) Initialize() error {
 	}
 	m.ServiceReconciler = r
 
-	err = setupControllersWithManager(m)
+	err = setupControllersWithManager(m, m.EnableControllers)
 	if err != nil {
 		return err
 	}
