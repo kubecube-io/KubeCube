@@ -60,6 +60,7 @@ type LocalManager struct {
 	IsMemberCluster   bool
 	Cluster           string
 	PivotClient       multiclient.Client
+	EnableControllers string
 
 	NginxNamespace           string
 	NginxTcpServiceConfigMap string

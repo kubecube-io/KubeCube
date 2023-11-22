@@ -18,6 +18,8 @@ package controllers
 
 import (
 	"errors"
+	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/options"
+
 	"k8s.io/apimachinery/pkg/api/meta"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
@@ -26,25 +28,27 @@ import (
 	cluster "github.com/kubecube-io/kubecube/pkg/ctrlmgr/controllers/cluster"
 	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/controllers/quota"
 	user "github.com/kubecube-io/kubecube/pkg/ctrlmgr/controllers/user"
+	"github.com/kubecube-io/kubecube/pkg/utils/ctrlopts"
 )
 
-// todo: change set func if need
-
-var setupFns []func(manager manager.Manager) error
+var setupFns = make(ctrlopts.ControllerInitFns)
 
 func init() {
 	// setup controllers
-	setupFns = append(setupFns, cluster.SetupWithManager)
-	setupFns = append(setupFns, user.SetupWithManager)
-	setupFns = append(setupFns, quota.SetupWithManager)
-	setupFns = append(setupFns, binding.SetupClusterRoleBindingReconcilerWithManager)
-	setupFns = append(setupFns, binding.SetupRoleBindingReconcilerWithManager)
+	setupFns["cluster"] = cluster.SetupWithManager
+	setupFns["user"] = user.SetupWithManager
+	setupFns["cuberesourcequota"] = quota.SetupWithManager
+	setupFns["clusterrolebinding"] = binding.SetupClusterRoleBindingReconcilerWithManager
+	setupFns["rolebinding"] = binding.SetupRoleBindingReconcilerWithManager
 }
 
 // SetupWithManager set up controllers into manager
-func SetupWithManager(m manager.Manager) error {
-	for _, f := range setupFns {
-		if err := f(m); err != nil {
+func SetupWithManager(m manager.Manager, controllers string, opts *options.Options) error {
+	for name, f := range setupFns {
+		if !ctrlopts.IsControllerEnabled(name, ctrlopts.ParseControllers(controllers)) {
+			continue
+		}
+		if err := f(m, opts); err != nil {
 			var kindMatchErr *meta.NoKindMatchError
 			if errors.As(err, &kindMatchErr) {
 				clog.Warn("CRD %v is not installed, its controller will dry run!", kindMatchErr.GroupKind)
