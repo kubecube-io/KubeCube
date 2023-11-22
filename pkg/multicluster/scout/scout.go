@@ -105,6 +105,8 @@ func (s *Scout) ClusterHealth() v1.ClusterState {
 
 // Collect will scout a specified warden of cluster
 func (s *Scout) Collect(ctx context.Context) {
+	clog.Info("watch heartbeat for cluster %v, initial delay: %v, wait timeout: %v", s.Cluster, s.InitialDelaySeconds, s.WaitTimeoutSeconds)
+
 	ticker := time.NewTicker(time.Duration(s.WaitTimeoutSeconds) * time.Second)
 	defer ticker.Stop()
 	for {
@@ -163,6 +165,10 @@ func (s *Scout) illWarden(ctx context.Context) {
 		return
 	}
 
+	if cluster.Status.LastHeartbeat != nil {
+		s.LastHeartbeat = cluster.Status.LastHeartbeat.Time
+	}
+
 	if !isDisconnected(cluster, s.WaitTimeoutSeconds) {
 		// going here means cluster heartbeat is normal
 
@@ -170,7 +176,6 @@ func (s *Scout) illWarden(ctx context.Context) {
 			clog.Info("cluster %v connected", cluster.Name)
 		}
 
-		s.LastHeartbeat = cluster.Status.LastHeartbeat.Time
 		s.clusterState = v1.ClusterNormal
 		return
 	}
@@ -182,10 +187,9 @@ func (s *Scout) illWarden(ctx context.Context) {
 			state := v1.ClusterAbnormal
 			obj.Status.State = &state
 			obj.Status.Reason = reason
-			obj.Status.LastHeartbeat = &metav1.Time{Time: s.LastHeartbeat}
 		}
 
-		clog.Warn("%v, last heartbeat: %v", reason, s.LastHeartbeat)
+		clog.Warn("%v, last heartbeat: %v", reason, cluster.Status.LastHeartbeat.Time)
 
 		err := utils.UpdateClusterStatus(ctx, s.client, cluster, updateFn)
 		if err != nil {

@@ -334,18 +334,24 @@ func (m *MultiClustersMgr) FuzzyCopy() map[string]*FuzzyCluster {
 }
 
 // AddInternalClusterWithScout build internal cluster of cluster and add it
-// to multi cluster manager with scout
+// to multi cluster manager with scout by default opts.
 func AddInternalClusterWithScout(cluster clusterv1.Cluster) error {
-	return addInternalCluster(cluster, true)
+	return addInternalCluster(cluster, true, 0, 0)
+}
+
+// AddInternalClusterWithScoutOpts build internal cluster of cluster and add it
+// to multi cluster manager with scout opts.
+func AddInternalClusterWithScoutOpts(cluster clusterv1.Cluster, scoutInitialDelaySeconds, scoutWaitTimeoutSeconds int) error {
+	return addInternalCluster(cluster, true, scoutInitialDelaySeconds, scoutWaitTimeoutSeconds)
 }
 
 // AddInternalCluster build internal cluster of cluster and add it
-// to multi cluster manager without scout
+// to multi cluster manager without scout.
 func AddInternalCluster(cluster clusterv1.Cluster) error {
-	return addInternalCluster(cluster, false)
+	return addInternalCluster(cluster, false, 0, 0)
 }
 
-func addInternalCluster(cluster clusterv1.Cluster, withScout bool) error {
+func addInternalCluster(cluster clusterv1.Cluster, withScout bool, scoutInitialDelaySeconds, scoutWaitTimeoutSeconds int) error {
 	_, err := ManagerImpl.Get(cluster.Name)
 	if err == nil {
 		// return Immediately if active internal cluster exist
@@ -362,7 +368,7 @@ func addInternalCluster(cluster clusterv1.Cluster, withScout bool) error {
 		if err != nil {
 			return err
 		}
-		c.Scout = scout.NewScout(cluster.Name, 0, 0, localCluster.Client.Direct(), c.StopCh)
+		c.Scout = scout.NewScout(cluster.Name, scoutInitialDelaySeconds, scoutWaitTimeoutSeconds, localCluster.Client.Direct(), c.StopCh)
 	}
 
 	err = ManagerImpl.Add(cluster.Name, c)

@@ -81,6 +81,7 @@ func NewWardenWithOpts(opts *Config) *Warden {
 		NginxNamespace:           opts.NginxNamespace,
 		NginxTcpServiceConfigMap: opts.NginxTcpServiceConfigMap,
 		NginxUdpServiceConfigMap: opts.NginxUdpServiceConfigMap,
+		EnableControllers:        opts.EnableControllers,
 	}
 
 	utils.Cluster = opts.Cluster
