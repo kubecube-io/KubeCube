@@ -902,7 +902,7 @@
 
 ## BugFix
 
-- `KubeCube:`fix the bug that use old script to add memeber cluster
+- `KubeCube:`fix the bug that use old script to add member cluster
 - `KubeCube:`fix delete cluster failed
 
 ## Dependencies
