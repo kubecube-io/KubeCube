@@ -91,7 +91,7 @@ type UserStatus struct {
 
 	// BelongProjectInfos indicates the user belongs to those projects.
 	// +optional
-	BelongProjectInfos []ProjectInfo `json:"BelongProjectInfos,omitempty"`
+	BelongProjectInfos []ProjectInfo `json:"belongProjectInfos,omitempty"`
 
 	// PlatformAdmin indicates the user is platform admin or not.
 	// +optional

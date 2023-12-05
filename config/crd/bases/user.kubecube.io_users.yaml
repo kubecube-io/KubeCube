@@ -89,7 +89,7 @@ spec:
           status:
             description: UserStatus defines the observed state of User
             properties:
-              BelongProjectInfos:
+              belongProjectInfos:
                 description: BelongProjectInfos indicates the user belongs to those
                   projects.
                 items:
