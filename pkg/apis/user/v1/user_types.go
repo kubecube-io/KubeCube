@@ -130,3 +130,14 @@ type UserList struct {
 func init() {
 	SchemeBuilder.Register(&User{}, &UserList{})
 }
+
+func (u *User) IsUserPlatformScope() bool {
+	platformScope := false
+	for _, scope := range u.Spec.ScopeBindings {
+		if scope.ScopeType == PlatformScope {
+			platformScope = true
+			break
+		}
+	}
+	return platformScope
+}
