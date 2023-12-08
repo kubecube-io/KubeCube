@@ -19,11 +19,9 @@ package transition
 import (
 	"context"
 	"fmt"
-	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
-	"github.com/kubecube-io/kubecube/pkg/clog"
+	"sort"
+	"strings"
 
-	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
-	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 	v1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,6 +29,11 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	tenantv1 "github.com/kubecube-io/kubecube/pkg/apis/tenant/v1"
+	userv1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
+	"github.com/kubecube-io/kubecube/pkg/clog"
+	"github.com/kubecube-io/kubecube/pkg/utils/constants"
 )
 
 func SubNs2Ns(subNs *SubnamespaceAnchor) *v1.Namespace {
@@ -204,7 +207,14 @@ func addUserToProject(user *userv1.User, project string, tenant string) {
 		Project: project,
 		Tenant:  tenant,
 	})
-	user.Status.BelongProjectInfos = projectSet.UnsortedList()
+	list := projectSet.UnsortedList()
+	sort.Slice(list, func(i, j int) bool {
+		if list[i].Tenant != list[j].Tenant {
+			return strings.Compare(list[i].Tenant, list[j].Tenant) < 0
+		}
+		return strings.Compare(list[i].Project, list[j].Project) < 0
+	})
+	user.Status.BelongProjectInfos = list
 	clog.Info("ensure user %v belongs to project %v", user.Name, project)
 }
 
