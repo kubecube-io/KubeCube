@@ -597,7 +597,6 @@ func getUserProjects(user *user.User, projectList *tenantv1.ProjectList, tenantA
 		projectSet.Insert(p.Project)
 	}
 	tenantSet := sets.NewString(user.Status.BelongTenants...)
-	isUserPlatform := user.IsUserPlatformScope()
 
 	for _, p := range projectList.Items {
 		t, ok := p.Labels[constants.TenantLabel]
@@ -608,7 +607,7 @@ func getUserProjects(user *user.User, projectList *tenantv1.ProjectList, tenantA
 		// 1. user is platform admin
 		// 2. user's belong projects had this queried project
 		// 3. user's belong tenants had this queried tenant
-		if !isUserPlatform && !user.Status.PlatformAdmin && !projectSet.Has(p.Name) && !tenantSet.Has(t) {
+		if !user.Status.PlatformAdmin && !projectSet.Has(p.Name) && !tenantSet.Has(t) {
 			continue
 		}
 

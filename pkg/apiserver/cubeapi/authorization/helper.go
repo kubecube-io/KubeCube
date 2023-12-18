@@ -272,7 +272,7 @@ func GetVisibleTenants(ctx context.Context, cli mgrclient.Client, username strin
 		return nil, err
 	}
 
-	if user.Status.PlatformAdmin || user.IsUserPlatformScope() {
+	if user.Status.PlatformAdmin {
 		return tenants.Items, nil
 	}
 

@@ -18,13 +18,15 @@ package controllers
 
 import (
 	"errors"
+	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/controllers/binding"
+
 	"k8s.io/apimachinery/pkg/api/meta"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/kubecube-io/kubecube/pkg/clog"
-	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/controllers/binding"
 	cluster "github.com/kubecube-io/kubecube/pkg/ctrlmgr/controllers/cluster"
 	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/controllers/quota"
+	user "github.com/kubecube-io/kubecube/pkg/ctrlmgr/controllers/user"
 	"github.com/kubecube-io/kubecube/pkg/ctrlmgr/options"
 	"github.com/kubecube-io/kubecube/pkg/utils/ctrlopts"
 )
@@ -34,6 +36,7 @@ var setupFns = make(ctrlopts.ControllerInitFns)
 func init() {
 	// setup controllers
 	setupFns["cluster"] = cluster.SetupWithManager
+	setupFns["user"] = user.SetupWithManager
 	setupFns["cuberesourcequota"] = quota.SetupWithManager
 	setupFns["clusterrolebinding"] = binding.SetupClusterRoleBindingReconcilerWithManager
 	setupFns["rolebinding"] = binding.SetupRoleBindingReconcilerWithManager
