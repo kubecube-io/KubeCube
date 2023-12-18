@@ -1,3 +1,22 @@
+# v1.9.1
+
+## BugFix
+- fix user scope  [#360](https://github.com/kubecube-io/KubeCube/pull/360)
+- fix test user  [#358](https://github.com/kubecube-io/KubeCube/pull/358)
+
+## Dependencies
+
+- nginx-ingress v0.46.0
+- helm 3.12
+- metrics-server v0.4.1
+- elasticsearch 7.8
+- kubecube-monitoring 15.4.8
+- thanos 3.18.0
+- logseer v1.0.0
+- logagent v1.0.0
+- kubecube-audit v1.2.0
+- kubecube-webconsole v1.2.4
+
 # v1.9.0
 
 ## Feature
