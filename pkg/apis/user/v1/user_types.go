@@ -91,7 +91,7 @@ type UserStatus struct {
 
 	// BelongProjectInfos indicates the user belongs to those projects.
 	// +optional
-	BelongProjectInfos []ProjectInfo `json:"BelongProjectInfos,omitempty"`
+	BelongProjectInfos []ProjectInfo `json:"belongProjectInfos,omitempty"`
 
 	// PlatformAdmin indicates the user is platform admin or not.
 	// +optional
@@ -129,4 +129,15 @@ type UserList struct {
 
 func init() {
 	SchemeBuilder.Register(&User{}, &UserList{})
+}
+
+func (u *User) IsUserPlatformScope() bool {
+	platformScope := false
+	for _, scope := range u.Spec.ScopeBindings {
+		if scope.ScopeType == PlatformScope {
+			platformScope = true
+			break
+		}
+	}
+	return platformScope
 }
