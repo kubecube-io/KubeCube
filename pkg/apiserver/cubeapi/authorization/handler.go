@@ -945,6 +945,10 @@ func (h *handler) getScopeMembers(c *gin.Context) {
 		}
 	}
 
+	sort.SliceStable(matchedUsers, func(i, j int) bool {
+		return matchedUsers[i].Name < matchedUsers[j].Name
+	})
+
 	r := result{
 		Total: len(matchedUsers),
 		Items: matchedUsers,
