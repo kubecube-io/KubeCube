@@ -68,6 +68,7 @@ func (h *handler) AddApisTo(root *gin.Engine) {
 	r.POST("authitems", h.setAuthItems)
 	r.POST("authitems/permissions", h.getPermissions)
 	r.GET("deamonsets/level", h.getDaemonSetsLevel)
+	r.GET("members", h.getScopeMembers)
 }
 
 type result struct {
@@ -913,4 +914,41 @@ func (h *handler) resourcesGate(c *gin.Context) {
 	}
 
 	response.SuccessReturn(c, result)
+}
+
+func (h *handler) getScopeMembers(c *gin.Context) {
+	scopeType := c.Query("scopetype")
+	scopeName := c.Query("scopename")
+	role := c.Query("role")
+
+	userList := user.UserList{}
+	err := h.Cache().List(c.Request.Context(), &userList)
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.BadRequest(err))
+		return
+	}
+
+	matchedUsers := []user.User{}
+	for _, u := range userList.Items {
+		for _, binding := range u.Spec.ScopeBindings {
+			if binding.ScopeType != user.BindingScopeType(scopeType) {
+				continue
+			}
+			if role != "" && binding.Role != role {
+				continue
+			}
+			if binding.ScopeName != scopeName {
+				continue
+			}
+			matchedUsers = append(matchedUsers, u)
+		}
+	}
+
+	r := result{
+		Total: len(matchedUsers),
+		Items: matchedUsers,
+	}
+
+	response.SuccessReturn(c, r)
 }
