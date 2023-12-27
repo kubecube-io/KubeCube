@@ -924,6 +924,8 @@ func (h *handler) delScopeMembers(c *gin.Context) {
 	username := c.Query("user")
 	ctx := c.Request.Context()
 
+	clog.Info("[DEBUG] request params: scopetype: %v, scopename: %v, user: %v", scopeType, scopeName, username)
+
 	// remove user scope binding
 	u := &user.User{}
 	err := h.Cache().Get(ctx, types.NamespacedName{Name: username}, u)
@@ -937,8 +939,11 @@ func (h *handler) delScopeMembers(c *gin.Context) {
 		return
 	}
 
+	clog.Info("[DEBUG] user binding: %v", u.Spec.ScopeBindings)
+
 	newScopeBindings := []user.ScopeBinding{}
 	for _, binding := range u.Spec.ScopeBindings {
+		clog.Info("[DEBUG]range binding: %v, %v", binding.ScopeName, binding.ScopeType)
 		if binding.ScopeName == scopeName && string(binding.ScopeType) == scopeType {
 			clog.Info("remove ScopeBinding for user %v: type (%v), scope (%v), role (%v))", u.Name, scopeType, scopeName, binding.Role)
 			continue
