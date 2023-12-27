@@ -465,7 +465,7 @@ func (h *handler) getSubNamespaces(c *gin.Context) {
 			}
 
 			// only care about ns under project that the userName can see
-			if !transition.UserBelongsToTenant(user, tenant) && !transition.UserBelongsToProject(user, project) {
+			if !transition.UserBelongsToTenant(user, tenant) && !transition.UserBelongsToProject(user, project) && !user.IsUserPlatformScope() {
 				continue
 			}
 
