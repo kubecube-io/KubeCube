@@ -69,6 +69,7 @@ func (h *handler) AddApisTo(root *gin.Engine) {
 	r.POST("authitems/permissions", h.getPermissions)
 	r.GET("deamonsets/level", h.getDaemonSetsLevel)
 	r.GET("members", h.getScopeMembers)
+	r.DELETE("members", h.getScopeMembers)
 }
 
 type result struct {
@@ -719,6 +720,7 @@ func (h *handler) createBinds(c *gin.Context) {
 // @Success 200 {string} string "success"
 // @Failure 500 {object} errcode.ErrorInfo
 // @Router /api/v1/cube/authorization/bindings [delete]
+// deprecated: not used anymore
 func (h *handler) deleteBinds(c *gin.Context) {
 	cli := h.Client
 	ctx := c.Request.Context()
@@ -914,6 +916,45 @@ func (h *handler) resourcesGate(c *gin.Context) {
 	}
 
 	response.SuccessReturn(c, result)
+}
+
+func (h *handler) delScopeMembers(c *gin.Context) {
+	scopeType := c.Query("scopetype")
+	scopeName := c.Query("scopename")
+	username := c.Query("user")
+	ctx := c.Request.Context()
+
+	// remove user scope binding
+	u := &user.User{}
+	err := h.Cache().Get(ctx, types.NamespacedName{Name: username}, u)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			response.SuccessJsonReturn(c, "resource has been deleted")
+			return
+		}
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.BadRequest(err))
+		return
+	}
+
+	newScopeBindings := []user.ScopeBinding{}
+	for _, binding := range u.Spec.ScopeBindings {
+		if binding.ScopeName == scopeName && string(binding.ScopeType) == scopeType {
+			clog.Info("remove ScopeBinding for user %v: type (%v), scope (%v), role (%v))", u.Name, scopeType, scopeName, binding.Role)
+			continue
+		}
+		newScopeBindings = append(newScopeBindings, binding)
+	}
+	u.Spec.ScopeBindings = newScopeBindings
+
+	err = transition.UpdateUserSpec(ctx, h.Direct(), u)
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.BadRequest(err))
+		return
+	}
+
+	response.SuccessJsonReturn(c, "success")
 }
 
 func (h *handler) getScopeMembers(c *gin.Context) {
