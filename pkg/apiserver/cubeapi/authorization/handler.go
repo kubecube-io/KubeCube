@@ -69,7 +69,7 @@ func (h *handler) AddApisTo(root *gin.Engine) {
 	r.POST("authitems/permissions", h.getPermissions)
 	r.GET("deamonsets/level", h.getDaemonSetsLevel)
 	r.GET("members", h.getScopeMembers)
-	r.DELETE("members", h.getScopeMembers)
+	r.DELETE("members", h.delScopeMembers)
 }
 
 type result struct {
