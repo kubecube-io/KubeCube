@@ -19,13 +19,13 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"strings"
 
 	v1 "github.com/kubecube-io/kubecube/pkg/apis/user/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 func updateUserStatus(ctx context.Context, cli client.Client, user *v1.User) error {

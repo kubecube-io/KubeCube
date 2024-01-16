@@ -19,10 +19,10 @@ package binding
 import (
 	"context"
 	"fmt"
-	"github.com/kubecube-io/kubecube/pkg/utils/hash"
 	"strings"
 
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/hash"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
