@@ -115,5 +115,11 @@ func SortHandler(items []unstructured.Unstructured, param *SortParam) ([]unstruc
 			}
 		}
 	})
+
+	// add final sort here to avoid of random return if above conditions are same
+	sort.SliceStable(items, func(i, j int) bool {
+		iv, jv := items[i], items[j]
+		return (iv.GetName() + iv.GetNamespace()) < (jv.GetName() + jv.GetNamespace())
+	})
 	return items, nil
 }
