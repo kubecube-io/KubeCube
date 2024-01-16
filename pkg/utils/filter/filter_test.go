@@ -62,6 +62,8 @@ var _ = ginkgo.Describe("Filter", func() {
 			annotations["kubecube.test.io/app"] = "a-name" + strconv.Itoa(i)
 			l2.SetAnnotations(annotations)
 			list.Items = append(list.Items, l2)
+			// must sleep 1 second here to make create timestamp different
+			time.Sleep(1 * time.Second)
 		}
 	})
 
