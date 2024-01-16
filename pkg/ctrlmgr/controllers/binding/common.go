@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
+	"github.com/kubecube-io/kubecube/pkg/utils/hash"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
@@ -125,7 +126,7 @@ func setBindingUserLabel(labels map[string]string, user string) map[string]strin
 		labels = make(map[string]string)
 	}
 
-	labels[constants.LabelRelationship] = user
+	labels[constants.LabelRelationship] = hash.GenerateUserHash(user)
 
 	return labels
 }

@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 func updateUserStatus(ctx context.Context, cli client.Client, user *v1.User) error {
@@ -46,6 +47,15 @@ func updateUserStatus(ctx context.Context, cli client.Client, user *v1.User) err
 		}
 		return nil
 	})
+}
+
+func createObjOrUpdateObjLabels(ctx context.Context, cli client.Client, obj client.Object) error {
+	labels := obj.GetLabels()
+	_, err := controllerutil.CreateOrUpdate(ctx, cli, obj, func() error {
+		obj.SetLabels(labels)
+		return nil
+	})
+	return err
 }
 
 func updateUserStatusErrStr(user string, err error) string {
