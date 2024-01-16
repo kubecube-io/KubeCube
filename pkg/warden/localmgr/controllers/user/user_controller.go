@@ -137,7 +137,7 @@ func (r *UserReconciler) refreshStatus(ctx context.Context, user *userv1.User) e
 }
 
 func (r *UserReconciler) cleanOrphanBindings(ctx context.Context, user *userv1.User) error {
-	ls, err := labels.Parse(fmt.Sprintf("%v=%v", constants.LabelRelationship, user.Name))
+	ls, err := labels.Parse(fmt.Sprintf("%v=%v", constants.LabelRelationship, hash.GenerateUserHash(user.Name)))
 	if err != nil {
 		return err
 	}
@@ -243,7 +243,7 @@ func (r *UserReconciler) generateClusterRoleBinding(ctx context.Context, user st
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: map[string]string{
 				constants.RbacLabel:         constants.TrueStr,
-				constants.LabelRelationship: user,
+				constants.LabelRelationship: hash.GenerateUserHash(user),
 				constants.PlatformLabel:     constants.ClusterRolePlatform,
 			},
 		},
@@ -267,7 +267,7 @@ func (r *UserReconciler) generateClusterRoleBinding(ctx context.Context, user st
 
 	clusterRoleBinding.Name = "gen-" + hash.GenerateBindingName(user, clusterRoleBinding.RoleRef.Name, "")
 
-	return ignoreAlreadyExistErr(r.Create(ctx, clusterRoleBinding))
+	return createObjOrUpdateObjLabels(ctx, r.Client, clusterRoleBinding)
 }
 
 // refreshNsBinding refresh the RoleBinding of tenant or project under current cluster.
@@ -279,7 +279,7 @@ func (r *UserReconciler) refreshNsBinding(ctx context.Context, user string, bind
 
 	lb := map[string]string{
 		constants.RbacLabel:         constants.TrueStr,
-		constants.LabelRelationship: user,
+		constants.LabelRelationship: hash.GenerateUserHash(user),
 	}
 
 	if binding.ScopeType == userv1.TenantScope {
@@ -312,7 +312,7 @@ func (r *UserReconciler) refreshNsBinding(ctx context.Context, user string, bind
 				},
 			},
 		}
-		errs = append(errs, ignoreAlreadyExistErr(r.Create(ctx, b)))
+		errs = append(errs, createObjOrUpdateObjLabels(ctx, r.Client, b))
 	}
 	if len(errs) > 0 {
 		// any error occurs when refreshing bindings will do retry
@@ -329,7 +329,7 @@ func (r *UserReconciler) refreshPlatformBinding(ctx context.Context, user string
 			Name: hash.GenerateBindingName(user, binding.Role, ""),
 			Labels: map[string]string{
 				constants.RbacLabel:         constants.TrueStr,
-				constants.LabelRelationship: user,
+				constants.LabelRelationship: hash.GenerateUserHash(user),
 				constants.PlatformLabel:     constants.ClusterRolePlatform,
 			},
 			// we do not need warden sync here, every warden should process user event in self cluster
@@ -348,12 +348,12 @@ func (r *UserReconciler) refreshPlatformBinding(ctx context.Context, user string
 		},
 	}
 
-	return ignoreAlreadyExistErr(r.Create(ctx, b))
+	return createObjOrUpdateObjLabels(ctx, r.Client, b)
 }
 
 // bindingsGc clean up RoleBindings or ClusterRoleBindings which are under scope bindings.
 func (r *UserReconciler) bindingsGc(ctx context.Context, user string) error {
-	ls, err := labels.Parse(fmt.Sprintf("%v=%v", constants.LabelRelationship, user))
+	ls, err := labels.Parse(fmt.Sprintf("%v=%v", constants.LabelRelationship, hash.GenerateUserHash(user)))
 	if err != nil {
 		return err
 	}
@@ -460,13 +460,6 @@ func (r *UserReconciler) removeFinalizer(ctx context.Context, user *userv1.User)
 	}
 
 	return nil
-}
-
-func ignoreAlreadyExistErr(err error) error {
-	if errors.IsAlreadyExists(err) {
-		return nil
-	}
-	return err
 }
 
 // SetupWithManager sets up the controller with the Manager.

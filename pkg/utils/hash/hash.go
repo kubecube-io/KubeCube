@@ -46,3 +46,11 @@ func GenerateBindingName(user, role, namespace string) string {
 	DeepHashObject(hasher, bindingName)
 	return fmt.Sprintf("%s-%s", user, rand.SafeEncodeString(fmt.Sprint(hasher.Sum32())))
 }
+
+// GenerateUserHash generates fixed length hash for hexed user to
+// prevent hexed username as label over length.
+func GenerateUserHash(user string) string {
+	hasher := fnv.New32a()
+	DeepHashObject(hasher, user)
+	return rand.SafeEncodeString(fmt.Sprint(hasher.Sum32()))
+}

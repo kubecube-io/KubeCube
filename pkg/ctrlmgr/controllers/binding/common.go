@@ -19,6 +19,7 @@ package binding
 import (
 	"context"
 	"fmt"
+	"github.com/kubecube-io/kubecube/pkg/utils/hash"
 	"strings"
 
 	"github.com/kubecube-io/kubecube/pkg/utils/constants"
@@ -125,7 +126,7 @@ func setBindingUserLabel(labels map[string]string, user string) map[string]strin
 		labels = make(map[string]string)
 	}
 
-	labels[constants.LabelRelationship] = user
+	labels[constants.LabelRelationship] = hash.GenerateUserHash(user)
 
 	return labels
 }
