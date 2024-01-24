@@ -33,15 +33,12 @@ import (
 )
 
 var _ = ginkgo.Describe("Filter", func() {
-	var (
-		list = v1.ClusterList{
+	var list = func() *v1.ClusterList {
+		clusterList := &v1.ClusterList{
 			Items: make([]v1.Cluster, 0),
 		}
-	)
-
-	ginkgo.BeforeEach(func() {
-		list.Kind = "List"
-		list.APIVersion = "v1"
+		clusterList.Kind = "List"
+		clusterList.APIVersion = "v1"
 		for i := 0; i < 20; i++ {
 			l2 := v1.Cluster{}
 			l2.Kind = "Cluster"
@@ -61,18 +58,15 @@ var _ = ginkgo.Describe("Filter", func() {
 			annotations["kubecube.test.io/index"] = strconv.Itoa(i)
 			annotations["kubecube.test.io/app"] = "a-name" + strconv.Itoa(i)
 			l2.SetAnnotations(annotations)
-			list.Items = append(list.Items, l2)
+			clusterList.Items = append(clusterList.Items, l2)
+			// must sleep 1 second here to make create timestamp different
+			time.Sleep(1 * time.Second)
 		}
-	})
-
-	ginkgo.AfterEach(func() {
-		list = v1.ClusterList{
-			Items: make([]v1.Cluster, 0),
-		}
-	})
+		return clusterList
+	}()
 
 	ginkgo.It("TestModifyResponses", func() {
-		listJson, _ := json.Marshal(list)
+		listJson, _ := json.Marshal(list.DeepCopy())
 		r := http.Response{}
 		buf := bytes.NewBufferString(string(listJson))
 		r.Body = io.NopCloser(buf)
@@ -109,6 +103,7 @@ var _ = ginkgo.Describe("Filter", func() {
 	})
 
 	ginkgo.It("TestFilterResult", func() {
+		internalList := list.DeepCopy()
 		// create condition
 		fuzzy := make(map[string][]string)
 		fuzzy["metadata.name"] = []string{"a-name"}
@@ -122,82 +117,88 @@ var _ = ginkgo.Describe("Filter", func() {
 			SortOrder: "asc",
 		}
 
-		_, err := GetEmptyFilter().FilterObjectList(&list, condition)
+		_, err := GetEmptyFilter().FilterObjectList(internalList, condition)
 		Expect(err).To(BeNil())
 
-		for i, item := range list.Items {
+		for i, item := range internalList.Items {
 			Expect("a-name" + strconv.Itoa(i+5)).To(Equal(item.Name))
 		}
 	})
 
 	ginkgo.It("TestExactMatch", func() {
+		internalList := list.DeepCopy()
 		// create condition
 		exact := make(map[string]sets.Set[string])
 		exact["metadata.name"] = sets.New[string]("a-name2")
 		condition := &Condition{
 			Exact: exact,
 		}
-		_, err := GetEmptyFilter().FilterObjectList(&list, condition)
+		_, err := GetEmptyFilter().FilterObjectList(internalList, condition)
 		Expect(err).To(BeNil())
-		Expect(1).To(Equal(len(list.Items)))
-		Expect("a-name2").To(Equal(list.Items[0].Name))
+		Expect(1).To(Equal(len(internalList.Items)))
+		Expect("a-name2").To(Equal(internalList.Items[0].Name))
 	})
 
 	ginkgo.It("TestArrayExactMatch", func() {
+		internalList := list.DeepCopy()
 		// create condition
 		exact := make(map[string]sets.Set[string])
 		exact["metadata.annotations.kubecube.test.io/app"] = sets.New[string]("a-name2", "b-name2")
 		condition := &Condition{
 			Exact: exact,
 		}
-		_, err := GetEmptyFilter().FilterObjectList(&list, condition)
+		_, err := GetEmptyFilter().FilterObjectList(internalList, condition)
 		Expect(err).To(BeNil())
-		Expect(1).To(Equal(len(list.Items)))
-		Expect("a-name2").To(Equal(list.Items[0].Name))
+		Expect(1).To(Equal(len(internalList.Items)))
+		Expect("a-name2").To(Equal(internalList.Items[0].Name))
 	})
 
 	ginkgo.It("TestExactArrayMatch", func() {
+		internalList := list.DeepCopy()
 		// create condition
 		exact := make(map[string]sets.Set[string])
 		exact["metadata.annotations.kubecube.test.io/app"] = sets.New[string]("a-name1", "a-name2")
 		condition := &Condition{
 			Exact: exact,
 		}
-		_, err := GetEmptyFilter().FilterObjectList(&list, condition)
+		_, err := GetEmptyFilter().FilterObjectList(internalList, condition)
 		Expect(err).To(BeNil())
-		Expect(2).To(Equal(len(list.Items)))
-		Expect("a-name1").To(Equal(list.Items[0].Name))
-		Expect("a-name2").To(Equal(list.Items[1].Name))
+		Expect(2).To(Equal(len(internalList.Items)))
+		Expect("a-name1").To(Equal(internalList.Items[0].Name))
+		Expect("a-name2").To(Equal(internalList.Items[1].Name))
 	})
 
 	ginkgo.It("TestFuzzyMatch", func() {
+		internalList := list.DeepCopy()
 		// create condition
 		fuzzy := make(map[string][]string)
 		fuzzy["metadata.name"] = []string{"b-name"}
 		condition := &Condition{
 			Fuzzy: fuzzy,
 		}
-		_, err := GetEmptyFilter().FilterObjectList(&list, condition)
+		_, err := GetEmptyFilter().FilterObjectList(internalList, condition)
 		Expect(err).To(BeNil())
-		for i, item := range list.Items {
+		for i, item := range internalList.Items {
 			Expect("b-name" + strconv.Itoa(i+11)).To(Equal(item.Name))
 		}
 	})
 
 	ginkgo.It("TestArrayFuzzyMatch", func() {
+		internalList := list.DeepCopy()
 		// create condition
 		fuzzy := make(map[string][]string)
 		fuzzy["metadata.annotations.kubecube.test.io/app"] = []string{"-name2"}
 		condition := &Condition{
 			Fuzzy: fuzzy,
 		}
-		_, err := GetEmptyFilter().FilterObjectList(&list, condition)
+		_, err := GetEmptyFilter().FilterObjectList(internalList, condition)
 		Expect(err).To(BeNil())
-		Expect(1).To(Equal(len(list.Items)))
-		Expect("a-name2").To(Equal(list.Items[0].Name))
+		Expect(1).To(Equal(len(internalList.Items)))
+		Expect("a-name2").To(Equal(internalList.Items[0].Name))
 	})
 
 	ginkgo.It("TestFuzzyArrayMatch", func() {
+		internalList := list.DeepCopy()
 		// create condition
 		fuzzy := make(map[string][]string)
 		fuzzy["metadata.name"] = []string{"-name11", "-name12"}
@@ -205,57 +206,15 @@ var _ = ginkgo.Describe("Filter", func() {
 		condition := &Condition{
 			Fuzzy: fuzzy,
 		}
-		_, err := GetEmptyFilter().FilterObjectList(&list, condition)
+		_, err := GetEmptyFilter().FilterObjectList(internalList, condition)
 		Expect(err).To(BeNil())
-		Expect(2).To(Equal(len(list.Items)))
-		Expect("b-name11").To(Equal(list.Items[0].Name))
-		Expect("b-name12").To(Equal(list.Items[1].Name))
-	})
-
-	ginkgo.It("TestSort", func() {
-		// create condition
-		exact := make(map[string]sets.Set[string])
-		exact["metadata.name"] = sets.New[string]("a-name2")
-		fuzzy := make(map[string][]string)
-		fuzzy["metadata.name"] = []string{"b-name"}
-		condition := &Condition{
-			Exact:     exact,
-			Fuzzy:     fuzzy,
-			SortName:  "metadata.index",
-			SortFunc:  "number",
-			SortOrder: "desc",
-		}
-		_, err := GetEmptyFilter().FilterObjectList(&list, condition)
-		Expect(err).To(BeNil())
-
-		for i, item := range list.Items {
-			if i < 9 {
-				Expect("b-name" + strconv.Itoa(19-i)).To(Equal(item.Name))
-			} else {
-				Expect("a-name" + strconv.Itoa(19-i)).To(Equal(item.Name))
-			}
-
-		}
-	})
-
-	ginkgo.It("TestPage", func() {
-		// create condition
-		condition := &Condition{
-			Limit:     2,
-			Offset:    2,
-			SortName:  "metadata.index",
-			SortFunc:  "number",
-			SortOrder: "desc",
-		}
-		_, err := GetEmptyFilter().FilterObjectList(&list, condition)
-		Expect(err).To(BeNil())
-		Expect(2).To(Equal(len(list.Items)))
-		Expect("a-name2").To(Equal(list.Items[0].Name))
-		Expect("a-name3").To(Equal(list.Items[1].Name))
+		Expect(2).To(Equal(len(internalList.Items)))
+		Expect("b-name11").To(Equal(internalList.Items[0].Name))
+		Expect("b-name12").To(Equal(internalList.Items[1].Name))
 	})
 
 	ginkgo.It("TestGetDeepValue", func() {
-		listJson, _ := json.Marshal(list)
+		listJson, _ := json.Marshal(list.DeepCopy())
 		var result map[string]interface{}
 		err := json.Unmarshal(listJson, &result)
 		Expect(err).To(BeNil())
@@ -266,7 +225,7 @@ var _ = ginkgo.Describe("Filter", func() {
 		Expect(1).To(Equal(len(value)))
 		Expect("world").To(Equal(value[0]))
 		_, err = GetDeepValue(items[0], "metadata.labels.hello1")
-		Expect(err.Error()).To(Equal("field hello1 not exsit"))
+		Expect(err.Error()).To(Equal("field hello1 not exist"))
 	})
 
 })

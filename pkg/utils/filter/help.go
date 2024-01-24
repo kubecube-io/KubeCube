@@ -32,7 +32,7 @@ type PageBean struct {
 }
 
 func fieldNotExistErr(field interface{}) error {
-	return fmt.Errorf("field %v not exsit", field)
+	return fmt.Errorf("field %v not exist", field)
 }
 
 // GetDeepValue get value by metadata.xx.xx.xx, multi level key

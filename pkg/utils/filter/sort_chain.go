@@ -39,7 +39,12 @@ func SortHandler(items []unstructured.Unstructured, param *SortParam) ([]unstruc
 	if len(param.sortFunc) == 0 || len(param.sortName) == 0 {
 		return items, nil
 	}
-	sort.Slice(items, func(i, j int) bool {
+	// add prev sort here to avoid of random return if bellow conditions are same
+	sort.SliceStable(items, func(i, j int) bool {
+		iv, jv := items[i], items[j]
+		return (iv.GetName() + iv.GetNamespace()) < (jv.GetName() + jv.GetNamespace())
+	})
+	sort.SliceStable(items, func(i, j int) bool {
 		getStringFunc := func(items []unstructured.Unstructured, i int, j int) (string, string, error) {
 			si, err := GetDeepValue(items[i], param.sortName)
 			if err != nil {
@@ -115,5 +120,6 @@ func SortHandler(items []unstructured.Unstructured, param *SortParam) ([]unstruc
 			}
 		}
 	})
+
 	return items, nil
 }
