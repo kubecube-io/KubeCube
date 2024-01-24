@@ -74,25 +74,25 @@ func TransBinding(labels map[string]string, sub rbacv1.Subject, ref rbacv1.RoleR
 	project := labels[constants.ProjectLabel]
 	platform := labels[constants.PlatformLabel]
 
-	if len(tenant) > 0 {
+	switch {
+	case len(platform) > 0:
+		// only if platform label exist, it must be cluster binding
+		scopeType = constants.ClusterRolePlatform
+		scopeName = constants.ClusterRolePlatform
+		role = ref.Name
+		user = sub.Name
+		return
+	case len(tenant) > 0 && len(project) == 0 && len(platform) == 0:
+		// it is tenant binding when there is only tenant label
 		scopeType = constants.ClusterRoleTenant
 		scopeName = tenant
 		role = ref.Name
 		user = sub.Name
 		return
-	}
-
-	if len(project) > 0 {
+	case len(project) > 0 && len(platform) == 0:
+		// it is project binding when there is project label without platform label
 		scopeType = constants.ClusterRoleProject
 		scopeName = project
-		role = ref.Name
-		user = sub.Name
-		return
-	}
-
-	if len(platform) > 0 {
-		scopeType = constants.ClusterRolePlatform
-		scopeName = constants.ClusterRolePlatform
 		role = ref.Name
 		user = sub.Name
 		return

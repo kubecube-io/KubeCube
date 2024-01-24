@@ -68,6 +68,8 @@ func (h *handler) AddApisTo(root *gin.Engine) {
 	r.POST("authitems", h.setAuthItems)
 	r.POST("authitems/permissions", h.getPermissions)
 	r.GET("deamonsets/level", h.getDaemonSetsLevel)
+	r.GET("members", h.getScopeMembers)
+	r.DELETE("members", h.delScopeMembers)
 }
 
 type result struct {
@@ -718,6 +720,7 @@ func (h *handler) createBinds(c *gin.Context) {
 // @Success 200 {string} string "success"
 // @Failure 500 {object} errcode.ErrorInfo
 // @Router /api/v1/cube/authorization/bindings [delete]
+// deprecated: not used anymore
 func (h *handler) deleteBinds(c *gin.Context) {
 	cli := h.Client
 	ctx := c.Request.Context()
@@ -913,4 +916,89 @@ func (h *handler) resourcesGate(c *gin.Context) {
 	}
 
 	response.SuccessReturn(c, result)
+}
+
+func (h *handler) delScopeMembers(c *gin.Context) {
+	scopeType := c.Query("scopetype")
+	scopeName := c.Query("scopename")
+	username := c.Query("user")
+	ctx := c.Request.Context()
+
+	clog.Info("[DEBUG] request params: scopetype: %v, scopename: %v, user: %v", scopeType, scopeName, username)
+
+	// remove user scope binding
+	u := &user.User{}
+	err := h.Cache().Get(ctx, types.NamespacedName{Name: username}, u)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			response.SuccessJsonReturn(c, "resource has been deleted")
+			return
+		}
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.BadRequest(err))
+		return
+	}
+
+	clog.Info("[DEBUG] user binding: %v", u.Spec.ScopeBindings)
+
+	newScopeBindings := []user.ScopeBinding{}
+	for _, binding := range u.Spec.ScopeBindings {
+		clog.Info("[DEBUG]range binding: %v, %v", binding.ScopeName, binding.ScopeType)
+		if binding.ScopeName == scopeName && string(binding.ScopeType) == scopeType {
+			clog.Info("remove ScopeBinding for user %v: type (%v), scope (%v), role (%v))", u.Name, scopeType, scopeName, binding.Role)
+			continue
+		}
+		newScopeBindings = append(newScopeBindings, binding)
+	}
+	u.Spec.ScopeBindings = newScopeBindings
+
+	err = transition.UpdateUserSpec(ctx, h.Direct(), u)
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.BadRequest(err))
+		return
+	}
+
+	response.SuccessJsonReturn(c, "success")
+}
+
+func (h *handler) getScopeMembers(c *gin.Context) {
+	scopeType := c.Query("scopetype")
+	scopeName := c.Query("scopename")
+	role := c.Query("role")
+
+	userList := user.UserList{}
+	err := h.Cache().List(c.Request.Context(), &userList)
+	if err != nil {
+		clog.Error(err.Error())
+		response.FailReturn(c, errcode.BadRequest(err))
+		return
+	}
+
+	matchedUsers := []user.User{}
+	for _, u := range userList.Items {
+		for _, binding := range u.Spec.ScopeBindings {
+			if binding.ScopeType != user.BindingScopeType(scopeType) {
+				continue
+			}
+			if role != "" && binding.Role != role {
+				continue
+			}
+			if binding.ScopeName != scopeName {
+				continue
+			}
+			matchedUsers = append(matchedUsers, u)
+		}
+	}
+
+	sort.SliceStable(matchedUsers, func(i, j int) bool {
+		return matchedUsers[i].Name < matchedUsers[j].Name
+	})
+
+	r := result{
+		Total: len(matchedUsers),
+		Items: matchedUsers,
+	}
+
+	response.SuccessReturn(c, r)
 }
