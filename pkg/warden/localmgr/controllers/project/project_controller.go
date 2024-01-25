@@ -158,7 +158,8 @@ func (r *ProjectReconciler) deleteProject(projectName string) (ctrl.Result, erro
 }
 
 func (r *ProjectReconciler) deleteSubNSOfProject(projectName string) error {
-	lbSelector, err := labels.Parse(fmt.Sprintf("%v%v.tree.hnc.x-k8s.io/depth=1", constants.ProjectNsPrefix, projectName))
+	// this label will list sub ns under project both spawned ns of project
+	lbSelector, err := labels.Parse(fmt.Sprintf("%v=%v", constants.HncProjectLabel, projectName))
 	if err != nil {
 		return err
 	}
