@@ -4,6 +4,7 @@
 - add final sort for filter chain   [#366](https://github.com/kubecube-io/KubeCube/pull/366)
 - fix user name as label over length   [#365](https://github.com/kubecube-io/KubeCube/pull/365)
 - Fix add member [#364](https://github.com/kubecube-io/KubeCube/pull/364)
+- fix delete ns if create hnc ns [#368](https://github.com/kubecube-io/KubeCube/pull/368)
 
 ## Dependencies
 
